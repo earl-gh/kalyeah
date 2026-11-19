@@ -87,3 +87,14 @@ item says which kind of asset the owner makes.
 - **Lighting:** soft bounce light and corner shading baked into the map on every preset, plus one real-time sun for live
   shadows on the presets that have them (`docs/SPEC.md` §10: hard near the camera on Medium, soft on High and Ultra;
   Low keeps blob shadows).
+
+## Screen effects and presets
+- **Post effects** (High and Ultra, per `docs/SPEC.md` §10): soft bloom on effects only, a gentle colour grade per map
+  (warmer Hacienda, cooler Pier), and soft distance haze. No depth of field or motion blur.
+- **Water:** painted and stylised, see-through near the edges, with sparkles and a simple sky reflection; no real-time
+  mirror, so kids standing in it stay readable.
+- **Effect caps:** each effect has a cap (e.g. at most 20 stone puffs at once); extra ones replace the oldest, so busy
+  5v5 fights stay smooth.
+- **Low:** half the particles with the same shapes and sizes; no living-world motion (laundry and background people
+  stand still).
+- **Ultra:** extra ambient life (more background people, birds, dust in sun rays).
