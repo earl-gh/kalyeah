@@ -179,3 +179,14 @@ item says which kind of asset the owner makes.
 - **Texture size:** half size on Low (saves memory on old phones), full size on Medium, High and Ultra; shapes and colours
   identical.
 - **Edge smoothing:** none on Low, a light cheap smoother on Medium and High, 4× MSAA on Ultra.
+
+## Recognising kids
+- **Who is who at about 30 m:** each kid has a distinct silhouette and one signature colour or prop (e.g. Narda's skirt,
+  Paeng's sack) that every skin keeps.
+- **Enemy highlight:** thin up close and a little brighter at distance, so far enemies don't vanish into the street
+  (like Valorant).
+- **Far kids (beyond 40 m):** the simplest detail level keeps the true size and main colours, never shrinking or hiding,
+  so long shots stay fair.
+- **Colour-blind options:** the enemy highlight colour (red, yellow or purple); team colours can swap from blue/red to
+  blue/orange (rings, effects, bars); enemy skill edges are always dashed and ally edges solid, so colour is never the
+  only signal.
