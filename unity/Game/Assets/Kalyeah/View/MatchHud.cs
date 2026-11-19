@@ -91,10 +91,11 @@ namespace Kalyeah.Game
             bool leftHanded = SettingsStore.Current.LeftHanded;
             _appliedLeftHanded = leftHanded;
 
-            // 1. World-projected 10-kid overhead plates (enemy HP strictly hidden) + center crosshair + toggleable minimap (default OFF)
+            // 1. World-projected 10-kid overhead plates (enemy HP strictly hidden) + center crosshair + the top-left minimap (on by default,
+            //    docs/SPEC.md §8)
             OverheadBars = new OverheadBarsView(SafeRoot, Canvas);
             Crosshair = CrosshairView.Build(SafeRoot);
-            Minimap = new BarangayMinimapView(SafeRoot, null, Canvas, initialVisible: false);
+            Minimap = new BarangayMinimapView(SafeRoot, null, Canvas, initialVisible: true);
             Minimap.SetLeftHanded(leftHanded);
 
             // 2. Top-center Score & Clock header (236 px wide so it nests cleanly inside MatchOverlaysView's 256 px SquadWings center gap)
@@ -616,10 +617,10 @@ namespace Kalyeah.Game
             {
                 MapToggleButtonRect.anchorMin = MapToggleButtonRect.anchorMax = new Vector2(0f, 1f);
                 MapToggleButtonRect.pivot = new Vector2(0f, 1f);
-                float heroRight = HeroVitalsRect != null
-                    ? (Mathf.Abs(HeroVitalsRect.anchoredPosition.x) + HeroVitalsRect.sizeDelta.x)
+                float pauseRight = PauseButtonRect != null
+                    ? Mathf.Abs(PauseButtonRect.anchoredPosition.x) + PauseButtonRect.sizeDelta.x
                     : 226f;
-                MapToggleButtonRect.anchoredPosition = new Vector2(heroRight + 10f, -68f);
+                MapToggleButtonRect.anchoredPosition = new Vector2(pauseRight + 10f, -68f);
             }
             else
             {
@@ -643,11 +644,70 @@ namespace Kalyeah.Game
                 {
                     Minimap.Root.anchorMin = Minimap.Root.anchorMax = new Vector2(0f, 1f);
                     Minimap.Root.pivot = new Vector2(0f, 1f);
-                    float heroBottom = HeroVitalsRect != null
-                        ? (Mathf.Abs(HeroVitalsRect.anchoredPosition.y) + HeroVitalsRect.sizeDelta.y)
-                        : (minTouch + 22f + 74f);
-                    Minimap.Root.anchoredPosition = new Vector2(12f, -(heroBottom + 10f));
+                    // top-left corner, under the settings button (the HP chip moved to the bottom centre)
+                    float pauseBottom = PauseButtonRect != null
+                        ? Mathf.Abs(PauseButtonRect.anchoredPosition.y) + PauseButtonRect.sizeDelta.y
+                        : minTouch + 12f;
+                    Minimap.Root.anchoredPosition = new Vector2(12f, -(pauseBottom + 10f));
                 }
+            }
+
+            LayoutHeroVitals();
+        }
+
+        static readonly Vector3[] Corners = new Vector3[4];
+
+        /// <summary>
+        /// HP and water sit bottom centre between the thumbs (docs/SPEC.md §8): centred in the gap between the stick and the ability
+        /// cluster, scaled down when the gap is narrow (4:3 foldables), and back in the top-left corner when even that does not fit.
+        /// </summary>
+        void LayoutHeroVitals()
+        {
+            if (HeroVitalsRect == null || !(HeroVitalsRect.parent is RectTransform space)) return;
+            Rect area = space.rect;
+            float lo = area.xMin;
+            float hi = area.xMax;
+            bool stickOnLeft = !_appliedLeftHanded;
+
+            void Bound(RectTransform rt, bool onLeft)
+            {
+                if (rt == null || !rt.gameObject.activeInHierarchy) return;
+                rt.GetWorldCorners(Corners);
+                float min = float.MaxValue, max = float.MinValue;
+                for (int i = 0; i < 4; i++)
+                {
+                    float x = space.InverseTransformPoint(Corners[i]).x;
+                    min = Mathf.Min(min, x);
+                    max = Mathf.Max(max, x);
+                }
+                if (onLeft) lo = Mathf.Max(lo, max);
+                else hi = Mathf.Min(hi, min);
+            }
+
+            Bound(JoystickBaseRect, stickOnLeft);
+            if (AbilityArc != null && AbilityArc.Root != null && AbilityArc.Root.gameObject.activeInHierarchy)
+                foreach (RectTransform button in AbilityArc.InteractiveButtonRects)
+                    Bound(button, !stickOnLeft);
+
+            const float margin = 12f;
+            float width = Mathf.Max(1f, HeroVitalsRect.sizeDelta.x);
+            float scale = Mathf.Min(1f, (hi - lo - margin * 2f) / width);
+            if (scale >= 0.6f)
+            {
+                HeroVitalsRect.anchorMin = HeroVitalsRect.anchorMax = new Vector2(0f, 0f);
+                HeroVitalsRect.pivot = new Vector2(0.5f, 0f);
+                HeroVitalsRect.localScale = Vector3.one * scale;
+                HeroVitalsRect.anchoredPosition = new Vector2((lo + hi) * 0.5f - area.xMin, 14f);
+            }
+            else
+            {
+                float minTouch = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, Canvas);
+                HeroVitalsRect.anchorMin = HeroVitalsRect.anchorMax = new Vector2(0f, 1f);
+                HeroVitalsRect.pivot = new Vector2(0f, 1f);
+                HeroVitalsRect.localScale = Vector3.one;
+                HeroVitalsRect.anchoredPosition = new Vector2(12f, -(minTouch + 22f));
+                if (!_appliedLeftHanded && Minimap != null && Minimap.Root != null)
+                    Minimap.Root.anchoredPosition = new Vector2(12f, -(minTouch + 22f + HeroVitalsRect.sizeDelta.y + 10f));
             }
         }
 

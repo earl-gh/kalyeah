@@ -1,0 +1,13 @@
+{
+ "source": "res://data/characters/oriang.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "oriang",
+  "display_name": "Oriang",
+  "description": "Defender from Pantalan. Caring big sister to three who looks after the younger kids; a parent runs the ferry canteen.",
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.0
+ }
+}

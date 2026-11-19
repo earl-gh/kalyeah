@@ -19,7 +19,7 @@ namespace Kalyeah.Game
         public const float KidHeight = 1.85f;
 
         const float PolymorphCanHeight = 1.30f;
-        const string FallbackSet = "junjun";
+        const string FallbackSet = "narda";
         const string PolymorphCanId = "can";
         const float Blend = 0.14f;
         const float RunShare = 0.08f;

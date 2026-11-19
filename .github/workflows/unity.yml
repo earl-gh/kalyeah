@@ -243,28 +243,33 @@ jobs:
         run: docker image prune -af || true
       - name: Set up Android SDK build-tools for APK inspection
         uses: android-actions/setup-android@v3
+        with:
+          # the action's default also installs the legacy `tools` package, which the SDK repository no longer has
+          packages: platform-tools
         env:
           # free-disk-space removed the root-owned /usr/local/lib/android; install into a writable folder instead
           ANDROID_HOME: ${{ runner.temp }}/android-sdk
           ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
       - name: Install Android build-tools ${{ env.ANDROID_BUILD_TOOLS }}
         run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;${ANDROID_BUILD_TOOLS}"
+          # setup-android puts its versioned cmdline-tools (not `latest`) on the PATH
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "build-tools;${ANDROID_BUILD_TOOLS}"
       - name: Inspect the APK
         run: |
           shopt -s nullglob
           apks=(build/Android/*.apk)
           app_ver="$(tr -d '\r\n' < version.txt)"
           for apk in "${apks[@]}"; do
-            bash .github/scripts/inspect-apk.sh "$apk" "$app_ver" build/Android/dumps
+            # build/Android belongs to the Unity container's root user: keep the dumps in the runner's temp folder
+            bash .github/scripts/inspect-apk.sh "$apk" "$app_ver" "$RUNNER_TEMP/apk-dumps"
           done
       - name: Upload aapt2 dumps
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: kalyeah-apk-dumps
-          path: build/Android/dumps
+          path: ${{ runner.temp }}/apk-dumps
           if-no-files-found: ignore
 
   screenshots:

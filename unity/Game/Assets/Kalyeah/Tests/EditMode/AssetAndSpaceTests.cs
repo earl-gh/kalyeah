@@ -175,8 +175,8 @@ namespace Kalyeah.Game
             }
 
             string[] kids = data.CharacterIds();
-            Assert.AreEqual(10, kids.Length, "GameRules must reference all 10 Filipino kids");
-            CollectionAssert.AreEqual(AppSession.DefaultRoster, kids, "Canonical 10-kid order must match AppSession.DefaultRoster");
+            Assert.AreEqual(12, kids.Length, "GameRules must reference all 12 kids (docs/SPEC.md §7)");
+            CollectionAssert.AreEqual(AppSession.DefaultRoster, kids, "Canonical 12-kid order must match AppSession.DefaultRoster");
             for (int i = 0; i < kids.Length; i++)
             {
                 var charProps = data.Props("characters__" + kids[i]);
@@ -189,7 +189,7 @@ namespace Kalyeah.Game
         }
 
         [Test]
-        public void SyncedGlbModels_CharactersBarangayAndWeapons_LoadAsPrefabs()
+        public void SyncedGlbModels_CharactersAndWeapons_LoadAndEveryBarangayKitDraws()
         {
             foreach (string kid in AppSession.DefaultRoster)
             {
@@ -198,20 +198,14 @@ namespace Kalyeah.Game
                 Assert.IsNotEmpty(model.GetComponentsInChildren<Renderer>(true), $"Character {kid} has no Renderer");
             }
 
-            string[] barangayLandmarks =
+            // The script-made barangay kits were retired (docs/GRAPHICS.md): every placement must still draw, as its licence-checked
+            // model or as a grey-box block of real size.
+            foreach (KitPlacement kit in BarangayPlan.Build(MapLayoutData.Load(KalyeahResources.Data())))
             {
-                "brgy_covered_court",
-                "brgy_hall_plaza",
-                "brgy_waiting_shed",
-                "brgy_sari_sari",
-                "brgy_merienda_stand",
-                "brgy_post_blue",
-                "brgy_post_red",
-            };
-            for (int i = 0; i < barangayLandmarks.Length; i++)
-            {
-                GameObject prop = KalyeahResources.Model("barangay", barangayLandmarks[i]);
-                Assert.IsNotNull(prop, $"Missing barangay .glb prefab: models/barangay/{barangayLandmarks[i]}");
+                bool hasModel = KalyeahResources.Model("barangay", kit.Kit) != null;
+                Vector3 block = GreyBoxKit.SizeOf(kit);
+                Assert.IsTrue(hasModel || (block.x > 0f && block.y > 0f && block.z > 0f),
+                    $"Barangay kit {kit.Kit} has neither a model nor a grey-box size");
             }
 
             string[] weaponModels =
@@ -227,11 +221,11 @@ namespace Kalyeah.Game
         }
 
         [Test]
-        public void AllTenKids_PortraitsFacesCardsAndCharacterCards_ExistWithCellProportions()
+        public void AllTwelveKids_PortraitsFacesCardsAndCharacterCards_ExistWithCellProportions()
         {
             DataSource data = KalyeahResources.Data();
             string[] kids = data.CharacterIds();
-            Assert.AreEqual(10, kids.Length);
+            Assert.AreEqual(12, kids.Length);
 
             float? expectedCardAspect = null;
             for (int i = 0; i < kids.Length; i++)
@@ -358,7 +352,7 @@ namespace Kalyeah.Game
         }
 
         [Test]
-        public void ModelTexturesAndNormalMaps_AreVramCompressedAndPresentForAllTenKids()
+        public void ModelTexturesAndNormalMaps_AreVramCompressedAndPresentForAllTwelveKids()
         {
             string[] modelFolders =
             {

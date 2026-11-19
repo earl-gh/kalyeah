@@ -401,7 +401,7 @@ namespace Kalyeah.Game
     {
         public const string SceneName = "Match";
 
-        [SerializeField] string localCharacter = "junjun";
+        [SerializeField] string localCharacter = "narda";
         [SerializeField] long seed = 0;
 
         DataSource _data;

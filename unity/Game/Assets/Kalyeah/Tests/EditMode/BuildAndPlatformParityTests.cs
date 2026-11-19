@@ -443,7 +443,7 @@ namespace Kalyeah.Game
             var sim = new SimBridge(tagData, new MatchSetup
             {
                 Seed = 123L,
-                LocalCharacter = "junjun",
+                LocalCharacter = "narda",
                 SuperpowerLoadout = new[] { "bato_light", "tsinelas_light", "papel_shield" },
                 TrainingMode = true,
             });

@@ -50,9 +50,12 @@ unity/Game/Assets/{Kalyeah/{Scripts,View,Shaders,Editor,Tests},Plugins/Android/k
 - Zero compiler warnings, LF line endings, a test for every rule touched, `docs/GDD.md` updated when a rule or number
   changes.
 
-## Assets: advise, don't generate (owner rule)
-Agents never make art or audio. Say which kind is needed and why, and keep the code-drawn stand-in working until the
-owner's asset arrives:
+## Assets: licence-checked free assets, otherwise advise (owner rule, 2026-11-19)
+Agents may use **licence-checked free 3D assets and textures**: CC0 freely (Poly Haven, ambientCG, KayKit, Quaternius),
+CC-BY only with a credit line (Sketchfab), never another game's assets or non-commercial licences. Log every asset's
+source, author and licence in `assets/CREDITS.md`, make it game-ready by script, and show the owner screenshots to
+approve. The owner's own models come from Meshy. Agents don't generate audio or 2D art; for anything else, say which
+kind is needed and why, and keep the code-drawn stand-in working until it arrives:
 - **Blender (3D model):** seen from changing angles or standing in the 3D world (props, cover, buildings, kids).
 - **Sprite sheet:** animated things that keep a painted 2D look (puffs, hit effects).
 - **2D image:** flat art on screen or on a surface (icons, button art, posters, decals, backgrounds).

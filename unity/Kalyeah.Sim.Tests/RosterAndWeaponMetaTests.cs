@@ -16,8 +16,10 @@ namespace Kalyeah.Sim.Tests
     {
         static readonly string[] ExpectedKids =
         {
-            "junjun", "ligaya", "migo", "toni", "popoy",
-            "inday", "kiko", "nene", "buknoy", "tala",
+            "narda", "jumong", "inggo",
+            "jopay", "oriang", "paeng",
+            "kikay", "karding", "manoy",
+            "tere", "pamela", "domeng",
         };
 
         static List<string> Assigned(long seed, int count)
@@ -29,7 +31,7 @@ namespace Kalyeah.Sim.Tests
         }
 
         [Test]
-        public void ExactTenFilipinoKidsOrderDisplayNamesAndCastReleaseTimings()
+        public void ExactTwelveKidsOrderDisplayNamesAndCastReleaseTimings()
         {
             GameRules rules = Data.GameRules;
             Assert.AreEqual(ExpectedKids.Length, rules.Characters.Count);
@@ -92,22 +94,22 @@ namespace Kalyeah.Sim.Tests
         {
             var sim = new MatchSim(Data.GameRules, Layout, 1);
             for (int id = 1; id <= 4; id++) sim.AddPlayer(id, id <= 2 ? 0 : 1);
-            string[] preset = { "junjun", "ligaya", "toni", "popoy" };
+            string[] preset = { "narda", "jumong", "jopay", "oriang" };
             for (int id = 1; id <= 4; id++) sim.Players[id].CharacterId = preset[id - 1];
 
-            Assert.IsFalse(sim.SetCharacter(99, "toni"), "unknown player rejected");
+            Assert.IsFalse(sim.SetCharacter(99, "jopay"), "unknown player rejected");
             Assert.IsFalse(sim.SetCharacter(1, "not_a_kid"), "unknown character rejected");
 
-            Assert.IsTrue(sim.SetCharacter(1, "toni"));
-            Assert.AreEqual("toni", sim.Players[1].CharacterId, "opponent's toni does not block us");
-            Assert.AreEqual("toni", sim.Players[3].CharacterId, "opponent keeps theirs");
+            Assert.IsTrue(sim.SetCharacter(1, "jopay"));
+            Assert.AreEqual("jopay", sim.Players[1].CharacterId, "opponent's toni does not block us");
+            Assert.AreEqual("jopay", sim.Players[3].CharacterId, "opponent keeps theirs");
 
-            Assert.IsTrue(sim.SetCharacter(2, "toni"));
-            Assert.AreEqual("toni", sim.Players[2].CharacterId);
-            Assert.AreEqual("ligaya", sim.Players[1].CharacterId, "teammate receives previous character");
+            Assert.IsTrue(sim.SetCharacter(2, "jopay"));
+            Assert.AreEqual("jopay", sim.Players[2].CharacterId);
+            Assert.AreEqual("jumong", sim.Players[1].CharacterId, "teammate receives previous character");
 
             var confirmed = new[] { 1, 3 };
-            CollectionAssert.AreEqual(new[] { "ligaya" }, sim.TeammatesKids(2, confirmed),
+            CollectionAssert.AreEqual(new[] { "jumong" }, sim.TeammatesKids(2, confirmed),
                 "only confirmed teammates on the same team are locked");
             CollectionAssert.IsEmpty(sim.TeammatesKids(1, new[] { 3 }),
                 "confirmed opponents never lock a kid on our team");

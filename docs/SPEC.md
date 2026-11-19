@@ -468,7 +468,10 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
 Pure Valorant for the UI and the world: flat, confident shapes, the Ink / Paper / Red palette, a painted 3D street; the
 kids keep the owner's models. Inspired by, never copied
 (no Riot, Supercell, Valve or Moonton assets, names or logos). The owner makes all art and audio; agents only say which
-kind is needed (3D model, sprite sheet or 2D image).
+kind is needed (3D model, sprite sheet or 2D image). **Art source:** the owner generates models with **Meshy** (the 12 kids already are), and agents may use
+**licence-checked free assets** (CC0 from Poly Haven, ambientCG, KayKit and Quaternius; CC-BY from Sketchfab with a credit
+line in a Credits screen), logged in `assets/CREDITS.md`. Agents make every model game-ready by script (budget, scale,
+facing, texture layout, painted materials) and the owner approves each from screenshots.
 
 **Kids' look:** the owner's uploaded models (`assets/models/raw/`) define each kid's look; they are only made game-ready
 (`docs/art-briefs/kids-retopo-spec.md`), not restyled. **Role icons** (Striker, Defender, Seeker, Controller) appear in
@@ -520,7 +523,17 @@ free Pasko emote).
 | Q3 | Final pack bonuses | Set with the store build (kid ≈ two weeks of play or ≈ ₱150) |
 | Q4 | Exact kid heights and showcase meshes | Heights within about ±10% of the average with one shared hitbox and headshot zone; exact values after the Narda pilot (`docs/art-briefs/kids-retopo-spec.md`) |
 | Q6 | Exact map sizes | Scale and layouts in `docs/MAPS.md`; exact shapes set in each blockout, play-tested with bots |
+| Q7 | Prints on two kid models that copy real brands: Inggo's shirt has the Superman "S" logo and Narda's shirt shows *Mulawin* (a GMA TV series) art | Kept as the owner made them for now; replace before any public test (a Meshy re-texture or a new print) |
 
 ## 12. Built today vs this spec
-The current build still has: 10 placeholder kids (not the 12), the old superpower loadout instead of 3 fixed skills, LP
-ranks, no accounts, no store or pass, rooms without matchmaking, round timers and timed releases, a stick-and-arc HUD, `arm64-v8a` only, and an exact 12-permission manifest. `docs/ROADMAP.md` orders the work to close each gap.
+**Done toward this spec:** the 12 kids from the owner's Meshy models, made game-ready by script (about 16k to 20k
+triangles each, baked textures, the shared rig and its 20 clips; `tools/blender/kids/README.md`) with rendered portraits
+and cards; Home's PLAY with a Blitz / Quick / Offline switch and no filler (EVENTS and the Explore placeholder removed);
+the match HUD's HP chip at the bottom centre and the minimap on in the top-left corner; the script-made Barangay
+models retired for grey-box blocks, with the first licence-checked CC0 props (`assets/CREDITS.md`).
+
+**Still to build** (`docs/ROADMAP.md` orders it): the old superpower loadout instead of the 12 kits' 3 fixed skills; the
+slingshot's 7 shots, reload and water (so no ammo count or water bar on the HUD yet); LP ranks instead of stars; no
+accounts, store, pass, party or friends (so no party slots or pass card on Home yet); rooms without matchmaking; round
+timers and timed releases; no neutrals (so no dragon and baron timers on the minimap yet); `arm64-v8a` only and an exact
+12-permission manifest; real Barangay buildings, vehicles and trees.

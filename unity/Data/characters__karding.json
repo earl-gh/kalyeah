@@ -1,0 +1,13 @@
+{
+ "source": "res://data/characters/karding.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "karding",
+  "display_name": "Karding",
+  "description": "Seeker from Palengke. A tinkerer who draws chalk maps of every aisle and fixes radios with a Lolo.",
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.0
+ }
+}

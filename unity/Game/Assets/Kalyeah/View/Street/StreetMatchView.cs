@@ -450,7 +450,7 @@ namespace Kalyeah.Game
         GameObject PlaceKit(Transform parent, KitPlacement kit)
         {
             GameObject prefab = KalyeahResources.Model("barangay", kit.Kit);
-            if (prefab == null) return null;
+            if (prefab == null) return GreyBoxKit.Build(parent, kit);
 
             GameObject model = Object.Instantiate(prefab, parent, false);
             model.name = kit.Kit;
@@ -1188,7 +1188,7 @@ namespace Kalyeah.Game
                     {
                         Id = kid.Id,
                         Team = kid.Team,
-                        CharacterId = string.IsNullOrEmpty(kid.CharacterId) ? "junjun" : kid.CharacterId,
+                        CharacterId = string.IsNullOrEmpty(kid.CharacterId) ? "narda" : kid.CharacterId,
                         Position = kid.Position,
                         Facing = kid.Facing,
                         Hp = 100,

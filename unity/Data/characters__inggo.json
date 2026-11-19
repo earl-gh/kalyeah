@@ -1,0 +1,13 @@
+{
+ "source": "res://data/characters/inggo.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "inggo",
+  "display_name": "Inggo",
+  "description": "Striker from Palengke. Calm and precise, keeps score for every game; helps at the family's vegetable stall.",
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.0
+ }
+}

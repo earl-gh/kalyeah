@@ -359,7 +359,7 @@ namespace Kalyeah.Sim.Tests
             SimData data = Data;
             Assert.AreSame(data.Weapon("bato_light"), data.GameRules.Weapons[0]);
             Assert.AreSame(data.Weapon("tirador_bato"), data.GameRules.PrimaryWeapon);
-            Assert.AreEqual(10, data.GameRules.Characters.Count);
+            Assert.AreEqual(12, data.GameRules.Characters.Count);
             Assert.AreEqual(3, data.GameRules.BotLevels.Count);
             Assert.AreEqual(84.0, data.MapLayout.ArenaRadius);
             Assert.IsNotNull(data.StreetModeRules("patintero"));

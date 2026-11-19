@@ -1,0 +1,13 @@
+{
+ "source": "res://data/characters/narda.tres",
+ "class": "CharacterDef",
+ "data": {
+  "$class": "CharacterDef",
+  "id": "narda",
+  "display_name": "Narda",
+  "description": "Striker from Uptown. Quick and cheeky, the fastest runner in Uptown; lives above the family's bakery by the plaza.",
+  "cast_release_standing": 0.725,
+  "cast_release_moving": 1.008,
+  "body_width": 1.0
+ }
+}

@@ -94,34 +94,40 @@
   "ult_per_damage": 0.45,
   "characters": [
    {
-    "$ref": "res://data/characters/junjun.tres"
+    "$ref": "res://data/characters/narda.tres"
    },
    {
-    "$ref": "res://data/characters/ligaya.tres"
+    "$ref": "res://data/characters/jumong.tres"
    },
    {
-    "$ref": "res://data/characters/migo.tres"
+    "$ref": "res://data/characters/inggo.tres"
    },
    {
-    "$ref": "res://data/characters/toni.tres"
+    "$ref": "res://data/characters/jopay.tres"
    },
    {
-    "$ref": "res://data/characters/popoy.tres"
+    "$ref": "res://data/characters/oriang.tres"
    },
    {
-    "$ref": "res://data/characters/inday.tres"
+    "$ref": "res://data/characters/paeng.tres"
    },
    {
-    "$ref": "res://data/characters/kiko.tres"
+    "$ref": "res://data/characters/kikay.tres"
    },
    {
-    "$ref": "res://data/characters/nene.tres"
+    "$ref": "res://data/characters/karding.tres"
    },
    {
-    "$ref": "res://data/characters/buknoy.tres"
+    "$ref": "res://data/characters/manoy.tres"
    },
    {
-    "$ref": "res://data/characters/tala.tres"
+    "$ref": "res://data/characters/tere.tres"
+   },
+   {
+    "$ref": "res://data/characters/pamela.tres"
+   },
+   {
+    "$ref": "res://data/characters/domeng.tres"
    }
   ],
   "weapon_pick_time": 12.0,

@@ -40,7 +40,7 @@ namespace Kalyeah.Net.Tests
             JsonElement s = doc.RootElement.GetProperty("scenarios")[scenario];
             long seed = s.GetProperty("seed").GetInt64();
             int ticks = s.GetProperty("ticks").GetInt32();
-            GameRules rules = NetKit.Rules.Duplicate();
+            GameRules rules = NetKit.WithRecordedRoster(NetKit.Rules.Duplicate());
             if (s.GetProperty("cards").GetBoolean())
             {
                 rules.CardCycle = true;

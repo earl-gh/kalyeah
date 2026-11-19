@@ -56,3 +56,23 @@ with back faces in red (holes and flipped faces show up red); `curl_test.py` cur
    the reference (at most 30 degrees at the wrist; the log prints what was left over). The `core` pass is on:
    limb middles ease toward 100% their bone, cloth untouched. `anat_measure.py norm.glb contract.glb ref_rest.json`
    prints palm roll, elbow plane and foot yaw mismatch; `CLOSE=LeftForeArm clip_preview.py ...` renders a close-up.
+
+## Game-ready kids (current path)
+
+`PY=<python with bpy 5.x> build_all_kids.sh <work dir> [Kid ...]` builds every kid in `assets/models/raw/` into
+`<work>/out/<kid>.glb`, then copy the `.glb` and its `<kid>_normal.png` (as `<kid>_2.png`) into
+`assets/models/characters/`. Per kid: the hand repairs above, `normalize_kid.py`, `contract_kid.py`, then
+`retopo_kid.py`, which does what a character modeller would:
+
+1. cleans the source (welds duplicates, drops loose geometry, outward normals); it stays the bake source;
+2. retopology: a watertight voxel shell, then QuadriFlow quads with X symmetry at the 20k-triangle budget, shrinkwrapped
+   back onto the source and relaxed (QuadriFlow rejects edges under 1e-4, so it runs at 100x scale with the degenerate
+   edges collapsed first);
+3. UVs by angle with padding, the head and face at 1.8x the body's texel density;
+4. bakes colour and a tangent-space normal map from the source (cage offset and ray reach sized to the kid);
+5. transfers the source's repaired skin weights, smooths them, prunes under 1%, caps at 4 bones, normalizes;
+6. retargets the 20 roster clips from `clips/roster_clips.glb` (the old code-made kid that carried them) onto the kid;
+7. exports one `.glb`: low mesh, skeleton, clips, base colour JPEG 2048 and normal PNG 1024.
+
+`render_kid_art.py <kid>.glb <dir> <id>` renders the portrait, face and full body; `tools/art/compose_kid_cards.py`
+turns them into the portraits, HUD faces, cards, character cards and avatars the UI loads.

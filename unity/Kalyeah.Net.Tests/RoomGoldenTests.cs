@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -25,6 +26,7 @@ namespace Kalyeah.Net.Tests
         [TestCaseSource(nameof(Sequences))]
         public void ReplaysLikeGodot(string name)
         {
+            using IDisposable recorded = Lobby.UseAvatars(NetKit.RecordedRoster);
             using JsonDocument doc = NetKit.Golden("net_rooms.json");
             RoomService service = null;
             var created = new List<RoomService.Room>();

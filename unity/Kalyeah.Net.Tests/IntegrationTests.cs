@@ -68,7 +68,7 @@ namespace Kalyeah.Net.Tests
                 ana.Loaded();
                 ben.Loaded();
                 Assert.IsTrue(PollUntil(() => ana.Stage == "pick", server, clients), "the pick");
-                ana.PickWeapons("bato_light", "trumpo", "migo");
+                ana.PickWeapons("bato_light", "trumpo", "inggo");
                 ben.PickWeapons("jacks", "bola");
                 Assert.IsTrue(PollUntil(() => ana.Stage == "play" && ben.Stage == "play", server, clients), "play");
                 Vec2 start = ben.Mirror.Players[ana.PlayerId].Position;
@@ -518,16 +518,16 @@ namespace Kalyeah.Net.Tests
                 foreach (GameClient c in clients) c.Loaded();
                 Assert.IsTrue(PollUntil(() => clients.All(c => c.Stage == "pick"), server, clients));
 
-                // Ally1 locks "toni" first; Ally2 learns "toni" is in TakenKids() and cannot steal it over the wire.
-                a1.PickWeapons("bato_light", "lata", "toni", "papel_shield");
-                Assert.IsTrue(PollUntil(() => a2.TakenKids().Contains("toni"), server, clients), "teammate sees locked kid");
-                a2.PickWeapons("bato_light", "lata", "toni", "papel_shield");
-                b1.PickWeapons("jacks", "bola", "toni", "trumpo");
+                // Ally1 locks "jopay" first; Ally2 learns "jopay" is in TakenKids() and cannot steal it over the wire.
+                a1.PickWeapons("bato_light", "lata", "jopay", "papel_shield");
+                Assert.IsTrue(PollUntil(() => a2.TakenKids().Contains("jopay"), server, clients), "teammate sees locked kid");
+                a2.PickWeapons("bato_light", "lata", "jopay", "papel_shield");
+                b1.PickWeapons("jacks", "bola", "jopay", "trumpo");
                 Assert.IsTrue(PollUntil(() => clients.All(c => c.Stage == "play"), server, clients), "all entered play");
 
-                Assert.AreEqual("toni", b1.Mirror.Players[a1.PlayerId].CharacterId);
-                Assert.AreNotEqual("toni", b1.Mirror.Players[a2.PlayerId].CharacterId, "teammate could not steal toni");
-                Assert.AreEqual("toni", b1.Mirror.Players[b1.PlayerId].CharacterId, "opponent could pick toni");
+                Assert.AreEqual("jopay", b1.Mirror.Players[a1.PlayerId].CharacterId);
+                Assert.AreNotEqual("jopay", b1.Mirror.Players[a2.PlayerId].CharacterId, "teammate could not steal toni");
+                Assert.AreEqual("jopay", b1.Mirror.Players[b1.PlayerId].CharacterId, "opponent could pick toni");
 
                 ServerMatch running = server.Matches.Values.First();
                 running.Sim.IntroLeft = 0.0;

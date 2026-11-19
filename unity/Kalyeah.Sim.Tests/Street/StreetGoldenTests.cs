@@ -43,7 +43,7 @@ namespace Kalyeah.Sim.Tests.Street
         {
             using var doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(GoldenDir, name + ".json")));
             JsonElement root = doc.RootElement;
-            GameRules rules = Kit.Rules();
+            GameRules rules = RecordedRoster.Apply(Kit.Rules());
             foreach (JsonProperty o in root.GetProperty("rules").EnumerateObject()) GoldenMatchTests.SetRule(rules, o.Name, o.Value);
             StreetModeRules game = Kit.Data.StreetModeRules(root.GetProperty("game_id").GetString()).Duplicate();
             foreach (JsonProperty o in root.GetProperty("game").EnumerateObject()) SetGameRule(game, o.Name, o.Value);
