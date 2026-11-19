@@ -679,13 +679,25 @@ namespace Kalyeah.Game
 
             if (Ads != null && Minimap != null && Minimap.Root != null)
             {
-                // under the minimap, centred on it: the camera and ADS zone of the 4-finger layout (docs/SPEC.md §8)
+                // the camera and ADS zone of the 4-finger layout (docs/SPEC.md §8): under the minimap, centred on it; left-handed,
+                // the minimap already sits lower (under the map button), so ADS goes beside it, toward the centre, clear of the stick
                 RectTransform ads = Ads.Rect;
                 ads.sizeDelta = new Vector2(minTouch, minTouch);
                 ads.anchorMin = ads.anchorMax = ads.pivot = Minimap.Root.anchorMin;
-                float inward = (BarangayMinimapView.PanelSize - minTouch) * 0.5f;
                 Vector2 at = Minimap.Root.anchoredPosition;
-                ads.anchoredPosition = new Vector2(at.x + (_appliedLeftHanded ? -inward : inward), at.y - BarangayMinimapView.PanelSize - 12f);
+                float map = BarangayMinimapView.PanelSize;
+                if (_appliedLeftHanded)
+                {
+                    // the gap shrinks on narrow 4:3 screens so the button stays out of the centre sightbox (45% of the width)
+                    float sightRight = safe.x * 0.725f + 2f;
+                    float gap = Mathf.Clamp(safe.x - sightRight - Mathf.Abs(at.x) - map - minTouch, 0f, 12f);
+                    // level with the minimap's top: on 4:3 the stick's base reaches up past the minimap's middle
+                    ads.anchoredPosition = new Vector2(at.x - map - gap, at.y);
+                }
+                else
+                {
+                    ads.anchoredPosition = new Vector2(at.x + (map - minTouch) * 0.5f, at.y - map - 12f);
+                }
             }
 
             LayoutHeroVitals();

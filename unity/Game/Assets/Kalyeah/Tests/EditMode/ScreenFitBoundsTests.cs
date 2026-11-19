@@ -348,7 +348,9 @@ namespace Kalyeah.Game
             {
                 Rect mapPx = GetScreenRect(hud.Minimap.Root, cam);
                 Assert.IsFalse(Shrink(adsPx, 0.75f).Overlaps(Shrink(mapPx, 0.75f)), $"{profileDesc}: AdsButton ({adsPx}) overlaps the minimap ({mapPx})");
-                Assert.Less(adsPx.yMax, mapPx.yMin + 1f, $"{profileDesc}: AdsButton sits under the minimap");
+                bool under = adsPx.yMax <= mapPx.yMin + 1f && adsPx.yMax >= mapPx.yMin - 40f;
+                bool beside = adsPx.xMax <= mapPx.xMin + 1f && adsPx.xMax >= mapPx.xMin - 40f && adsPx.center.y > mapPx.yMin && adsPx.center.y < mapPx.yMax;
+                Assert.IsTrue(under || beside, $"{profileDesc}: AdsButton ({adsPx}) sits next to the minimap ({mapPx}), under it or beside it");
             }
 
             var arcRectsPx = new List<Rect>(8);
