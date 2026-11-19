@@ -729,8 +729,7 @@ namespace Kalyeah.Game
             }
 
             float topControlsBottom = -(minTouch + 22f);
-            if (_heroVitalsRoot != null)
-                _heroVitalsRoot.anchoredPosition = new Vector2(12f, topControlsBottom);
+            // the HP + water chip sits bottom centre between the thumbs: MatchHud.LayoutHeroVitals places it
             if (_takedownRoot != null)
                 _takedownRoot.anchoredPosition = new Vector2(-cornerRightInset, topControlsBottom);
 
