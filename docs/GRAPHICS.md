@@ -65,3 +65,12 @@ item says which kind of asset the owner makes.
   warning, per the secret-capture rule), and the capturing team also sees a progress bar on their HUD.
 - **Tag ("Taya!"):** about 1 s pouty freeze in a puff of chalk dust, then a poof to the jail.
 - **Round-start barrier:** a glowing wall like Valorant's spawn barrier, dropped when the 5 s barrier phase ends.
+
+## World reactions and feedback
+- Small props (buckets, cans, hanging signs) wobble when a stone or skill hits them; no gameplay change.
+- Wading kids leave visible splashes and ripples.
+- Tall cover does **not** rustle around a hidden kid (only sound and Seeker skills give them away).
+- **Hidden kids** look see-through with a faint outline to themselves and their team; enemies see nothing beyond 6 m.
+- **Sound markers** (accessibility): small direction ripples at the edge of the minimap for footsteps and skill sounds
+  within hearing range.
+- **Taking hits:** a tiny screen shake and a red edge pulse, both softened by reduce motion.
