@@ -286,6 +286,16 @@ namespace Kalyeah.Game
         {
             if (_disposed || sim == null) return;
 
+            // the canvas scale and the thumb clusters settle after the HUD is built and change with the safe area: re-fit the HP chip
+            // then (not every frame: the floating stick's base moves while it is held)
+            Vector2 safeSize = SafeRoot != null ? SafeRoot.rect.size : Vector2.zero;
+            if (safeSize != _vitalsFitSize || _appliedLeftHanded != _vitalsFitLeftHanded)
+            {
+                _vitalsFitSize = safeSize;
+                _vitalsFitLeftHanded = _appliedLeftHanded;
+                LayoutHeroVitals();
+            }
+
             float stepDt = Mathf.Max(0f, dt);
             Camera effectiveCamera = worldCamera != null
                 ? worldCamera
@@ -656,6 +666,8 @@ namespace Kalyeah.Game
         }
 
         static readonly Vector3[] Corners = new Vector3[4];
+        Vector2 _vitalsFitSize = new Vector2(-1f, -1f);
+        bool _vitalsFitLeftHanded;
 
         /// <summary>
         /// HP and water sit bottom centre between the thumbs (docs/SPEC.md §8): centred in the gap between the stick and the ability
@@ -686,8 +698,11 @@ namespace Kalyeah.Game
 
             Bound(JoystickBaseRect, stickOnLeft);
             if (AbilityArc != null && AbilityArc.Root != null && AbilityArc.Root.gameObject.activeInHierarchy)
-                foreach (RectTransform button in AbilityArc.InteractiveButtonRects)
-                    Bound(button, !stickOnLeft);
+            {
+                IReadOnlyList<RectTransform> buttons = AbilityArc.InteractiveButtonRects;
+                for (int i = 0; i < buttons.Count; i++)
+                    Bound(buttons[i], !stickOnLeft);
+            }
 
             const float margin = 12f;
             float width = Mathf.Max(1f, HeroVitalsRect.sizeDelta.x);
