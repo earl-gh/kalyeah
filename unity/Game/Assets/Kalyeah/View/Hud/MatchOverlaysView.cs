@@ -1613,7 +1613,8 @@ namespace Kalyeah.Game
             KidSnapshot? saved = _sim.Find(savedId);
             KidSnapshot? rescuer = _sim.Find(rescuerId);
             bool allySide = saved.HasValue && saved.Value.Team == localTeam;
-            PushRescue(DisplayKidName(_sim, rescuerId, rescuer), DisplayKidName(_sim, savedId, saved), allySide);
+            string by = rescuerId == Kalyeah.Sim.MatchSim.ReleasedByRevenge ? "REVENGE!" : DisplayKidName(_sim, rescuerId, rescuer);
+            PushRescue(by, DisplayKidName(_sim, savedId, saved), allySide);
         }
 
         void PushTakedownEntry(TakedownEntry entry)

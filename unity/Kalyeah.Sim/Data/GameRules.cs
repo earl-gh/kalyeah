@@ -58,6 +58,24 @@ namespace Kalyeah.Sim
         public double AimDeadzone;
         public double CcImmunity;
         public double BoomerangCatchDistance;
+        /// <summary>
+        /// docs/SPEC.md §5 Agawang Base: tagged kids wait in the enemy jail, rescues work like a defuse (moving, casting or a stun
+        /// cancels), a defender in its base pauses the enemy capture, the jail is ready at round start and a same-tick double
+        /// wipe replays the round. False keeps the pre-spec rules the recorded goldens play.
+        /// </summary>
+        public bool SpecRules;
+        /// <summary>Seconds into a rescue a cancel keeps once passed (0: none).</summary>
+        public double RescueCheckpoint;
+        /// <summary>How far (metres) a rescuer may drift before the rescue counts as moved.</summary>
+        public double RescueStillTolerance = 0.05;
+        /// <summary>Seconds after its tagger is tagged before a tagged kid walks free (0: no revenge release).</summary>
+        public double RevengeReleaseSeconds;
+        /// <summary>Seconds a revenge-released kid ignores all damage.</summary>
+        public double RevengeShieldSeconds;
+        /// <summary>With nobody capturing, the bar drains at this share of the fill speed instead of resetting (0: resets).</summary>
+        public double CaptureDrainShare;
+        /// <summary>Seconds at each round start when kids stay inside their own base and can't cast (0: none).</summary>
+        public double BarrierSeconds;
         public double CaptureSoloTime = 12.0;
         public double CaptureAllyBonus = 0.75;
         public double OvertimeAfter;

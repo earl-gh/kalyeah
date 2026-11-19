@@ -530,10 +530,9 @@ free Pasko emote).
 triangles each, baked textures, the shared rig and its 20 clips; `tools/blender/kids/README.md`) with rendered portraits
 and cards; Home's PLAY with a Blitz / Quick / Offline switch and no filler (EVENTS and the Explore placeholder removed);
 the match HUD's HP chip at the bottom centre and the minimap on in the top-left corner; the script-made Barangay
-models retired for grey-box blocks, with the first licence-checked CC0 props (`assets/CREDITS.md`).
+models retired for grey-box blocks, with the first licence-checked CC0 props (`assets/CREDITS.md`). The §5 Agawang Base rules in the sim, bots and match view (enemy jail, defuse-style rescue with its checkpoint, revenge release, contested capture with drain, the round-start barrier, no round clock).
 
 **Still to build** (`docs/ROADMAP.md` orders it): the old superpower loadout instead of the 12 kits' 3 fixed skills; the
 slingshot's 7 shots, reload and water (so no ammo count or water bar on the HUD yet); LP ranks instead of stars; no
-accounts, store, pass, party or friends (so no party slots or pass card on Home yet); rooms without matchmaking; round
-timers and timed releases; no neutrals (so no dragon and baron timers on the minimap yet); `arm64-v8a` only and an exact
+accounts, store, pass, party or friends (so no party slots or pass card on Home yet); rooms without matchmaking; no neutrals (so no dragon and baron timers on the minimap yet); `arm64-v8a` only and an exact
 12-permission manifest; real Barangay buildings, vehicles and trees.

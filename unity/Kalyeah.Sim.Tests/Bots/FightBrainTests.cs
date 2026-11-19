@@ -9,7 +9,7 @@ namespace Kalyeah.Sim.Tests.Bots
     {
         const int Player = 1;
         const int Bot = 2;
-        static GameRules Rules => Kit.Data.GameRules;
+        static GameRules Rules => Kit.Rules();
 
         /// <summary>You at the middle of the street and a fighter `distance` metres up it, armed with `first` and `second`.</summary>
         static MatchSim Duel(double distance, string first = "bato_light", string second = "gunting_light", long seed = 7)

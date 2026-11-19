@@ -531,6 +531,7 @@ namespace Kalyeah.Net.Tests
 
                 ServerMatch running = server.Matches.Values.First();
                 running.Sim.IntroLeft = 0.0;
+                running.Sim.BarrierLeft = 0.0;  // casts are relayed from the first ticks, not after the round-start barrier
 
                 int weaponEvents = 0;
                 int stickers = 0;

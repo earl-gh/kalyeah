@@ -142,7 +142,7 @@ namespace Kalyeah.Sim
         /// <summary>No enemy in reach: stay at the post, and rescue only from there.</summary>
         protected virtual PlayerInput NoEnemy(PlayerState state, MatchSim sim)
         {
-            if (RescueDue(state, sim)) return WalkToNav(state, sim, sim.Layout.RescueRect(sim.SideForTeam(state.Team)).GetCenter());
+            if (RescueDue(state, sim)) return WalkToNav(state, sim, sim.Layout.RescueRect(sim.JailSideFor(state.Team)).GetCenter());
             return WalkToNav(state, sim, Home);
         }
 
@@ -161,7 +161,7 @@ namespace Kalyeah.Sim
         /// <summary>The team's rescue area will be ready by the time this bot walks there, give or take `RescueEarly`.</summary>
         bool ReadyOnArrival(PlayerState state, MatchSim sim)
         {
-            Vec2 area = sim.Layout.RescueRect(sim.SideForTeam(state.Team)).GetCenter();
+            Vec2 area = sim.Layout.RescueRect(sim.JailSideFor(state.Team)).GetCenter();
             double walk = state.Position.DistanceTo(area) / GMath.Maxf(sim.Rules.MoveSpeed, 0.001);
             return sim.RescueReadyLeft[state.Team] <= walk + RescueEarly;
         }
@@ -271,7 +271,7 @@ namespace Kalyeah.Sim
         Vec2 OutOfZone(PlayerState state, MatchSim sim)
         {
             int enemySide = -sim.SideForTeam(state.Team);
-            Vec2 from = sim.Layout.RescueRect(sim.SideForTeam(state.Team)).GetCenter();
+            Vec2 from = sim.Layout.RescueRect(sim.JailSideFor(state.Team)).GetCenter();
             if (sim.Layout.InBase(enemySide, state.Position)) from = sim.Layout.BaseCenter(enemySide);
             Vec2 way = state.Position - from;
             return way.LengthSquared() > 0.01 ? way : new Vec2(0.0, sim.SideForTeam(state.Team));

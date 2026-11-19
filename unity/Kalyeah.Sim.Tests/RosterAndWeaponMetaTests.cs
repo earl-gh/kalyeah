@@ -24,7 +24,7 @@ namespace Kalyeah.Sim.Tests
 
         static List<string> Assigned(long seed, int count)
         {
-            var sim = new MatchSim(Data.GameRules, Layout, seed);
+            var sim = new MatchSim(Kit.Rules(), Layout, seed);
             for (int i = 0; i < count; i++) sim.AddPlayer(i + 1, i % 2);
             sim.AssignCharacters();
             return sim.Players.Select(p => p.Value.CharacterId).ToList();
@@ -92,7 +92,7 @@ namespace Kalyeah.Sim.Tests
         [Test]
         public void SetCharacterSwapsWithinSameTeamAllowsOpponentDuplicatesAndTeammatesKidsLocksConfirmed()
         {
-            var sim = new MatchSim(Data.GameRules, Layout, 1);
+            var sim = new MatchSim(Kit.Rules(), Layout, 1);
             for (int id = 1; id <= 4; id++) sim.AddPlayer(id, id <= 2 ? 0 : 1);
             string[] preset = { "narda", "jumong", "jopay", "oriang" };
             for (int id = 1; id <= 4; id++) sim.Players[id].CharacterId = preset[id - 1];
@@ -153,7 +153,7 @@ namespace Kalyeah.Sim.Tests
         [Test]
         public void WeaponPickDealsNoDamageConfirmLockAndReplaceSlot()
         {
-            var sim = new MatchSim(Data.GameRules, Layout, 1);
+            var sim = new MatchSim(Kit.Rules(), Layout, 1);
             Assert.IsFalse(WeaponPick.DealsNoDamage(new string[0], sim.WeaponDefs));
             Assert.IsTrue(WeaponPick.DealsNoDamage(new[] { "papel_shield", "heal", "papel_trap" }, sim.WeaponDefs));
             Assert.IsFalse(WeaponPick.DealsNoDamage(new[] { "papel_shield", "heal", "bato_light" }, sim.WeaponDefs));

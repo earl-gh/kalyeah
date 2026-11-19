@@ -34,13 +34,10 @@ namespace Kalyeah.Sim.Tests
         }
 
         [Test]
-        public void ShippedRoundClockAndScoringRulesMatchData()
+        public void ShippedRulesHaveNoRoundClockAndMatchTheScoring()
         {
-            Assert.AreEqual(240.0, _rules.OvertimeAfter);
-            Assert.AreEqual(60.0, _rules.ExtendedSeconds);
-            Assert.AreEqual(60.0, _rules.OvertimeSeconds);
-            Assert.Less(_rules.OvertimeCaptureTime, _rules.CaptureSoloTime);
-            Assert.AreEqual(12.0, _rules.CaptureSoloTime);
+            Assert.AreEqual(0.0, _rules.OvertimeAfter, "docs/SPEC.md §5: no round or match timer");
+            Assert.AreEqual(8.0, _rules.CaptureSoloTime);
             Assert.AreEqual(3.0, _rules.PointFreezeTime);
             Assert.AreEqual(3, _rules.FirstTo);
             CollectionAssert.AreEqual(new[] { 3, 5, 7 }, _rules.FirstToChoices);
@@ -77,22 +74,14 @@ namespace Kalyeah.Sim.Tests
         }
 
         [Test]
-        public void ThreeStageRoundClockCountdownAndZeroStageToggles()
+        public void NoShippedClockButTheThreeStageClockStillWorksWhenConfigured()
         {
             MatchSim shipped = OpenSim();
-            (double t, double left, MatchSim.ClockStage stage)[] shippedCases =
-            {
-                (0.0, 240.0, MatchSim.ClockStage.Regular),
-                (240.0, 60.0, MatchSim.ClockStage.Extended),
-                (299.0, 1.0, MatchSim.ClockStage.Extended),
-                (300.0, 60.0, MatchSim.ClockStage.Overtime),
-                (360.0, 0.0, MatchSim.ClockStage.Overtime),
-            };
-            foreach (var (t, left, stage) in shippedCases)
+            Assert.IsFalse(shipped.CountsDown(), "the shipped rules have no clock");
+            foreach (double t in new[] { 0.0, 240.0, 3600.0 })
             {
                 shipped.RoundTime = t;
-                Assert.AreEqual(left, shipped.ClockLeft(), 0.001, $"shipped clock left at {t}");
-                Assert.AreEqual(stage, shipped.GetClockStage(), $"shipped stage at {t}");
+                Assert.AreEqual(MatchSim.ClockStage.Regular, shipped.GetClockStage(), $"no stage change at {t}");
             }
 
             ConfigureStageRules();

@@ -8,7 +8,7 @@ namespace Kalyeah.Sim.Tests.Bots
     {
         static readonly string[] Hurts = { "bato_light", "tsinelas_light" };
         static readonly string[] Harmless = { "papel_shield", "papel_trap" };
-        static GameRules Rules => Kit.Data.GameRules;
+        static GameRules Rules => Kit.Rules();
 
         [Test]
         public void EveryTwoDifferentWeaponsMakeOneLoadout()

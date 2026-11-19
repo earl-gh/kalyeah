@@ -47,7 +47,7 @@ namespace Kalyeah.Sim.Tests
         [Test]
         public void PlayerStopsAtAnObstacle()
         {
-            var sim = new MatchSim(Data.GameRules, CoverStreet(), 1);
+            var sim = new MatchSim(Kit.Rules(), CoverStreet(), 1);
             PlayerState p = sim.AddPlayer(1, 0);
             p.Position = new Vec2(Cover().GetCenter().x, Cover().End.y + 2.0);
             Run(sim, 1, new Vec2(0.0, -1.0), 60);
@@ -59,7 +59,7 @@ namespace Kalyeah.Sim.Tests
         {
             for (int team = 0; team < 2; team++)
             {
-                var sim = new MatchSim(Data.GameRules, CoverStreet(), 1);
+                var sim = new MatchSim(Kit.Rules(), CoverStreet(), 1);
                 PlayerState p = sim.AddPlayer(1, team);
                 p.Position = new Vec2(Cover().GetCenter().x, Cover().Position.y - 2.0);
                 Run(sim, 1, new Vec2(0.0, 1.0), 60);
@@ -70,7 +70,7 @@ namespace Kalyeah.Sim.Tests
         [Test]
         public void PlayerSlidesAlongAnObstacle()
         {
-            var sim = new MatchSim(Data.GameRules, CoverStreet(), 1);
+            var sim = new MatchSim(Kit.Rules(), CoverStreet(), 1);
             PlayerState p = sim.AddPlayer(1, 0);
             var start = new Vec2(Cover().Position.x + 0.4, Cover().End.y + 0.5);
             p.Position = start;
@@ -82,7 +82,7 @@ namespace Kalyeah.Sim.Tests
         [Test]
         public void PlayerCannotLeaveTheStreet()
         {
-            var sim = new MatchSim(Data.GameRules, CoverStreet(), 1);
+            var sim = new MatchSim(Kit.Rules(), CoverStreet(), 1);
             PlayerState p = sim.AddPlayer(1, 0);
             p.Position = Vec2.Zero;
             Run(sim, 1, new Vec2(1.0, 0.0), 900);
@@ -303,7 +303,7 @@ namespace Kalyeah.Sim.Tests
 
     public class MovementTests
     {
-        static MatchSim Sim(long seed = 1234) => new MatchSim(Data.GameRules, Layout, seed);
+        static MatchSim Sim(long seed = 1234) => new MatchSim(Kit.Rules(), Layout, seed);
 
         [Test]
         public void RulesMatchGddCoreNumbers()
@@ -313,7 +313,7 @@ namespace Kalyeah.Sim.Tests
             Assert.AreEqual(DT, r.TickDt(), 1e-5);
             Assert.AreEqual(100, r.PlayerMaxHp);
             Assert.AreEqual(6.4, r.MoveSpeed, 0.01);
-            Assert.AreEqual(12.0, r.CaptureSoloTime, 0.01);
+            Assert.AreEqual(8.0, r.CaptureSoloTime, 0.01);
         }
 
         [Test]
@@ -451,7 +451,7 @@ namespace Kalyeah.Sim.Tests
         [Test]
         public void UnusedButtonBitsMoveNobody()
         {
-            MatchSim sim = new MatchSim(Data.GameRules, Layout, 7);
+            MatchSim sim = new MatchSim(Kit.Rules(), Layout, 7);
             PlayerState p = sim.AddPlayer(1, 0);
             Vec2 start = p.Position;
             Tick(sim, 1, Vec2.Zero, (1 << 2) | (1 << 3) | (1 << 4));
@@ -462,7 +462,7 @@ namespace Kalyeah.Sim.Tests
         [Test]
         public void DamageReducesHpAndIsIgnoredForTaggedOrUnknownPlayers()
         {
-            MatchSim sim = new MatchSim(Data.GameRules, Layout, 7);
+            MatchSim sim = new MatchSim(Kit.Rules(), Layout, 7);
             PlayerState p = sim.AddPlayer(1, 0);
             sim.Damage(1, 30);
             Assert.AreEqual(70, p.Hp);
@@ -481,7 +481,7 @@ namespace Kalyeah.Sim.Tests
         [Test]
         public void AMoveTargetIsWalkedToAndEndsOnArrival()
         {
-            MatchSim sim = new MatchSim(Data.GameRules, OpenLayout(), 3);
+            MatchSim sim = new MatchSim(Kit.Rules(), OpenLayout(), 3);
             PlayerState p = sim.AddPlayer(1, 0);
             p.Position = new Vec2(0.0, 5.0);
             sim.SetInput(1, PlayerInput.Create(Vec2.Zero, Vec2.Zero, 0, 0).WithMoveTarget(new Vec2(4.0, 5.0)));

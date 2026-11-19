@@ -8,8 +8,14 @@ namespace Kalyeah.Sim.Tests
         public const double DT = 1.0 / 30.0;
 
         public static SimData Data => GoldenMatchTests.Data;
-        /// <summary>A fresh copy of the shipped rules (tests may change it).</summary>
-        public static GameRules Rules() => Data.GameRules.Duplicate();
+        /// <summary>A fresh copy of the shipped rules (tests may change it), without the round-start barrier: tests act from
+        /// tick 0, and the barrier has its own tests.</summary>
+        public static GameRules Rules()
+        {
+            GameRules rules = Data.GameRules.Duplicate();
+            rules.BarrierSeconds = 0.0;
+            return rules;
+        }
         public static MapLayout Layout => Data.MapLayout;
 
         /// <summary>The street with one cover wall and nothing else (test_collision / test_weapons).</summary>

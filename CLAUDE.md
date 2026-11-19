@@ -39,6 +39,11 @@ unity/Game/Assets/{Kalyeah/{Scripts,View,Shaders,Editor,Tests},Plugins/Android/k
 - One PR per solid chunk, using `.github/pull_request_template.md`: what changed, which `Unity 6 CI` run to install and
   what to tap. Call out what only a real phone can show (touch feel, thermals, Hotspot, NFC) as a device check.
 - Don't edit `version.txt` or `CHANGELOG.md` unless the owner asks. Never commit a keystore or password.
+- **Roadmap work follows the `ponytail` skill (owner rule):** the smallest complete, YAGNI-driven change; reuse what the
+  codebase has; no abstractions, options, toggles or "for later" code the spec step doesn't need.
+  **Minimal never means weak:** every change is finished and production-quality: the whole spec step works end to end
+  (sim, net, bots, HUD), edge cases are handled, every rule has a real test, names and comments are precise, and nothing
+  is left half-done, stubbed, placeholder or padded with filler. Small and solid, never small and sloppy.
 
 ## Tests and visual gate (before every PR)
 - `dotnet test unity/Kalyeah.sln --configuration Release`.

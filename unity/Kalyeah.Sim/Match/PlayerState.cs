@@ -48,6 +48,12 @@ namespace Kalyeah.Sim
         public bool Overclocked;
         public double ExhaustLeft;
         public int TagOrder;
+        /// <summary>Who tagged this kid (-1: nobody); a revenge release follows when that player is tagged.</summary>
+        public int TaggedBy = -1;
+        /// <summary>Seconds until a revenge release (0: none pending).</summary>
+        public double RevengeLeft;
+        /// <summary>Seconds of the revenge shield left: all damage is ignored.</summary>
+        public double ShieldLeft;
         public double RunTime;
         public bool Trips = true;
         public double StillTime;

@@ -57,7 +57,7 @@ namespace Kalyeah.Sim
                 PlayerState other = pair.Value;
                 if (other.Team == state.Team && other.Tagged)
                 {
-                    target = sim.Layout.RescueRect(sim.SideForTeam(state.Team)).GetCenter();
+                    target = sim.Layout.RescueRect(sim.JailSideFor(state.Team)).GetCenter();
                     break;
                 }
             }

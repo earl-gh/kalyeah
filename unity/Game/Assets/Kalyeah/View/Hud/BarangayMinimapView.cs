@@ -296,7 +296,7 @@ namespace Kalyeah.Game
                 }
                 else if (_layout != null)
                 {
-                    zone = _layout.RescueRect(t == 0 ? 1 : -1);
+                    zone = _layout.RescueRect(t == 0 ? -1 : 1);  // team t's jail sits beside the enemy base
                 }
                 else
                 {

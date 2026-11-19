@@ -38,11 +38,13 @@ namespace Kalyeah.Sim.Tests.Bots
             return coach;
         }
 
-        static Vec2 Area(MatchSim sim, int team) => Layout.RescueRect(sim.SideForTeam(team)).GetCenter();
+        /// <summary>The jail where `team`'s tagged kids wait and are rescued (beside the enemy base, docs/SPEC.md §5).</summary>
+        static Vec2 Area(MatchSim sim, int team) => Layout.RescueRect(sim.JailSideFor(team)).GetCenter();
 
+        /// <summary>The enemies far off the map, so nobody is fought on the way to the jail (beside their base).</summary>
         static void EnemiesAway(MatchSim sim)
         {
-            foreach (int id in new[] { 4, 5, 6 }) sim.Players[id].Position = Layout.BaseCenter(sim.SideForTeam(1));
+            foreach (int id in new[] { 4, 5, 6 }) sim.Players[id].Position = new Vec2(200.0, 200.0);
         }
 
         [Test]

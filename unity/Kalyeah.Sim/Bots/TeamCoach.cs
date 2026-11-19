@@ -141,7 +141,7 @@ namespace Kalyeah.Sim
         public int RescuerId(MatchSim sim)
         {
             if (!sim.Objectives.TeammateWaiting(sim, Team)) return -1;
-            return NearestFree(sim, sim.Layout.RescueRect(sim.SideForTeam(Team)).GetCenter(), -1);
+            return NearestFree(sim, sim.Layout.RescueRect(sim.JailSideFor(Team)).GetCenter(), -1);
         }
 
         /// <summary>Primary guard sent home while the other team captures this team's base during an attack (-1: none needed).</summary>

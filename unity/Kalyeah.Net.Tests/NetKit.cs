@@ -23,12 +23,25 @@ namespace Kalyeah.Net.Tests
             "inday", "kiko", "nene", "buknoy", "tala",
         };
 
-        /// <summary>`rules` dealing from the recorded roster, so AssignCharacters draws the RNG as the recording did.</summary>
+        /// <summary>`rules` dealing from the recorded roster (so AssignCharacters draws the RNG as the recording did) and playing the recorded rules.</summary>
         public static GameRules WithRecordedRoster(GameRules rules)
         {
             var characters = new List<CharacterDef>();
             foreach (string id in RecordedRoster) characters.Add(new CharacterDef { Id = id, DisplayName = id, Description = id });
             rules.Characters = characters;
+            // and the pre-spec Agawang Base rules the recordings played (docs/SPEC.md §5 replaced them)
+            rules.SpecRules = false;
+            rules.RescueHoldTime = 4.0;
+            rules.RescueCooldown = 8.0;
+            rules.NoCastInRescueArea = true;
+            rules.RescueCheckpoint = 0.0;
+            rules.RevengeReleaseSeconds = 0.0;
+            rules.RevengeShieldSeconds = 0.0;
+            rules.CaptureDrainShare = 0.0;
+            rules.BarrierSeconds = 0.0;
+            rules.CaptureSoloTime = 12.0;
+            rules.CaptureAllyBonus = 0.65;
+            rules.OvertimeAfter = 240.0;
             return rules;
         }
         public static MapLayout Layout => Data.MapLayout;

@@ -74,7 +74,7 @@ Owner order: **playable core first**, one PR (with an APK and screenshots) per s
 
 | Step | Work |
 |---|---|
-| 1 | Match rules: Blitz / Quick / Standard, round ends on capture or full tag, no timers, barrier phase, enemy jail and defuse-style rescue (checkpoint, 15 s cooldown), revenge release, contested capture with decay |
+| 1 ✅ | Match rules: Blitz / Quick / Standard, round ends on capture or full tag, no timers, barrier phase, enemy jail and defuse-style rescue (checkpoint, 15 s cooldown), revenge release, contested capture with decay |
 | 2 | Movement (context jump / vault / climb, crouch / slide), the T3 Arena / Deadlock-style third-person camera (slightly right, no swap) with ADS, the 4-finger HUD |
 | 3 | Barangay map: 3 routes, asymmetric halves and side swap, terrain and hiding, climb spots, taho and fishball vendors, Selecta bike, Crocodile, Philippine Eagle |
 | 4 | The 12 kids' kits (`docs/KITS.md`) on the 12 game-ready models (done: models, rig, clips, portraits), slingshot (7 shots, reload, hold for range, headshots), water; role-aware bots |
