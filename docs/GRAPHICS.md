@@ -116,3 +116,13 @@ item says which kind of asset the owner makes.
   body aims while the legs keep running; the reload picks a stone from the pouch, quick but readable.
 - **Vault and climb:** hands land on the ledge or box, matching the 0.4 s vault and 1 s climb.
 - **Skills:** every skill has a short readable wind-up, the action, then a quick recovery, so enemies can react.
+
+## Seeing your team and the map
+- **Speed cues:** walking is quiet, jogging normal and running loud (crouch-walking silent); running on soil kicks up
+  small dust puffs at the heels.
+- **Teammates through walls:** a faint outline only, no name tag; a "teammate outline" setting turns it off (like CODM's
+  teammate transparency option).
+- **Full map** (tap the minimap): a clean, flat top-down drawing with short callout names, bases, jails, neutrals and
+  teammates; enemies only when seen or revealed (like Valorant).
+- **Jail marker:** a small icon with the count of kids inside over the enemy jail, seen through walls by the tagged
+  kids' team only.
