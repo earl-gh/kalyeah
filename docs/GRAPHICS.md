@@ -136,3 +136,14 @@ item says which kind of asset the owner makes.
   first-person view.
 - **Hit feedback:** an X marker on the crosshair (white for body, gold for a headshot), a bigger stamp when your hit tags
   someone, and different hit sounds for body and head.
+
+## Neutrals, vendors and buffs
+- **Dragon and baron animals:** friendly, cute and stylised while idle; when attacked they turn angry and grow into a
+  bigger, scarier body. When beaten they shrink back and run off (no gore, never dying on screen). Asset kind: Blender
+  models with idle, angry and flee animations.
+- **Vendors:** a vendor character with a cart (Mang Taho with his yoke, the fishball cart with its stove) who can't be
+  hit; the cart shows empty with a small timer during the 30 s restock; the kid plays a short eating animation while
+  slowed, so enemies see who is healing.
+- **Selecta bike:** an ice-cream cart pedalled by a vendor, bell ringing; can't be hit, caught by touching it.
+- **Buffs:** an icon in your own HUD's buff row (like Wild Rift) and a circle aura at the kid's feet (like Wild Rift and
+  Mobile Legends), so enemies can see who is buffed.
