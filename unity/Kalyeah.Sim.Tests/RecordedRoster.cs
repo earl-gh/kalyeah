@@ -20,7 +20,12 @@ namespace Kalyeah.Sim.Tests
             var characters = new List<CharacterDef>();
             foreach (string id in Ids) characters.Add(new CharacterDef { Id = id, DisplayName = id, Description = id });
             rules.Characters = characters;
-            // the pre-spec Agawang Base rules the goldens were recorded with (docs/SPEC.md §5 replaced them)
+            return Rules(rules);
+        }
+
+        /// <summary>`rules` with the pre-spec Agawang Base rules the Godot goldens were recorded with (docs/SPEC.md §5 replaced them).</summary>
+        public static GameRules Rules(GameRules rules)
+        {
             rules.SpecRules = false;
             rules.RescueHoldTime = 4.0;
             rules.RescueCooldown = 8.0;

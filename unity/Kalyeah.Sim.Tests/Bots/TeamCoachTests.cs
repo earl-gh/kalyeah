@@ -241,7 +241,8 @@ namespace Kalyeah.Sim.Tests.Bots
             foreach (int id in coach.Members()) Assert.IsFalse(coach.Brains[id].Hold);
         }
 
-        /// <summary>Both teams of bots play ninety seconds: a holder never steps out of the base it holds, and no free bot stands still for long.</summary>
+        /// <summary>Both teams of bots play ninety seconds: a holder never steps out of the base it holds, and no free bot but the one
+        /// rescuing stands still for long.</summary>
         [Test]
         public void BotsNeverStandAroundAndHoldersNeverBlinkTheCapture()
         {
@@ -289,7 +290,9 @@ namespace Kalyeah.Sim.Tests.Bots
                     PlayerState state = pair.Value;
                     bool walked = state.Position.DistanceTo(before[id]) < 1.0;
                     if (heldIn[id] && walked && !state.Tagged && !Layout.InBase(-sim.SideForTeam(state.Team), state.Position)) steppedOut += 1;
-                    bool idle = !state.Tagged && state.CanAct() && state.CastLockLeft <= 0.0 && state.Position.DistanceSquaredTo(before[id]) < 0.000001;
+                    bool rescuing = sim.RescueRescuer[state.Team] == id;  // a spec rescue must stand still
+                    bool idle = !rescuing && !state.Tagged && state.CanAct() && state.CastLockLeft <= 0.0
+                        && state.Position.DistanceSquaredTo(before[id]) < 0.000001;
                     still[id] = idle ? still.GetValueOrDefault(id) + 1 : 0;
                     longest = System.Math.Max(longest, still[id]);
                 }

@@ -53,8 +53,9 @@ namespace Kalyeah.Sim
             if (RescueDue(state, sim) && IsRescuer(state, sim))
             {
                 Rect2 area = sim.Layout.RescueRect(sim.JailSideFor(state.Team));
-                // a spec rescue cancels when the rescuer moves: walk to the centre and stand there instead of patrolling
-                if (sim.Objectives.InRescueArea(sim, state) && !sim.Rules.SpecRules) return Patrol(state, sim, area, RescuePatrolMargin);
+                // a spec rescue cancels when the rescuer moves: once the jail is ready, walk to its centre and stand there
+                bool standToRescue = sim.Rules.SpecRules && sim.RescueReadyLeft[state.Team] <= 0.0;
+                if (sim.Objectives.InRescueArea(sim, state) && !standToRescue) return Patrol(state, sim, area, RescuePatrolMargin);
                 return WalkToNav(state, sim, area.GetCenter());
             }
             if (Role == BrainRole.Rush)

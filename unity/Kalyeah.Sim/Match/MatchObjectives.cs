@@ -268,8 +268,14 @@ namespace Kalyeah.Sim
             double drain = sim.Rules.CaptureDrainShare;
             if (team >= 0 && sim.Rules.SpecRules && DefenderInOwnBase(sim, 1 - team))
             {
-                // a defender in its own base pauses the bar: no progress and no drain while the attackers stay
-                if (team != sim.CaptureTeam) return;
+                // a defender in its own base pauses the bar (shown, so bots and the HUD see the base is under attack): no progress, no drain
+                if (team != sim.CaptureTeam || kind != sim.CurrentCaptureKind)
+                {
+                    sim.CaptureTeam = team;
+                    sim.CurrentCaptureKind = kind;
+                    sim.CaptureElapsed = 0.0;
+                    sim.CaptureNeeded = sim.CurrentBaseCaptureTime();
+                }
                 sim.CaptureRate = 0.0;
                 return;
             }

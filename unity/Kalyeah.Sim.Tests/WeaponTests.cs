@@ -9,7 +9,7 @@ namespace Kalyeah.Sim.Tests
     public class WeaponTests
     {
         const int Caster = 1;
-        static GameRules R => Data.GameRules;
+        static GameRules R => Kit.Rules();
 
         static MatchSim Sim() => new MatchSim(R, CoverStreet(), 11);
 

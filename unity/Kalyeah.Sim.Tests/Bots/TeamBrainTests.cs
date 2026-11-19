@@ -136,14 +136,14 @@ namespace Kalyeah.Sim.Tests.Bots
             MatchSim sim = Sim();
             sim.Players[3].Position = new Vec2(200.0, 200.0);
             TaggedTeammate(sim);
-            Vec2 area = Layout.RescueRect(sim.SideForTeam(0)).GetCenter();
+            Vec2 area = Layout.RescueRect(sim.JailSideFor(0)).GetCenter();
             sim.Players[1].Position = Spot(sim);
             sim.Players[2].Position = Spot(sim);
             TeamBrain first = TeamBrain.Rusher(sim.Players[1].SpawnPosition, Spot(sim));
             TeamBrain second = TeamBrain.Rusher(sim.Players[2].SpawnPosition, Spot(sim));
             PlayerInput one = first.Think(sim.Players[1], sim);
             PlayerInput two = second.Think(sim.Players[2], sim);
-            Assert.Greater(Way(one, sim.Players[1]).Dot((area - sim.Players[1].Position).Normalized()), 0.99, "number 1 goes to the rescue area");
+            Assert.Greater(Way(one, sim.Players[1]).Dot((area - sim.Players[1].Position).Normalized()), 0.99, "number 1 goes to the jail beside the enemy base");
             Assert.IsTrue(Layout.InBase(-sim.SideForTeam(0), two.MoveTarget), "number 2 stays in the base, walking about in it");
         }
 
@@ -153,7 +153,7 @@ namespace Kalyeah.Sim.Tests.Bots
             MatchSim sim = Sim();
             sim.Players[3].Position = new Vec2(200.0, 200.0);
             TaggedTeammate(sim);
-            Vec2 area = Layout.RescueRect(sim.SideForTeam(0)).GetCenter();
+            Vec2 area = Layout.RescueRect(sim.JailSideFor(0)).GetCenter();
             sim.Players[1].Position = Spot(sim);
             TeamBrain brain = Rusher(sim);
             brain.Think(sim.Players[1], sim);
@@ -168,7 +168,7 @@ namespace Kalyeah.Sim.Tests.Bots
             MatchSim sim = Sim();
             sim.Players[3].Position = new Vec2(200.0, 200.0);
             TaggedTeammate(sim);
-            Vec2 area = Layout.RescueRect(sim.SideForTeam(0)).GetCenter();
+            Vec2 area = Layout.RescueRect(sim.JailSideFor(0)).GetCenter();
             TeamBrain away = TeamBrain.Defender(sim.Players[1].SpawnPosition);
             sim.Players[1].Position = Layout.BaseCenter(MapLayout.SideEnemy);
             PlayerInput wandering = away.Think(sim.Players[1], sim);
@@ -177,7 +177,7 @@ namespace Kalyeah.Sim.Tests.Bots
             TeamBrain home = TeamBrain.Defender(sim.Players[1].SpawnPosition);
             sim.Players[1].Position = sim.Players[1].SpawnPosition;
             PlayerInput input = home.Think(sim.Players[1], sim);
-            Assert.Greater(Way(input, sim.Players[1]).Dot((area - sim.Players[1].Position).Normalized()), 0.99, "from its post it goes for the rescue area");
+            Assert.Greater(Way(input, sim.Players[1]).Dot((area - sim.Players[1].Position).Normalized()), 0.99, "from its post it goes for the jail");
         }
 
         [Test]

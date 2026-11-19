@@ -97,7 +97,7 @@ namespace Kalyeah.Sim.Tests
             Vec2 clampedDiag = Layout.ClampToArena(new Vec2(80.0, 80.0), pad);
             Assert.AreEqual(84.0 - pad, clampedDiag.Length(), 0.01);
 
-            var sim = new MatchSim(Data.GameRules, OpenCircularLayout(), 101);
+            var sim = new MatchSim(Kit.Rules(), OpenCircularLayout(), 101);
             PlayerState runner = sim.AddPlayer(1, 0);
             runner.Position = new Vec2(82.0, 0.0);
             Run(sim, 1, new Vec2(1.0, 0.0), 45);

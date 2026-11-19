@@ -16,7 +16,7 @@ namespace Kalyeah.Sim.Tests
 
         static MatchSim Sim()
         {
-            var sim = new MatchSim(Data.GameRules, Layout, 17);
+            var sim = new MatchSim(Kit.Rules(), Layout, 17);
             PlayerState player = sim.AddPlayer(PlayerId, 0);
             player.Position = Vec2.Zero;
             Assert.IsTrue(sim.SetLoadout(PlayerId, "papel_shield", "langit_lupa"));
@@ -128,7 +128,7 @@ namespace Kalyeah.Sim.Tests
             CollectionAssert.AreEqual(new[] { -1.0, -1.0 }, player.AimHold);
             sim.RescueReadyLeft = new[] { 0.0, 0.0 };
             PlayerState rescuer = sim.AddPlayer(2, 0);
-            rescuer.Position = sim.Layout.RescueRect(sim.SideForTeam(0)).GetCenter();
+            rescuer.Position = sim.Layout.RescueRect(sim.JailSideFor(0)).GetCenter();
             int ticks = GMath.Ceili((sim.Rules.RescueHoldTime + 0.3) / DT);
             for (int i = 0; i < ticks; i++)
                 SendInput(sim, PlayerInput.BtnWeapon1);
@@ -179,7 +179,7 @@ namespace Kalyeah.Sim.Tests
             sim.Players[1].Position = Layout.BaseCenter(-sim.SideForTeam(0)) + new Vec2(1.0, 0.0);
 
         static void InRescueArea(MatchSim sim) =>
-            sim.Players[1].Position = Layout.RescueRect(sim.SideForTeam(0)).GetCenter();
+            sim.Players[1].Position = Layout.RescueRect(sim.JailSideFor(0)).GetCenter();
 
         [Test]
         public void ACardCastsInTheOpenStreet()
@@ -226,6 +226,8 @@ namespace Kalyeah.Sim.Tests
         [Test]
         public void RescueAreaBlocksRescuingAllyOnlyWhileTeammateWaitsAndNeverBlocksEnemyHunter()
         {
+            // the pre-spec ban (the recorded games); the shipped docs/SPEC.md §5 rules let a rescuer cast, which cancels its rescue
+            _rules.NoCastInRescueArea = true;
             MatchSim sim = Sim();
             InRescueArea(sim);
             Assert.IsFalse(sim.CastingBlocked(sim.Players[1]), "nobody tagged: rescue patio is normal ground");
@@ -243,7 +245,7 @@ namespace Kalyeah.Sim.Tests
             Tap(sim);
             CollectionAssert.IsEmpty(casts);
 
-            sim.Players[3].Position = Layout.RescueRect(sim.SideForTeam(0)).GetCenter();
+            sim.Players[3].Position = Layout.RescueRect(sim.JailSideFor(0)).GetCenter();
             Assert.IsFalse(sim.CastingBlocked(sim.Players[3]), "enemy hunting rescuer is not blocked");
         }
 

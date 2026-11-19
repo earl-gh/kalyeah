@@ -23,7 +23,7 @@ namespace Kalyeah.Sim.Tests.Bots
                 List<string> first = Strings(duel.GetProperty("first"));
                 List<string> second = Strings(duel.GetProperty("second"));
                 string what = $"{string.Join("+", first)} vs {string.Join("+", second)} seed {duel.GetProperty("seed").GetInt64()}";
-                BalanceDuel.Result result = BalanceDuel.Run(Kit.Rules(), Kit.Layout, first, second, duel.GetProperty("seed").GetInt64(),
+                BalanceDuel.Result result = BalanceDuel.Run(RecordedRoster.Rules(Kit.Rules()), Kit.Layout, first, second, duel.GetProperty("seed").GetInt64(),
                     duel.GetProperty("seconds").GetDouble(), duel.GetProperty("skill").GetDouble(), duel.GetProperty("cover").GetBoolean());
                 Assert.AreEqual(duel.GetProperty("winner").GetInt32(), result.Winner, what + ": winner");
                 Assert.AreEqual(duel.GetProperty("at").GetDouble(), result.Seconds, 1e-9, what + ": seconds");
@@ -49,7 +49,7 @@ namespace Kalyeah.Sim.Tests.Bots
             using JsonDocument doc = Load("balance_duel.json");
             JsonElement trace = doc.RootElement.GetProperty("trace");
             JsonElement duel = doc.RootElement.GetProperty("results")[trace.GetProperty("duel").GetInt32()];
-            GameRules rules = Kit.Rules();
+            GameRules rules = RecordedRoster.Rules(Kit.Rules());
             var sim = new MatchSim(rules, BalanceDuel.Arena(Kit.Layout), duel.GetProperty("seed").GetInt64());
             var top = new Vec2(0.0, -BalanceDuel.StartDistance / 2.0);
             var bottom = new Vec2(0.0, BalanceDuel.StartDistance / 2.0);
