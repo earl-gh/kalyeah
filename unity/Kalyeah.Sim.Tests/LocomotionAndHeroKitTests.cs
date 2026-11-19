@@ -45,8 +45,8 @@ namespace Kalyeah.Sim.Tests
             GameRules rules = Data.GameRules;
             Assert.AreEqual(3, rules.LoadoutSize);
             Assert.IsFalse(rules.CardCycle);
-            Assert.IsFalse(rules.SprintEnabled);
-            Assert.AreEqual(6.4, rules.MoveSpeed, 0.001);
+            Assert.IsTrue(rules.SprintEnabled, "a steady jog runs (docs/SPEC.md §7)");
+            Assert.AreEqual(5.25, rules.MoveSpeed, 0.001);
             Assert.AreEqual(0.62, rules.WalkRunThreshold, 0.001);
 
             var sim = new MatchSim(rules, OpenCircularLayout(), 77);

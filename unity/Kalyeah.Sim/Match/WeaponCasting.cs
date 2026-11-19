@@ -118,6 +118,7 @@ namespace Kalyeah.Sim
             else state.WeaponCooldowns[slot] = def.Cooldown;
             sim.CycleUsed(state, slot);
             state.OutOfCombatTime = 0.0;
+            state.JogTime = 0.0;
             state.Sprinting = false;
             state.CastLockLeft = def.CastLock;
             if (def.CastLock > 0.0) sim.EndMove(state);

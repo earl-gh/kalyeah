@@ -68,6 +68,9 @@ namespace Kalyeah.Sim
         public double UltCharge;
         public bool Sprinting;
         public double OutOfCombatTime;
+        /// <summary>Seconds of steady jogging (spec rules): running starts at `sprint_delay`; stopping, walking, crouching, a sharp
+        /// turn or a cast reset it.</summary>
+        public double JogTime;
         public bool Walking;
         public bool Crouching;
         public double AirY;

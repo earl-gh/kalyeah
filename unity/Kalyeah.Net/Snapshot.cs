@@ -55,6 +55,7 @@ namespace Kalyeah.Net
                 if (p.DashLeft > 0.0 || p.DashDir != Vec2.Zero) entry["dd"] = SnapVec(p.DashDir);
                 if (p.UltCharge > 0.0) entry["ult"] = Snap(p.UltCharge);
                 if (p.Sprinting) entry["spr"] = true;
+                if (p.JogTime > 0.0) entry["jog"] = Snap(p.JogTime);
                 // locomotion and street power-up buffs (left out when false / 0)
                 if (p.Walking) entry["wlk"] = true;
                 if (p.Crouching) entry["cr"] = true;
@@ -212,6 +213,7 @@ namespace Kalyeah.Net
                 p.DashDir = e.GetVec2("dd", Vec2.Zero);
                 p.UltCharge = e.GetFloat("ult");
                 p.Sprinting = e.GetBool("spr");
+                p.JogTime = e.GetFloat("jog");
                 p.Walking = e.GetBool("wlk");
                 p.Crouching = e.GetBool("cr");
                 p.AirY = e.GetFloat("ay");

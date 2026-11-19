@@ -175,6 +175,7 @@ namespace Kalyeah.Sim
             state.SlideLeft = 0.0;
             state.SlideDir = Vec2.Zero;
             state.RunTime = 0.0;
+            state.JogTime = 0.0;
             state.BuffType = 0;
             state.BuffLeft = 0.0;
             state.BuffRegenCarry = 0.0;

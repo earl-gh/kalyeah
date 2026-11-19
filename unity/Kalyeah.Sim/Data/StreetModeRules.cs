@@ -13,6 +13,9 @@ namespace Kalyeah.Sim
         public string Id = "";
         public string Title = "";
         public double MatchSeconds = 300.0;
+        /// <summary>The street games' own run speed (m/s): they keep the pace they were tuned for, apart from Agawang Base's walk,
+        /// jog and run (docs/SPEC.md §7).</summary>
+        public double MoveSpeed = 6.4;
         public int RoomMinPlayers = 2;
         public double RollSeconds;
         public int RoomMinTeam = 1;

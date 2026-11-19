@@ -312,7 +312,10 @@ namespace Kalyeah.Sim.Tests
             Assert.AreEqual(30, r.TickRate);
             Assert.AreEqual(DT, r.TickDt(), 1e-5);
             Assert.AreEqual(100, r.PlayerMaxHp);
-            Assert.AreEqual(6.4, r.MoveSpeed, 0.01);
+            Assert.AreEqual(5.25, r.MoveSpeed, 0.01, "jog (docs/SPEC.md §7)");
+            Assert.AreEqual(4.5, r.WalkSpeed, 0.01, "walk");
+            Assert.AreEqual(6.0, r.MoveSpeed * r.SprintMultiplier, 0.01, "run");
+            Assert.AreEqual(1.5, r.SprintDelay, 0.01, "seconds of steady jogging before the run");
             Assert.AreEqual(8.0, r.CaptureSoloTime, 0.01);
         }
 
@@ -360,13 +363,38 @@ namespace Kalyeah.Sim.Tests
         }
 
         [Test]
-        public void HalfStickMovesHalfSpeed()
+        public void PartlyPushedStickWalksAtWalkSpeed()
         {
             MatchSim sim = Sim();
             PlayerState p = sim.AddPlayer(1, 0);
             Vec2 start = p.Position;
             Run(sim, 1, new Vec2(0.0, -0.5), 30);
-            Assert.AreEqual(Data.GameRules.MoveSpeed * 0.5, p.Position.DistanceTo(start), 0.02);
+            Assert.AreEqual(Data.GameRules.WalkSpeed, p.Position.DistanceTo(start), 0.02, "walk is one speed, not in proportion to the stick");
+            Assert.IsTrue(p.Walking);
+            Assert.IsFalse(p.Sprinting);
+        }
+
+        [Test]
+        public void SteadyJogTurnsIntoARunAndASharpTurnDropsIt()
+        {
+            GameRules r = Data.GameRules;
+            MatchSim sim = Sim();
+            PlayerState p = sim.AddPlayer(1, 0);
+            int jogTicks = (int)System.Math.Ceiling(r.SprintDelay * 30.0);
+            Run(sim, 1, new Vec2(0.0, -1.0), jogTicks - 2);
+            Assert.IsFalse(p.Sprinting, "still jogging before sprint_delay");
+            Run(sim, 1, new Vec2(0.0, -1.0), 4);
+            Assert.IsTrue(p.Sprinting, "a steady jog becomes a run");
+            Vec2 before = p.Position;
+            Run(sim, 1, new Vec2(0.0, -1.0), 30);
+            Assert.AreEqual(r.MoveSpeed * r.SprintMultiplier, p.Position.DistanceTo(before), 0.05, "runs at 6 m/s");
+
+            Run(sim, 1, new Vec2(1.0, 0.0), 1);
+            Assert.IsFalse(p.Sprinting, "a 90 degree turn drops the run");
+            Assert.AreEqual(0.0, p.JogTime, 1e-9);
+            Run(sim, 1, Vec2.Zero, 1);
+            Run(sim, 1, new Vec2(1.0, 0.0), jogTicks - 2);
+            Assert.IsFalse(p.Sprinting, "stopping starts the jog over");
         }
 
         [Test]

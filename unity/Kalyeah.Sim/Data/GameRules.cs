@@ -26,7 +26,10 @@ namespace Kalyeah.Sim
         public WeaponDef PrimaryWeapon;
         public WeaponDef UltimateWeapon;
         public bool SprintEnabled;
+        /// <summary>Seconds before running starts: of steady jogging under the spec rules (docs/SPEC.md §7), else out of combat.</summary>
         public double SprintDelay = 1.2;
+        /// <summary>Spec walk speed (m/s) with the stick partly pushed; 0 keeps the old speed in proportion to the stick.</summary>
+        public double WalkSpeed;
         public double SprintMultiplier = 1.32;
         public double WalkRunThreshold = 0.62;
         public double CrouchSpeedShare = 0.55;
