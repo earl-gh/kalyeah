@@ -7,11 +7,11 @@ using UnityEngine.UI;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// The home lobby (1280x720 reference, SafeArea-pinned, every control's hit area &gt;= 48 dp): the selected kid as a full-height
-    /// 3D hero on the left, a thin top bar (profile and rank, text tabs, settings), the mode card and one dominant PLAY on the
-    /// right (Wild Rift / Mobile Legends lobby layout, flat sharp Valorant-like styling: ink navy, off-white, one red accent).
+    /// The home lobby, laid out like CODM's main screen (1280x720 reference, SafeArea-pinned, every hit area &gt;= 48 dp): a top bar
+    /// (profile and rank, support, settings), a left rail (KIDS, CODEX, HISTORY), the selected kid in 3D on a lit floor with its
+    /// name plate, and on the right the mode card (tap to change) over one big gold PLAY with CODM's cut corner.
     /// PLAY is online first: it opens the online room; when the server can't be reached, <see cref="ShowOfflinePrompt"/> offers
-    /// the offline hub (Hotspot, Practice vs AI, Practice solo, Explore Barangay).
+    /// the offline hub (Hotspot, Practice vs AI, Practice solo).
     /// </summary>
     public sealed class HomeScreenView : IDisposable
     {
@@ -20,15 +20,16 @@ namespace Kalyeah.Game
         static readonly Color Paper = new Color(0.925f, 0.910f, 0.882f, 1f);
         static readonly Color Muted = new Color(0.62f, 0.66f, 0.70f, 1f);
         static readonly Color Hairline = new Color(0.925f, 0.910f, 0.882f, 0.18f);
-        static readonly Color Red = new Color(1f, 0.275f, 0.333f, 1f);
         static readonly Color Clear = new Color(0f, 0f, 0f, 0f);
         static readonly Color PressTint = new Color(0.82f, 0.82f, 0.86f, 1f);
+        static readonly Color Gold = new Color(1f, 0.757f, 0.149f, 1f); // CODM-style primary: PLAY, edges, highlights
 
-        const float TopBarHeight = 96f;
-        const float HeroCentreX = 0.36f; // hero and slash centre, as a fraction of the screen width (right of the name plate)
+        const float TopBarHeight = 104f;
+        const float RailWidth = 150f;
+        const float RailTileHeight = 122f;
         const float HitSize = 96f;
         const float Gutter = 20f;
-        const float NarrowTopBarWidth = 1100f;
+        const float NarrowTopBarWidth = 1000f;
 
         static readonly string[] Difficulties = { "easy", "medium", "hard" };
 
@@ -57,10 +58,16 @@ namespace Kalyeah.Game
         RectTransform _hubBody;
         RectTransform _heroImageRect;
         RectTransform _heroShadowRect;
+        RectTransform _heroGlowRect;
+        RectTransform _navRail;
+        RectTransform _heroZone;
+        RectTransform _modeColumn;
+        RawImage _kidsIcon;
+        RawImage _modeArt;
+        AspectRatioFitter _modeArtFit;
         RectTransform _modeZone;
         RectTransform _playZone;
         RectTransform _supportTab;
-        RectTransform _tabsRow;
 
         RawImage _heroImage;
         RawImage _avatarImage;
@@ -238,42 +245,37 @@ namespace Kalyeah.Game
             if (art != null)
             {
                 RawImage raw = MakeRaw("Art", bg, art);
-                raw.color = new Color(0.55f, 0.58f, 0.66f, 0.42f);
+                raw.color = new Color(0.42f, 0.44f, 0.50f, 0.55f);
                 var fitter = raw.gameObject.AddComponent<AspectRatioFitter>();
                 fitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
                 fitter.aspectRatio = art.height > 0 ? (float)art.width / art.height : 16f / 9f;
             }
 
-            // darken toward the right (where the controls sit) and toward the bottom
-            RawImage sideShade = MakeRaw("SideShade", bg, Ramp(true));
-            sideShade.color = new Color(Ink.r, Ink.g, Ink.b, 0.92f);
-            Stretch(sideShade.rectTransform, new Vector2(0.35f, 0f), Vector2.one);
+            // CODM-style lobby light: dark at the edges, a dim top strip under the bar, a lit floor under the kid
+            RawImage leftShade = MakeRaw("LeftShade", bg, Ramp(true));
+            leftShade.color = new Color(Ink.r, Ink.g, Ink.b, 0.9f);
+            leftShade.uvRect = new Rect(1f, 0f, -1f, 1f);
+            Stretch(leftShade.rectTransform, Vector2.zero, new Vector2(0.28f, 1f));
+            RawImage rightShade = MakeRaw("RightShade", bg, Ramp(true));
+            rightShade.color = new Color(Ink.r, Ink.g, Ink.b, 0.94f);
+            Stretch(rightShade.rectTransform, new Vector2(0.55f, 0f), Vector2.one);
             RawImage floorShade = MakeRaw("FloorShade", bg, Ramp(false));
-            floorShade.color = new Color(Ink.r, Ink.g, Ink.b, 0.85f);
-            Stretch(floorShade.rectTransform, Vector2.zero, new Vector2(1f, 0.42f));
-
-            // one bold red slash behind the hero
-            // one bold red slash behind the hero, clipped under the top bar so it frames the kid, not the tabs
-            RectTransform slashClip = Ui.Fill("SlashClip", bg);
-            slashClip.offsetMax = new Vector2(0f, -(TopBarHeight + 8f));
-            slashClip.gameObject.AddComponent<RectMask2D>();
-            Image slash = Ui.MakeImage("HeroSlash", slashClip, new Color(Red.r, Red.g, Red.b, 0.85f));
-            RectTransform sr = slash.rectTransform;
-            sr.anchorMin = sr.anchorMax = new Vector2(HeroCentreX, 0.5f);
-            sr.pivot = new Vector2(0.5f, 0.5f);
-            sr.sizeDelta = new Vector2(130f, 1400f);
-            sr.localRotation = Quaternion.Euler(0f, 0f, -16f);
-            Image slashEdge = Ui.MakeImage("HeroSlashEdge", slashClip, new Color(Paper.r, Paper.g, Paper.b, 0.5f));
-            RectTransform er = slashEdge.rectTransform;
-            er.anchorMin = er.anchorMax = new Vector2(HeroCentreX, 0.5f);
-            er.pivot = new Vector2(0.5f, 0.5f);
-            er.anchoredPosition = new Vector2(118f, 0f);
-            er.sizeDelta = new Vector2(4f, 1400f);
-            er.localRotation = Quaternion.Euler(0f, 0f, -16f);
+            floorShade.color = new Color(Ink.r, Ink.g, Ink.b, 0.9f);
+            Stretch(floorShade.rectTransform, Vector2.zero, new Vector2(1f, 0.38f));
+            RawImage topShade = MakeRaw("TopShade", bg, Ramp(false));
+            topShade.color = new Color(0f, 0f, 0f, 0.7f);
+            topShade.uvRect = new Rect(0f, 1f, 1f, -1f);
+            Stretch(topShade.rectTransform, new Vector2(0f, 0.8f), Vector2.one);
         }
 
         void BuildHero(RectTransform parent)
         {
+            // a soft gold floor light, then the contact shadow, then the kid
+            Image glow = Ui.MakeImage("HeroGlow", parent, new Color(Gold.r, Gold.g, Gold.b, 0.16f), round: true);
+            _heroGlowRect = glow.rectTransform;
+            _heroGlowRect.anchorMin = _heroGlowRect.anchorMax = Vector2.zero;
+            _heroGlowRect.pivot = new Vector2(0.5f, 0.5f);
+
             Image shadow = Ui.MakeImage("HeroShadow", parent, new Color(0f, 0f, 0f, 0.55f), round: true);
             _heroShadowRect = shadow.rectTransform;
             _heroShadowRect.anchorMin = _heroShadowRect.anchorMax = new Vector2(0f, 0f);
@@ -290,19 +292,18 @@ namespace Kalyeah.Game
         {
             _topBar = Ui.Panel("TopBar", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, TopBarHeight));
 
-            Image rule = Ui.MakeImage("Rule", _topBar, Hairline);
-            Stretch(rule.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f));
-            rule.rectTransform.sizeDelta = new Vector2(-2f * Gutter, 2f);
-            rule.rectTransform.anchoredPosition = new Vector2(0f, 6f);
-
-            // profile: avatar, name, rank line + LP bar (one button: opens the profile sheet)
-            RectTransform profile = Ui.Panel("Profile", _topBar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(Gutter, 0f), new Vector2(300f, HitSize));
+            // profile: avatar, name, rank line + LP bar on a dark angled plate (one button: opens the profile sheet)
+            RectTransform profile = Ui.Panel("Profile", _topBar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(Gutter, 0f), new Vector2(330f, HitSize));
             Image profileHit = profile.gameObject.AddComponent<Image>();
-            profileHit.color = Clear;
+            profileHit.color = new Color(0f, 0f, 0f, 0.45f);
+            Image profileEdge = Ui.MakeImage("Edge", profile, Gold);
+            Stretch(profileEdge.rectTransform, Vector2.zero, new Vector2(0f, 1f));
+            profileEdge.rectTransform.sizeDelta = new Vector2(4f, 0f);
+            profileEdge.rectTransform.pivot = new Vector2(0f, 0.5f);
             ProfileButton = AttachButton(profile.gameObject, profileHit, () => { TapFeedback(); Sheets?.OpenProfile(); });
 
-            Image avatarFrame = Ui.MakeImage("AvatarFrame", profile, Red);
-            Place(avatarFrame.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0f), new Vector2(60f, 60f));
+            Image avatarFrame = Ui.MakeImage("AvatarFrame", profile, Gold);
+            Place(avatarFrame.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(14f, 0f), new Vector2(68f, 68f));
             avatarFrame.rectTransform.pivot = new Vector2(0f, 0.5f);
             Image avatarWell = Ui.MakeImage("AvatarWell", avatarFrame.rectTransform, Ink);
             Stretch(avatarWell.rectTransform, Vector2.zero, Vector2.one);
@@ -311,7 +312,7 @@ namespace Kalyeah.Game
             _avatarImage = MakeRaw("Avatar", avatarWell.rectTransform, null);
 
             _playerName = Label("Name", profile, "", 26, Paper, TextAnchor.LowerLeft, display: true);
-            Place(_playerName.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(76f, 2f), new Vector2(-76f, 32f));
+            Place(_playerName.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(96f, 2f), new Vector2(-108f, 32f));
             _playerName.rectTransform.pivot = new Vector2(0f, 0f);
             _playerName.horizontalOverflow = HorizontalWrapMode.Wrap;
             _playerName.resizeTextForBestFit = true;
@@ -319,31 +320,25 @@ namespace Kalyeah.Game
             _playerName.resizeTextMaxSize = 26;
 
             _rankLabel = Label("Rank", profile, "", 15, Muted, TextAnchor.UpperLeft);
-            Place(_rankLabel.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(76f, -2f), new Vector2(-76f, 22f));
+            Place(_rankLabel.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(96f, -2f), new Vector2(-108f, 22f));
             _rankLabel.rectTransform.pivot = new Vector2(0f, 1f);
 
             Image rankTrack = Ui.MakeImage("RankTrack", profile, Hairline);
-            Place(rankTrack.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(76f, -30f), new Vector2(150f, 4f));
+            Place(rankTrack.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(96f, -30f), new Vector2(170f, 4f));
             rankTrack.rectTransform.pivot = new Vector2(0f, 0.5f);
-            _rankFillImage = Ui.MakeImage("RankFill", rankTrack.rectTransform, Red);
+            _rankFillImage = Ui.MakeImage("RankFill", rankTrack.rectTransform, Gold);
             _rankFill = _rankFillImage.rectTransform;
             Stretch(_rankFill, Vector2.zero, new Vector2(0.2f, 1f));
 
-            // text tabs (Valorant-style nav): kids, codex, history, events
-            _tabsRow = Ui.Panel("Tabs", _topBar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(Gutter + 300f + 24f, 0f), new Vector2(4f * 120f, HitSize));
-            MakeTab(_tabsRow, "Tab_Kids", "KIDS", 0, () => Navigate(MenuStack.PickId));
-            MakeTab(_tabsRow, "Tab_Codex", "CODEX", 1, () => Navigate(MenuStack.CodexId));
-            MakeTab(_tabsRow, "Tab_History", "HISTORY", 2, () => Navigate(MenuStack.HistoryId));
-
-            // right: support (donate) + settings gear
+            // right: settings gear tile, then support
             RectTransform settings = Ui.Panel("Settings", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-Gutter, 0f), new Vector2(HitSize, HitSize));
             Image settingsHit = settings.gameObject.AddComponent<Image>();
-            settingsHit.color = Clear;
+            settingsHit.color = new Color(0f, 0f, 0f, 0.45f);
             Texture2D gear = KalyeahResources.Texture("ui/hud_icons/gear");
             if (gear != null)
             {
                 RawImage gearIcon = MakeRaw("Gear", settings, gear);
-                Place(gearIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(40f, 40f));
+                Place(gearIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(44f, 44f));
                 gearIcon.color = Paper;
             }
             else
@@ -353,105 +348,116 @@ namespace Kalyeah.Game
             }
             AttachButton(settings.gameObject, settingsHit, () => Navigate(MenuStack.SettingsId));
 
-            _supportTab = Ui.Panel("Support", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-Gutter - HitSize - 8f, 0f), new Vector2(132f, HitSize));
+            _supportTab = Ui.Panel("Support", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-Gutter - HitSize - 10f, 0f), new Vector2(150f, HitSize));
             Image supportHit = _supportTab.gameObject.AddComponent<Image>();
-            supportHit.color = Clear;
-            Text supportText = Label("Label", _supportTab, "SUPPORT", 20, Muted, TextAnchor.MiddleCenter, display: true);
+            supportHit.color = new Color(0f, 0f, 0f, 0.45f);
+            Text supportText = Label("Label", _supportTab, "SUPPORT", 20, Paper, TextAnchor.MiddleCenter, display: true);
             Stretch(supportText.rectTransform, Vector2.zero, Vector2.one);
             AttachButton(_supportTab.gameObject, supportHit, () => { TapFeedback(); Sheets?.OpenDonate(); });
         }
 
-        void MakeTab(RectTransform row, string name, string title, int index, Action onClick)
+        /// <summary>One CODM-style rail tile: a dark plate, a picture, a label underneath, a gold edge on the left.</summary>
+        RawImage MakeRailTile(RectTransform rail, string name, string title, Texture2D icon, Action onClick)
         {
-            RectTransform tab = Ui.Panel(name, row, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(index * 120f, 0f), new Vector2(112f, HitSize));
-            Image hit = tab.gameObject.AddComponent<Image>();
-            hit.color = Clear;
-            Text label = Label("Label", tab, title, 22, Paper, TextAnchor.MiddleCenter, display: true);
-            Stretch(label.rectTransform, Vector2.zero, Vector2.one);
-            AttachButton(tab.gameObject, hit, onClick);
+            RectTransform tile = Ui.Panel(name, rail, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, RailTileHeight));
+            Image plate = tile.gameObject.AddComponent<Image>();
+            plate.color = new Color(0f, 0f, 0f, 0.55f);
+            Image edge = Ui.MakeImage("Edge", tile, Gold);
+            Stretch(edge.rectTransform, Vector2.zero, new Vector2(0f, 1f));
+            edge.rectTransform.sizeDelta = new Vector2(4f, 0f);
+            edge.rectTransform.pivot = new Vector2(0f, 0.5f);
+
+            RawImage picture = MakeRaw("Icon", tile, icon);
+            Place(picture.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(76f, 76f));
+            picture.rectTransform.pivot = new Vector2(0.5f, 1f);
+            picture.enabled = icon != null;
+
+            Text label = Label("Label", tile, title, 20, Paper, TextAnchor.LowerCenter, display: true);
+            Stretch(label.rectTransform, Vector2.zero, new Vector2(1f, 0f));
+            label.rectTransform.pivot = new Vector2(0.5f, 0f);
+            label.rectTransform.sizeDelta = new Vector2(0f, 30f);
+            label.rectTransform.anchoredPosition = new Vector2(0f, 8f);
+            AttachButton(tile.gameObject, plate, onClick);
+            return picture;
         }
 
         void BuildHub(RectTransform parent)
         {
             _hubBody = Ui.Fill("HubBody", parent);
 
-            // 0. hero zone: the kid's name plate (tap to change kid)
-            RectTransform heroZone = Ui.Panel("HeroZone", _hubBody, Vector2.zero, new Vector2(0.46f, 1f), new Vector2(0f, 0f), Vector2.zero, Vector2.zero);
-            // name stacked over CHANGE, bottom-left, clear of the hero's feet
-            RectTransform plate = Ui.Panel("KidPlate", heroZone, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(300f, 124f));
+            // 0. left rail (CODM's side menu): KIDS (the selected kid's face), CODEX, HISTORY
+            _navRail = Ui.Panel("NavRail", _hubBody, Vector2.zero, new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(RailWidth, 0f));
+            _kidsIcon = MakeRailTile(_navRail, "Tab_Kids", "KIDS", null, () => Navigate(MenuStack.PickId));
+            MakeRailTile(_navRail, "Tab_Codex", "CODEX", KalyeahResources.Texture("ui/nav/nav_cards"), () => Navigate(MenuStack.CodexId));
+            MakeRailTile(_navRail, "Tab_History", "HISTORY", KalyeahResources.Texture("ui/nav/nav_history"), () => Navigate(MenuStack.HistoryId));
+
+            // 1. hero zone: the kid's name plate at the kid's feet (tap to change kid)
+            _heroZone = Ui.Panel("HeroZone", _hubBody, Vector2.zero, new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            RectTransform plate = Ui.Panel("KidPlate", _heroZone, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(320f, 112f));
             Image plateHit = plate.gameObject.AddComponent<Image>();
             plateHit.color = Clear;
-            Image bar = Ui.MakeImage("Bar", plate, Red);
-            Place(bar.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(8f, 70f));
-            bar.rectTransform.pivot = new Vector2(0f, 1f);
-            _kidName = Label("KidName", plate, "", 60, Paper, TextAnchor.MiddleLeft, display: true);
-            Place(_kidName.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(13f, 0f), new Vector2(-26f, 70f));
-            _kidName.rectTransform.pivot = new Vector2(0.5f, 1f);
+            _kidName = Label("KidName", plate, "", 56, Paper, TextAnchor.UpperCenter, display: true);
+            Stretch(_kidName.rectTransform, new Vector2(0f, 0.42f), Vector2.one);
             _kidName.resizeTextForBestFit = true;
-            _kidName.resizeTextMinSize = 32;
-            _kidName.resizeTextMaxSize = 60;
-            Text change = Label("Change", plate, "CHANGE", 16, Paper, TextAnchor.MiddleCenter, display: true);
-            Place(change.rectTransform, Vector2.zero, Vector2.zero, new Vector2(26f, 8f), new Vector2(96f, 34f));
-            change.rectTransform.pivot = Vector2.zero;
-            Frame(change.rectTransform, Hairline, 2f);
+            _kidName.resizeTextMinSize = 30;
+            _kidName.resizeTextMaxSize = 56;
+            Image changeChip = Ui.MakeImage("ChangeChip", plate, new Color(0f, 0f, 0f, 0.55f));
+            Place(changeChip.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 4f), new Vector2(150f, 38f));
+            changeChip.rectTransform.pivot = new Vector2(0.5f, 0f);
+            Frame(changeChip.rectTransform, Gold, 2f);
+            Text change = Label("Change", changeChip.rectTransform, "CHANGE KID", 16, Gold, TextAnchor.MiddleCenter, display: true);
+            Stretch(change.rectTransform, Vector2.zero, Vector2.one);
             KidButton = AttachButton(plate.gameObject, plateHit, () => Navigate(MenuStack.PickId));
 
-            // 1. mode zone: the one live mode
-            _modeZone = Ui.Panel("ModeZone", _hubBody, Vector2.one, Vector2.one, Vector2.one, Vector2.zero, new Vector2(420f, 150f));
+            // 2. right column: the mode card (tap to change) over CODM's big gold START, here PLAY
+            _modeColumn = Ui.Panel("ModeColumn", _hubBody, new Vector2(1f, 0f), Vector2.one, new Vector2(1f, 0.5f), Vector2.zero, new Vector2(420f, 0f));
+
+            _modeZone = Ui.Panel("ModeZone", _modeColumn, new Vector2(0f, 1f), Vector2.one, new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 220f));
             Image modeBg = _modeZone.gameObject.AddComponent<Image>();
-            modeBg.color = InkPanel;
-            modeBg.raycastTarget = false;
+            modeBg.color = new Color(0f, 0f, 0f, 0.6f);
             RectTransform modeArt = Ui.Fill("Art", _modeZone);
             modeArt.gameObject.AddComponent<RectMask2D>();
-            Texture2D modeTex = KalyeahResources.Texture("ui/games/agawan_base") ?? KalyeahResources.Texture("ui/mode_pictures/practice");
-            if (modeTex != null)
-            {
-                RawImage art = MakeRaw("Picture", modeArt, modeTex);
-                art.color = new Color(0.86f, 0.86f, 0.9f, 1f);
-                var fit = art.gameObject.AddComponent<AspectRatioFitter>();
-                fit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
-                fit.aspectRatio = modeTex.height > 0 ? (float)modeTex.width / modeTex.height : 2f;
-            }
-            RawImage modeShade = MakeRaw("Shade", _modeZone, Ramp(true));
-            modeShade.color = new Color(Ink.r, Ink.g, Ink.b, 0.95f);
-            modeShade.uvRect = new Rect(1f, 0f, -1f, 1f);
-            Stretch(modeShade.rectTransform, Vector2.zero, new Vector2(0.8f, 1f));
-            Image modeAccent = Ui.MakeImage("Accent", _modeZone, Red);
-            Stretch(modeAccent.rectTransform, Vector2.zero, new Vector2(0f, 1f));
-            modeAccent.rectTransform.sizeDelta = new Vector2(6f, 0f);
-            modeAccent.rectTransform.pivot = new Vector2(0f, 0.5f);
-            Text modeName = Label("ModeName", _modeZone, "", 38, Paper, TextAnchor.LowerLeft, display: true);
-            _modeName = modeName;
-            Stretch(modeName.rectTransform, new Vector2(0f, 0.42f), new Vector2(1f, 1f));
-            modeName.rectTransform.offsetMin = new Vector2(26f, 0f);
-            modeName.rectTransform.offsetMax = new Vector2(-16f, -12f);
-            modeName.resizeTextForBestFit = true;
-            modeName.resizeTextMinSize = 24;
-            modeName.resizeTextMaxSize = 38;
-            Image sizeChip = Ui.MakeImage("SizeChip", _modeZone, Paper);
-            Place(sizeChip.rectTransform, Vector2.zero, Vector2.zero, new Vector2(26f, 18f), new Vector2(64f, 32f));
-            sizeChip.rectTransform.pivot = Vector2.zero;
-            Text modeSize = Label("ModeSize", sizeChip.rectTransform, "", 18, Ink, TextAnchor.MiddleCenter, display: true);
-            Stretch(modeSize.rectTransform, Vector2.zero, Vector2.one);
-            _modeDetail = modeSize;
-            Place(sizeChip.rectTransform, Vector2.zero, Vector2.zero, new Vector2(26f, 18f), new Vector2(150f, 32f));
-            Text modeHint = Label("ModeHint", _modeZone, "TAP TO CHANGE", 16, Muted, TextAnchor.LowerRight, display: true);
-            Place(modeHint.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-16f, 18f), new Vector2(180f, 32f));
+            _modeArt = MakeRaw("Picture", modeArt, null);
+            _modeArt.color = new Color(0.8f, 0.8f, 0.84f, 1f);
+            _modeArtFit = _modeArt.gameObject.AddComponent<AspectRatioFitter>();
+            _modeArtFit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            RawImage modeShade = MakeRaw("Shade", _modeZone, Ramp(false));
+            modeShade.color = new Color(0f, 0f, 0f, 0.92f);
+            Stretch(modeShade.rectTransform, Vector2.zero, new Vector2(1f, 0.75f));
+            Image modeAccent = Ui.MakeImage("Accent", _modeZone, Gold);
+            Stretch(modeAccent.rectTransform, new Vector2(0f, 1f), Vector2.one);
+            modeAccent.rectTransform.sizeDelta = new Vector2(0f, 4f);
+            modeAccent.rectTransform.pivot = new Vector2(0.5f, 1f);
+            Text modeKicker = Label("Kicker", _modeZone, "AGAWANG BASE  /  BARANGAY", 16, Gold, TextAnchor.UpperLeft, display: true);
+            Place(modeKicker.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(18f, -16f), new Vector2(-36f, 24f));
+            modeKicker.rectTransform.pivot = new Vector2(0.5f, 1f);
+            _modeName = Label("ModeName", _modeZone, "", 48, Paper, TextAnchor.LowerLeft, display: true);
+            Place(_modeName.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(18f, 56f), new Vector2(-36f, 60f));
+            _modeName.rectTransform.pivot = new Vector2(0.5f, 0f);
+            _modeName.resizeTextForBestFit = true;
+            _modeName.resizeTextMinSize = 28;
+            _modeName.resizeTextMaxSize = 48;
+            _modeDetail = Label("ModeDetail", _modeZone, "", 18, Paper, TextAnchor.LowerLeft, display: true);
+            Place(_modeDetail.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(18f, 18f), new Vector2(-36f, 32f));
+            _modeDetail.rectTransform.pivot = new Vector2(0.5f, 0f);
+            Text modeHint = Label("ModeHint", _modeZone, "TAP TO CHANGE", 16, Gold, TextAnchor.LowerRight, display: true);
+            Place(modeHint.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-18f, 18f), new Vector2(180f, 32f));
             modeHint.rectTransform.pivot = new Vector2(1f, 0f);
-            Image modeHit = Ui.MakeImage("Hit", _modeZone, Clear);
-            Stretch(modeHit.rectTransform, Vector2.zero, Vector2.one);
-            ModeButton = AttachButton(modeHit.gameObject, modeHit, CycleHomeMode);
+            ModeButton = AttachButton(_modeZone.gameObject, modeBg, CycleHomeMode);
             ShowHomeMode();
 
-            // 2. play zone: the one big button
-            _playZone = Ui.Panel("PlayZone", _hubBody, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), Vector2.zero, new Vector2(420f, 120f));
+            _playZone = Ui.Panel("PlayZone", _modeColumn, Vector2.zero, new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, 128f));
             Image playFill = _playZone.gameObject.AddComponent<Image>();
-            playFill.color = Red;
-            Image playEdge = Ui.MakeImage("Edge", _playZone, new Color(Paper.r, Paper.g, Paper.b, 0.9f));
-            Stretch(playEdge.rectTransform, new Vector2(0f, 1f), Vector2.one);
-            playEdge.rectTransform.pivot = new Vector2(0.5f, 1f);
-            playEdge.rectTransform.sizeDelta = new Vector2(0f, 4f);
-            Text playLabel = Label("Label", _playZone, "PLAY", 54, Paper, TextAnchor.MiddleCenter, display: true);
+            playFill.color = Gold;
+            // CODM's cut corner: an ink triangle over the top-left corner of the gold button
+            Image cut = Ui.MakeImage("Cut", _playZone, Ink);
+            cut.raycastTarget = false;
+            RectTransform cr = cut.rectTransform;
+            cr.anchorMin = cr.anchorMax = new Vector2(0f, 1f);
+            cr.pivot = new Vector2(0.5f, 0.5f);
+            cr.sizeDelta = new Vector2(44f, 44f);
+            cr.localRotation = Quaternion.Euler(0f, 0f, 45f);
+            Text playLabel = Label("Label", _playZone, "PLAY", 60, Ink, TextAnchor.MiddleCenter, display: true);
             Stretch(playLabel.rectTransform, Vector2.zero, Vector2.one);
             PlayButton = AttachButton(_playZone.gameObject, playFill, PressPlay);
         }
@@ -466,7 +472,7 @@ namespace Kalyeah.Game
             RectTransform card = Ui.Panel("Card", _offlinePrompt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(620f, 300f));
             Image cardBg = card.gameObject.AddComponent<Image>();
             cardBg.color = Ink;
-            Image top = Ui.MakeImage("Accent", card, Red);
+            Image top = Ui.MakeImage("Accent", card, Gold);
             Stretch(top.rectTransform, new Vector2(0f, 1f), Vector2.one);
             top.rectTransform.pivot = new Vector2(0.5f, 1f);
             top.rectTransform.sizeDelta = new Vector2(0f, 6f);
@@ -566,7 +572,7 @@ namespace Kalyeah.Game
             shade.color = new Color(InkPanel.r, InkPanel.g, InkPanel.b, 1f);
             Stretch(shade.rectTransform, Vector2.zero, new Vector2(1f, 0.6f));
 
-            Image accent = Ui.MakeImage("Accent", card, main ? Red : Hairline);
+            Image accent = Ui.MakeImage("Accent", card, main ? Gold : Hairline);
             Stretch(accent.rectTransform, new Vector2(0f, 1f), Vector2.one);
             accent.rectTransform.pivot = new Vector2(0.5f, 1f);
             accent.rectTransform.sizeDelta = new Vector2(0f, main ? 6f : 2f);
@@ -592,9 +598,9 @@ namespace Kalyeah.Game
         {
             RectTransform rect = Ui.Panel(name, row, anchorMin, anchorMax, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             Image fill = rect.gameObject.AddComponent<Image>();
-            fill.color = primary ? Red : new Color(Ink.r, Ink.g, Ink.b, 0.6f);
+            fill.color = primary ? Gold : new Color(Ink.r, Ink.g, Ink.b, 0.6f);
             if (!primary) Frame(rect, new Color(Paper.r, Paper.g, Paper.b, 0.55f), 2f);
-            Text label = Label("Label", rect, title, 24, Paper, TextAnchor.MiddleCenter, display: true);
+            Text label = Label("Label", rect, title, 24, primary ? Ink : Paper, TextAnchor.MiddleCenter, display: true);
             Stretch(label.rectTransform, Vector2.zero, Vector2.one);
             label.rectTransform.offsetMin = new Vector2(6f, 0f);
             label.rectTransform.offsetMax = new Vector2(-6f, 0f);
@@ -637,21 +643,27 @@ namespace Kalyeah.Game
             if (_rankFill != null)
             {
                 _rankFill.anchorMax = new Vector2(Mathf.Clamp(session.TierProgress01, 0.04f, 1f), 1f);
-                _rankFillImage.color = ParseHexColor(tier.ColorHex, Red);
+                _rankFillImage.color = ParseHexColor(tier.ColorHex, Gold);
             }
 
             string kidId = string.IsNullOrWhiteSpace(session.SelectedCharacter) ? AppSession.DefaultCharacter : session.SelectedCharacter;
             if (_kidName != null)
                 _kidName.text = (ReadCharacterDisplayName(kidId) ?? Capitalize(kidId)).ToUpperInvariant();
+            if (_kidsIcon != null)
+            {
+                Texture2D face = KalyeahResources.Texture("portraits/faces/" + kidId);
+                _kidsIcon.texture = face;
+                _kidsIcon.enabled = face != null;
+            }
             _stage.SetKid(kidId);
             _stage.RenderNow();
-            PlaceHeroShadow();
+            RefreshLayout(); // the kid's feet height changes with the kid
 
             if (_difficultyLabel != null)
                 _difficultyLabel.text = SettingsStore.NormalizeDifficulty(session.BotDifficulty).ToUpperInvariant();
         }
 
-        /// <summary>Reflows the top bar, hub zones and hero for 4:3 foldables through 21:9 ultra-wides.</summary>
+        /// <summary>Reflows the top bar, the three hub columns (rail, kid, mode) and the hero for 4:3 foldables through 21:9.</summary>
         public void RefreshLayout()
         {
             if (_disposed || _topBar == null || _hubBody == null) return;
@@ -661,37 +673,45 @@ namespace Kalyeah.Game
 
             _hubBody.offsetMin = new Vector2(Gutter, 16f);
             _hubBody.offsetMax = new Vector2(-Gutter, -(TopBarHeight + 8f));
+            if (_supportTab != null) _supportTab.gameObject.SetActive(width >= NarrowTopBarWidth);
 
-            bool roomForSupport = width >= NarrowTopBarWidth;
-            if (_supportTab != null) _supportTab.gameObject.SetActive(roomForSupport);
-            if (_tabsRow != null)
+            // columns: rail on the left, mode column on the right, the kid's plate in the space between
+            float bodyWidth = Mathf.Max(0f, width - 2f * Gutter);
+            float rightWidth = Mathf.Clamp(bodyWidth * 0.34f, 320f, 440f);
+            const float columnGap = 16f;
+            if (_navRail != null)
             {
-                // tabs shrink their spacing on narrow screens; each keeps a 96 unit hit area
-                float available = width - (Gutter + 300f + 24f) - (Gutter + HitSize + 8f) - (roomForSupport ? 132f + 8f : 0f);
-                float step = Mathf.Clamp(available / 4f, HitSize + 4f, 132f);
-                for (int i = 0; i < _tabsRow.childCount; i++)
+                _navRail.sizeDelta = new Vector2(RailWidth, 0f);
+                _navRail.anchoredPosition = Vector2.zero;
+                float bodyHeight = _hubBody.rect.height;
+                float step = Mathf.Min(RailTileHeight + 12f, bodyHeight / Mathf.Max(1, _navRail.childCount));
+                for (int i = 0; i < _navRail.childCount; i++)
                 {
-                    var tab = _tabsRow.GetChild(i) as RectTransform;
-                    if (tab == null) continue;
-                    tab.anchoredPosition = new Vector2(i * step, 0f);
-                    tab.sizeDelta = new Vector2(step - 4f, HitSize);
+                    var tile = _navRail.GetChild(i) as RectTransform;
+                    if (tile == null) continue;
+                    tile.anchoredPosition = new Vector2(0f, -i * step);
+                    tile.sizeDelta = new Vector2(0f, Mathf.Min(RailTileHeight, step - 8f));
                 }
-                _tabsRow.sizeDelta = new Vector2(4f * step, HitSize);
+            }
+            if (_modeColumn != null) _modeColumn.sizeDelta = new Vector2(rightWidth, 0f);
+            float heroLeft = RailWidth + columnGap;
+            float heroRight = bodyWidth - rightWidth - columnGap;
+            if (_heroZone != null)
+            {
+                _heroZone.anchoredPosition = new Vector2(heroLeft, 0f);
+                _heroZone.sizeDelta = new Vector2(Mathf.Max(0f, heroRight - heroLeft), 0f);
             }
 
-            float bodyWidth = Mathf.Max(0f, width - 2f * Gutter);
-            float rightWidth = Mathf.Clamp(bodyWidth * 0.36f, 340f, 460f);
-            rightWidth = Mathf.Min(rightWidth, bodyWidth * 0.54f - 16f);
-            if (_modeZone != null) _modeZone.sizeDelta = new Vector2(rightWidth, 150f);
-            if (_playZone != null) _playZone.sizeDelta = new Vector2(rightWidth, 120f);
-
-            // hero: full height, centred on the red slash, right of the name plate
-            float heroHeight = full.height * 1.02f;
+            // the kid: nearly full height, centred over its plate, feet just above the name
+            float heroHeight = full.height * 0.9f;
             float heroWidth = heroHeight * 0.75f;
-            if (_heroImageRect != null)
+            if (_heroImageRect != null && _heroZone != null)
             {
+                Vector3 zoneCentre = Root.InverseTransformPoint(_heroZone.TransformPoint(_heroZone.rect.center));
+                float heroCentre = zoneCentre.x - full.xMin;
+                float plateTop = Root.InverseTransformPoint(_heroZone.TransformPoint(new Vector3(0f, _heroZone.rect.yMin + 120f, 0f))).y - full.yMin;
                 _heroImageRect.sizeDelta = new Vector2(heroWidth, heroHeight);
-                _heroImageRect.anchoredPosition = new Vector2(full.width * HeroCentreX, -full.height * 0.02f);
+                _heroImageRect.anchoredPosition = new Vector2(heroCentre, plateTop - heroHeight * _stage.FeetViewportY);
             }
             PlaceHeroShadow();
         }
@@ -703,6 +723,11 @@ namespace Kalyeah.Game
             Vector2 pos = _heroImageRect.anchoredPosition;
             _heroShadowRect.anchoredPosition = new Vector2(pos.x, pos.y + size.y * _stage.FeetViewportY);
             _heroShadowRect.sizeDelta = new Vector2(size.x * 0.42f, size.x * 0.07f);
+            if (_heroGlowRect != null)
+            {
+                _heroGlowRect.anchoredPosition = _heroShadowRect.anchoredPosition;
+                _heroGlowRect.sizeDelta = new Vector2(size.x * 0.95f, size.x * 0.2f);
+            }
         }
 
         // ---------------------------------------------------------------- flow
@@ -733,10 +758,17 @@ namespace Kalyeah.Game
             if (_modeDetail != null)
                 _modeDetail.text = _homeMode switch
                 {
-                    HomeMode.Blitz => "FIRST TO 3",
-                    HomeMode.Quick => "FIRST TO 5",
-                    _ => "HOTSPOT + AI",
+                    HomeMode.Blitz => "5V5  /  FIRST TO 3",
+                    HomeMode.Quick => "5V5  /  FIRST TO 5",
+                    _ => "HOTSPOT  /  PRACTICE",
                 };
+            if (_modeArt != null)
+            {
+                Texture2D art = KalyeahResources.Texture(_homeMode == HomeMode.Offline ? "ui/mode_pictures/hotspot" : "ui/mode_pictures/online");
+                _modeArt.texture = art;
+                _modeArt.enabled = art != null;
+                if (art != null && _modeArtFit != null) _modeArtFit.aspectRatio = (float)art.width / art.height;
+            }
         }
 
         void PressPlay()
