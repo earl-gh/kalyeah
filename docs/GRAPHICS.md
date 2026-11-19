@@ -154,3 +154,11 @@ item says which kind of asset the owner makes.
   10 s swap screen with the score and both teams' kids.
 - **HUD style:** pure Valorant: clean flat shapes in the Ink / Paper / Red palette, no street or komiks flavour.
 - **Jailed kids** sit pouting and slightly faded, so they read as "out" at a glance.
+
+## Smoothness and camera handling
+- **Busy fights:** when the phone struggles, far effects and background life reduce first, never the kids or anything
+  that matters to gameplay; kids beyond 35 m update their animation less often. No dynamic resolution.
+- **Loading:** all 10 kids' skins and the map load on the loading screen, so nothing hitches or pops in mid-match.
+- **Walls behind the kid:** in tight spots the camera slides in smoothly; if it gets very close, your own kid turns
+  see-through so the crosshair stays clear (walls never fade, so nothing behind them is revealed).
+- **Follow:** tight with a tiny smooth lag: aiming feels direct and running still looks smooth.
