@@ -108,3 +108,11 @@ item says which kind of asset the owner makes.
   change the hit puff (same size); a slingshot skin can have its own sound when its owner tags someone.
 - **Showcase:** home, kid select and the kid page use the detailed showcase model (up to 60k triangles), on a warm,
   softly backlit stage like Valorant's agent select; tapping the kid plays a short reaction or voice line.
+
+## Animation feel
+- **Movement:** snappy and playful with feet planted (no sliding), honest about where the kid really is, like
+  Fortnite. Three movement animations, walk, jog and run, blending smoothly between the close speeds in `docs/SPEC.md` §7.
+- **Slingshot:** the band pulls back further the longer the shot is held (enemies can see a long shot coming); the upper
+  body aims while the legs keep running; the reload picks a stone from the pouch, quick but readable.
+- **Vault and climb:** hands land on the ledge or box, matching the 0.4 s vault and 1 s climb.
+- **Skills:** every skill has a short readable wind-up, the action, then a quick recovery, so enemies can react.

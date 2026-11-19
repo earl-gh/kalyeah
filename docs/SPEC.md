@@ -254,7 +254,9 @@ and, in Ranked, loses a star.
 - **Chained control:** after a hard stop (stun, root, knock-up, knock-down, turned into a can) a kid can't be
   hard-stopped again for 1 s; slows still apply.
 - **Healing:** **5 HP a second** once a kid has gone 5 s without taking damage, attacking or being under crowd control; vendors and skills are the fast heals.
-- **Movement (CODM-like):** walk **4.5 m/s** and run **6 m/s** (run when the stick is pushed fully); **one jump button** does jump, running jump, vault (small obstacles) and climb
+- **Movement (CODM-like), 3 close speeds:** **walk 4.5 m/s** (stick partly pushed), **jog 5.25 m/s** (stick fully
+  pushed), and **run 6 m/s** after 1.5 s of steady jogging (stopping, turning sharply, shooting or aiming drops back to a
+  jog); the steps stay small so speed changes never feel jumpy; **one jump button** does jump, running jump, vault (small obstacles) and climb
   (high obstacles) by context; **one crouch button** crouches when walking and slides when running (slide jump and back
   slide included). Crouch-walking is silent and 40% slower. A slide is a 3 m burst that drops the head below most shots
   for 0.3 s, then a 2 s cooldown. A vault takes 0.4 s and a climb about 1 s; a hit while climbing knocks the kid down.
