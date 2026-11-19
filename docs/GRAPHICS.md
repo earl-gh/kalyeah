@@ -212,8 +212,13 @@ item says which kind of asset the owner makes.
   wood); no footprints.
 
 ## Building and checking the art
-- **Stand-ins:** until the owner's art arrives, matches use simple grey-box shapes (code-drawn) at true size and roughly
-  the final colours, so gameplay and lighting can be tested; each is swapped as its real model arrives.
+- **Stand-ins:** until the owner's art arrives, matches use well-drawn grey-box blocks (code-drawn): clean, readable
+  silhouettes at true size in grey and white faces only (like a level designer's blockout), so gameplay and lighting can
+  be tested. They replace the script-made Barangay models (`assets/models/barangay/`, built from boxes by
+  `tools/blender/build_barangay_kit.py`), which are retired; each block is swapped as its real model arrives.
+- **Every asset brief** (in `docs/art-briefs/`) holds real Filipino reference photos, size in metres, the triangle and
+  texture budget, pivot and facing rules (origin at the base, `+Z` front), style references (Valorant's Bind and Breeze
+  shapes, Fortnite's chunky props, never copied) and a done checklist (script checks plus an in-game screenshot).
 - **Order after the Narda pilot:** the Barangay modular kit and lighting first (the closed beta map), then the other
   kids in pairs, then the effects.
 - **Each build's visual gate:** CI screenshots at `1280×720` and `844×390`; the same 6 to 8 fixed camera spots per map
