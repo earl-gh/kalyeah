@@ -125,11 +125,12 @@ namespace Kalyeah.Game
         {
             DataSource data = KalyeahResources.Data();
             CameraRulesData rules = CameraRulesData.Load(data);
-            Assert.AreEqual(2.55f, rules.ShoulderDistance, 0.001f, "2.55 m close Deadlock shoulder distance");
-            Assert.AreEqual(1.42f, rules.ShoulderHeight, 0.001f, "1.42 m low-shoulder pivot height");
-            Assert.AreEqual(0.68f, rules.ShoulderOffset, 0.001f, "0.68 m right-shoulder offset");
-            Assert.AreEqual(9.5f, rules.LookPitchDegrees, 0.001f, "9.5 deg street-canyon pitch");
-            Assert.AreEqual(66f, rules.ShoulderFov, 0.001f, "66 deg vertical perspective FOV");
+            // docs/SPEC.md §7 camera: T3 Arena / Deadlock, slightly far behind, a little above, offset a little right, no swap
+            Assert.AreEqual(5.5f, rules.ShoulderDistance, 0.001f, "5.5 m behind the kid");
+            Assert.AreEqual(1.9f, rules.ShoulderHeight, 0.001f, "1.9 m pivot, a little above the kid");
+            Assert.AreEqual(0.45f, rules.ShoulderOffset, 0.001f, "0.45 m to the right: the kid stands just left of centre");
+            Assert.AreEqual(12f, rules.LookPitchDegrees, 0.001f, "12 deg looking down over the street");
+            Assert.AreEqual(72f, rules.ShoulderFov, 0.001f, "72 deg vertical FOV: wide enough to see the street around the kid");
 
             SVector2 feet = new SVector2(4f, 20f); // Unity ground (4, 0, -20)
             var (eye, forward) = ShoulderRig.Pose(rules, feet, yawDegrees: 0f, pitchDegrees: rules.LookPitchDegrees);
