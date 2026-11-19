@@ -190,3 +190,14 @@ item says which kind of asset the owner makes.
 - **Colour-blind options:** the enemy highlight colour (red, yellow or purple); team colours can swap from blue/red to
   blue/orange (rings, effects, bars); enemy skill edges are always dashed and ally edges solid, so colour is never the
   only signal.
+
+## Materials, wear and signs
+- **Materials:** a small fixed set per map, about 8 types (painted cement, raw wood, rusty tin, plastic, fabric, water,
+  soil, glass), each with one clear look; light realism, no wet sheen or extra noise.
+- **Wear:** lived-in but cared for: some rust on tin, paint chips and patched walls, painted by hand; never dirty or
+  run-down (homes look loved, per the respect rule).
+- **Glass and windows:** painted glass, shutters or grilles; never see-through or shoot-through, so cover stays clear.
+- **Signs and text in the world:** made-up Filipino shop names ("Aling Nena's", "Bawal Umihi Dito"), hand-painted murals
+  of fiestas and sports above kid height, parody brand ads and election-style posters. Parodies use invented names and
+  logos only (never a real brand's name, logo or look-alike packaging), and posters show invented candidates and slogans
+  only (never real people or parties). Asset kind: 2D images.
