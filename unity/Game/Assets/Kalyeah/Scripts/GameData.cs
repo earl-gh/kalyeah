@@ -111,6 +111,8 @@ namespace Kalyeah.Game
     {
         public float ShoulderHeight, ShoulderDistance, ShoulderOffset, ShoulderFov, ShoulderNear;
         public float LookPitchDegrees, LookPitchMin, LookPitchMax, LookSensitivity, KidViewScale;
+        /// <summary>Aim down sight (docs/SPEC.md §7): the camera moves in to this distance behind the kid, with this FOV.</summary>
+        public float AdsDistance, AdsFov;
 
         public static CameraRulesData Load(DataSource data)
         {
@@ -127,6 +129,8 @@ namespace Kalyeah.Game
                 LookPitchMax = DataSource.F(p, "look_pitch_max"),
                 LookSensitivity = DataSource.F(p, "look_sensitivity"),
                 KidViewScale = DataSource.F(p, "kid_view_scale"),
+                AdsDistance = DataSource.F(p, "ads_distance"),
+                AdsFov = DataSource.F(p, "ads_fov"),
             };
         }
 

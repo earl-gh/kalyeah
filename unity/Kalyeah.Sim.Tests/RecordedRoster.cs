@@ -27,6 +27,15 @@ namespace Kalyeah.Sim.Tests
         public static GameRules Rules(GameRules rules)
         {
             rules.SpecRules = false;
+            // pre-spec movement (docs/SPEC.md §7 replaced it): one run speed in proportion to the stick, no running, old crouch and slide
+            rules.MoveSpeed = 6.4;
+            rules.SprintEnabled = false;
+            rules.SprintDelay = 1.2;
+            rules.SprintMultiplier = 1.32;
+            rules.CrouchSpeedShare = 0.55;
+            rules.SlideSpeed = 10.2;
+            rules.SlideDuration = 0.46;
+            rules.SlideCooldown = 3.2;
             rules.RescueHoldTime = 4.0;
             rules.RescueCooldown = 8.0;
             rules.NoCastInRescueArea = true;

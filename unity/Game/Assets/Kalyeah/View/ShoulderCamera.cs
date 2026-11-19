@@ -97,6 +97,9 @@ namespace Kalyeah.Game
         public float FacingSmoothTime = 0.045f;
 
         public float SprintFovKick = 4.5f;
+        /// <summary>Aiming down sight: the camera moves in along its view to `ads_distance` and narrows to `ads_fov`.</summary>
+        public bool AimingDown;
+        public float AdsLerp = 14f;
         public float SprintFovLerp = 8f;
 
         public float OccluderOccludedAlpha = 0.18f;
@@ -125,6 +128,9 @@ namespace Kalyeah.Game
 
         bool _speedBoosting;
         float _fovBoost;
+        float _adsBlend;
+        /// <summary>0 = hip view, 1 = fully aimed down sight.</summary>
+        public float AdsBlend => _adsBlend;
 
         /// <summary>Current 3D distance (metres) from the camera socket to the kid's shoulder pivot.</summary>
         public float CurrentDistance { get; private set; }
@@ -410,6 +416,12 @@ namespace Kalyeah.Game
             var (baseEyeS, forwardS) = ShoulderRig.Pose(Rules, _pivotGround, Yaw, Pitch);
             Vector3 desiredEyeU = KalyeahResources.U(baseEyeS);
             desiredEyeU.y = Mathf.Max(0.5f, desiredEyeU.y + (pivotY - Rules.ShoulderHeight));
+            // ADS moves the eye forward along its own view, so the kid keeps their place just left of the crosshair
+            _adsBlend = ReduceMotion || stepDt <= 0f
+                ? (AimingDown ? 1f : 0f)
+                : Mathf.Lerp(_adsBlend, AimingDown ? 1f : 0f, 1f - Mathf.Exp(-stepDt * AdsLerp));
+            float adsPush = Mathf.Max(0f, Rules.ShoulderDistance - Rules.AdsDistance) * _adsBlend;
+            desiredEyeU += KalyeahResources.U(forwardS) * adsPush;
             Vector3 pivotU = KalyeahResources.World(_pivotGround, pivotY);
 
             var (softTargetT, hardMaxT) = SolveWhiskerArm(pivotU, desiredEyeU);
@@ -439,7 +451,7 @@ namespace Kalyeah.Game
             Vector3 forwardU = KalyeahResources.U(forwardS);
             camera.transform.SetPositionAndRotation(eyeU, Quaternion.LookRotation(forwardU, Vector3.up));
 
-            float desiredVerticalFov = Rules.ShoulderFov + CurrentFovBoost;
+            float desiredVerticalFov = Mathf.Lerp(Rules.ShoulderFov, Rules.AdsFov, _adsBlend) + CurrentFovBoost;
             camera.fieldOfView = ClampFairVerticalFov(desiredVerticalFov, camera.aspect, MaxFairAspect);
             camera.nearClipPlane = Rules.ShoulderNear;
             camera.farClipPlane = Far;

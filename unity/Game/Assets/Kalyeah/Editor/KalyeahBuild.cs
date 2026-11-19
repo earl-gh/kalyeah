@@ -705,6 +705,7 @@ public static class KalyeahBuild
                 NarrowWidth,
                 NarrowHeight,
                 ScreenFitMetrics.AsymmetricCutoutSafeRect(NarrowWidth, NarrowHeight));
+            CaptureTitleShot(dir, $"title_{FoldWidth}x{FoldHeight}.png", FoldWidth, FoldHeight, new Rect(0f, 0f, FoldWidth, FoldHeight));
             // online-first PLAY: the "can't reach the server" prompt and the offline hub it leads to
             Action<HomeScreenView> offlinePrompt = home => home.ShowOfflinePrompt();
             Action<HomeScreenView> offlineHub = home => home.OpenOfflineHub();

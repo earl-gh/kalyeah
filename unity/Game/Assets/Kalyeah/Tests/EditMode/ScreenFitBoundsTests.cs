@@ -338,6 +338,21 @@ namespace Kalyeah.Game
                 "QuickChatButton",
             };
 
+            // the ADS button sits under the minimap and is a full touch target (docs/SPEC.md §8)
+            Assert.IsNotNull(hud.Ads, $"{profileDesc}: AdsButton");
+            Rect adsPx = GetScreenRect(hud.Ads.Rect, cam);
+            controls.Add(adsPx);
+            names.Add("AdsButton");
+            AssertTouchTarget48Dp(adsPx, ScreenFitMetrics.DpToScreenPx(ScreenFitMetrics.MinTouchDp), $"{profileDesc} AdsButton");
+            if (hud.Minimap.Root.gameObject.activeInHierarchy)
+            {
+                Rect mapPx = GetScreenRect(hud.Minimap.Root, cam);
+                Assert.IsFalse(Shrink(adsPx, 0.75f).Overlaps(Shrink(mapPx, 0.75f)), $"{profileDesc}: AdsButton ({adsPx}) overlaps the minimap ({mapPx})");
+                bool under = adsPx.yMax <= mapPx.yMin + 1f && adsPx.yMax >= mapPx.yMin - 40f;
+                bool beside = adsPx.xMax <= mapPx.xMin + 1f && adsPx.xMax >= mapPx.xMin - 40f && adsPx.center.y > mapPx.yMin && adsPx.center.y < mapPx.yMax;
+                Assert.IsTrue(under || beside, $"{profileDesc}: AdsButton ({adsPx}) sits next to the minimap ({mapPx}), under it or beside it");
+            }
+
             var arcRectsPx = new List<Rect>(8);
             var arcNames = new List<string>(8);
             IReadOnlyList<RectTransform> arcButtons = hud.AbilityArc.InteractiveButtonRects;

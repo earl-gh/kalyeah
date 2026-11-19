@@ -333,6 +333,7 @@ namespace Kalyeah.Game
                 LeftHanded = true,
                 TiltToRun = true,
                 AimGuide = false,
+                AdsToggle = false,
                 CardsTrayMode = true,
                 CardsTrayPlacement = "sides",
                 ControlScale = 1.19f,
@@ -361,6 +362,7 @@ namespace Kalyeah.Game
             Assert.IsTrue(restored.LeftHanded);
             Assert.IsTrue(restored.TiltToRun);
             Assert.IsFalse(restored.AimGuide);
+            Assert.IsFalse(restored.AdsToggle, "ADS hold mode survives a save");
             Assert.IsTrue(restored.CardsTrayMode);
             Assert.AreEqual("sides", restored.CardsTrayPlacement);
             Assert.AreEqual(SettingsStore.ScaleLarge, restored.ControlScale, 0.0001f);

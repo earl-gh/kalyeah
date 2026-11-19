@@ -1166,9 +1166,13 @@ namespace Kalyeah.Sim
             return Weapons.TargetInRange(this, state, def, ResolvedTarget(state, slot)) == null;
         }
 
+        /// <summary>cos 60 degrees: a turn sharper than this drops a run back to a jog.</summary>
+        const double SharpTurnCos = 0.5;
+
         void Move(PlayerState state, PlayerInput input, double dt)
         {
             if (input != null) TakeMoveOrder(state, input);
+            state.AimingDown = Mode == null && input != null && input.IsPressed(PlayerInput.BtnAds);
             StepAir(state, dt);
             if (state.DashLeft > 0.0)
             {
@@ -1217,21 +1221,35 @@ namespace Kalyeah.Sim
             double stickLen = move.Length();
             state.Crouching = Mode == null && state.AirY <= 0.01 && input != null && input.IsPressed(PlayerInput.BtnCrouch);
             state.Walking = !state.Crouching && stickLen > 0.0 && stickLen < Rules.WalkRunThreshold;
-            double speed = Rules.MoveSpeed;
+            double speed = Mode != null ? Mode.Rules.MoveSpeed : Rules.MoveSpeed;
             if (Mode != null) speed *= Mode.SpeedScale(state);
             if (state.Overclocked) speed *= Rules.OverclockSpeedShare;
             else if (state.Crouching) speed *= Rules.CrouchSpeedShare;
+            if (state.AimingDown) speed *= Rules.AdsSpeedShare;
             if (Mode == null && state.BuffType == PowerupPalamig && state.BuffLeft > 0.0) speed *= 1.0 + Rules.PalamigSpeedBonus;
             speed *= state.Effects.SpeedMultiplier(Rules.PolymorphSpeedScale);
             bool wantsMove = stickLen > 0.0 || state.HasMoveTarget;
-            state.Sprinting = wantsMove && !state.Walking && !state.Crouching && Rules.SprintEnabled
-                && Mode == null && !state.Overclocked && !state.Effects.Has(StatusEffects.Type.Slow)
-                && state.OutOfCombatTime >= Rules.SprintDelay;
+            bool canRun = wantsMove && !state.Walking && !state.Crouching && !state.AimingDown && Rules.SprintEnabled
+                && Mode == null && !state.Overclocked && !state.Effects.Has(StatusEffects.Type.Slow);
+            if (Rules.SpecRules)
+            {
+                // walk, jog, run (docs/SPEC.md §7): a steady jog turns into a run; a sharp turn (over 60 degrees) drops it
+                bool sharpTurn = stickLen > 0.0 && state.Facing.Dot(move / stickLen) < SharpTurnCos;
+                state.JogTime = canRun && !sharpTurn ? state.JogTime + dt : 0.0;
+                state.Sprinting = canRun && state.JogTime >= Rules.SprintDelay;
+            }
+            else
+            {
+                state.Sprinting = canRun && state.OutOfCombatTime >= Rules.SprintDelay;
+            }
             if (state.Sprinting) speed *= Rules.SprintMultiplier;
             Vec2 prevPos = state.Position;
             if (stickLen > 0.0)
             {
                 state.Facing = move / stickLen;
+                // spec: a partly pushed stick walks at walk_speed, a fully pushed one jogs at move_speed (not in proportion)
+                if (Rules.SpecRules && Rules.WalkSpeed > 0.0 && Mode == null)
+                    move = state.Walking ? state.Facing * (Rules.WalkSpeed / Rules.MoveSpeed) : state.Facing;
                 MoveBy(state, move * speed * dt);
             }
             else if (state.HasMoveTarget)

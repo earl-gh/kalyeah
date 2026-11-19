@@ -121,15 +121,88 @@ namespace Kalyeah.Game
         }
 
         [Test]
+        public void ShoulderCamera_AimDownSight_MovesInAlongTheViewAndNarrowsTheFov()
+        {
+            CameraRulesData rules = CameraRulesData.Load(KalyeahResources.Data());
+            Assert.Less(rules.AdsDistance, rules.ShoulderDistance, "ADS moves in close (docs/SPEC.md §7)");
+            Assert.Less(rules.AdsFov, rules.ShoulderFov, "ADS narrows the view");
+
+            var go = new GameObject("AdsCam");
+            try
+            {
+                Camera cam = go.AddComponent<Camera>();
+                cam.aspect = 16f / 9f;
+                var shoulder = new ShoulderCamera(rules, 0) { ReduceMotion = true, CollisionMask = 0 };
+                SVector2 feet = new SVector2(0f, 20f);
+                shoulder.Apply(cam, feet, 1f / 30f);
+                Vector3 hipEye = cam.transform.position;
+                Vector3 hipForward = cam.transform.forward;
+                Assert.AreEqual(rules.ShoulderFov, cam.fieldOfView, 0.6f);
+
+                shoulder.AimingDown = true;
+                shoulder.Apply(cam, feet, 1f / 30f);
+                Assert.AreEqual(1f, shoulder.AdsBlend, 1e-4f);
+                Assert.AreEqual(rules.AdsFov, cam.fieldOfView, 0.6f);
+                Vector3 push = cam.transform.position - hipEye;
+                Assert.AreEqual(rules.ShoulderDistance - rules.AdsDistance, push.magnitude, 0.05f);
+                Assert.Greater(Vector3.Dot(push.normalized, hipForward), 0.999f, "moves straight along the view: the kid keeps their place left of the crosshair");
+
+                shoulder.AimingDown = false;
+                shoulder.Apply(cam, feet, 1f / 30f);
+                Assert.AreEqual(0f, shoulder.AdsBlend, 1e-4f);
+                Assert.AreEqual(hipEye.x, cam.transform.position.x, 0.01f);
+                Assert.AreEqual(hipEye.z, cam.transform.position.z, 0.01f);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void AdsButton_TapTogglesOrHolds_AndCancelDropsIt()
+        {
+            Ui.EnsureEventSystem();
+            var root = new GameObject("AdsRoot", typeof(RectTransform));
+            try
+            {
+                AdsButton ads = AdsButton.Build(root.transform, 96f, interactive: true);
+                var down = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current) { pointerId = 3 };
+
+                ads.ToggleMode = true;
+                ads.OnPointerDown(down);
+                ads.OnPointerUp(down);
+                Assert.IsTrue(ads.IsOn, "tap mode: a tap turns ADS on");
+                ads.OnPointerDown(down);
+                ads.OnPointerUp(down);
+                Assert.IsFalse(ads.IsOn, "tap mode: a second tap turns it off");
+                ads.OnPointerDown(down);
+                ads.Cancel();
+                Assert.IsFalse(ads.IsOn, "cancel drops a toggled aim");
+
+                ads.ToggleMode = false;
+                ads.OnPointerDown(down);
+                Assert.IsTrue(ads.IsOn, "hold mode: on while held");
+                ads.OnPointerUp(down);
+                Assert.IsFalse(ads.IsOn, "hold mode: off on release");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void ShoulderRig_PoseAndYawToward_PlaceCameraBehindAndRightOfKid()
         {
             DataSource data = KalyeahResources.Data();
             CameraRulesData rules = CameraRulesData.Load(data);
-            Assert.AreEqual(2.55f, rules.ShoulderDistance, 0.001f, "2.55 m close Deadlock shoulder distance");
-            Assert.AreEqual(1.42f, rules.ShoulderHeight, 0.001f, "1.42 m low-shoulder pivot height");
-            Assert.AreEqual(0.68f, rules.ShoulderOffset, 0.001f, "0.68 m right-shoulder offset");
-            Assert.AreEqual(9.5f, rules.LookPitchDegrees, 0.001f, "9.5 deg street-canyon pitch");
-            Assert.AreEqual(66f, rules.ShoulderFov, 0.001f, "66 deg vertical perspective FOV");
+            // docs/SPEC.md §7 camera: T3 Arena / Deadlock, slightly far behind, a little above, offset a little right, no swap
+            Assert.AreEqual(5.5f, rules.ShoulderDistance, 0.001f, "5.5 m behind the kid");
+            Assert.AreEqual(1.9f, rules.ShoulderHeight, 0.001f, "1.9 m pivot, a little above the kid");
+            Assert.AreEqual(0.45f, rules.ShoulderOffset, 0.001f, "0.45 m to the right: the kid stands just left of centre");
+            Assert.AreEqual(12f, rules.LookPitchDegrees, 0.001f, "12 deg looking down over the street");
+            Assert.AreEqual(72f, rules.ShoulderFov, 0.001f, "72 deg vertical FOV: wide enough to see the street around the kid");
 
             SVector2 feet = new SVector2(4f, 20f); // Unity ground (4, 0, -20)
             var (eye, forward) = ShoulderRig.Pose(rules, feet, yawDegrees: 0f, pitchDegrees: rules.LookPitchDegrees);

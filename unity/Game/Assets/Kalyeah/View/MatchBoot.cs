@@ -204,6 +204,7 @@ namespace Kalyeah.Game
                     }
                 }
 
+                Shoulder.AimingDown = !local.Tagged && Hud?.Ads != null && Hud.Ads.IsOn;
                 Shoulder.SyncLocalKid(
                     facing: local.Facing,
                     speed01: local.Tagged ? 0f : local.Speed01,

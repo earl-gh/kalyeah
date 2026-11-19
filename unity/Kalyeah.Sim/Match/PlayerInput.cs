@@ -26,9 +26,11 @@ namespace Kalyeah.Sim
         public const int BtnJump = 1 << 11;
         public const int BtnCrouch = 1 << 12;
         public const int BtnSlide = 1 << 13;
+        /// <summary>Held while aiming down sight (docs/SPEC.md §7): the kid walks slower and can't run.</summary>
+        public const int BtnAds = 1 << 14;
         /// <summary>Every bit a client may send; anything else is dropped by the server.</summary>
         public const int KnownBits = BtnCard1 | BtnCard2 | BtnCard3 | BtnCard4 | BtnAimCancel | BtnMoveTarget | BtnAimPoint
-            | BtnPrimary | BtnDash | BtnUltimate | BtnJump | BtnCrouch | BtnSlide;
+            | BtnPrimary | BtnDash | BtnUltimate | BtnJump | BtnCrouch | BtnSlide | BtnAds;
 
         /// <summary>Analog movement stick. Non-zero clears the move target.</summary>
         public Vec2 Move = Vec2.Zero;
