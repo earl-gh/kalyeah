@@ -41,7 +41,7 @@
 | Version | Triangles | Use |
 |---|---|---|
 | Match | **15,000 to 25,000** | 10 kids on screen on a mid-range Android phone |
-| Showcase (optional) | up to 60,000 | Main screen, one kid at a time |
+| Showcase (required, `docs/GRAPHICS.md`) | up to 60,000 | Home, kid select and kid page, one kid at a time |
 
 - Rough split for the match version: body 8 to 12k (each hand ~1.2k, head ~3k), hair 2 to 4k, clothes 3 to 6k, the rest ≤ 2k.
 - **Materials:** at most 2 (opaque + one for hair/alpha if needed).

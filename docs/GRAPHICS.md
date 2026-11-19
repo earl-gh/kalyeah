@@ -98,3 +98,13 @@ item says which kind of asset the owner makes.
 - **Low:** half the particles with the same shapes and sizes; no living-world motion (laundry and background people
   stand still).
 - **Ultra:** extra ambient life (more background people, birds, dust in sun rays).
+
+## Skins and cosmetics on screen
+- **Skin shape:** skins change clothes, hair and props but stay within the kid's default silhouette size, so enemies still
+  recognise the kid and where the head is (hitboxes never change).
+- **Sprays** are painted onto the wall's surface, following its texture and light like real paint; they fade at round
+  end.
+- **Slingshot skins:** a new slingshot model and a thin coloured stone trail with team-colour edges; Epic and higher also
+  change the hit puff (same size); a slingshot skin can have its own sound when its owner tags someone.
+- **Showcase:** home, kid select and the kid page use the detailed showcase model (up to 60k triangles), on a warm,
+  softly backlit stage like Valorant's agent select; tapping the kid plays a short reaction or voice line.
