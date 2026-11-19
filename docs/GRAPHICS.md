@@ -210,3 +210,14 @@ item says which kind of asset the owner makes.
 - **Foliage:** chunky painted leaf clumps (like Valorant's Breeze) with few see-through cards; no thin noisy leaves.
 - **Footing:** splashes when landing in water and puddles; a dust puff on soil when landing or sliding (none on cement or
   wood); no footprints.
+
+## Building and checking the art
+- **Stand-ins:** until the owner's art arrives, matches use simple grey-box shapes (code-drawn) at true size and roughly
+  the final colours, so gameplay and lighting can be tested; each is swapped as its real model arrives.
+- **Order after the Narda pilot:** the Barangay modular kit and lighting first (the closed beta map), then the other
+  kids in pairs, then the effects.
+- **Each build's visual gate:** CI screenshots at `1280×720` and `844×390`; the same 6 to 8 fixed camera spots per map
+  for easy before/after comparison; a lineup of all 12 kids side by side (sizes, skin tones, silhouettes).
+- **When the owner's art arrives:** a script checks size, facing and materials and the triangle and texture budgets
+  (this doc and `docs/art-briefs/kids-retopo-spec.md`), then an in-game screenshot is shown beside the owner's
+  reference picture.
