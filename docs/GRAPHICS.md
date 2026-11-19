@@ -170,3 +170,12 @@ item says which kind of asset the owner makes.
 - **Tutorial barricades:** wooden barangay barricades (sawhorses and planks) with "Bawal Dumaan" signs. Asset kind:
   Blender model and a 2D image for the sign.
 - **Spacing:** doors and alleys at least about 2 m wide, so two kids fit side by side and don't get stuck on each other.
+
+## Team colour, skin tones and image quality
+- **Team ring:** a thin team-colour ring under every kid's feet (blue allies, red enemies, from your view), kept subtle;
+  skins stay untouched. A buff aura is a wider soft glow around it, so the two never look alike.
+- **Skin tones:** lighting and colour grading keep every kid's Filipino skin tone warm and true, never grey, orange or
+  washed out, on every map and preset; checked on screenshots of all 12 kids.
+- **Texture size:** half size on Low (saves memory on old phones), full size on Medium, High and Ultra; shapes and colours
+  identical.
+- **Edge smoothing:** none on Low, a light cheap smoother on Medium and High, 4× MSAA on Ultra.
