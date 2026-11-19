@@ -126,3 +126,13 @@ item says which kind of asset the owner makes.
   teammates; enemies only when seen or revealed (like Valorant).
 - **Jail marker:** a small icon with the count of kids inside over the enemy jail, seen through walls by the tagged
   kids' team only.
+
+## Aiming and hits
+- **Crosshair:** spreads a little when hip-firing and tightens to a dot in ADS; turns red over an enemy (no aim help
+  beyond the aim-assist slow-down); while fire is held, a small marker shows how far the stone will fly (18 to 30 m).
+- **Stone flight:** a visible stone with a thin trail, team-coloured at the edges, so both sides can read where shots
+  come from.
+- **ADS:** the camera slides closer behind the kid and the slingshot's fork lightly frames the view; no black scope, no
+  first-person view.
+- **Hit feedback:** an X marker on the crosshair (white for body, gold for a headshot), a bigger stamp when your hit tags
+  someone, and different hit sounds for body and head.
