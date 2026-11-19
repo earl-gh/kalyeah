@@ -5,7 +5,7 @@ Don't:
 - hand-edit generated `.unity` scenes or URP assets owned by `KalyeahBuild.Setup`
 - call a 3D model fine before checking its `.glb` scale, `+Z`/`GodotSpace` facing, and sanitized URP materials
 - claim a visual fix you haven't inspected at both `1280×720` (`16:9`) and `844×390` (`~19.5:9` notched); say what was unchecked
-- generate art or audio assets (the owner makes them; advise the asset kind instead)
+- use an art asset without a logged licence in `assets/CREDITS.md` (CC0, or CC-BY with credit; never non-commercial or another game's)
 - guess phone hotspot interfaces (gateway `.1`, "any private IPv4 = hotspot", interface names): check AOSP / `HotspotNet` rules and vendor interface tests
 - write an APK or `aapt2` parser from memory: test against captured fixtures in `unity/Golden/Android/`
 - wire Android Back directly to `Application.Quit()`: route through `MenuStack.HandleBack()` and `MatchOverlaysView.HandleBack()`
