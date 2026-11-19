@@ -334,7 +334,6 @@ namespace Kalyeah.Game
             MakeTab(_tabsRow, "Tab_Kids", "KIDS", 0, () => Navigate(MenuStack.PickId));
             MakeTab(_tabsRow, "Tab_Codex", "CODEX", 1, () => Navigate(MenuStack.CodexId));
             MakeTab(_tabsRow, "Tab_History", "HISTORY", 2, () => Navigate(MenuStack.HistoryId));
-            MakeTab(_tabsRow, "Tab_Events", "EVENTS", 3, () => { TapFeedback(); Sheets?.OpenGameOfMonth(); });
 
             // right: support (donate) + settings gear
             RectTransform settings = Ui.Panel("Settings", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-Gutter, 0f), new Vector2(HitSize, HitSize));
@@ -421,7 +420,8 @@ namespace Kalyeah.Game
             Stretch(modeAccent.rectTransform, Vector2.zero, new Vector2(0f, 1f));
             modeAccent.rectTransform.sizeDelta = new Vector2(6f, 0f);
             modeAccent.rectTransform.pivot = new Vector2(0f, 0.5f);
-            Text modeName = Label("ModeName", _modeZone, "AGAWANG BASE", 38, Paper, TextAnchor.LowerLeft, display: true);
+            Text modeName = Label("ModeName", _modeZone, "", 38, Paper, TextAnchor.LowerLeft, display: true);
+            _modeName = modeName;
             Stretch(modeName.rectTransform, new Vector2(0f, 0.42f), new Vector2(1f, 1f));
             modeName.rectTransform.offsetMin = new Vector2(26f, 0f);
             modeName.rectTransform.offsetMax = new Vector2(-16f, -12f);
@@ -431,8 +431,17 @@ namespace Kalyeah.Game
             Image sizeChip = Ui.MakeImage("SizeChip", _modeZone, Paper);
             Place(sizeChip.rectTransform, Vector2.zero, Vector2.zero, new Vector2(26f, 18f), new Vector2(64f, 32f));
             sizeChip.rectTransform.pivot = Vector2.zero;
-            Text modeSize = Label("ModeSize", sizeChip.rectTransform, "5V5", 18, Ink, TextAnchor.MiddleCenter, display: true);
+            Text modeSize = Label("ModeSize", sizeChip.rectTransform, "", 18, Ink, TextAnchor.MiddleCenter, display: true);
             Stretch(modeSize.rectTransform, Vector2.zero, Vector2.one);
+            _modeDetail = modeSize;
+            Place(sizeChip.rectTransform, Vector2.zero, Vector2.zero, new Vector2(26f, 18f), new Vector2(150f, 32f));
+            Text modeHint = Label("ModeHint", _modeZone, "TAP TO CHANGE", 16, Muted, TextAnchor.LowerRight, display: true);
+            Place(modeHint.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-16f, 18f), new Vector2(180f, 32f));
+            modeHint.rectTransform.pivot = new Vector2(1f, 0f);
+            Image modeHit = Ui.MakeImage("Hit", _modeZone, Clear);
+            Stretch(modeHit.rectTransform, Vector2.zero, Vector2.one);
+            ModeButton = AttachButton(modeHit.gameObject, modeHit, CycleHomeMode);
+            ShowHomeMode();
 
             // 2. play zone: the one big button
             _playZone = Ui.Panel("PlayZone", _hubBody, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), Vector2.zero, new Vector2(420f, 120f));
@@ -524,20 +533,20 @@ namespace Kalyeah.Game
             RectTransform solo = MakeOfflineCard(cards, "PracticeSolo", 2, "PRACTICE SOLO", "ui/dioramas/practice", main: false);
             MakeActionButton(ActionRow(solo), "Play", "PLAY", true, Vector2.zero, Vector2.one, () => LaunchMode(GameMode.Training));
 
-            RectTransform explore = MakeOfflineCard(cards, "Explore", 3, "EXPLORE BARANGAY", "ui/main_bg", main: false);
-            Text soon = Label("Soon", ActionRow(explore), "SOON", 22, Muted, TextAnchor.MiddleCenter, display: true);
-            Stretch(soon.rectTransform, Vector2.zero, Vector2.one);
-            Frame(soon.rectTransform, Hairline, 2f);
 
             _offlineHub.gameObject.SetActive(false);
         }
 
+        /// <summary>Hotspot, Practice vs AI, Practice solo (Explore joins when it is built: only real content, docs/SPEC.md §8).</summary>
+        const int OfflineCardCount = 3;
+
         RectTransform MakeOfflineCard(RectTransform cards, string name, int index, string title, string artPath, bool main)
         {
             const float gap = 14f;
-            RectTransform card = Ui.Panel(name, cards, new Vector2(index * 0.25f, 0f), new Vector2((index + 1) * 0.25f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            const float share = 1f / OfflineCardCount;
+            RectTransform card = Ui.Panel(name, cards, new Vector2(index * share, 0f), new Vector2((index + 1) * share, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             card.offsetMin = new Vector2(index == 0 ? 0f : gap * 0.5f, 0f);
-            card.offsetMax = new Vector2(index == 3 ? 0f : -gap * 0.5f, 0f);
+            card.offsetMax = new Vector2(index == OfflineCardCount - 1 ? 0f : -gap * 0.5f, 0f);
             Image bg = card.gameObject.AddComponent<Image>();
             bg.color = InkPanel;
             bg.raycastTarget = false;
@@ -699,10 +708,46 @@ namespace Kalyeah.Game
         // ---------------------------------------------------------------- flow
 
         /// <summary>PLAY: online first. With no server configured the offline prompt opens at once.</summary>
+        /// <summary>The modes Home's PLAY can start (docs/SPEC.md §4); Ranked joins when it is built.</summary>
+        enum HomeMode { Blitz, Quick, Offline }
+
+        HomeMode _homeMode;
+        Text _modeName;
+        Text _modeDetail;
+
+        /// <summary>Taps through Blitz (first to 3), Quick (first to 5) and Offline.</summary>
+        public Button ModeButton { get; private set; }
+
+        void CycleHomeMode()
+        {
+            TapFeedback();
+            _homeMode = (HomeMode)(((int)_homeMode + 1) % 3);
+            if (_homeMode != HomeMode.Offline) AppSession.Current.FirstTo = _homeMode == HomeMode.Blitz ? 3 : 5;
+            ShowHomeMode();
+        }
+
+        void ShowHomeMode()
+        {
+            if (_homeMode != HomeMode.Offline) _homeMode = AppSession.Current.FirstTo >= 5 ? HomeMode.Quick : HomeMode.Blitz;
+            if (_modeName != null) _modeName.text = _homeMode.ToString().ToUpperInvariant();
+            if (_modeDetail != null)
+                _modeDetail.text = _homeMode switch
+                {
+                    HomeMode.Blitz => "FIRST TO 3",
+                    HomeMode.Quick => "FIRST TO 5",
+                    _ => "HOTSPOT + AI",
+                };
+        }
+
         void PressPlay()
         {
             CloseOfflinePrompt();
             AppSession session = AppSession.Current;
+            if (_homeMode == HomeMode.Offline)
+            {
+                OpenOfflineHub();
+                return;
+            }
             if (string.IsNullOrWhiteSpace(session.ServerUrl))
             {
                 ShowOfflinePrompt();

@@ -146,6 +146,7 @@ namespace Kalyeah.Game
         Action _pendingAfterWelcome;
         bool _transportWelcomed;
         bool _announcedCharacter;
+        bool _appliedHomeFirstTo;
         bool _matchStartFired;
         bool _offlineFallbackArmed;
 
@@ -392,6 +393,7 @@ namespace Kalyeah.Game
             session.Mode = GameMode.Online;
             session.Intent = LobbyIntent.Create;
             _announcedCharacter = false;
+            _appliedHomeFirstTo = false;
             _pendingAfterWelcome = () => _boundClient?.CreateRoom();
 
             if (_boundClient != null && _boundClient.IsOnline() && _transportWelcomed &&
@@ -439,6 +441,7 @@ namespace Kalyeah.Game
             session.Mode = GameMode.Online;
             session.Intent = LobbyIntent.Join;
             _announcedCharacter = false;
+            _appliedHomeFirstTo = false;
             _pendingAfterWelcome = () => _boundClient?.JoinRoom(code);
 
             if (_boundClient != null && _boundClient.IsOnline() && _transportWelcomed &&
@@ -694,6 +697,7 @@ namespace Kalyeah.Game
         void QueueOrRunRoomAction(Action action, string connectingMessage)
         {
             _announcedCharacter = false;
+            _appliedHomeFirstTo = false;
             _pendingAfterWelcome = action;
             if (_boundClient != null && _boundClient.IsOnline())
             {
@@ -854,6 +858,14 @@ namespace Kalyeah.Game
 
             AppSession session = AppSession.Current;
             session.RoomCode = room.GetStr("code", "");
+            // the host's room starts on the mode picked on Home (Blitz first to 3, Quick first to 5)
+            if (!_appliedHomeFirstTo && _boundClient != null && _boundClient.IsHost())
+            {
+                _appliedHomeFirstTo = true;
+                int wanted = session.FirstTo;
+                if ((wanted == 3 || wanted == 5 || wanted == 7) && room.GetInt("first_to", wanted) != wanted)
+                    _boundClient.SetFirstTo(wanted);
+            }
             session.FirstTo = room.GetInt("first_to", session.FirstTo);
             if (_boundClient != null)
             {
