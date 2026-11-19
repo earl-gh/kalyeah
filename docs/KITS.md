@@ -41,6 +41,15 @@ A damage skill deals about one stone (15 to 25); an ultimate about two (35 to 50
   afar.
 - **Ally-only skills** stay ally-only: e.g. only teammates can vault off Paeng's Luksong Baka.
 
+**Aiming view per skill (owner: like Valorant).** The drag-to-aim from the button stays (`docs/SPEC.md` §7); the camera
+changes by skill:
+- **Normal:** the usual camera with a ground or line indicator (most skills).
+- **ADS:** the camera moves in close for precise long shots: Narda's Tira Holens, Inggo's Bato!, Karding's Yoyo.
+- **Zoom out:** the camera lifts slightly up and back to a near-top view for placing areas: Jumong's Pukpok Palayok,
+  Jopay's Bahay-Bahayan and Pabitin, Paeng's Tinik Wall, Tere's Jackstone, Luksong Lubid and Garter Net, Pamela's
+  Patintero!, Domeng's Pabitin Snare.
+- **Map cast:** the full map opens and the player taps where to cast: Kikay's Saranggola.
+
 ## Strikers — enter fights, burst, get out
 | Kid | Skill | What it does | Feels like | Water / CD |
 |---|---|---|---|---|

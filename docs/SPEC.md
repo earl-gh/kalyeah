@@ -152,7 +152,7 @@ and, in Ranked, loses a star.
     from the line, not from zero.
 - **Skills and jail:** a tagged kid's cooldowns keep counting in jail, and their walls, traps and sentries stay until
   they run out.
-- **In jail:** a tagged kid stands visibly in the jail, watches a teammate's view (switchable), and can ping and chat. Tapping a free teammate's portrait **cheers** them (they
+- **In jail:** a tagged kid sits visibly in the jail (pouting, slightly faded), watches a teammate's view (switchable), and can ping and chat. Tapping a free teammate's portrait **cheers** them (they
   hear your kid's voice line). The tagged kid's team always sees a marker on the enemy jail with how many are inside.
 - **Last free kid:** no help or penalty; a lone kid can still win the round by capturing or rescuing (a clutch).
 - **Capture:** standing in the enemy base fills a capture bar in **8 s** for one kid; each extra teammate inside adds 50%
@@ -245,7 +245,7 @@ and, in Ranked, loses a star.
   holding the button only adds range, never damage; ADS tightens accuracy. A stone deals **20** (body) or **30** (head):
   5 body hits or 4 with a headshot tag a kid, so a full load of 7 leaves room for 2 misses. One stone every **0.4 s**,
   reload **1.5 s**; range **18 m** on a tap, up to **30 m** when held 1 s, and a stone drops past its range. The server checks hits with lag compensation.
-- **Skill aiming (Wild Rift):** tap to quick-cast at the crosshair or nearest target; drag from the button to aim with a
+- **Skill aiming (Wild Rift, with a per-skill view like Valorant: normal, ADS, zoom-out or map cast, see `docs/KITS.md`):** tap to quick-cast at the crosshair or nearest target; drag from the button to aim with a
   ground or line indicator; drag to the cancel zone to cancel.
 - **Hits:** slingshot headshots deal +50%. **Aim assist** (a setting) only slows the crosshair slightly over enemies; no
   pull, no snapping, no auto-fire. **No friendly fire:** damage and crowd control never touch allies.
@@ -254,14 +254,17 @@ and, in Ranked, loses a star.
 - **Chained control:** after a hard stop (stun, root, knock-up, knock-down, turned into a can) a kid can't be
   hard-stopped again for 1 s; slows still apply.
 - **Healing:** **5 HP a second** once a kid has gone 5 s without taking damage, attacking or being under crowd control; vendors and skills are the fast heals.
-- **Movement (CODM-like):** walk **4.5 m/s** and run **6 m/s** (run when the stick is pushed fully); **one jump button** does jump, running jump, vault (small obstacles) and climb
+- **Movement (CODM-like), 3 close speeds:** **walk 4.5 m/s** (stick partly pushed), **jog 5.25 m/s** (stick fully
+  pushed), and **run 6 m/s** after 1.5 s of steady jogging (stopping, turning sharply, shooting or aiming drops back to a
+  jog); the steps stay small so speed changes never feel jumpy; **one jump button** does jump, running jump, vault (small obstacles) and climb
   (high obstacles) by context; **one crouch button** crouches when walking and slides when running (slide jump and back
   slide included). Crouch-walking is silent and 40% slower. A slide is a 3 m burst that drops the head below most shots
   for 0.3 s, then a 2 s cooldown. A vault takes 0.4 s and a climb about 1 s; a hit while climbing knocks the kid down.
 - **Aim down sight:** shots land exactly at the crosshair (hip-fire spreads a little) and the kid walks 30% slower; a
   setting picks tap-to-toggle or hold.
-- **Camera:** T3 Arena style, **centred** behind the kid at mid distance (about 4 m behind, raised so the crosshair sits
-  above the kid's head); no shoulder offset and no shoulder swap; **aim down sight** moves in close, some attacks zoom out. FOV slider in a fair range (70 to 90)
+- **Camera:** the same perspective as T3 Arena and Deadlock: **slightly far behind** the kid (about 5 to 6 m back and a
+  little above), offset a little to the right so the kid stands just left of centre and the crosshair has a clear view
+  past them; not tight on the shoulder; no shoulder swap; **aim down sight** moves in close, some attacks zoom out. FOV slider in a fair range (70 to 90)
   that is the same for everyone.
 - **Feel:** crisp and readable like Valorant: hit markers, a headshot sound, a small kick on firing, a brief flash on the
   target, no screen-filling effects.
@@ -471,7 +474,7 @@ kind is needed (3D model, sprite sheet or 2D image).
 (`docs/art-briefs/kids-retopo-spec.md`), not restyled. **Role icons** (Striker, Defender, Seeker, Controller) appear in
 select, portraits and profile; there are no role colours, so red and blue stay the team colours.
 
-**Graphics:** the top preset aims at Valorant Mobile: clean stylised PBR, real-time sun shadows, soft ambient light,
+**Graphics** (details in [`docs/GRAPHICS.md`](GRAPHICS.md)): the top preset aims at Valorant Mobile: clean stylised PBR, real-time sun shadows, soft ambient light,
 bloom on effects. Lower presets drop cost, never the art or the readability:
 
 | Preset | FPS cap | Render scale | Shadows | Effects | Post (bloom, grading) |
@@ -504,11 +507,11 @@ by surface (cement, soil, wood, tin), directional skill cues; crouch-walking is 
   warning that their base is being captured, so a flank to rescue or capture can stay secret.
 - **Cues both teams hear:** a short call when the Crocodile or Eagle appears; every ultimate has a voice line.
 
-**Live events:** limited-time events on the Filipino calendar (Pasko, fiesta, Undas, summer) with themed tasks, event
-skins and map decorations; an event mini-mode can come later. **First year:** a **Summer showdown** at launch (themed
-tasks, banderitas on the maps, a free summer spray, an earnable fiesta skin), **Undas** (maps at dusk with candles and
-lanterns, kids in kind folk costumes, respectful of the day) and **Pasko** (paról and Christmas lights on every map, a
-gift-to-a-friend task, a free Pasko emote).
+**Live events:** limited-time events on the Filipino calendar (Pasko, fiesta, Undas, summer) with themed tasks and event
+skins; **maps never change for events** (the theme shows only through skins and cosmetics); an event mini-mode can come
+later. **First year:** a **Summer showdown** at launch (themed tasks, a free summer spray, an earnable fiesta skin),
+**Undas** (kids in kind folk-costume skins, respectful of the day) and **Pasko** (Pasko skins, a gift-to-a-friend task, a
+free Pasko emote).
 
 ## 11. Open questions (agents use the default until the owner decides)
 | # | Question | Default |

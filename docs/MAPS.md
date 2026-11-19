@@ -66,3 +66,17 @@ old mill, bahay na bato). Open fields with tall cover.
 - **Vendors:** halo-halo by the dirt road, kakanin at the cane's edge.
 - **Native chicken:** wanders the dikes and the cane edge.
 - **Climb spots:** irrigation water tank (Terraces), mill roof (Mill), hay cart at the centre.
+
+## Look per map (owner, see also `docs/GRAPHICS.md`)
+- **Barangay:** **Uptown** in cement and painted walls with muted blue-grey trims (kept clearly apart from team blue),
+  cement ground, the hall's flag and court lines. **Riverside** in wood, tin and warm colours with potted plants, soil
+  and plank ground; the riverside homes shown with warmth and dignity. Landmarks seen from anywhere: the chapel bell
+  tower (Riverside) and the hall's water tower (the Eagle's perch on the creek-bank flank).
+- **Palengke:** a big tin roof with skylights and sun shafts: bright patches under the skylights, softer shade elsewhere,
+  never dark; the catwalk runs just under the roof.
+- **Pier:** the sea is a clear blue edge that reads as "can't go there", with boats bobbing gently.
+- **Hacienda:** cane in tall soft clumps with gaps and visible edges (not a solid wall); the terraces step down in clear
+  levels with clean edges, so you always know where you can walk.
+- **Callouts:** short, simple names like CODM's, one or two words (e.g. "Hall", "Court", "Bridge", "Chapel", "Sari-Sari",
+  "Creek"), shown on the minimap and full map. Painted signs in the world carry the same short name so players learn
+  them. Asset kind: 2D images (sign art).
