@@ -1,0 +1,11 @@
+{
+  "_doc": "Licence-checked free assets (CLAUDE.md 'Assets'). fetch_free_assets.py downloads each, packs one .glb at 1k textures, refuses anything over max_triangles, and logs it in assets/CREDITS.md.",
+  "max_triangles": 15000,
+  "assets": [
+    {"source": "polyhaven", "id": "plastic_monobloc_chair_01", "out": "assets/models/props/monobloc_chair.glb", "role": "Monobloc chair (micro prop)"},
+    {"source": "polyhaven", "id": "old_tyre", "out": "assets/models/props/planted_tire.glb", "role": "Old tyre by the curb (micro prop)"},
+    {"source": "polyhaven", "id": "Barrel_01", "out": "assets/models/props/blue_water_drum.glb", "role": "Water drum (micro prop)"},
+    {"source": "polyhaven", "id": "metal_trash_can", "out": "assets/models/props/street_trash_bin.glb", "role": "Street trash bin (micro prop)"},
+    {"source": "polyhaven", "id": "plastic_container", "out": "assets/models/props/sari_icebox.glb", "role": "Sari-sari cooler box (micro prop)"}
+  ]
+}
