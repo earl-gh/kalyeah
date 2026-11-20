@@ -7,7 +7,7 @@ using UnityEngine.UI;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Tabbed Settings screen (Audio, Controls, Graphics &amp; Accessibility + Reset Defaults)
+    /// Tabbed Settings screen (Audio, Controls, Graphics &amp; Accessibility, Donate + Reset Defaults)
     /// bound to <see cref="SettingsStore.Current"/> and persisted to <see cref="PlayerPrefs"/>.
     /// </summary>
     public sealed class SettingsScreenView : IDisposable
@@ -15,6 +15,8 @@ namespace Kalyeah.Game
         public const int TabAudio = 0;
         public const int TabControls = 1;
         public const int TabGraphics = 2;
+        /// <summary>Donate lives in Settings, not on home (docs/SPEC.md §8).</summary>
+        public const int TabDonate = 3;
 
         static readonly Color BackdropSolid = new Color(0.06f, 0.10f, 0.20f, 1f);
         static readonly Color BackdropWash = new Color(0.05f, 0.08f, 0.17f, 0.84f);
@@ -112,14 +114,15 @@ namespace Kalyeah.Game
         }
 
         readonly Action _onBack;
+        readonly Action _onDonate;
         Canvas _canvas;
         readonly SafeArea _safeArea;
         readonly RectTransform _shell;
 
-        readonly RectTransform[] _tabPanes = new RectTransform[3];
-        readonly Image[] _tabPillBgs = new Image[3];
-        readonly Text[] _tabPillLabels = new Text[3];
-        readonly LayoutElement[] _tabPillLayouts = new LayoutElement[3];
+        readonly RectTransform[] _tabPanes = new RectTransform[4];
+        readonly Image[] _tabPillBgs = new Image[4];
+        readonly Text[] _tabPillLabels = new Text[4];
+        readonly LayoutElement[] _tabPillLayouts = new LayoutElement[4];
         readonly List<Action> _syncCallbacks = new List<Action>(20);
         readonly List<ToggleRowRefs> _toggleRows = new List<ToggleRowRefs>(8);
         readonly List<SliderRowRefs> _sliderRows = new List<SliderRowRefs>(4);
@@ -147,16 +150,17 @@ namespace Kalyeah.Game
         public SafeArea SafeAreaComponent => _safeArea;
         public int ActiveTab => _activeTab;
 
-        public SettingsScreenView(Transform parent, DataSource data, Action onBack = null)
-            : this(parent, onBack)
+        public SettingsScreenView(Transform parent, DataSource data, Action onBack = null, Action onDonate = null)
+            : this(parent, onBack, onDonate)
         {
             _ = data;
         }
 
-        public SettingsScreenView(Transform parent, Action onBack = null)
+        public SettingsScreenView(Transform parent, Action onBack = null, Action onDonate = null)
         {
             if (parent == null) throw new ArgumentNullException(nameof(parent));
             _onBack = onBack;
+            _onDonate = onDonate;
             _canvas = parent.GetComponentInParent<Canvas>();
 
             Root = Ui.Fill("SettingsScreen", parent);
@@ -182,6 +186,7 @@ namespace Kalyeah.Game
             BuildAudioTab(_shell);
             BuildControlsTab(_shell);
             BuildGraphicsTab(_shell);
+            BuildDonateTab(_shell);
 
             var lifecycle = Root.gameObject.AddComponent<SettingsLifecycle>();
             lifecycle.Owner = this;
@@ -592,8 +597,8 @@ namespace Kalyeah.Game
             _tabBarLayout.childForceExpandWidth = true;
             _tabBarLayout.childForceExpandHeight = true;
 
-            string[] names = { "AUDIO", "CONTROLS", "GRAPHICS & ACCESSIBILITY" };
-            for (int i = 0; i < 3; i++)
+            string[] names = { "AUDIO", "CONTROLS", "GRAPHICS & ACCESSIBILITY", "DONATE" };
+            for (int i = 0; i < names.Length; i++)
             {
                 int idx = i;
                 var go = new GameObject($"SettingsTab_{i}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
@@ -607,7 +612,7 @@ namespace Kalyeah.Game
                 le.minWidth = minTouch;
                 le.minHeight = minTouch;
                 le.preferredHeight = minTouch;
-                le.preferredWidth = i == 2 ? 320f : 220f;
+                le.preferredWidth = i == 2 ? 320f : i == 3 ? 180f : 220f;
 
                 var btn = go.GetComponent<Button>();
                 btn.targetGraphic = img;
@@ -855,6 +860,38 @@ namespace Kalyeah.Game
             scroll.onValueChanged.AddListener(_ => UpdateScrollIndicators());
             return content;
         }
+
+        /// <summary>Support Kalyeah: one row whose DONATE button opens the donate sheet (grown-up check first; gifts give nothing).</summary>
+        void BuildDonateTab(RectTransform parent)
+        {
+            RectTransform content = CreateScrollableTabPane("DonatePane", parent, out RectTransform paneRoot);
+            _tabPanes[TabDonate] = paneRoot;
+
+            float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
+            float rowH = Mathf.Max(100f, minTouch + 4f);
+            RectTransform row = CreateRowContainer(content, "DonateRow", rowH, out LayoutElement rowLe, out Text titleText);
+            Vector2 btnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(184f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            RectTransform buttonRt = Ui.Panel("DonateBtn", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-14f, 0f), btnSize);
+            Image buttonBg = buttonRt.gameObject.AddComponent<Image>();
+            buttonBg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+            buttonBg.type = Image.Type.Sliced;
+            buttonBg.color = Gold;
+            DonateButton = buttonRt.gameObject.AddComponent<Button>();
+            DonateButton.targetGraphic = buttonBg;
+            DonateButton.onClick.AddListener(() => _onDonate?.Invoke());
+            Text label = MakeFittedText("Label", buttonRt, "DONATE", 22, Ink, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Stretch(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 4f), new Vector2(-8f, -4f));
+            Outline outline = label.GetComponent<Outline>();
+            if (outline != null) outline.enabled = false;
+
+            _toggleRows.Add(new ToggleRowRefs { RowLayout = rowLe, TitleRect = titleText.rectTransform, ToggleRect = buttonRt });
+            _syncCallbacks.Add(() => titleText.text = SettingsStore.Current.Language == "fil"
+                ? "Suportahan ang Kalyeah (magtanong muna sa nakatatanda)"
+                : "Support Kalyeah (ask a grown-up first)");
+        }
+
+        /// <summary>The DONATE button on the Donate tab.</summary>
+        public Button DonateButton { get; private set; }
 
         void AddToggleRow(RectTransform parent, string name, Func<string> titleGetter, Func<bool> getter, Action<bool> setter)
         {

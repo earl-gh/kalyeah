@@ -2,11 +2,16 @@ using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityObject = UnityEngine.Object;
 
 namespace Kalyeah.Game
 {
-    /// <summary>The home lobby's online-first PLAY: no server opens the offline prompt; the offline hub replaces the lobby UI; Back unwinds both.</summary>
+    /// <summary>
+    /// Home (docs/SPEC.md §4 and §8): online-first PLAY and the launch connection check open the offline prompt; the offline hub
+    /// replaces the home UI; Back unwinds both; the mode card never states rules; rank stays off home; match history opens from
+    /// the profile; Donate lives in Settings.
+    /// </summary>
     public sealed class HomeFlowTests
     {
         GameObject _root;
@@ -14,12 +19,14 @@ namespace Kalyeah.Game
         string _navigated;
         string _savedServerUrl;
         GameMode _savedMode;
+        int _savedFirstTo;
 
         [SetUp]
         public void SetUp()
         {
             _savedServerUrl = AppSession.Current.ServerUrl;
             _savedMode = AppSession.Current.Mode;
+            _savedFirstTo = AppSession.Current.FirstTo;
             _root = new GameObject("HomeFlowTestRoot");
             Canvas canvas = Ui.MakeCanvas("HomeFlowCanvas", _root.transform, null);
             _navigated = null;
@@ -33,6 +40,7 @@ namespace Kalyeah.Game
             if (_root != null) UnityObject.DestroyImmediate(_root);
             AppSession.Current.ServerUrl = _savedServerUrl;
             AppSession.Current.Mode = _savedMode;
+            AppSession.Current.FirstTo = _savedFirstTo;
         }
 
         static DataSource LoadData()
@@ -90,6 +98,70 @@ namespace Kalyeah.Game
             Assert.IsFalse(_home.OfflineHubOpen);
             Assert.IsTrue(topBar.gameObject.activeSelf);
             Assert.IsTrue(hub.gameObject.activeSelf);
+        }
+
+        [Test]
+        public void ModeCard_SaysHowTheModeFeels_NeverItsRules()
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                string line = _home.ModeLine;
+                Assert.IsNotEmpty(line);
+                StringAssert.DoesNotMatch("[0-9]", line, "no team size or score target on the mode card");
+                StringAssert.DoesNotContain("FIRST TO", line.ToUpperInvariant());
+                StringAssert.DoesNotContain("MAP", line.ToUpperInvariant(), "no map rules on the mode card");
+                _home.ModeButton.onClick.Invoke();
+            }
+        }
+
+        [Test]
+        public void Profile_OnHome_ShowsNoRank()
+        {
+            Transform profile = _home.SafeRoot.Find("TopBar/Profile");
+            Assert.IsNotNull(profile);
+            foreach (Text text in profile.GetComponentsInChildren<Text>(true))
+                foreach (string rankWord in new[] { "KARTON", "KAHOY", "BAKAL", "PILAK", "GINTO", " LP" })
+                    StringAssert.DoesNotContain(rankWord, text.text.ToUpperInvariant(), "rank shows only where Ranked is chosen");
+        }
+
+        [Test]
+        public void LaunchCheck_WithoutServer_OpensOfflinePrompt_AndRetryChecksAgainWithoutOpeningTheLobby()
+        {
+            AppSession.Current.ServerUrl = "";
+            Assert.IsFalse(_home.CheckConnectionAtLaunch());
+            Assert.IsTrue(_home.OfflinePromptOpen, "offline at launch must offer offline play before home");
+
+            Button retry = _home.Root.Find("OfflinePrompt/Card/Actions/Retry").GetComponent<Button>();
+            retry.onClick.Invoke();
+            Assert.IsTrue(_home.OfflinePromptOpen, "still offline: the prompt stays");
+            Assert.IsNull(_navigated, "RETRY at launch checks the connection; it never opens the lobby");
+        }
+
+        [Test]
+        public void ProfileSheet_MatchHistory_OpensHistory()
+        {
+            _home.Sheets.OpenProfile();
+            _home.Sheets.HistoryButton.onClick.Invoke();
+            Assert.AreEqual(MenuStack.HistoryId, _navigated);
+            Assert.IsFalse(_home.Sheets.IsOpen, "the profile closes on the way to history");
+        }
+
+        [Test]
+        public void Settings_DonateTab_OpensDonate()
+        {
+            int donations = 0;
+            var settings = new SettingsScreenView(_home.Root.parent, () => { }, () => donations++);
+            try
+            {
+                settings.SetActiveTab(SettingsScreenView.TabDonate);
+                Assert.AreEqual(SettingsScreenView.TabDonate, settings.ActiveTab);
+                settings.DonateButton.onClick.Invoke();
+                Assert.AreEqual(1, donations);
+            }
+            finally
+            {
+                settings.Dispose();
+            }
         }
     }
 }

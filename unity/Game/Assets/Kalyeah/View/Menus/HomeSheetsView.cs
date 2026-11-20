@@ -196,6 +196,7 @@ namespace Kalyeah.Game
         Text _profileHintText;
         Button _saveProfileButton;
         RectTransform _saveProfileRect;
+        RectTransform _historyRect;
         ScrollRect _photoScroll;
         RectTransform _photoScrollRect;
         RectTransform _photoGridContentRect;
@@ -276,12 +277,18 @@ namespace Kalyeah.Game
 
         public InputField ProfileNameInput => _profileNameInput;
         public Button ProfileSaveButton => _saveProfileButton;
+        public Button HistoryButton { get; private set; }
         public Button ProfileRemovePhotoButton => _removePhotoButton;
         public Button CameraTileButton => _cameraTileButton;
         public Button DonateActionButton => _donatePrimaryBtn;
         public bool HasDonateLink => !string.IsNullOrWhiteSpace(_donateUrl) && _donateUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
 
         public event Action ProfileChanged;
+
+        /// <summary>The profile's MATCH HISTORY button: match history lives in the profile, the Mobile Legends way (docs/SPEC.md §8).</summary>
+        public event Action HistoryRequested;
+
+        Transform _homeParent;
 
         public HomeSheetsView(
             Transform parent,
@@ -296,6 +303,7 @@ namespace Kalyeah.Game
             _canvas = parent.GetComponentInParent<Canvas>();
 
             Root = Ui.Fill("HomeSheetsModal", parent);
+            _homeParent = parent;
             var lifecycle = Root.gameObject.AddComponent<SheetsLifecycle>();
             lifecycle.Owner = this;
 
@@ -410,6 +418,13 @@ namespace Kalyeah.Game
             RefreshGameOfMonthContent(_displayedMonth);
         }
 
+        /// <summary>Opens the donate sheet over another screen (Settings' DONATE tab); <see cref="Close"/> returns it to home.</summary>
+        public void OpenDonateOver(Transform host)
+        {
+            if (host != null && Root != null) Root.SetParent(host, false);
+            OpenDonate();
+        }
+
         public void OpenDonate()
         {
             if (!IsInteractive) return;
@@ -431,6 +446,8 @@ namespace Kalyeah.Game
             ActiveSheet = SheetKind.None;
             if (Root != null && Root.gameObject.activeSelf)
                 Root.gameObject.SetActive(false);
+            if (Root != null && _homeParent != null && Root.parent != _homeParent)
+                Root.SetParent(_homeParent, false);
             if (wasOpen)
             {
                 _audio?.PlayUiTap("cancel");
@@ -589,6 +606,8 @@ namespace Kalyeah.Game
 
             if (_saveProfileRect != null)
                 _saveProfileRect.sizeDelta = new Vector2(0f, minTouch);
+            if (_historyRect != null)
+                _historyRect.sizeDelta = new Vector2(0f, minTouch);
 
             if (_nametagCardRect != null)
             {
@@ -1004,10 +1023,25 @@ namespace Kalyeah.Game
                 () => SaveProfileName(),
                 out _saveProfileRect);
             _saveProfileRect.anchorMin = new Vector2(0f, 0f);
-            _saveProfileRect.anchorMax = new Vector2(1f, 0f);
+            _saveProfileRect.anchorMax = new Vector2(0.49f, 0f);
             _saveProfileRect.pivot = new Vector2(0.5f, 0f);
             _saveProfileRect.anchoredPosition = Vector2.zero;
             _saveProfileRect.sizeDelta = new Vector2(0f, 96f);
+
+            HistoryButton = MakeActionButton(
+                "HistoryButton",
+                leftCol,
+                "Match History",
+                BarrioBlue,
+                Ui.Cream,
+                24,
+                () => HistoryRequested?.Invoke(),
+                out _historyRect);
+            _historyRect.anchorMin = new Vector2(0.51f, 0f);
+            _historyRect.anchorMax = new Vector2(1f, 0f);
+            _historyRect.pivot = new Vector2(0.5f, 0f);
+            _historyRect.anchoredPosition = Vector2.zero;
+            _historyRect.sizeDelta = new Vector2(0f, 96f);
 
             // Right column: All 10 kid avatar tiles (2x5 >= 48 dp inside ScrollRect) + >= 48 dp ID Camera / Remove Photo footer
             RectTransform rightCol = Ui.Panel("PhotoOptionsCol", _profileBody, new Vector2(0.37f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);

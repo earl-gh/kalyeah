@@ -16,6 +16,9 @@ namespace Kalyeah.Game
         public const string HomeId = "home";
         public const string PickId = "pick";
         public const string CodexId = "codex";
+        /// <summary>The Kids grid (bottom bar); <see cref="KidPageId"/> opens the same screen on the home kid's page.</summary>
+        public const string KidsId = "kids";
+        public const string KidPageId = "kid";
         public const string HistoryId = "history";
         public const string SettingsId = "settings";
         public const string LobbyId = "lobby";

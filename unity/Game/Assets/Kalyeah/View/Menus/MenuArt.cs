@@ -28,7 +28,7 @@ namespace Kalyeah.Game
         public static readonly Color GlassBottom = new Color(0.035f, 0.10f, 0.135f, 0.96f);
         public static readonly Color Rim = new Color(0.62f, 0.92f, 0.88f, 0.42f);
 
-        public enum GlyphKind { Gear, Heart, Clock, Play, Diamond }
+        public enum GlyphKind { Gear, Heart, Clock, Play, Diamond, Kid, Cards, Chevron, Striker, Defender, Seeker, Controller }
 
         static readonly Dictionary<string, Sprite> Sprites = new Dictionary<string, Sprite>();
         static readonly Dictionary<string, Texture2D> Textures = new Dictionary<string, Texture2D>();
@@ -297,9 +297,45 @@ namespace Kalyeah.Game
                     return u > -0.45f && u < 0.8f && Mathf.Abs(v) < 0.75f * (0.8f - u) / 1.25f;
                 case GlyphKind.Diamond:
                     return Mathf.Abs(u) + Mathf.Abs(v) < 0.9f;
+                case GlyphKind.Kid:   // a head over shoulders
+                    return new Vector2(u, v - 0.38f).magnitude < 0.34f
+                        || (v < -0.08f && v > -0.9f && new Vector2(u, (v + 0.9f) * 0.9f).magnitude < 0.78f);
+                case GlyphKind.Cards: // two fanned cards
+                    return InBox(Rotate(u + 0.22f, v, 0.2f), 0.36f, 0.6f) || InBox(Rotate(u - 0.22f, v, -0.16f), 0.36f, 0.6f);
+                case GlyphKind.Chevron:
+                    return Mathf.Abs(Mathf.Abs(v) * 0.9f - (0.32f - u)) < 0.16f && u > -0.35f && u < 0.5f;
+                case GlyphKind.Striker: // a lightning bolt
+                    return InPolygon(u, v, new[] { new Vector2(0.18f, 0.92f), new Vector2(-0.52f, -0.08f), new Vector2(-0.04f, -0.08f), new Vector2(-0.2f, -0.92f), new Vector2(0.52f, 0.14f), new Vector2(0.04f, 0.14f) });
+                case GlyphKind.Defender: // a shield
+                    return v < 0.82f && (v > 0.1f ? Mathf.Abs(u) < 0.68f : Mathf.Abs(u) < 0.68f * Mathf.Sqrt(Mathf.Max(0f, 1f - Mathf.Pow((0.1f - v) / 0.98f, 2f))));
+                case GlyphKind.Seeker: // a magnifier
+                {
+                    float lr = new Vector2(u + 0.14f, v - 0.14f).magnitude;
+                    bool handle = Mathf.Abs((u - v) * 0.7071f - 0.56f) < 0.32f && Mathf.Abs((u + v) * 0.7071f) < 0.11f;
+                    return (lr < 0.58f && lr > 0.38f) || handle;
+                }
+                case GlyphKind.Controller: // a target
+                    return (r < 0.9f && r > 0.72f) || (r < 0.48f && r > 0.32f) || r < 0.14f;
                 default:
                     return false;
             }
+        }
+
+        static Vector2 Rotate(float u, float v, float radians)
+        {
+            float c = Mathf.Cos(radians), s = Mathf.Sin(radians);
+            return new Vector2(u * c - v * s, u * s + v * c);
+        }
+
+        static bool InBox(Vector2 p, float halfW, float halfH) => Mathf.Abs(p.x) < halfW && Mathf.Abs(p.y) < halfH;
+
+        static bool InPolygon(float u, float v, Vector2[] poly)
+        {
+            bool inside = false;
+            for (int i = 0, j = poly.Length - 1; i < poly.Length; j = i++)
+                if ((poly[i].y > v) != (poly[j].y > v) && u < (poly[j].x - poly[i].x) * (v - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x)
+                    inside = !inside;
+            return inside;
         }
     }
 }
