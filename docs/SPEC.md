@@ -312,9 +312,13 @@ and, in Ranked, loses a star.
   Quick, Ranked or a private room); a **bottom navigation bar**: Kids, Store, Friends. Home never shows rank, team size,
   scoring, map rules, lore or mastery, and no store banners.
 - **Lobby** (separate from home, like Mobile Legends and Wild Rift): PLAY opens it for the chosen mode; your party as 5
-  cards (you first, empty ones say INVITE), a friends list with online status and INVITE, and FIND MATCH. Matchmaking runs
-  here with the timer and estimated wait; leaving the lobby keeps searching and home shows a pill back to it. **Rank shows
+  cards (you first, empty ones say INVITE), a friends list with online status and INVITE, and FIND MATCH. Matchmaking starts
+  here; while it runs, a **search bar sits top centre on every screen** (Wild Rift style: timer, estimate, tap to return to
+  the lobby, X to cancel), and prompts such as the bots offer and messages drop down under it. **Rank shows
   only where Ranked is chosen:** on the Ranked row of the mode picker and in the Ranked lobby (plus profile and loading).
+- **Screen fit (non-gameplay screens):** one layout on every shape, scaled, never wrapped: phones are 720 units tall,
+  screens narrower than 16:9 keep 1280 units of width and gain height (match width below 16:9, height above); text at
+  least 22 units and every control's hit area at least 48 dp; Back closes a dialog, then a picker, then the screen.
 - **Kid select:** the 12 kids in 4 role rows (not-owned greyed, trial-card kids marked); a team bar with hovers, locks
   and a missing-role warning; tapping a kid previews its 3 skills with short clips.
 - **Loading:** every player's kid in their skin, with name, rank and honor badge, and a tip about the map.
@@ -338,7 +342,7 @@ and, in Ranked, loses a star.
 guest or Google sign-in (guest first and biggest), an in-game name (IGN), then a **tutorial** before the home screen.
 **Returning players** go straight to home: the login reward is a small card there, and after an update one "what's new"
 card shows; no launch popups. **While queueing** the player can leave the lobby to browse home, the collection or the
-store; the search keeps running and a pill with the timer leads back to the lobby. The
+store; the search keeps running on the top-centre search bar. The
 tutorial uses the real barangay map with **barricades closing the other paths**, and teaches move, jump/vault, crouch/slide,
 the slingshot and reload, skills, tag, rescue and capture. Each step lends a kid of a different role, so the player tries
 all 4 roles before picking starters. A friendly older neighbour, **Ate Lorna** (the sari-sari store owner every kid buys snacks from; warm, teasing, a little
