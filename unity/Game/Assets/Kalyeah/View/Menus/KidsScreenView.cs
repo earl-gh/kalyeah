@@ -23,7 +23,7 @@ namespace Kalyeah.Game
         static readonly Color CardBg = new Color(0.10f, 0.14f, 0.22f, 1f);
 
         const float HeaderHeight = 112f;
-        const float FilterHeight = 72f;
+        const float FilterHeight = 96f; // the chips look 68 tall, but each one's hit area is the full 48 dp
         const float Gutter = 20f;
         const float HitSize = 96f;
         const float CardGap = 14f;
@@ -123,12 +123,14 @@ namespace Kalyeah.Game
                 string role = Filters[i];
                 float w = i == 0 ? 120f : 200f;
                 RectTransform chip = Ui.Panel("Filter_" + (role.Length == 0 ? "ALL" : role), _filterRow, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(x, 0f), new Vector2(w, 0f));
-                Image plate = Ui.MakeImage("Plate", chip, Color.white, false, true);
+                Image hit = chip.gameObject.AddComponent<Image>();
+                hit.color = Clear;
+                Image plate = Ui.MakeImage("Plate", chip, Color.white);
                 plate.sprite = MenuArt.Solid(12);
                 plate.type = Image.Type.Sliced;
                 Stretch(plate.rectTransform, Vector2.zero, Vector2.one);
-                plate.rectTransform.offsetMin = new Vector2(0f, 6f);
-                plate.rectTransform.offsetMax = new Vector2(0f, -6f);
+                plate.rectTransform.offsetMin = new Vector2(0f, 14f);
+                plate.rectTransform.offsetMax = new Vector2(0f, -14f);
                 Text label = Label("Label", chip, role.Length == 0 ? "ALL" : role, 22, Cream, TextAnchor.MiddleCenter, display: true);
                 Stretch(label.rectTransform, Vector2.zero, Vector2.one);
                 if (role.Length > 0)
@@ -142,7 +144,7 @@ namespace Kalyeah.Game
                 }
                 else _filterIcons.Add(null);
                 Button b = chip.gameObject.AddComponent<Button>();
-                b.targetGraphic = plate;
+                b.targetGraphic = hit;
                 b.onClick.AddListener(() => SetFilter(role));
                 _filterPlates.Add(plate);
                 _filterLabels.Add(label);
