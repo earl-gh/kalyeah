@@ -415,8 +415,8 @@ namespace Kalyeah.Game
             // 0b. bottom bar (Wild Rift): Kids, Store and Friends; the store and friends say so until they exist
             _bottomNav = Ui.Panel("BottomNav", _hubBody, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(NavItemWidth * 3f, NavHeight));
             MakeNavItem(_bottomNav, 0, "Nav_Kids", "KIDS", MenuArt.GlyphKind.Kid, () => Navigate(MenuStack.KidsId));
-            MakeNavItem(_bottomNav, 1, "Nav_Store", "STORE", MenuArt.GlyphKind.Cards, () => ComingSoon("The store comes with accounts"));
-            MakeNavItem(_bottomNav, 2, "Nav_Friends", "FRIENDS", MenuArt.GlyphKind.Kid, () => ComingSoon("Friends and party come with accounts"));
+            MakeNavItem(_bottomNav, 1, "Nav_Store", "STORE", MenuArt.GlyphKind.Bag, () => ComingSoon("The store comes with accounts"));
+            MakeNavItem(_bottomNav, 2, "Nav_Friends", "FRIENDS", MenuArt.GlyphKind.People, () => ComingSoon("Friends and party come with accounts"), badge: "3");
 
             // 1. hero zone: the kid's name plate at their feet (tap for their kid page)
             _heroZone = Ui.Panel("HeroZone", _hubBody, Vector2.zero, new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
@@ -482,7 +482,7 @@ namespace Kalyeah.Game
                 Image disc = Ui.MakeImage("Badge", art, badge.Value, round: true);
                 Stretch(disc.rectTransform, Vector2.zero, Vector2.one);
                 Image mark = Ui.MakeImage("Mark", art, new Color(1f, 0.9f, 0.66f, 1f));
-                mark.sprite = MenuArt.Glyph(index == 1 ? MenuArt.GlyphKind.Diamond : MenuArt.GlyphKind.Play);
+                mark.sprite = MenuArt.Glyph(index == 1 ? MenuArt.GlyphKind.Star : MenuArt.GlyphKind.Diamond);
                 Place(mark.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(36f, 36f));
             }
 
@@ -496,7 +496,7 @@ namespace Kalyeah.Game
         }
 
         /// <summary>One bottom-bar item: a line icon over its label, with a thin divider before every item but the first.</summary>
-        void MakeNavItem(RectTransform bar, int index, string name, string title, MenuArt.GlyphKind glyph, Action onClick)
+        void MakeNavItem(RectTransform bar, int index, string name, string title, MenuArt.GlyphKind glyph, Action onClick, string badge = null)
         {
             RectTransform item = Ui.Panel(name, bar, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(index * NavItemWidth, 0f), new Vector2(NavItemWidth, 0f));
             Image hit = item.gameObject.AddComponent<Image>();
@@ -514,6 +514,13 @@ namespace Kalyeah.Game
             {
                 Image divider = Ui.MakeImage("Divider", item, new Color(Cream.r, Cream.g, Cream.b, 0.2f));
                 Place(divider.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(2f, 40f));
+            }
+            if (badge != null)
+            {
+                Image dot = Ui.MakeImage("Badge", item, new Color(0.36f, 0.78f, 0.58f, 1f), round: true);
+                Place(dot.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(22f, -4f), new Vector2(32f, 32f));
+                Text count = Label("Count", dot.rectTransform, badge, 22, Ink, TextAnchor.MiddleCenter, display: true);
+                Stretch(count.rectTransform, Vector2.zero, Vector2.one);
             }
             AttachButton(item.gameObject, hit, onClick);
         }

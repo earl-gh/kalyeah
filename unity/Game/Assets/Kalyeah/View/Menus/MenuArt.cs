@@ -28,7 +28,7 @@ namespace Kalyeah.Game
         public static readonly Color GlassBottom = new Color(0.035f, 0.10f, 0.135f, 0.96f);
         public static readonly Color Rim = new Color(0.62f, 0.92f, 0.88f, 0.42f);
 
-        public enum GlyphKind { Gear, Heart, Clock, Play, Diamond, Kid, Cards, Chevron, Striker, Defender, Seeker, Controller }
+        public enum GlyphKind { Gear, Heart, Clock, Play, Diamond, Kid, Cards, Chevron, Striker, Defender, Seeker, Controller, Bag, People, Star }
 
         static readonly Dictionary<string, Sprite> Sprites = new Dictionary<string, Sprite>();
         static readonly Dictionary<string, Texture2D> Textures = new Dictionary<string, Texture2D>();
@@ -372,6 +372,27 @@ namespace Kalyeah.Game
                     float lr = new Vector2(u + 0.14f, v - 0.14f).magnitude;
                     bool handle = Mathf.Abs((u - v) * 0.7071f - 0.56f) < 0.32f && Mathf.Abs((u + v) * 0.7071f) < 0.11f;
                     return (lr < 0.58f && lr > 0.38f) || handle;
+                }
+                case GlyphKind.Bag: // a shopping bag: a body with a handle
+                {
+                    bool body = Mathf.Abs(u) < 0.72f && v > -0.82f && v < 0.28f;
+                    float hr = new Vector2(u, v - 0.28f).magnitude;
+                    return body || (hr > 0.28f && hr < 0.46f && v > 0.26f);
+                }
+                case GlyphKind.People: // two heads over shoulders
+                    return new Vector2(u + 0.3f, v - 0.38f).magnitude < 0.28f
+                        || (v < 0.02f && v > -0.85f && new Vector2((u + 0.3f) * 0.8f, v + 0.85f).magnitude < 0.6f)
+                        || new Vector2(u - 0.42f, v - 0.28f).magnitude < 0.21f
+                        || (v < -0.06f && v > -0.85f && new Vector2((u - 0.42f) * 1.1f, v + 0.85f).magnitude < 0.5f);
+                case GlyphKind.Star:
+                {
+                    var star = new Vector2[10];
+                    for (int i = 0; i < 10; i++)
+                    {
+                        float a = Mathf.PI * 0.5f + i * Mathf.PI / 5f, rad = i % 2 == 0 ? 0.95f : 0.4f;
+                        star[i] = new Vector2(Mathf.Cos(a) * rad, Mathf.Sin(a) * rad);
+                    }
+                    return InPolygon(u, v, star);
                 }
                 case GlyphKind.Controller: // a target
                     return (r < 0.9f && r > 0.72f) || (r < 0.48f && r > 0.32f) || r < 0.14f;
