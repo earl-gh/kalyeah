@@ -20,6 +20,7 @@ namespace Kalyeah.Game
         HomeScreenView _home;
         PickScreenView _pick;
         CodexScreenView _codex;
+        KidsScreenView _kids;
         HistoryScreenView _history;
         SettingsScreenView _settings;
         HotspotFlowView _hotspot;
@@ -141,6 +142,8 @@ namespace Kalyeah.Game
 
             _codex?.Dispose();
             _codex = null;
+            _kids?.Dispose();
+            _kids = null;
 
             _home?.Dispose();
             _home = null;
@@ -230,6 +233,7 @@ namespace Kalyeah.Game
             };
 
             _codex = new CodexScreenView(pageRoot, data, onBack: _stack.Pop);
+            _kids = new KidsScreenView(pageRoot, data, onBack: _stack.Pop);
             _history = new HistoryScreenView(pageRoot, data, onBack: _stack.Pop);
             _settings = new SettingsScreenView(pageRoot, data, onBack: _stack.Pop, onDonate: () => _home.Sheets?.OpenDonateOver(_settings.Root));
 
@@ -287,6 +291,13 @@ namespace Kalyeah.Game
                 });
 
             _stack.Register(MenuStack.CodexId, _codex.Root, onShow: _codex.Show, onHide: _codex.Hide);
+            _stack.Register(MenuStack.KidsId, _kids.Root, onShow: _kids.Show, onHide: _kids.Hide, onBackOverride: _kids.HandleBack);
+            _stack.Register(
+                MenuStack.KidPageId,
+                _kids.Root,
+                onShow: () => _kids.ShowKid(string.IsNullOrWhiteSpace(AppSession.Current.SelectedCharacter) ? AppSession.DefaultCharacter : AppSession.Current.SelectedCharacter),
+                onHide: _kids.Hide,
+                onBackOverride: _kids.HandleBack);
             _stack.Register(MenuStack.HistoryId, _history.Root, onShow: _history.Show, onHide: _history.Hide);
             _stack.Register(
                 MenuStack.SettingsId,

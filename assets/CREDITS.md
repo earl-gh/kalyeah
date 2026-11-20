@@ -12,3 +12,4 @@ only", or any other game's assets.
 | `assets/models/props/street_trash_bin.glb` | https://polyhaven.com/a/metal_trash_can (Metal Trash Can) | GurJas Studios | CC0 | Packed to one .glb at 1k textures (13960 triangles); used as: Street trash bin (micro prop) |
 | `assets/models/props/sari_icebox.glb` | https://polyhaven.com/a/plastic_container (Plastic Container) | PierreB3D | CC0 | Packed to one .glb at 1k textures (4070 triangles); used as: Sari-sari cooler box (micro prop) |
 | `assets/ui/home/stall.jpg` | Made in-house: rendered in Blender by `tools/art/home_stall/` from the game's own Karding model and a code-drawn chalk map | Kalyeah | Own work | Home backdrop plate, no kid in it |
+| `assets/portraits/busts/*.png` | Made in-house: rendered in Blender by `tools/art/kid_busts/` from the game's own kid models | Kalyeah | Own work | Kids grid card art |

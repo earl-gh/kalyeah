@@ -792,6 +792,17 @@ namespace Kalyeah.Game
                 }
             }
 
+            // 2b. KidsScreenView: the grid, then a kid page (six across on every shape, never wrapped)
+            {
+                Canvas canvas = BuildMenuCanvasRig($"Kids_{width}x{height}", profile, out Camera cam);
+                var kids = new KidsScreenView(canvas.transform, data);
+                _disposables.Add(kids);
+                kids.Show();
+                AuditGuiSurface(canvas, cam, kids.Root, kids.Root, profile, "KidsScreenView/Grid", expectSelectables: true, onReflow: kids.RefreshLayout);
+                kids.OpenPage("karding");
+                AuditGuiSurface(canvas, cam, kids.Root, kids.Root, profile, "KidsScreenView/Page", expectSelectables: true, onReflow: kids.RefreshLayout);
+            }
+
             // 3. PickScreenView
             {
                 Canvas canvas = BuildMenuCanvasRig($"Pick_{width}x{height}", profile, out Camera cam);

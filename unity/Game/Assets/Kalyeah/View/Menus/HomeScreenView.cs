@@ -374,10 +374,10 @@ namespace Kalyeah.Game
 
             // 0. bottom bar (Wild Rift): Kids and the Codex; the store and friends join when they are built
             _bottomNav = Ui.Panel("BottomNav", _hubBody, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(NavItemWidth * 2f, NavHeight));
-            MakeNavItem(_bottomNav, 0, "Nav_Kids", "KIDS", MenuArt.GlyphKind.Kid, () => Navigate(MenuStack.PickId));
+            MakeNavItem(_bottomNav, 0, "Nav_Kids", "KIDS", MenuArt.GlyphKind.Kid, () => Navigate(MenuStack.KidsId));
             MakeNavItem(_bottomNav, 1, "Nav_Codex", "CODEX", MenuArt.GlyphKind.Cards, () => Navigate(MenuStack.CodexId));
 
-            // 1. hero zone: the kid's name plate at their feet (tap for the kids)
+            // 1. hero zone: the kid's name plate at their feet (tap for their kid page)
             _heroZone = Ui.Panel("HeroZone", _hubBody, Vector2.zero, new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
             _kidPlate = Ui.Panel("KidPlate", _heroZone, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(300f, HitSize));
             Image plateHit = _kidPlate.gameObject.AddComponent<Image>();
@@ -403,7 +403,7 @@ namespace Kalyeah.Game
             chevron.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Chevron);
             Place(chevron.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-14f, 0f), new Vector2(24f, 24f));
             chevron.rectTransform.pivot = new Vector2(1f, 0.5f);
-            KidButton = AttachButton(_kidPlate.gameObject, plateHit, () => Navigate(MenuStack.PickId));
+            KidButton = AttachButton(_kidPlate.gameObject, plateHit, () => Navigate(MenuStack.KidPageId));
 
             // 2. right column: the mode card (tap to change) over one big gold PLAY
             _modeColumn = Ui.Panel("ModeColumn", _hubBody, new Vector2(1f, 0f), Vector2.one, new Vector2(1f, 0.5f), Vector2.zero, new Vector2(380f, 0f));
