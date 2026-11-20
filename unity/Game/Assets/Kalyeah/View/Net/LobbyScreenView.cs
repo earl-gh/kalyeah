@@ -1080,7 +1080,7 @@ namespace Kalyeah.Game
                     int pid = m.GetInt("player_id", -1);
                     string pName = m.GetStr("name", "Player");
                     string charId = m.GetStr("char", "narda");
-                    string rankTier = m.GetStr("rank_tier", "Kahoy");
+                    string rankTier = m.GetStr("rank_tier", "Karton");
                     bool ready = m.GetBool("ready", false);
                     bool connected = m.GetBool("connected", true);
                     bool afk = m.GetBool("afk", false);

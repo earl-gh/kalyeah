@@ -53,7 +53,17 @@ namespace Kalyeah.Net
             }
         }
 
+        static Func<long, string> _tierName = lp => RankedSystem.TierName((int)Math.Max(int.MinValue, Math.Min(int.MaxValue, lp)));
+
         /// <summary>ranked_system.gd `tier_name(lp)`.</summary>
-        public static string TierName(long lp) => RankedSystem.TierName((int)Math.Max(int.MinValue, Math.Min(int.MaxValue, lp)));
+        public static string TierName(long lp) => _tierName(lp);
+
+        /// <summary>Replays recordings made before Karton existed (the Godot net goldens); dispose to restore the tier names.</summary>
+        public static IDisposable UseTierNames(Func<long, string> tierName)
+        {
+            Func<long, string> previous = _tierName;
+            _tierName = tierName ?? throw new ArgumentNullException(nameof(tierName));
+            return new Restore(() => _tierName = previous);
+        }
     }
 }

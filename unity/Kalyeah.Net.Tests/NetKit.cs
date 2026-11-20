@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
@@ -22,6 +23,26 @@ namespace Kalyeah.Net.Tests
             "junjun", "ligaya", "migo", "toni", "popoy",
             "inday", "kiko", "nene", "buknoy", "tala",
         };
+
+        /// <summary>The lobby as the Godot recordings had it: their roster, and Kahoy as the first tier (Karton did not exist; it is the
+        /// lower half of the old first tier, 0 to 99 LP). Dispose to restore.</summary>
+        public static IDisposable UseRecordedLobby()
+        {
+            IDisposable avatars = Lobby.UseAvatars(RecordedRoster);
+            IDisposable tiers = Lobby.UseTierNames(lp =>
+            {
+                string name = RankedSystem.TierName((int)Math.Max(int.MinValue, Math.Min(int.MaxValue, lp)));
+                return name == "Karton" ? "Kahoy" : name;
+            });
+            return new Both(avatars, tiers);
+        }
+
+        sealed class Both : IDisposable
+        {
+            readonly IDisposable _a, _b;
+            public Both(IDisposable a, IDisposable b) { _a = a; _b = b; }
+            public void Dispose() { _b.Dispose(); _a.Dispose(); }
+        }
 
         /// <summary>`rules` dealing from the recorded roster (so AssignCharacters draws the RNG as the recording did) and playing the recorded rules.</summary>
         public static GameRules WithRecordedRoster(GameRules rules)

@@ -68,6 +68,20 @@ namespace Kalyeah.Game
         }
 
         [Test]
+        public void AppSession_RankTiers_MatchTheSimTable()
+        {
+            Assert.AreEqual(RankedSystem.Tiers.Count, AppSession.RankTiers.Length);
+            for (int i = 0; i < AppSession.RankTiers.Length; i++)
+            {
+                Assert.AreEqual(RankedSystem.Tiers[i].Id, AppSession.RankTiers[i].Id, $"tier {i} id");
+                Assert.AreEqual(RankedSystem.Tiers[i].MinLp, AppSession.RankTiers[i].MinLp, $"tier {i} min");
+                Assert.AreEqual(RankedSystem.Tiers[i].MaxLp, AppSession.RankTiers[i].MaxLp, $"tier {i} max");
+                Assert.AreEqual(RankedSystem.Tiers[i].Color, AppSession.RankTiers[i].ColorHex, $"tier {i} colour");
+            }
+            Assert.AreEqual("Karton", AppSession.RankTiers[0].Name);
+        }
+
+        [Test]
         public void SimBridge_5v5Roster_Objectives_AndPortDefineParity()
         {
             DataSource data = LoadData();
@@ -280,7 +294,7 @@ namespace Kalyeah.Game
             Assert.AreEqual("Batang Kalye", session.PlayerName, "CleanName trims, collapses spaces, strips '!', caps at 12 chars");
             Assert.IsTrue(session.SetSuperpowers(new[] { "bola", "trumpo", "lata" }));
             Assert.AreEqual(0, session.Lp);
-            Assert.AreEqual("kahoy", session.CurrentTier.Id);
+            Assert.AreEqual("karton", session.CurrentTier.Id, "a new player starts at the lowest tier");
 
             int previewWin = session.PreviewMatchLp("online", true, 3, 0);
             Assert.Greater(previewWin, 0);

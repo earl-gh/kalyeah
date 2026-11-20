@@ -806,7 +806,7 @@ namespace Kalyeah.Game
             }
 
             RankTierInfo tier = session.CurrentTier;
-            string tierName = string.IsNullOrWhiteSpace(tier.Name) ? "Kahoy" : tier.Name.Trim();
+            string tierName = string.IsNullOrWhiteSpace(tier.Name) ? "Karton" : tier.Name.Trim();
             if (_rankLabel != null)
             {
                 int next = session.NextTierLp;

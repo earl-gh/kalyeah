@@ -79,25 +79,46 @@ namespace Kalyeah.Sim.Tests.Bots
         }
     }
 
-    /// <summary>Port of the RankedSystem part of tests/unit/test_barangay_5v5.gd (seven tiers, LP maths, the 0 LP floor, the saved record).</summary>
+    /// <summary>Port of the RankedSystem part of tests/unit/test_barangay_5v5.gd (tiers, LP maths, the 0 LP floor, the saved record).</summary>
     public class RankedSystemTests
     {
         [Test]
-        public void SevenTagalogTiers()
+        public void EightTagalogTiersStartingAtKarton()
         {
-            Assert.AreEqual(7, RankedSystem.Tiers.Count);
+            Assert.AreEqual(8, RankedSystem.Tiers.Count);
             var names = new Dictionary<int, string>
             {
-                [0] = "Kahoy", [199] = "Kahoy", [200] = "Bakal", [399] = "Bakal", [400] = "Tanso", [599] = "Tanso", [600] = "Pilak",
+                [0] = "Karton", [99] = "Karton", [100] = "Kahoy", [199] = "Kahoy", [200] = "Bakal", [399] = "Bakal", [400] = "Tanso", [599] = "Tanso", [600] = "Pilak",
                 [849] = "Pilak", [850] = "Ginto", [1149] = "Ginto", [1150] = "Brilyante", [1499] = "Brilyante", [1500] = "Batang Kalyeah",
                 [2500] = "Batang Kalyeah",
             };
             foreach (var pair in names) Assert.AreEqual(pair.Value, RankedSystem.TierName(pair.Key), $"{pair.Key} LP");
             Assert.AreEqual("ginto", RankedSystem.TierForLp(900).Id);
-            Assert.AreEqual(-1, RankedSystem.Tiers[6].MaxLp, "the top tier is uncapped");
-            GColor kahoy = RankedSystem.ParseColor(RankedSystem.Tiers[0].Color);
+            Assert.AreEqual(-1, RankedSystem.Tiers[7].MaxLp, "the top tier is uncapped");
+            GColor kahoy = RankedSystem.ParseColor(RankedSystem.Tiers[1].Color);
             Assert.AreEqual(0xc8 / 255.0, kahoy.R, 1e-6);
             Assert.AreEqual(0x4b / 255.0, kahoy.B, 1e-6);
+        }
+
+        [Test]
+        public void KartonIsTheLowestTierAndKahoyFollowsIt()
+        {
+            Assert.AreEqual("karton", RankedSystem.Tiers[0].Id);
+            Assert.AreEqual("kahoy", RankedSystem.Tiers[1].Id);
+            Assert.AreEqual("Karton", RankedSystem.TierName(-50), "negative LP counts as 0");
+            Assert.AreEqual(100, RankedSystem.NextTierLp(0), "Kahoy starts at 100 LP");
+            Assert.AreEqual(200, RankedSystem.NextTierLp(100));
+            Assert.AreEqual(0.5, RankedSystem.TierProgress(50), 1e-12);
+            Assert.AreEqual(0.0, RankedSystem.TierProgress(100), 1e-12, "a new tier starts empty");
+            for (int i = 1; i < RankedSystem.Tiers.Count; i++)
+                Assert.AreEqual(RankedSystem.Tiers[i - 1].MaxLp + 1, RankedSystem.Tiers[i].MinLp, RankedSystem.Tiers[i].Name + " follows the tier below with no gap");
+
+            RankedSystem.Outcome up = RankedSystem.PreviewMatch("online", true, 3, 0, 95);
+            Assert.IsTrue(up.Promoted, "crossing 100 LP promotes from Karton to Kahoy");
+            Assert.AreEqual("Kahoy", up.Tier);
+            RankedSystem.Outcome stay = RankedSystem.PreviewMatch("online", false, 0, 3, 120);
+            Assert.AreEqual("Kahoy", stay.Tier);
+            Assert.IsFalse(stay.Promoted);
         }
 
         [Test]
@@ -138,7 +159,7 @@ namespace Kalyeah.Sim.Tests.Bots
             Assert.AreEqual(-6, RankedSystem.PreviewMatch(" Practice ", false, 0, 1, 100).Delta);
             Assert.AreEqual(-18, RankedSystem.PreviewMatch("hotspot", false, 0, 1, 100).Delta);
             Assert.AreEqual(1.0, RankedSystem.TierProgress(5000));
-            Assert.AreEqual(0.5, RankedSystem.TierProgress(100), 1e-12);
+            Assert.AreEqual(0.5, RankedSystem.TierProgress(150), 1e-12, "halfway through Kahoy (100 to 199)");
         }
     }
 }

@@ -166,7 +166,11 @@ namespace Kalyeah.Net.Tests
         {
             CollectionAssert.AreEqual(Root.GetProperty("avatars").EnumerateArray().Select(e => e.GetString()).ToArray(), Lobby.Avatars);
             foreach (JsonElement c in Root.GetProperty("tiers").EnumerateArray())
-                Assert.AreEqual(c[1].GetString(), Lobby.TierName(c[0].GetInt64()));
+                {
+                // the Godot recording predates Karton, which is the lower half of the old first tier (0 to 99 LP)
+                string name = Lobby.TierName(c[0].GetInt64());
+                Assert.AreEqual(c[1].GetString(), name == "Karton" ? "Kahoy" : name);
+            }
         }
     }
 }

@@ -89,12 +89,12 @@ and, in Ranked, loses a star.
 **Online:**
 - **Quick Match** (Blitz or Quick, unranked) and **Ranked** (Standard) fill 5v5 by skill rating; private rooms (code) stay
   for friends; Hotspot for phones on one local network.
-- **Ranked:** Filipino-themed tiers (Kahoy, Bakal, Tanso, Pilak, Ginto, Brilyante, Batang Kalyeah) with divisions and a
+- **Ranked:** Filipino-themed tiers (Karton, Kahoy, Bakal, Tanso, Pilak, Ginto, Brilyante, Batang Kalyeah) with divisions and a
   **star system like Mobile Legends** (win +1 star, loss −1 star, a full division promotes); seasonal resets with rewards.
-  - Each tier has 3 divisions; stars per division grow with the tier: Kahoy and Bakal 3, Tanso and Pilak 4, Ginto and
+  - Each tier has 3 divisions; stars per division grow with the tier: Karton, Kahoy and Bakal 3, Tanso and Pilak 4, Ginto and
     Brilyante 5. Batang Kalyeah has no divisions (stars keep counting).
   Replaces the LP system in the current code.
-  - No placement matches: everyone starts at Kahoy; a hidden rating (MMR) still matches by skill.
+  - No placement matches: everyone starts at Karton (cardboard, the lowest tier); a hidden rating (MMR) still matches by skill.
   - Star protection: the losing team's MVP keeps the star; each loss fills protection points by your match score (tags,
     rescues, captures, support), and a full bar saves one star automatically; no demotion below a newly reached tier for
     3 games.
@@ -383,7 +383,7 @@ gained or lost, pass XP and barya earned, and honor and report buttons.
   seasons), slingshot skins for any kid.
 - **Kid mastery:** each kid gains mastery XP over 7 levels (about 50 matches to max): a badge at level 3, an emote at 5,
   a title at 7, with codex chapters along the way; never power.
-- **Seasons: 8 weeks.** Each brings a new 50-level pass, a soft rank reset (down one tier, same division: Ginto II becomes Pilak II; Kahoy and Bakal
+- **Seasons: 8 weeks.** Each brings a new 50-level pass, a soft rank reset (down one tier, same division: Ginto II becomes Pilak II; Karton, Kahoy and Bakal
   don't drop) and end-of-season
   rewards by rank (a border and barya; Ginto or higher also gets an Elite skin for that season's featured kid).
 - **Barya from matches** (loss / win): Blitz 60 / 100, Quick 90 / 150, Standard 120 / 200, plus 300 for the first win of

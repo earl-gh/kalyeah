@@ -7,7 +7,7 @@ using UnityEngine.UI;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// 7-Tier Tagalog Ranked progression screen (Kahoy -&gt; Batang Kalyeah, LP progress bar, Peak LP, Win Rate)
+    /// 8-Tier Tagalog Ranked progression screen (Karton -&gt; Batang Kalyeah, LP progress bar, Peak LP, Win Rate)
     /// plus scrollable <see cref="AppSession.History"/> match log.
     /// </summary>
     public sealed class HistoryScreenView : IDisposable
@@ -322,7 +322,7 @@ namespace Kalyeah.Game
             _bodyRect.offsetMin = new Vector2(0f, 8f);
             _bodyRect.offsetMax = new Vector2(0f, -124f);
 
-            // Left 46%: Current Tier Hero Card + 7-Tier Tagalog Ranked Ladder
+            // Left 46%: Current Tier Hero Card + 8-Tier Tagalog Ranked Ladder
             RectTransform leftCol = Ui.Panel("RankedColumn", _bodyRect, new Vector2(0f, 0f), new Vector2(0.46f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
             leftCol.offsetMax = new Vector2(-8f, 0f);
 
@@ -350,7 +350,7 @@ namespace Kalyeah.Game
             _heroCrestEmblem.verticalOverflow = VerticalWrapMode.Overflow;
             Stretch(_heroCrestEmblem.rectTransform, Vector2.zero, Vector2.one, new Vector2(6f, 4f), new Vector2(-6f, -4f));
 
-            _heroTierName = MakeFittedText("TierName", _heroCardBg.transform, "KAHOY", 34, Gold, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
+            _heroTierName = MakeFittedText("TierName", _heroCardBg.transform, "KARTON", 34, Gold, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
             Stretch(_heroTierName.rectTransform, new Vector2(0.29f, 0.72f), new Vector2(0.96f, 0.94f), Vector2.zero, Vector2.zero);
 
             _heroFlavorText = MakeFittedText("TierFlavor", _heroCardBg.transform, "", 18, Muted, TextAnchor.UpperLeft);
@@ -373,11 +373,11 @@ namespace Kalyeah.Game
             _winRateValue = BuildStatTile(_heroCardBg.rectTransform, "WinRateTile", new Vector2(0.36f, 0.06f), new Vector2(0.64f, 0.30f), "WIN RATE");
             _matchesValue = BuildStatTile(_heroCardBg.rectTransform, "MatchesTile", new Vector2(0.67f, 0.06f), new Vector2(0.95f, 0.30f), "RECORD");
 
-            // 7-Tier Tagalog Progression Strip (Kahoy -> Batang Kalyeah)
+            // 8-Tier Tagalog Progression Strip (Karton -> Batang Kalyeah)
             Image ladderCard = KomiksUi.MakeSlicedFill("TierLadderCard", leftCol, PanelBg, KomiksUi.RadiusM);
             Stretch(ladderCard.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.41f), Vector2.zero, Vector2.zero);
 
-            _ladderHeader = MakeFittedText("LadderTitle", ladderCard.transform, "7-TIER TAGALOG LADDER", 19, Gold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _ladderHeader = MakeFittedText("LadderTitle", ladderCard.transform, "8-TIER TAGALOG LADDER", 19, Gold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
             Stretch(_ladderHeader.rectTransform, new Vector2(0.04f, 0.80f), new Vector2(0.96f, 0.97f), Vector2.zero, Vector2.zero);
 
             RectTransform tiersGrid = Ui.Panel("TiersGrid", ladderCard.transform, new Vector2(0.03f, 0.04f), new Vector2(0.97f, 0.79f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
@@ -490,7 +490,7 @@ namespace Kalyeah.Game
 
             if (_headerTitle != null) _headerTitle.text = fil ? "RANGGO AT KASAYSAYAN" : "RANKED & MATCH HISTORY";
             if (_backLabel != null) _backLabel.text = fil ? "<- BALIK" : "<- BACK";
-            if (_ladderHeader != null) _ladderHeader.text = fil ? "7-ANTAS NG RANGGO SA KALYE" : "7-TIER TAGALOG LADDER";
+            if (_ladderHeader != null) _ladderHeader.text = fil ? "8-ANTAS NG RANGGO SA KALYE" : "8-TIER TAGALOG LADDER";
             if (_logHeader != null) _logHeader.text = fil ? $"MGA LABAN ({session.History.Count})" : $"MATCH LOG ({session.History.Count})";
             if (_playerChipText != null) _playerChipText.text = $"{session.PlayerName}  ·  {session.CurrentTier.Name.ToUpperInvariant()}";
 
@@ -581,8 +581,8 @@ namespace Kalyeah.Game
             {
                 if (_emptyStateText != null)
                     _emptyStateText.text = fil
-                        ? "Wala pang naitalang laban.\nMaglaro ng Agawang Base o Larong Kalye para umakyat mula Kahoy hanggang Batang Kalyeah!"
-                        : "No street matches recorded yet.\nPlay Agawang Base or Larong Kalye to climb from Kahoy to Batang Kalyeah!";
+                        ? "Wala pang naitalang laban.\nMaglaro ng Agawang Base o Larong Kalye para umakyat mula Karton hanggang Batang Kalyeah!"
+                        : "No street matches recorded yet.\nPlay Agawang Base or Larong Kalye to climb from Karton to Batang Kalyeah!";
                 return;
             }
 

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Kalyeah.Sim
 {
     /// <summary>
-    /// Tagalog competitive ranked progression, "Kahoy" to "Batang Kalyeah" (the rules of scripts/sim/ranked_system.gd).
+    /// Tagalog competitive ranked progression, "Karton" to "Batang Kalyeah" (the rules of scripts/sim/ranked_system.gd).
     /// Online and Local Hotspot: a win is +30 LP plus +2 per point of lead (lead capped at 5), a loss -18 LP. Practice: a win is +12 LP plus
     /// +1 per point of lead (capped at 3), a loss -6 LP. LP never goes below 0.
     /// The GDScript keeps the numbers in a ConfigFile (`user://ranked.cfg`); here they live in a <see cref="Record"/> that the game saves
@@ -64,10 +64,11 @@ namespace Kalyeah.Sim
             public override int GetHashCode() => (OldLp * 397 ^ NewLp) * 397 ^ Delta;
         }
 
-        /// <summary>The 7 tiers, lowest first.</summary>
+        /// <summary>The 8 tiers, lowest first. Karton (cardboard) is the owner's lowest tier, below Kahoy (wood).</summary>
         public static readonly IReadOnlyList<Tier> Tiers = new[]
         {
-            new Tier("kahoy", "Kahoy", 0, 199, "c8874b", "f2be86", "5c3416", "241207", "Warm Carved Wood"),
+            new Tier("karton", "Karton", 0, 99, "b89d78", "e9dabd", "5e4a30", "21190d", "Flattened Cardboard Box"),
+            new Tier("kahoy", "Kahoy", 100, 199, "c8874b", "f2be86", "5c3416", "241207", "Warm Carved Wood"),
             new Tier("bakal", "Bakal", 200, 399, "8a99b0", "d0dced", "364052", "141923", "Forged Dark Iron"),
             new Tier("tanso", "Tanso", 400, 599, "dc7d3e", "ffba80", "6b3110", "281004", "Burnished Bronze"),
             new Tier("pilak", "Pilak", 600, 849, "d6e5f7", "ffffff", "536987", "182233", "Gleaming Silver"),
@@ -76,7 +77,7 @@ namespace Kalyeah.Sim
             new Tier("batang_kalyeah", "Batang Kalyeah", 1500, -1, "ff6b2b", "ffe14d", "7d1818", "24070c", "Mythic Komiks Street Crown"),
         };
 
-        /// <summary>The index (0..6) in <see cref="Tiers"/> for `lp`.</summary>
+        /// <summary>The index (0..7) in <see cref="Tiers"/> for `lp`.</summary>
         public static int TierIndex(int lp)
         {
             int clamped = Math.Max(0, lp);

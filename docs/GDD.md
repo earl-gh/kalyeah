@@ -394,21 +394,22 @@ The HUD explains touch aiming/cancel and status effects that prevent casting. Ca
 
 Losing application focus or pausing clears the pad, touch ownership, pending releases and the held card. A connected multiplayer client sends neutral movement plus aim cancellation immediately through the existing input sequence, without waiting for another rendered frame. Input remains blocked until both focus returns and the application resumes. Practice retains a cancel input for its next tick, including a pause/resume between ticks. Fresh input works afterward; opening/closing menus or reconnecting cannot override an outstanding application interruption. This does not pause the authoritative multiplayer match or guarantee delivery after the OS terminates the process or the network disappears.
 
-## Ranked progression (7 Tagalog tiers)
+## Ranked progression (8 Tagalog tiers)
 
 > To be replaced by Mobile Legends style stars per division (`docs/SPEC.md` §5); the LP system below is what the code runs today.
 
-`RankedSystem` (`unity/Kalyeah.Sim/RankedSystem.cs`) tracks local competitive progression (**Larong Kalye Ranked**) persisted locally via `SettingsStore` / `AppSession` and surfaced on the `TitleScreen` Rank Crest and `MatchResults` post-match summary:
+`RankedSystem` (`unity/Kalyeah.Sim/Bots/RankedSystem.cs`) tracks local competitive progression (**Larong Kalye Ranked**) persisted locally via `SettingsStore` / `AppSession` and surfaced on the home profile, the History ladder and the `MatchResults` post-match summary. `AppSession.RankTiers` copies the table for the views, and a test keeps the two equal.
 
-| Tier # | Tagalog Rank | Total LP Range | Crest Palette |
-|---|---|---|---|
-| 0 | **Kahoy** (Wood) | `0 – 99 LP` | Warm nara wood & black ink |
-| 1 | **Bakal** (Iron) | `100 – 199 LP` | Forged street iron & slate |
-| 2 | **Tanso** (Bronze) | `200 – 299 LP` | Burnished copper-bronze |
-| 3 | **Pilak** (Silver) | `300 – 399 LP` | Bright jeepney chrome |
-| 4 | **Ginto** (Gold) | `400 – 499 LP` | Sari-sari sunburst gold |
-| 5 | **Brilyante** (Diamond) | `500 – 599 LP` | Electric cyan-ice |
-| 6 | **Batang Kalyeah** (Apex Legend) | `600+ LP` | Radiant mythic magenta-gold |
+| Tier # | Tagalog Rank | Total LP Range |
+|---|---|---|
+| 0 | **Karton** (Cardboard, the lowest tier; a new player starts here) | `0 – 99 LP` |
+| 1 | **Kahoy** (Wood) | `100 – 199 LP` |
+| 2 | **Bakal** (Iron) | `200 – 399 LP` |
+| 3 | **Tanso** (Bronze) | `400 – 599 LP` |
+| 4 | **Pilak** (Silver) | `600 – 849 LP` |
+| 5 | **Ginto** (Gold) | `850 – 1149 LP` |
+| 6 | **Brilyante** (Diamond) | `1150 – 1499 LP` |
+| 7 | **Batang Kalyeah** (Apex Legend) | `1500+ LP` |
 
 - **LP gains, losses & floor protection:** Wins award base LP plus objective/performance bonuses; losses deduct less LP in lower tiers so street climbs stay welcoming, never drop below `0 LP` (`Kahoy`), and respect tier-floor demotion protection on newly promoted tiers. Characters remain 100% cosmetic across all ranks.
 

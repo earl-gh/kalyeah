@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -91,6 +92,12 @@ namespace Kalyeah.Sim.Tests.Bots
             CollectionAssert.AreEqual(trace.GetProperty("events").EnumerateArray().Select(e => BotGoldenTests.EventKey(e).key).ToList(), events);
         }
 
+        // The Godot recordings predate Karton, which is the lower half of the old first tier (0 to 99 LP; Kahoy now starts at 100).
+        // They are read through that old first tier here; Karton itself is pinned by RankedSystemTests.
+        static int OldIndex(int newIndex) => Math.Max(0, newIndex - 1);
+        static string OldName(string name) => name == "Karton" ? "Kahoy" : name;
+        static string OldId(string id) => id == "karton" ? "kahoy" : id;
+
         [Test]
         public void TiersAreGodots()
         {
@@ -98,11 +105,14 @@ namespace Kalyeah.Sim.Tests.Bots
             foreach (JsonElement row in doc.RootElement.GetProperty("tiers").EnumerateArray())
             {
                 int lp = row.GetProperty("lp").GetInt32();
-                Assert.AreEqual(row.GetProperty("index").GetInt32(), RankedSystem.TierIndex(lp), $"{lp}: index");
-                Assert.AreEqual(row.GetProperty("name").GetString(), RankedSystem.TierName(lp), $"{lp}: name");
-                Assert.AreEqual(row.GetProperty("id").GetString(), RankedSystem.TierForLp(lp).Id, $"{lp}: id");
-                Assert.AreEqual(row.GetProperty("next").GetInt32(), RankedSystem.NextTierLp(lp), $"{lp}: next");
-                Assert.AreEqual(row.GetProperty("progress").GetDouble(), RankedSystem.TierProgress(lp), 1e-12, $"{lp}: progress");
+                int index = RankedSystem.TierIndex(lp);
+                bool oldFirstTier = index <= 1;
+                Assert.AreEqual(row.GetProperty("index").GetInt32(), OldIndex(index), $"{lp}: index");
+                Assert.AreEqual(row.GetProperty("name").GetString(), OldName(RankedSystem.TierName(lp)), $"{lp}: name");
+                Assert.AreEqual(row.GetProperty("id").GetString(), OldId(RankedSystem.TierForLp(lp).Id), $"{lp}: id");
+                Assert.AreEqual(row.GetProperty("next").GetInt32(), oldFirstTier ? 200 : RankedSystem.NextTierLp(lp), $"{lp}: next");
+                double progress = oldFirstTier ? Math.Min(1.0, Math.Max(0, lp) / 200.0) : RankedSystem.TierProgress(lp);
+                Assert.AreEqual(row.GetProperty("progress").GetDouble(), progress, 1e-12, $"{lp}: progress");
             }
         }
 
@@ -148,8 +158,9 @@ namespace Kalyeah.Sim.Tests.Bots
             Assert.AreEqual(row.GetProperty("old").GetInt32(), got.OldLp, what + " old");
             Assert.AreEqual(row.GetProperty("new").GetInt32(), got.NewLp, what + " new");
             Assert.AreEqual(row.GetProperty("delta").GetInt32(), got.Delta, what + " delta");
-            Assert.AreEqual(row.GetProperty("tier").GetString(), got.Tier, what + " tier");
-            Assert.AreEqual(row.GetProperty("promoted").GetBoolean(), got.Promoted, what + " promoted");
+            Assert.AreEqual(row.GetProperty("tier").GetString(), OldName(got.Tier), what + " tier");
+            bool oldPromoted = OldIndex(RankedSystem.TierIndex(got.NewLp)) > OldIndex(RankedSystem.TierIndex(got.OldLp));
+            Assert.AreEqual(row.GetProperty("promoted").GetBoolean(), oldPromoted, what + " promoted");
         }
     }
 }

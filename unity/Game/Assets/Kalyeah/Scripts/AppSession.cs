@@ -97,7 +97,8 @@ namespace Kalyeah.Game
 
         public static readonly RankTierInfo[] RankTiers =
         {
-            new RankTierInfo { Id = "kahoy", Name = "Kahoy", MinLp = 0, MaxLp = 199, ColorHex = "c8874b", AccentHex = "f2be86", DarkHex = "5c3416", InkHex = "241207", Flavor = "Warm Carved Wood" },
+            new RankTierInfo { Id = "karton", Name = "Karton", MinLp = 0, MaxLp = 99, ColorHex = "b89d78", AccentHex = "e9dabd", DarkHex = "5e4a30", InkHex = "21190d", Flavor = "Flattened Cardboard Box" },
+            new RankTierInfo { Id = "kahoy", Name = "Kahoy", MinLp = 100, MaxLp = 199, ColorHex = "c8874b", AccentHex = "f2be86", DarkHex = "5c3416", InkHex = "241207", Flavor = "Warm Carved Wood" },
             new RankTierInfo { Id = "bakal", Name = "Bakal", MinLp = 200, MaxLp = 399, ColorHex = "8a99b0", AccentHex = "d0dced", DarkHex = "364052", InkHex = "141923", Flavor = "Forged Dark Iron" },
             new RankTierInfo { Id = "tanso", Name = "Tanso", MinLp = 400, MaxLp = 599, ColorHex = "dc7d3e", AccentHex = "ffba80", DarkHex = "6b3110", InkHex = "281004", Flavor = "Burnished Bronze" },
             new RankTierInfo { Id = "pilak", Name = "Pilak", MinLp = 600, MaxLp = 849, ColorHex = "d6e5f7", AccentHex = "ffffff", DarkHex = "536987", InkHex = "182233", Flavor = "Gleaming Silver" },

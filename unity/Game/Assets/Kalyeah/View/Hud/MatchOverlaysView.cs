@@ -3371,7 +3371,7 @@ namespace Kalyeah.Game
             emblemInitial = Ui.MakeText("EmblemGlyph", emblemBox, "K", 32, Color.white, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             Stretch(emblemInitial.rectTransform, 0f);
 
-            tierNameText = Ui.MakeText("TierName", rankCardRect, "KAHOY", 24, ColWarmText, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            tierNameText = Ui.MakeText("TierName", rankCardRect, "KARTON", 24, ColWarmText, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
             tierNameText.GetComponent<Outline>().enabled = false;
             tierNameText.rectTransform.anchorMin = new Vector2(0f, 1f);
             tierNameText.rectTransform.anchorMax = new Vector2(1f, 1f);
@@ -3623,7 +3623,7 @@ namespace Kalyeah.Game
             _rankEmblemBg.color = tierCol;
             string tierTitle = !string.IsNullOrEmpty(outcome.TierName) ? outcome.TierName : tierSpec.Name;
             _rankEmblemInitial.text = !string.IsNullOrEmpty(tierTitle) ? tierTitle.Substring(0, 1).ToUpperInvariant() : "K";
-            _rankTierNameText.text = (tierTitle ?? "KAHOY").ToUpperInvariant();
+            _rankTierNameText.text = (tierTitle ?? "KARTON").ToUpperInvariant();
             _rankTierNameText.color = Color.Lerp(ColWarmText, tierDark, 0.55f);
 
             if (outcome.Delta >= 0)
