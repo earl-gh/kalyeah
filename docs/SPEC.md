@@ -297,20 +297,24 @@ and, in Ranked, loses a star.
     all tagged, dragon or baron taken, side swap);
   - bottom centre between the thumbs: your HP and water; the ammo count (of 7) on the slingshot button; overhead bars on
     every kid.
-- **Screens at launch** (familiar from Mobile Legends, Wild Rift, CODM and Valorant): home (one PLAY, online first), kid
-  select after queue, kids and skins collection, store, battle pass and tasks, profile with rank and match history,
+- **Screens at launch** (familiar from Mobile Legends, Wild Rift, CODM and Valorant): home (one PLAY, online first), lobby
+  with party and invites, kid select after queue, kids and skins collection, store, battle pass and tasks, profile with rank and match history,
   friends and party, settings.
 - **Kids (bottom navigation):** all 12 kids as a grid with a role filter; owned kids show mastery, others their price.
 - **Kid page (collection),** tabs like Wild Rift and Mobile Legends: **Skills** (a clip of each skill with a combo tip),
   **Skins** (every skin to try, and the victory pose), **Story** (purok, home, dream job, friends, rival and the codex
   chapters unlocked by mastery), **Mastery** (level, win rate and recent balance changes); the kid in 3D to rotate, and
   SET AS HOME KID or the unlock price. Lore and mastery appear only here, never on home.
-- **Home** (owner layout, read like CODM and Wild Rift): profile top left (match history inside it, the Mobile Legends
-  way); barya, diamonds and settings top right; **left column** for the pass with today's task, the live event and the
-  daily reward card; the favourite kid in 3D in the centre with a small name and role plate (tap for the kid page); party
-  slots and an online-friends list on the right; above **one big PLAY** a mode card with the mode name and rule line
-  (tap to switch Blitz, Quick, Ranked or a private room) and the map vote note; a **bottom navigation bar**: Kids,
-  Store, Friends. No store banners, no lore or mastery on home.
+- **Home** (owner layout, read like CODM and Wild Rift): profile top left with name and level only (match history inside
+  it, the Mobile Legends way); barya, diamonds and settings top right; **left column** for the pass with today's task, the
+  live event and the daily gift; the favourite kid in 3D in the centre with a small name and role plate (tap for the kid
+  page); above **one big PLAY** a mode card with the mode name and a short line on how it feels (tap to switch Blitz,
+  Quick, Ranked or a private room); a **bottom navigation bar**: Kids, Store, Friends. Home never shows rank, team size,
+  scoring, map rules, lore or mastery, and no store banners.
+- **Lobby** (separate from home, like Mobile Legends and Wild Rift): PLAY opens it for the chosen mode; your party as 5
+  cards (you first, empty ones say INVITE), a friends list with online status and INVITE, and FIND MATCH. Matchmaking runs
+  here with the timer and estimated wait; leaving the lobby keeps searching and home shows a pill back to it. **Rank shows
+  only where Ranked is chosen:** on the Ranked row of the mode picker and in the Ranked lobby (plus profile and loading).
 - **Kid select:** the 12 kids in 4 role rows (not-owned greyed, trial-card kids marked); a team bar with hovers, locks
   and a missing-role warning; tapping a kid previews its 3 skills with short clips.
 - **Loading:** every player's kid in their skin, with name, rank and honor badge, and a tip about the map.
@@ -333,8 +337,8 @@ and, in Ranked, loses a star.
 **First run:** a one-tap terms and privacy notice (the graphics device check runs quietly meanwhile), the age question,
 guest or Google sign-in (guest first and biggest), an in-game name (IGN), then a **tutorial** before the home screen.
 **Returning players** go straight to home: the login reward is a small card there, and after an update one "what's new"
-card shows; no launch popups. **While queueing** the player can walk their kid around home and browse the collection or
-store, with the queue timer and an estimated wait on top. The
+card shows; no launch popups. **While queueing** the player can leave the lobby to browse home, the collection or the
+store; the search keeps running and a pill with the timer leads back to the lobby. The
 tutorial uses the real barangay map with **barricades closing the other paths**, and teaches move, jump/vault, crouch/slide,
 the slingshot and reload, skills, tag, rescue and capture. Each step lends a kid of a different role, so the player tries
 all 4 roles before picking starters. A friendly older neighbour, **Ate Lorna** (the sari-sari store owner every kid buys snacks from; warm, teasing, a little
