@@ -75,7 +75,17 @@ namespace Kalyeah.Game
             RegisterHubPages(data, LaunchMatchScene);
             _pauseGuard = NetworkPauseGuard.Attach(gameObject);
             _stack.Push(MenuStack.HomeId);
+
+            // the connection check runs once, before the player starts on home (docs/SPEC.md §4): offline goes to the prompt
+            if (!s_launchChecked)
+            {
+                s_launchChecked = true;
+                _home.CheckConnectionAtLaunch();
+            }
         }
+
+        /// <summary>Whether this app run has done the launch connection check (the title scene reloads after every match).</summary>
+        static bool s_launchChecked;
 
         void Start() => LoadingScreenView.CompleteAndHide();
 
@@ -221,7 +231,7 @@ namespace Kalyeah.Game
 
             _codex = new CodexScreenView(pageRoot, data, onBack: _stack.Pop);
             _history = new HistoryScreenView(pageRoot, data, onBack: _stack.Pop);
-            _settings = new SettingsScreenView(pageRoot, data, onBack: _stack.Pop);
+            _settings = new SettingsScreenView(pageRoot, data, onBack: _stack.Pop, onDonate: () => _home.Sheets?.OpenDonateOver(_settings.Root));
 
             _hotspot = new HotspotFlowView(
                 pageRoot,
@@ -278,7 +288,16 @@ namespace Kalyeah.Game
 
             _stack.Register(MenuStack.CodexId, _codex.Root, onShow: _codex.Show, onHide: _codex.Hide);
             _stack.Register(MenuStack.HistoryId, _history.Root, onShow: _history.Show, onHide: _history.Hide);
-            _stack.Register(MenuStack.SettingsId, _settings.Root, onShow: _settings.Show, onHide: _settings.Hide);
+            _stack.Register(
+                MenuStack.SettingsId,
+                _settings.Root,
+                onShow: _settings.Show,
+                onHide: () =>
+                {
+                    _home.Sheets?.Close();
+                    _settings.Hide();
+                },
+                onBackOverride: () => _home.Sheets != null && _home.Sheets.Close());
 
             _stack.Register(
                 MenuStack.HotspotId,

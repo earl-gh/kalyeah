@@ -543,7 +543,7 @@ free Pasko emote).
 ## 12. Built today vs this spec
 **Done toward this spec:** the 12 kids from the owner's Meshy models, made game-ready by script (about 16k to 20k
 triangles each, baked textures, the shared rig and its 20 clips; `tools/blender/kids/README.md`) with rendered portraits
-and cards; Home's PLAY with a Blitz / Quick / Offline switch and no filler (EVENTS and the Explore placeholder removed);
+and cards; Home in the owner's layout with real content only (the kid in 3D before a rendered Palengke stall, profile without rank, a Blitz / Quick mode card that says how each feels, PLAY, a bottom bar to Kids and the Codex; the launch connection check opens the offline prompt; match history opens from the profile; Donate is a Settings tab);
 the match HUD's HP chip at the bottom centre and the minimap on in the top-left corner; the script-made Barangay
 models retired for grey-box blocks, with the first licence-checked CC0 props (`assets/CREDITS.md`). The §5 Agawang Base rules in the sim, bots and match view (enemy jail, defuse-style rescue with its checkpoint, revenge release, contested capture with drain, the round-start barrier, no round clock).
 
