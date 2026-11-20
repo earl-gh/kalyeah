@@ -141,9 +141,9 @@ if SHOT == "home":
     for o in scn.objects:
         if o.name.startswith(("crate", "sack")): o.hide_render = True  # a clean stall: no prop blocks in the home shot
     beam.data.energy = 700  # no kid in the beam, so it would leave a hot patch on the bare floor
-    # HeroStage's camera (4.3 m back, 1.0 m up, aimed at 0.8 m), opened to 32 degrees tall so the plate covers the screen
+    # HeroStage's camera (4.3 m back, 1.0 m up, aimed at 0.8 m), opened to 40 degrees tall so the plate covers the screen
     scn.render.resolution_x, scn.render.resolution_y = 2400, 1000
-    cam.data.angle = math.radians(32); cam.location = (0, -4.3, 1.0)
+    cam.data.angle = math.radians(40); cam.location = (0, -4.3, 1.0)
     cam.rotation_euler = (Vector((0, 0, 0.8)) - cam.location).to_track_quat("-Z", "Y").to_euler()
     cam.data.dof.focus_distance = 4.3; cam.data.dof.aperture_fstop = 2.8
 elif SHOT == "showcase":

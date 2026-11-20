@@ -35,8 +35,8 @@ namespace Kalyeah.Game
         const float WeaveTile = 96f;
         const int MoteCount = 18;
 
-        // the stall plate is rendered through HeroStage's camera opened from 26 to 32 degrees tall, at 2400 by 1000
-        const float PlateOverHero = 1.2418f; // tan(16 deg) / tan(13 deg)
+        // the stall plate is rendered through HeroStage's camera opened from 26 to 40 degrees tall, at 2400 by 1000
+        const float PlateOverHero = 1.5765f; // tan(20 deg) / tan(13 deg)
         const float PlateAspect = 2.4f;
 
         static readonly string[] Difficulties = { "easy", "medium", "hard" };
@@ -310,12 +310,13 @@ namespace Kalyeah.Game
         void BuildShades(RectTransform parent)
         {
             RectTransform shades = Ui.Fill("Shades", parent);
+            // Ramp's first row is its bottom (dark there, clear at the top): flip it for the top shade
             RawImage top = MakeRaw("Top", shades, Ramp(false));
             top.color = new Color(Shade.r, Shade.g, Shade.b, 0.75f);
+            top.uvRect = new Rect(0f, 1f, 1f, -1f);
             Stretch(top.rectTransform, new Vector2(0f, 0.78f), Vector2.one);
             RawImage bottom = MakeRaw("Bottom", shades, Ramp(false));
             bottom.color = new Color(Shade.r, Shade.g, Shade.b, 0.92f);
-            bottom.uvRect = new Rect(0f, 1f, 1f, -1f);
             Stretch(bottom.rectTransform, Vector2.zero, new Vector2(1f, 0.36f));
             RawImage left = MakeRaw("Left", shades, Ramp(true));
             left.color = new Color(Shade.r, Shade.g, Shade.b, 0.6f);
@@ -1099,7 +1100,7 @@ namespace Kalyeah.Game
         static Texture2D s_rampV;
         static Texture2D s_rampH;
 
-        /// <summary>A code-drawn alpha ramp for shading washes: 1 at the top to 0 at the bottom, or 1 at the left to 0 at the right.</summary>
+        /// <summary>A code-drawn alpha ramp for shading washes: 1 at the bottom row to 0 at the top, or 1 at the left to 0 at the right.</summary>
         static Texture2D Ramp(bool horizontal)
         {
             Texture2D cached = horizontal ? s_rampH : s_rampV;

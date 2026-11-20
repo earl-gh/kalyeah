@@ -175,8 +175,7 @@ namespace Kalyeah.Game
             RawImage bust = MakeRaw("Bust", fill.rectTransform, KalyeahResources.Texture("portraits/busts/" + id));
             bust.enabled = bust.texture != null;
             RawImage fade = MakeRaw("Fade", fill.rectTransform, Ramp());
-            fade.color = new Color(Shade.r, Shade.g, Shade.b, 0.95f);
-            fade.uvRect = new Rect(0f, 1f, 1f, -1f);
+            fade.color = new Color(Shade.r, Shade.g, Shade.b, 0.95f); // Ramp's first row is its bottom: dark at the card's foot
             Stretch(fade.rectTransform, Vector2.zero, new Vector2(1f, 0.45f));
 
             // the role as an icon only, top left
@@ -542,7 +541,7 @@ namespace Kalyeah.Game
 
         static Texture2D s_ramp;
 
-        /// <summary>A vertical alpha ramp (1 at the top to 0 at the bottom).</summary>
+        /// <summary>A vertical alpha ramp: 1 at the bottom row to 0 at the top.</summary>
         static Texture2D Ramp()
         {
             if (s_ramp != null) return s_ramp;

@@ -735,6 +735,23 @@ public static class KalyeahBuild
                 CaptureQuadAspect(pickCamera, dir, "menu_pick", pickView.RefreshResponsiveLayout);
             }
 
+            // Kids: the grid and Karding's kid page, on all four shapes
+            SetFullViewport();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            {
+                var kidsRoot = new GameObject("KidsShot").transform;
+                var kidsCamera = new GameObject("KidsCamera", typeof(Camera)).GetComponent<Camera>();
+                kidsCamera.transform.SetParent(kidsRoot, false);
+                kidsCamera.clearFlags = CameraClearFlags.SolidColor;
+                kidsCamera.backgroundColor = Color.black;
+                kidsCamera.orthographic = true;
+                Canvas kidsCanvas = Ui.MakeCanvas("KidsCanvas", kidsRoot, kidsCamera);
+                using var kidsView = new KidsScreenView(kidsCanvas.transform, data);
+                kidsView.Show();
+                CaptureQuadAspect(kidsCamera, dir, "menu_kids", () => { kidsView.Show(); kidsView.RefreshLayout(); });
+                CaptureQuadAspect(kidsCamera, dir, "menu_kid_page", () => kidsView.OpenPage("karding"));
+            }
+
             SetFullViewport();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var root = new GameObject("MatchShot").transform;
