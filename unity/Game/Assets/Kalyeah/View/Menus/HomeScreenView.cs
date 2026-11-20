@@ -33,6 +33,7 @@ namespace Kalyeah.Game
         const float NavItemWidth = 112f;
         const float LeftWidth = 340f;
         const float CardHeight = 96f;
+        const float CardGap = 12f;
         const float NavHeight = 96f;
         const float WeaveTile = 96f;
         const int MoteCount = 18;
