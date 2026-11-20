@@ -28,6 +28,10 @@ namespace Kalyeah.Game
         const float HitSize = 96f;
         const float CardGap = 14f;
         const int Columns = 6;
+        const int Rows = 2;
+        const float AllShare = 0.12f;
+        const float RoleShare = 0.22f; // 0.12 + 4 x 0.22 fills the row
+        const float ChipGap = 10f;
 
         /// <summary>The filter row: everyone, then the four roles in roster order.</summary>
         public static readonly string[] Filters = { "", "STRIKER", "DEFENDER", "SEEKER", "CONTROLLER" };
@@ -117,12 +121,13 @@ namespace Kalyeah.Game
             count.rectTransform.pivot = new Vector2(0f, 0.5f);
 
             _filterRow = Ui.Panel("Filters", _gridPanel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 1f), new Vector2(Gutter, -HeaderHeight), new Vector2(-2f * Gutter, FilterHeight));
-            float x = 0f;
             for (int i = 0; i < Filters.Length; i++)
             {
                 string role = Filters[i];
-                float w = i == 0 ? 120f : 200f;
-                RectTransform chip = Ui.Panel("Filter_" + (role.Length == 0 ? "ALL" : role), _filterRow, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(x, 0f), new Vector2(w, 0f));
+                float from = i == 0 ? 0f : AllShare + (i - 1) * RoleShare, to = i == 0 ? AllShare : from + RoleShare;
+                RectTransform chip = Ui.Panel("Filter_" + (role.Length == 0 ? "ALL" : role), _filterRow, new Vector2(from, 0f), new Vector2(to, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+                chip.offsetMin = new Vector2(i == 0 ? 0f : ChipGap * 0.5f, 0f);
+                chip.offsetMax = new Vector2(i == Filters.Length - 1 ? 0f : -ChipGap * 0.5f, 0f);
                 Image hit = chip.gameObject.AddComponent<Image>();
                 hit.color = Clear;
                 Image plate = Ui.MakeImage("Plate", chip, Color.white);
@@ -139,7 +144,8 @@ namespace Kalyeah.Game
                     icon.sprite = MenuArt.Glyph(HomeScreenView.RoleGlyph(role));
                     Place(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(18f, 0f), new Vector2(28f, 28f));
                     icon.rectTransform.pivot = new Vector2(0f, 0.5f);
-                    label.rectTransform.offsetMin = new Vector2(44f, 0f);
+                    label.rectTransform.offsetMin = new Vector2(52f, 0f);
+                    label.rectTransform.offsetMax = new Vector2(-8f, 0f);
                     _filterIcons.Add(icon);
                 }
                 else _filterIcons.Add(null);
@@ -148,10 +154,11 @@ namespace Kalyeah.Game
                 b.onClick.AddListener(() => SetFilter(role));
                 _filterPlates.Add(plate);
                 _filterLabels.Add(label);
-                x += w + 10f;
             }
 
             _grid = Ui.Fill("Grid", _gridPanel);
+            _grid.offsetMin = new Vector2(Gutter - CardGap * 0.5f, Gutter - CardGap * 0.5f);
+            _grid.offsetMax = new Vector2(-(Gutter - CardGap * 0.5f), -(HeaderHeight + FilterHeight + 16f - CardGap * 0.5f));
             foreach (string id in AppSession.DefaultRoster)
                 _cards.Add(BuildCard(id));
         }
@@ -174,6 +181,10 @@ namespace Kalyeah.Game
 
             RawImage bust = MakeRaw("Bust", fill.rectTransform, KalyeahResources.Texture("portraits/busts/" + id));
             bust.enabled = bust.texture != null;
+            bust.rectTransform.pivot = new Vector2(0.5f, 1f); // the bust covers the card and is cropped from the bottom, so the head stays
+            var cover = bust.gameObject.AddComponent<AspectRatioFitter>();
+            cover.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            cover.aspectRatio = 0.75f;
             RawImage fade = MakeRaw("Fade", fill.rectTransform, Ramp());
             fade.color = new Color(Shade.r, Shade.g, Shade.b, 0.95f); // Ramp's first row is its bottom: dark at the card's foot
             Stretch(fade.rectTransform, Vector2.zero, new Vector2(1f, 0.45f));
@@ -248,9 +259,15 @@ namespace Kalyeah.Game
             _pagePanel = Ui.Fill("PagePanel", SafeRoot);
             Header(_pagePanel, "", () => Back());
 
-            _pageHero = MakeRaw("Hero", _pagePanel, _stage.Texture);
-            _pageHero.rectTransform.anchorMin = _pageHero.rectTransform.anchorMax = new Vector2(0.5f, 0f);
+            // the kid fills the space right of the info column at the stage's own aspect, standing on the bottom edge
+            RectTransform stageArea = Ui.Fill("StageArea", _pagePanel);
+            stageArea.anchorMin = new Vector2(0.36f, 0f);
+            stageArea.offsetMax = new Vector2(-Gutter, -HeaderHeight * 0.5f);
+            _pageHero = MakeRaw("Hero", stageArea, _stage.Texture);
             _pageHero.rectTransform.pivot = new Vector2(0.5f, 0f);
+            var fit = _pageHero.gameObject.AddComponent<AspectRatioFitter>();
+            fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            fit.aspectRatio = 0.75f;
 
             RectTransform info = Ui.Panel("Info", _pagePanel, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(Gutter, 0f), new Vector2(460f, 0f));
             info.offsetMin = new Vector2(Gutter, Gutter);
@@ -262,7 +279,7 @@ namespace Kalyeah.Game
             _pageRoleIcon = Ui.MakeImage("Icon", disc.rectTransform, Ink);
             Place(_pageRoleIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(26f, 26f));
             _pageRole = Label("Role", info, "", 22, Gold, TextAnchor.MiddleLeft, display: true);
-            Place(_pageRole.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(26f, -8f), new Vector2(-52f, 40f));
+            Place(_pageRole.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(52f, -8f), new Vector2(-52f, 40f)); // starts 52 in: clear of the 40-wide disc
             _pageRole.rectTransform.pivot = new Vector2(0f, 1f);
 
             _pageName = Label("Name", info, "", 96, Cream, TextAnchor.UpperLeft, display: true, ink: true);
@@ -380,49 +397,23 @@ namespace Kalyeah.Game
 
         // ---------------------------------------------------------------- layout
 
-        /// <summary>Six cards across and two rows on every shape: the cards grow with whichever side is short, never wrap.</summary>
+        /// <summary>
+        /// Six cards across and two rows on every shape, never wrapped: each visible card is anchored to its sixth and half of the
+        /// grid area, so the canvas sizes them on every screen with no pixel maths (and no stale rect at build time).
+        /// </summary>
         public void RefreshLayout()
         {
-            if (_disposed || SafeRoot == null) return;
-            Rect safe = SafeRoot.rect;
-            float top = HeaderHeight + FilterHeight + 16f;
-            float gw = safe.width - 2f * Gutter;
-            float gh = safe.height - top - Gutter;
-            float cw = Mathf.Floor(Mathf.Min((gw - CardGap * (Columns - 1)) / Columns, (gh - CardGap) * 0.5f * 0.75f));
-
-            // the filter chips share the row: ALL is narrow, the four roles split the rest, at most 200 each
-            if (_filterRow != null)
-            {
-                const float allW = 120f, gap = 10f;
-                float roleW = Mathf.Min(200f, (gw - allW - gap * (Filters.Length - 1)) / (Filters.Length - 1));
-                float x = 0f;
-                for (int f = 0; f < _filterRow.childCount; f++)
-                {
-                    var chip = (RectTransform)_filterRow.GetChild(f);
-                    float w = f == 0 ? allW : roleW;
-                    chip.anchoredPosition = new Vector2(x, 0f);
-                    chip.sizeDelta = new Vector2(w, 0f);
-                    x += w + gap;
-                }
-            }
-            float ch = Mathf.Round(cw * 4f / 3f);
+            if (_disposed) return;
             int i = 0;
             foreach (Card c in _cards)
             {
                 if (!c.Rect.gameObject.activeSelf) continue;
                 int col = i % Columns, row = i / Columns;
-                c.Rect.anchoredPosition = new Vector2(Gutter + col * (cw + CardGap), -(top + row * (ch + CardGap)));
-                c.Rect.sizeDelta = new Vector2(cw, ch);
+                c.Rect.anchorMin = new Vector2((float)col / Columns, 1f - (row + 1f) / Rows);
+                c.Rect.anchorMax = new Vector2((col + 1f) / Columns, 1f - (float)row / Rows);
+                c.Rect.offsetMin = new Vector2(CardGap * 0.5f, CardGap * 0.5f);
+                c.Rect.offsetMax = new Vector2(-CardGap * 0.5f, -CardGap * 0.5f);
                 i++;
-            }
-
-            if (_pageHero != null)
-            {
-                float h = Mathf.Min(safe.height - HeaderHeight + 40f, 640f);
-                RectTransform r = _pageHero.rectTransform;
-                r.sizeDelta = new Vector2(h * 0.75f, h);
-                float infoRight = Gutter + 460f;
-                r.anchoredPosition = new Vector2((infoRight + safe.width) * 0.5f - safe.width * 0.5f, 0f);
             }
         }
 
