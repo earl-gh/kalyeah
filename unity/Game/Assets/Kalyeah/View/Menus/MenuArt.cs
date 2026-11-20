@@ -18,9 +18,9 @@ namespace Kalyeah.Game
         public static readonly Color Teal = new Color(0.13f, 0.68f, 0.62f, 1f);
         public static readonly Color TealLight = new Color(0.52f, 0.90f, 0.84f, 1f);
         public static readonly Color Cream = new Color(0.98f, 0.93f, 0.80f, 1f);
-        public static readonly Color Gold = new Color(0.98f, 0.70f, 0.12f, 1f);
-        public static readonly Color GoldLight = new Color(1f, 0.87f, 0.42f, 1f);
-        public static readonly Color GoldDeep = new Color(0.88f, 0.48f, 0.05f, 1f);
+        public static readonly Color Gold = new Color(0.961f, 0.725f, 0.227f, 1f);   // #F5B93A, palette 1
+        public static readonly Color GoldLight = new Color(1f, 0.886f, 0.627f, 1f);  // #FFE2A0
+        public static readonly Color GoldDeep = new Color(0.788f, 0.541f, 0.071f, 1f); // #C98A12
         public static readonly Color Coral = new Color(0.90f, 0.33f, 0.24f, 1f);
         public static readonly Color WoodLight = new Color(0.58f, 0.37f, 0.20f, 1f);
         public static readonly Color WoodDark = new Color(0.34f, 0.20f, 0.11f, 1f);
@@ -108,6 +108,65 @@ namespace Kalyeah.Game
             Sprites[key] = sprite;
             return sprite;
         }
+
+        /// <summary>
+        /// A rounded panel (the home and Kids look): a rounded rectangle with a vertical gradient, a thin border and a faint light
+        /// line inside its top edge. 9-sliced, so use it on an Image with type Sliced.
+        /// </summary>
+        public static Sprite Round(Color top, Color bottom, Color border, int radius = 22, int borderPx = 2, float shine = 0.18f)
+        {
+            string key = $"round|{top}|{bottom}|{border}|{radius}|{borderPx}|{shine}";
+            if (Sprites.TryGetValue(key, out Sprite hit) && hit != null) return hit;
+
+            int slice = radius + 2;
+            int size = slice * 2 + 8;
+            float r = radius;
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float fx = x + 0.5f, fy = y + 0.5f;
+                    // signed distance inside a rounded box (positive inside)
+                    float qx = Mathf.Max(r - fx, fx - (size - r), 0f);
+                    float qy = Mathf.Max(r - fy, fy - (size - r), 0f);
+                    float corner = (qx > 0f && qy > 0f) ? r - Mathf.Sqrt(qx * qx + qy * qy) : float.MaxValue;
+                    float d = Mathf.Min(Mathf.Min(fx, size - fx), Mathf.Min(fy, size - fy));
+                    if (qx > 0f && qy > 0f) d = corner;
+                    Color fill = Color.Lerp(bottom, top, fy / size);
+                    float cover = Mathf.Clamp01(d + 0.5f);
+                    if (cover <= 0f)
+                    {
+                        pixels[y * size + x] = new Color32((byte)(fill.r * 255f), (byte)(fill.g * 255f), (byte)(fill.b * 255f), 0);
+                        continue;
+                    }
+                    float inBorder = borderPx <= 0 ? 0f : 1f - Mathf.Clamp01(d - borderPx + 0.5f);
+                    Color col = Color.Lerp(fill, border, inBorder * border.a);
+                    col.a = Mathf.Lerp(fill.a, Mathf.Max(fill.a, border.a), inBorder);
+                    float line = shine * (1f - Mathf.Clamp01(Mathf.Abs(d - (borderPx + 1.5f)) / 1.2f)) * Mathf.Clamp01((fy / size - 0.5f) * 4f);
+                    col = Color.Lerp(col, new Color(1f, 1f, 1f, col.a), line);
+                    col.a *= cover;
+                    pixels[y * size + x] = (Color32)col;
+                }
+            }
+
+            Texture2D tex = Finish(NewTexture("KalyeahRound", size, size, TextureWrapMode.Clamp), pixels);
+            Sprite sprite = Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect,
+                new Vector4(slice, slice, slice, slice));
+            sprite.name = "KalyeahRound";
+            sprite.hideFlags = HideFlags.HideAndDontSave;
+            Sprites[key] = sprite;
+            return sprite;
+        }
+
+        /// <summary>The dark glass panel of the home and Kids screens: deep navy, see-through, with a faint light rim.</summary>
+        public static Sprite RoundGlass(int radius = 22) => Round(new Color(0.07f, 0.12f, 0.22f, 0.78f), new Color(0.03f, 0.06f, 0.12f, 0.84f), new Color(1f, 1f, 1f, 0.14f), radius, 2, 0.16f);
+
+        /// <summary>The gold of PLAY and primary buttons: light at the top, deep at the foot, a darker gold rim.</summary>
+        public static Sprite RoundGold(int radius = 22) => Round(GoldLight, GoldDeep, new Color(0.62f, 0.38f, 0.04f, 1f), radius, 2, 0.6f);
+
+        /// <summary>A flat white rounded fill, tinted with the Image colour (chips, cards, shadows).</summary>
+        public static Sprite RoundSolid(int radius = 14) => Round(Color.white, Color.white, Color.white, radius, 0, 0f);
 
         /// <summary>A flat white tag, for hard drop shadows and tinted fills (same shape as <see cref="Plate"/>).</summary>
         public static Sprite Solid(int cut = 18) => Plate(Color.white, Color.white, Color.white, cut, 0, 0f);

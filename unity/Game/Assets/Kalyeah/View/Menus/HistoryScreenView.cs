@@ -560,7 +560,7 @@ namespace Kalyeah.Game
                 }
                 if (_tierBadgeLabels[i] != null)
                 {
-                    string marker = isCurrent ? "★ " : "";
+                    string marker = isCurrent ? "» " : ""; // Barlow Condensed has no star
                     _tierBadgeLabels[i].text = $"{marker}{t.Name}\n{t.MinLp}+ LP";
                     _tierBadgeLabels[i].color = isCurrent ? Gold : unlocked ? Ui.Cream : new Color(0.55f, 0.62f, 0.74f, 0.85f);
                 }

@@ -61,7 +61,8 @@ namespace Kalyeah.Game
 
         public static Font UiFont() => FontOr("fonts/brand/KalyeahSans-Variable");
 
-        public static Font DisplayFont() => FontOr("fonts/brand/KalyeahDisplay-Regular");
+        /// <summary>Barlow Condensed Bold, the owner's pick from the home plan (font A); the old signboard face if it is missing.</summary>
+        public static Font DisplayFont() => Resources.Load<Font>("fonts/brand/BarlowCondensed-Bold") ?? FontOr("fonts/brand/KalyeahDisplay-Regular");
 
         static Font FontOr(string path)
         {

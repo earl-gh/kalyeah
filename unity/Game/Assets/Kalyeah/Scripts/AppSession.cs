@@ -69,7 +69,8 @@ namespace Kalyeah.Game
     {
         public const string PlayerPrefsKey = "kalyeah.session.v1";
         public const string DefaultPlayerName = "GABO";
-        public const string DefaultCharacter = "narda";
+        /// <summary>Karding is the home kid until the player picks another (owner decision).</summary>
+        public const string DefaultCharacter = "karding";
         public const string CustomIdPhotoFileName = "id_photo.png";
         public const int MaxNameLength = 12;
         public const int MaxHistoryEntries = 50;

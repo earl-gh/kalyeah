@@ -131,7 +131,7 @@ namespace Kalyeah.Game
                 Image hit = chip.gameObject.AddComponent<Image>();
                 hit.color = Clear;
                 Image plate = Ui.MakeImage("Plate", chip, Color.white);
-                plate.sprite = MenuArt.Solid(12);
+                plate.sprite = MenuArt.RoundSolid(30);
                 plate.type = Image.Type.Sliced;
                 Stretch(plate.rectTransform, Vector2.zero, Vector2.one);
                 plate.rectTransform.offsetMin = new Vector2(0f, 14f);
@@ -168,11 +168,11 @@ namespace Kalyeah.Game
             string role = HomeScreenView.ParseRole(Field(id, "description"));
             RectTransform rect = Ui.Panel("Kid_" + id, _grid, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(180f, 240f));
             Image frame = Ui.MakeImage("Frame", rect, Gold, false, true);
-            frame.sprite = MenuArt.Solid(16);
+            frame.sprite = MenuArt.RoundSolid(18);
             frame.type = Image.Type.Sliced;
             Stretch(frame.rectTransform, Vector2.zero, Vector2.one);
             Image fill = Ui.MakeImage("Fill", rect, CardBg);
-            fill.sprite = MenuArt.Solid(14);
+            fill.sprite = MenuArt.RoundSolid(16);
             fill.type = Image.Type.Sliced;
             Stretch(fill.rectTransform, Vector2.zero, Vector2.one);
             fill.rectTransform.offsetMin = new Vector2(3f, 3f);
@@ -301,7 +301,7 @@ namespace Kalyeah.Game
 
             RectTransform home = Ui.Panel("ShowOnHome", info, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, HitSize));
             _homePlate = Ui.MakeImage("Plate", home, Color.white, false, true);
-            _homePlate.sprite = MenuArt.Plate(MenuArt.GoldLight, MenuArt.GoldDeep, Ink, 20, 3, 0.5f);
+            _homePlate.sprite = MenuArt.RoundGold(22);
             _homePlate.type = Image.Type.Sliced;
             Stretch(_homePlate.rectTransform, Vector2.zero, Vector2.one);
             _homeLabel = Label("Label", home, "SHOW ON HOME", 28, Ink, TextAnchor.MiddleCenter, display: true);
@@ -346,8 +346,8 @@ namespace Kalyeah.Game
             _homeLabel.text = onHome ? "ON YOUR HOME SCREEN" : "SHOW ON HOME";
             _homeButton.interactable = !onHome;
             _homePlate.sprite = onHome
-                ? MenuArt.Plate(MenuArt.GlassTop, MenuArt.GlassBottom, MenuArt.Rim, 20, 2, 0.2f)
-                : MenuArt.Plate(MenuArt.GoldLight, MenuArt.GoldDeep, Ink, 20, 3, 0.5f);
+                ? MenuArt.RoundGlass(22)
+                : MenuArt.RoundGold(22);
             _homeLabel.color = onHome ? Cream : Ink;
         }
 
