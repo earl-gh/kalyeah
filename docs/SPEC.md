@@ -77,8 +77,9 @@ scout, Controllers zone; they use skills, vendors and objectives (rescue, captur
 and hard change aim and reaction time; easy bots pause before shooting and say their plans out loud, to teach. Bot names
 are funny Filipino-style IGN puns (like "EddieWow", from "Edi wow!"), never a real person's full name.
 
-**Online first (Mobile Legends way):** PLAY tries the server; if it cannot connect, a prompt offers offline play, which opens
-the offline hub (Hotspot, Practice vs AI, Practice solo, Explore). **Kids are picked after the queue** (Valorant
+**Online first, checked at launch (owner):** the app checks the server before home; with no connection it offers RETRY
+or PLAY OFFLINE, which opens the offline hub (Hotspot, Practice vs AI, Practice solo, Explore) with TRY ONLINE on top.
+Offline is never a mode on home; if the connection drops later, PLAY shows the same check. **Kids are picked after the queue** (Valorant
 agent select): 30 s, everyone at once; hovering shows teammates your choice and LOCK confirms; an unlocked player gets a
 random owned kid of a missing role at 0 s. No duplicates within a team (the other team may share). The enemy team's picks stay hidden until the loading
 screen (no counter-picking). Any role mix is
@@ -299,11 +300,17 @@ and, in Ranked, loses a star.
 - **Screens at launch** (familiar from Mobile Legends, Wild Rift, CODM and Valorant): home (one PLAY, online first), kid
   select after queue, kids and skins collection, store, battle pass and tasks, profile with rank and match history,
   friends and party, settings.
-- **Kid page (collection):** the kid in 3D to rotate, every skin to try and the victory pose; a clip of each skill with a
-  combo tip; purok, friends, rivals and unlocked codex chapters; mastery level, win rate and recent balance changes.
-- **Home:** the favourite kid in 3D; one big PLAY with the mode name above it (tap to switch Blitz, Quick, Ranked or
-  offline); party slots beside the kid with an online-friends list; a small card with pass level and today's tasks. No
-  event or store banners.
+- **Kids (bottom navigation):** all 12 kids as a grid with a role filter; owned kids show mastery, others their price.
+- **Kid page (collection),** tabs like Wild Rift and Mobile Legends: **Skills** (a clip of each skill with a combo tip),
+  **Skins** (every skin to try, and the victory pose), **Story** (purok, home, dream job, friends, rival and the codex
+  chapters unlocked by mastery), **Mastery** (level, win rate and recent balance changes); the kid in 3D to rotate, and
+  SET AS HOME KID or the unlock price. Lore and mastery appear only here, never on home.
+- **Home** (owner layout, read like CODM and Wild Rift): profile top left (match history inside it, the Mobile Legends
+  way); barya, diamonds and settings top right; **left column** for the pass with today's task, the live event and the
+  daily reward card; the favourite kid in 3D in the centre with a small name and role plate (tap for the kid page); party
+  slots and an online-friends list on the right; above **one big PLAY** a mode card with the mode name and rule line
+  (tap to switch Blitz, Quick, Ranked or a private room) and the map vote note; a **bottom navigation bar**: Kids,
+  Store, Friends. No store banners, no lore or mastery on home.
 - **Kid select:** the 12 kids in 4 role rows (not-owned greyed, trial-card kids marked); a team bar with hovers, locks
   and a missing-role warning; tapping a kid previews its 3 skills with short clips.
 - **Loading:** every player's kid in their skin, with name, rank and honor badge, and a tip about the map.
@@ -319,7 +326,7 @@ and, in Ranked, loses a star.
 - **Home kid:** the player's **favourite kid** (pinned in the collection) stands in 3D on the home screen.
 - **Accessibility:** colour-blind enemy highlight, visual markers for footsteps and skill sounds, reduce motion and flashes,
   and crouch and ADS as toggles instead of holds.
-- **Settings at launch:** graphics presets and an FPS cap (30 / 60 / 90 / 120 where the phone allows), a control layout
+- **Settings at launch:** a **Donate** tab (behind the grown-up check; gifts give nothing in the game); graphics presets and an FPS cap (30 / 60 / 90 / 120 where the phone allows), a control layout
   editor (move and resize every HUD button, saved layouts), camera and ADS sensitivity, aim assist on or off, crosshair
   style and colour, vibration on hits and tags, and a ping and FPS counter.
 
@@ -360,7 +367,7 @@ a combo idea.
 support work that led to a tag: heals, shields, reveals, slows and roots; raw damage does not count, so every role can
 be MVP), each kid's tags, rescues, captures and damage, stars
 gained or lost, pass XP and barya earned, and honor and report buttons.
-- **Profile stats:** win rate per mode and per kid, the last 20 matches (result, kid, tags, rescues, captures, MVP marks),
+- **Profile stats** (tabs History and Overview): win rate per mode and per kid, the last 20 matches (result, kid, tags, rescues, captures, MVP marks),
   a favourite-role chart and the highest rank of each past season.
 - **MVP reward:** +20 barya (inside the weekly cap) and bonus mastery XP for the kid played; the losing team's MVP also
   keeps their Ranked star.
