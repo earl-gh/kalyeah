@@ -129,8 +129,8 @@ namespace Kalyeah.Net.Tests
                 Assert.AreEqual(F(o[1]), input.Move.Y, what);
                 Assert.AreEqual(F(o[2]), input.Aim.X, what);
                 Assert.AreEqual(F(o[3]), input.Aim.Y, what);
-                // the Godot goldens predate the ADS bit (docs/SPEC.md §7), which the server now keeps
-                Assert.AreEqual(o[4].GetInt32(), input.Buttons & ~PlayerInput.BtnAds, what);
+                // the Godot goldens predate the ADS and Reload bits (docs/SPEC.md §7), which the server now keeps
+                Assert.AreEqual(o[4].GetInt32(), input.Buttons & ~(PlayerInput.BtnAds | PlayerInput.BtnReload), what);
                 Assert.AreEqual(unchecked((int)o[5].GetInt64()), input.Tick, what);
                 Assert.AreEqual(F(o[6]), input.MoveTarget.X, what);
                 Assert.AreEqual(F(o[7]), input.MoveTarget.Y, what);

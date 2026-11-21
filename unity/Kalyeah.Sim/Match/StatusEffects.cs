@@ -9,19 +9,20 @@ namespace Kalyeah.Sim
     /// </summary>
     public sealed class StatusEffects
     {
-        public enum Type { None, Stun, Slow, Airborne, Polymorph, Bounce, Knockout, Tripped }
+        public enum Type { None, Stun, Slow, Airborne, Polymorph, Bounce, Knockout, Tripped, Root, Slip }
 
         public static readonly IReadOnlyDictionary<Type, string> DisplayNames = new Dictionary<Type, string>
         {
             { Type.Stun, "Stunned" }, { Type.Slow, "Slowed" }, { Type.Airborne, "Airborne" }, { Type.Polymorph, "Morphed" },
             { Type.Bounce, "Bounced" }, { Type.Knockout, "Knocked out" }, { Type.Tripped, "Tripped" },
+            { Type.Root, "Rooted" }, { Type.Slip, "Slipping" },
         };
 
-        /// <summary>Effects that stop movement and casting.</summary>
+        /// <summary>Effects that stop movement and casting (hard stops).</summary>
         public static readonly Type[] HardCc = { Type.Stun, Type.Airborne, Type.Bounce, Type.Knockout, Type.Tripped };
 
-        /// <summary>What `cc_immunity` guards against: everything that stops moving or casting, polymorph included.</summary>
-        public static readonly Type[] ImmunityTypes = { Type.Stun, Type.Airborne, Type.Bounce, Type.Knockout, Type.Polymorph };
+        /// <summary>What `cc_immunity` guards against: everything that stops moving or casting, polymorph and root included.</summary>
+        public static readonly Type[] ImmunityTypes = { Type.Stun, Type.Airborne, Type.Bounce, Type.Knockout, Type.Polymorph, Type.Root };
 
         /// <summary>Seconds of immunity to a new hard crowd control once one has run out (0 = none).</summary>
         public double ImmunityLength;
@@ -38,7 +39,7 @@ namespace Kalyeah.Sim
             _timeLeft.Clear();
             _slow = 0.0;
             _timeLeft[(int)type] = duration;
-            if (type == Type.Slow) _slow = magnitude;
+            if (type == Type.Slow || type == Type.Slip) _slow = magnitude;
             return true;
         }
 
@@ -51,7 +52,7 @@ namespace Kalyeah.Sim
                 if (_timeLeft[type] <= 0.0)
                 {
                     _timeLeft.Remove(type);
-                    if (type == (int)Type.Slow) _slow = 0.0;
+                    if (type == (int)Type.Slow || type == (int)Type.Slip) _slow = 0.0;
                     else if (Array.IndexOf(ImmunityTypes, (Type)type) >= 0) _immuneLeft = ImmunityLength;
                 }
             }
@@ -69,11 +70,15 @@ namespace Kalyeah.Sim
             if (_timeLeft.ContainsKey((int)type))
             {
                 _timeLeft.Remove((int)type);
-                if (type == Type.Slow) _slow = 0.0;
+                if (type == Type.Slow || type == Type.Slip) _slow = 0.0;
             }
         }
 
         public bool Has(Type type) => _timeLeft.ContainsKey((int)type);
+
+        public bool HasAny() => _timeLeft.Count > 0;
+
+        public bool IsSlipping() => _timeLeft.ContainsKey((int)Type.Slip);
 
         public double TimeLeft(Type type) => _timeLeft.TryGetValue((int)type, out double t) ? t : 0.0;
 
@@ -86,21 +91,26 @@ namespace Kalyeah.Sim
         {
             foreach (Type type in HardCc)
                 if (_timeLeft.ContainsKey((int)type)) return false;
-            return true;
+            return !_timeLeft.ContainsKey((int)Type.Root);
         }
 
-        /// <summary>Polymorph still lets you walk, but not cast.</summary>
-        public bool CanCast() => CanMove() && !_timeLeft.ContainsKey((int)Type.Polymorph);
+        /// <summary>Root still lets you shoot and cast; Polymorph lets you wobble slowly, but not cast.</summary>
+        public bool CanCast()
+        {
+            foreach (Type type in HardCc)
+                if (_timeLeft.ContainsKey((int)type)) return false;
+            return !_timeLeft.ContainsKey((int)Type.Polymorph);
+        }
 
         public double SpeedMultiplier(double polymorphSpeedScale)
         {
             double multiplier = 1.0;
-            if (_timeLeft.ContainsKey((int)Type.Slow)) multiplier *= 1.0 - _slow;
+            if (_timeLeft.ContainsKey((int)Type.Slow) || _timeLeft.ContainsKey((int)Type.Slip)) multiplier *= 1.0 - _slow;
             if (_timeLeft.ContainsKey((int)Type.Polymorph)) multiplier *= polymorphSpeedScale;
             return multiplier;
         }
 
-        /// <summary>Player-facing words for the active effects ("Stunned", "Slowed", ...).</summary>
+        /// <summary>Player-facing words for the active effects ("Stunned", "Slowed", "Rooted", ...).</summary>
         public List<string> DisplayNameList()
         {
             var words = new List<string>();
