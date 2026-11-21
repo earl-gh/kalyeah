@@ -90,15 +90,30 @@ namespace Kalyeah.Game
         }
 
         [Test]
-        public void KidPage_SkillsTab_ListsTheThreeKitSkills()
+        public void KidPage_SkillsTab_ShowsOneKitSkillAtATime_FromAThreeSkillSelector()
         {
             _kids.Show();
             _kids.OpenPage("karding");
             Transform content = _kids.SafeRoot.Find("PagePanel/ContentPanel/Content");
-            Assert.AreEqual(3, content.childCount, "S1, S2 and the ultimate");
-            string all = string.Join(" ", content.GetComponentsInChildren<Text>(true).Select(t => t.text));
-            foreach (string expected in new[] { "Yoyo", "Piko", "Pogs Slam", "Ultimate, 85s cooldown", "25 water, 10s cooldown" })
-                StringAssert.Contains(expected, all);
+            Assert.AreEqual(3, content.Cast<Transform>().Count(t => t.name.StartsWith("Skill_")), "S1, S2 and the ultimate");
+
+            string first = string.Join(" ", content.Find("SkillCard").GetComponentsInChildren<Text>(true).Select(t => t.text));
+            StringAssert.Contains("Yoyo", first);
+            StringAssert.Contains("25 water, 10s cooldown", first);
+
+            content.Find("Skill_S2").GetComponent<Button>().onClick.Invoke();
+            Assert.AreEqual(1, _kids.SelectedSkill);
+            string second = string.Join(" ", _kids.SafeRoot.Find("PagePanel/ContentPanel/Content/SkillCard").GetComponentsInChildren<Text>(true).Select(t => t.text));
+            StringAssert.Contains("Piko", second);
+            StringAssert.Contains("30 water, 14s cooldown", second);
+
+            _kids.SelectSkill(2);
+            string ultimate = string.Join(" ", _kids.SafeRoot.Find("PagePanel/ContentPanel/Content/SkillCard").GetComponentsInChildren<Text>(true).Select(t => t.text));
+            StringAssert.Contains("Pogs Slam", ultimate);
+            StringAssert.Contains("Ultimate, 85s cooldown", ultimate);
+
+            _kids.OpenPage("narda");
+            Assert.AreEqual(0, _kids.SelectedSkill, "a new kid page opens on the first skill");
         }
 
         [Test]

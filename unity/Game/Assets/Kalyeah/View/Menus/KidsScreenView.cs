@@ -292,8 +292,8 @@ namespace Kalyeah.Game
 
             // the kid stands between the left column and the content, partly behind the glass like the Wild Rift page
             RectTransform stageArea = Ui.Fill("StageArea", _pagePanel);
-            stageArea.anchorMin = new Vector2(0.2f, 0f);
-            stageArea.anchorMax = new Vector2(0.56f, 1f);
+            stageArea.anchorMin = new Vector2(0.27f, 0f);
+            stageArea.anchorMax = new Vector2(0.55f, 1f);
             stageArea.offsetMin = Vector2.zero;
             stageArea.offsetMax = new Vector2(0f, -HeaderHeight * 0.3f);
             _pageHero = MakeRaw("Hero", stageArea, _stage.Texture);
@@ -336,6 +336,13 @@ namespace Kalyeah.Game
             Stretch(_homePlate.rectTransform, Vector2.zero, Vector2.one);
             _homeLabel = Label("Label", home, "SHOW ON HOME", 30, Ink, TextAnchor.MiddleCenter, display: true);
             Stretch(_homeLabel.rectTransform, Vector2.zero, Vector2.one);
+            _homeLabel.rectTransform.offsetMin = new Vector2(10f, 0f);
+            _homeLabel.rectTransform.offsetMax = new Vector2(-10f, 0f);
+            _homeLabel.horizontalOverflow = HorizontalWrapMode.Wrap; // shrinks to fit the button instead of spilling out of it
+            _homeLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            _homeLabel.resizeTextForBestFit = true;
+            _homeLabel.resizeTextMinSize = 22;
+            _homeLabel.resizeTextMaxSize = 30;
             _homeButton = home.gameObject.AddComponent<Button>();
             _homeButton.targetGraphic = _homePlate;
             _homeButton.onClick.AddListener(ShowOnHome);
@@ -378,6 +385,7 @@ namespace Kalyeah.Game
         public void OpenPage(string id)
         {
             OpenKid = id;
+            _skillIndex = 0;
             _openedDirect = false;
             Haptics.LightTap();
             _gridPanel.gameObject.SetActive(false);
@@ -412,7 +420,7 @@ namespace Kalyeah.Game
             switch (ActiveTab)
             {
                 case TabSkills:
-                    foreach (SkillData skill in page.skills) AddSkill(skill);
+                    AddSkills(page);
                     break;
                 case TabSkins:
                     AddRow("DEFAULT", "Equipped. New looks come from the pass and events, once they exist.", "SKIN", 120f);
@@ -451,7 +459,7 @@ namespace Kalyeah.Game
         RectTransform NewRow(string name, float height)
         {
             RectTransform row = Ui.Panel(name, _content, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_rowTop), new Vector2(0f, height));
-            Image bg = Ui.MakeImage("Bg", row, new Color(1f, 1f, 1f, 0.06f));
+            Image bg = Ui.MakeImage("Bg", row, CardBg); // opaque navy: white at low alpha blends to a mid grey in linear colour space
             bg.sprite = MenuArt.RoundSolid(16);
             bg.type = Image.Type.Sliced;
             Stretch(bg.rectTransform, Vector2.zero, Vector2.one);
@@ -484,11 +492,76 @@ namespace Kalyeah.Game
             text.verticalOverflow = VerticalWrapMode.Overflow;
         }
 
-        void AddSkill(SkillData skill)
+        int _skillIndex;
+        const float SkillTileHeight = 112f;
+        static readonly Color SkillBadgeColor = new Color(0.2f, 0.27f, 0.4f, 1f);
+
+        /// <summary>The skill whose description shows on the Skills tab: 0 and 1 are the two skills, 2 the ultimate.</summary>
+        public int SelectedSkill => _skillIndex;
+
+        /// <summary>Shows one of the open kid's three skills on the Skills tab.</summary>
+        public void SelectSkill(int index)
         {
-            RectTransform row = NewRow("Skill_" + skill.slot, 176f); // three rows fill the panel; the longest text runs three lines
-            AddBadge(row, skill.slot, skill.slot == "ULT");
-            AddText(row, skill.name, skill.cost, skill.what);
+            _skillIndex = Mathf.Clamp(index, 0, 2);
+            if (OpenKid != null && ActiveTab == TabSkills) SelectTab(TabSkills);
+        }
+
+        /// <summary>
+        /// The Skills tab: a selector of the three skills (S1, S2, ultimate) and one card with the chosen skill's name, cost and
+        /// description. One card has room for the longest text on any screen shape, where three stacked rows ran out of height.
+        /// </summary>
+        void AddSkills(KidPageData page)
+        {
+            int count = Mathf.Min(3, page.skills.Length);
+            _skillIndex = Mathf.Clamp(_skillIndex, 0, Mathf.Max(0, count - 1));
+            for (int i = 0; i < count; i++)
+            {
+                int index = i;
+                SkillData skill = page.skills[i];
+                bool on = i == _skillIndex, ultimate = skill.slot == "ULT";
+                RectTransform tile = Ui.Panel("Skill_" + skill.slot, _content, new Vector2(i / (float)count, 1f), new Vector2((i + 1f) / count, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, SkillTileHeight));
+                tile.offsetMin = new Vector2(i == 0 ? 0f : RowGap * 0.5f, tile.offsetMin.y);
+                tile.offsetMax = new Vector2(i == count - 1 ? 0f : -RowGap * 0.5f, tile.offsetMax.y);
+                Image frame = Ui.MakeImage("Frame", tile, on ? Gold : new Color(1f, 1f, 1f, 0.12f), false, true);
+                frame.sprite = MenuArt.RoundSolid(20);
+                frame.type = Image.Type.Sliced;
+                Stretch(frame.rectTransform, Vector2.zero, Vector2.one);
+                Image fill = Ui.MakeImage("Fill", tile, CardBg);
+                fill.sprite = MenuArt.RoundSolid(18);
+                fill.type = Image.Type.Sliced;
+                Stretch(fill.rectTransform, Vector2.zero, Vector2.one);
+                fill.rectTransform.offsetMin = new Vector2(3f, 3f);
+                fill.rectTransform.offsetMax = new Vector2(-3f, -3f);
+                Image badge = Ui.MakeImage("Badge", tile, ultimate ? Gold : SkillBadgeColor, round: true);
+                Place(badge.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(64f, 64f));
+                Text badgeText = Label("Text", badge.rectTransform, skill.slot, 28, ultimate ? Ink : Gold, TextAnchor.MiddleCenter, display: true);
+                Stretch(badgeText.rectTransform, Vector2.zero, Vector2.one);
+                Button b = tile.gameObject.AddComponent<Button>();
+                b.targetGraphic = frame;
+                b.onClick.AddListener(() => SelectSkill(index));
+            }
+
+            SkillData shown = page.skills[_skillIndex];
+            RectTransform card = Ui.Panel("SkillCard", _content, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            card.offsetMax = new Vector2(0f, -(SkillTileHeight + RowGap + 2f));
+            Image cardBg = Ui.MakeImage("Bg", card, CardBg);
+            cardBg.sprite = MenuArt.RoundSolid(20);
+            cardBg.type = Image.Type.Sliced;
+            Stretch(cardBg.rectTransform, Vector2.zero, Vector2.one);
+            Text title = Label("Title", card, shown.name, 40, Cream, TextAnchor.UpperLeft, display: true);
+            Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -16f), new Vector2(-40f, 48f));
+            title.rectTransform.pivot = new Vector2(0.5f, 1f);
+            title.horizontalOverflow = HorizontalWrapMode.Overflow;
+            Text cost = Label("Cost", card, shown.cost, 24, Gold, TextAnchor.UpperLeft, display: true);
+            Place(cost.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -64f), new Vector2(-40f, 34f));
+            cost.rectTransform.pivot = new Vector2(0.5f, 1f);
+            cost.horizontalOverflow = HorizontalWrapMode.Overflow;
+            Text body = Label("Body", card, shown.what, 24, Cream, TextAnchor.UpperLeft);
+            Stretch(body.rectTransform, Vector2.zero, Vector2.one);
+            body.rectTransform.offsetMin = new Vector2(20f, 14f);
+            body.rectTransform.offsetMax = new Vector2(-20f, -104f);
+            body.horizontalOverflow = HorizontalWrapMode.Wrap;
+            body.verticalOverflow = VerticalWrapMode.Truncate;
         }
 
         void AddRow(string title, string body, string badgeText, float height)

@@ -223,8 +223,10 @@ namespace Kalyeah.Game
             KidsScreenView.Stretch(_nameLabel.rectTransform, Vector2.zero, Vector2.one);
             _nameLabel.rectTransform.offsetMin = new Vector2(72f, 2f);
             _nameLabel.rectTransform.offsetMax = new Vector2(-8f, -26f);
+            _nameLabel.horizontalOverflow = HorizontalWrapMode.Wrap; // best fit only shrinks a text that is made to fit its box
+            _nameLabel.verticalOverflow = VerticalWrapMode.Truncate;
             _nameLabel.resizeTextForBestFit = true;
-            _nameLabel.resizeTextMinSize = 30;
+            _nameLabel.resizeTextMinSize = 24;
             _nameLabel.resizeTextMaxSize = 48;
         }
 
