@@ -2,13 +2,13 @@ Shader "Kalyeah/TeamOutline"
 {
     Properties
     {
-        _OutlineColor ("Outline Color", Color) = (0.20, 0.50, 1.00, 1.0)
+        _OutlineColor ("Outline Color", Color) = (1.00, 0.22, 0.24, 1.0)
         _OutlineWidth ("Outline Width", Range(0.0, 0.12)) = 0.014
-        _DistanceComp ("Distance Compensation", Range(0.0, 1.0)) = 0.42
-        _DistanceBoost ("Distance Brightness Boost", Range(0.0, 1.0)) = 0.35
+        _DistanceComp ("Distance Compensation", Range(0.0, 1.0)) = 0.45
+        _DistanceBoost ("Distance Brightness Boost", Range(0.0, 1.0)) = 0.40
+        _DepthStart ("Depth Boost Start (m)", Float) = 12.0
+        _DepthEnd ("Depth Boost End (m)", Float) = 45.0
         _MaxDistance ("Max Outline Distance", Range(20.0, 260.0)) = 150.0
-        _WobbleAmount ("Komiks Pen Wobble", Range(0.0, 0.5)) = 0.0
-        _WobbleFreq ("Komiks Wobble Frequency", Range(1.0, 40.0)) = 13.5
         _HitFlash ("Hit Flash", Range(0.0, 1.0)) = 0.0
         _AuraColor ("Merienda Aura Color", Color) = (0.0, 0.0, 0.0, 0.0)
     }
@@ -37,7 +37,9 @@ Shader "Kalyeah/TeamOutline"
             #pragma target 3.0
             #pragma vertex OutlineVert
             #pragma fragment OutlineFrag
+            #pragma multi_compile _ KALYEAH_QUALITY_LOW
             #pragma multi_compile_fog
+            #pragma multi_compile_instancing
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
@@ -45,10 +47,10 @@ Shader "Kalyeah/TeamOutline"
                 half4 _OutlineColor;
                 float _OutlineWidth;
                 float _DistanceComp;
-                float _DistanceBoost;
+                half _DistanceBoost;
+                float _DepthStart;
+                float _DepthEnd;
                 float _MaxDistance;
-                float _WobbleAmount;
-                float _WobbleFreq;
                 half _HitFlash;
                 half4 _AuraColor;
             CBUFFER_END
@@ -63,14 +65,14 @@ Shader "Kalyeah/TeamOutline"
             struct Varyings
             {
                 float4 positionCS : SV_POSITION;
-                half3 edgeStroke : TEXCOORD0;
+                half2 edgeDepth : TEXCOORD0;
                 float fogFactor : TEXCOORD1;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
             Varyings OutlineVert(Attributes input)
             {
-                Varyings output;
+                Varyings output = (Varyings)0;
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
@@ -81,22 +83,16 @@ Shader "Kalyeah/TeamOutline"
                 float dist = max(length(toCam), 0.1);
                 float3 viewDir = (unity_OrthoParams.w > 0.5) ? -GetViewForwardDir() : (toCam / dist);
 
-                // Valorant-style enemy highlight: thin up close, slightly stronger & brighter across the street.
-                float distScale = lerp(0.86, clamp(dist / 7.2, 0.72, 1.42), _DistanceComp);
-                distScale *= 1.0 - smoothstep(_MaxDistance * 0.75, _MaxDistance, dist);
-                float distGlow = smoothstep(10.0, 42.0, dist);
+                // Clean VALORANT silhouette outline: crisp up close, slightly wider & brighter at 12m..45m, zero wobble.
+                float distScale = lerp(0.86, clamp(dist / 7.2, 0.72, 1.48), _DistanceComp);
+                float fadeStart = max(_MaxDistance * 0.75, 1.0);
+                distScale *= 1.0 - smoothstep(fadeStart, max(_MaxDistance, fadeStart + 1.0), dist);
+                float depthSpan = max(_DepthEnd - _DepthStart, 1.0);
+                float distGlow = saturate((dist - _DepthStart) / depthSpan);
 
-                float wobble = 0.0;
-                if (_WobbleAmount > 0.001)
-                {
-                    float w1 = sin(posWS.x * _WobbleFreq + posWS.y * (_WobbleFreq * 1.37) + posWS.z * (_WobbleFreq * 0.83));
-                    float w2 = cos(posWS.z * (_WobbleFreq * 2.13) - posWS.x * (_WobbleFreq * 1.61) + posWS.y * (_WobbleFreq * 0.91));
-                    wobble = w1 * 0.65 + w2 * 0.35;
-                }
-                float width = _OutlineWidth * distScale * max(1.0 + _WobbleAmount * wobble, 0.62);
+                float width = _OutlineWidth * distScale;
 
-                // Project rim strictly perpendicular to viewDir so negative-ndotv backfaces on double-sided
-                // cloth/masks never push toward the camera, and bias depth behind front-facing surfaces.
+                // Project rim strictly perpendicular to viewDir so double-sided cloth/masks never push toward camera.
                 float ndotv = dot(normWS, viewDir);
                 float3 rimWS = normWS - viewDir * ndotv;
                 float rimLen = length(rimWS);
@@ -107,7 +103,7 @@ Shader "Kalyeah/TeamOutline"
                 posWS -= viewDir * 0.020;
 
                 output.positionCS = TransformWorldToHClip(posWS);
-                output.edgeStroke = half3((half)graze, (half)(wobble * 0.5 + 0.5), (half)distGlow);
+                output.edgeDepth = half2((half)graze, (half)distGlow);
                 output.fogFactor = ComputeFogFactor(output.positionCS.z);
                 return output;
             }
@@ -116,18 +112,19 @@ Shader "Kalyeah/TeamOutline"
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
 
-                half edgeSoft = input.edgeStroke.x;
-                half stroke = input.edgeStroke.y;
-                half distGlow = input.edgeStroke.z;
+                half edgeSoft = input.edgeDepth.x;
+                half distGlow = input.edgeDepth.y;
 
-                // Clean Valorant highlight: crisp up close, slightly brighter at distance (colorblind-safe Red/Yellow/Purple).
-                half3 highlight = lerp(_OutlineColor.rgb, lerp(_OutlineColor.rgb, half3(1.0, 0.98, 0.95), 0.18h), edgeSoft * 0.45h);
+                // Colorblind-safe Red / Yellow / Purple highlight aligned with Kalyeah/Kid; distance-boosted across 12m..45m.
+                #ifdef KALYEAH_QUALITY_LOW
+                half3 highlight = _OutlineColor.rgb * (1.0h + _DistanceBoost * distGlow);
+                #else
+                half3 highlight = lerp(_OutlineColor.rgb, lerp(_OutlineColor.rgb, half3(1.0h, 0.98h, 0.95h), 0.18h), edgeSoft * 0.45h);
                 highlight *= 1.0h + _DistanceBoost * distGlow;
-                highlight *= lerp(1.0h, lerp(0.92h, 1.06h, stroke * 0.35h), step(0.001h, (half)_WobbleAmount));
+                #endif
 
-                // Optional Merienda buff rim accent + crisp white-gold hit confirm flash.
                 highlight = lerp(highlight, _AuraColor.rgb, saturate(_AuraColor.a * 0.45h));
-                highlight = lerp(highlight, half3(1.0, 0.97, 0.88), saturate(_HitFlash));
+                highlight = lerp(highlight, half3(1.0h, 0.97h, 0.88h), saturate(_HitFlash));
 
                 half alpha = saturate(_OutlineColor.a * lerp(0.84h, 0.98h, edgeSoft) * (1.0h + _DistanceBoost * 0.35h * distGlow));
                 alpha = max(alpha, saturate(_HitFlash));

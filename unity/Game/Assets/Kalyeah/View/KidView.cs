@@ -111,7 +111,10 @@ namespace Kalyeah.Game
         static readonly int OutlineWidthId = Shader.PropertyToID("_OutlineWidth");
         static readonly int HitFlashId = Shader.PropertyToID("_HitFlash");
         static readonly int AuraColorId = Shader.PropertyToID("_AuraColor");
+        static readonly int EnemyHighlightId = Shader.PropertyToID("_EnemyHighlight");
         static readonly int EnemyHighlightColorId = Shader.PropertyToID("_EnemyHighlightColor");
+        static readonly int AllyFresnelColorId = Shader.PropertyToID("_AllyFresnelColor");
+        static readonly int AllyFresnelStrengthId = Shader.PropertyToID("_AllyFresnelStrength");
         static readonly int TaggedDimId = Shader.PropertyToID("_TaggedDim");
         static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
         static readonly int GltfBaseColorId = Shader.PropertyToID("baseColorFactor");
@@ -680,7 +683,8 @@ namespace Kalyeah.Game
         {
             if (!lookup.TryGetValue(shortName, out Transform tr) || tr == null)
                 return default;
-            bool hasLimit = _jointLimits != null && _jointLimits.TryGetLimit(shortName, CharacterId, out JointLimitEntry lim);
+            JointLimitEntry lim = default;
+            bool hasLimit = _jointLimits != null && _jointLimits.TryGetLimit(shortName, CharacterId, out lim);
             Quaternion restRot = tr.localRotation;
             return new BoneCache
             {
@@ -2899,7 +2903,8 @@ namespace Kalyeah.Game
                 ApplyBlockToGroup(_canOutlineRenderers, _outlineBlock);
             }
 
-            // Pure SRP Batcher fast-path for clean allies with no flash, buff, or tagged dim.
+            // Pure SRP Batcher fast-path for clean allies with no flash, buff, or tagged dim
+            // (base Kalyeah/Kid material already carries neutral-blue _AllyFresnelColor / _AllyFresnelStrength defaults).
             if (!isEnemy && flash <= 0.001f && !hasBuff && !tagged)
             {
                 ApplyBlockToGroup(_kidBaseRenderers, null);
@@ -2915,16 +2920,23 @@ namespace Kalyeah.Game
             if (hasBuff) emissive += auraRgb * (0.20f * auraPulse);
             if (flash > 0.001f) emissive += new Color(0.85f, 0.80f, 0.68f, 1f) * (flash * 0.65f);
 
+            float enemyStrength = isEnemy ? (tagged ? 0.45f : 0.92f) : 0f;
             Color enemyRim = isEnemy
-                ? new Color(highlightCol.r, highlightCol.g, highlightCol.b, tagged ? 0.35f : 0.68f)
+                ? new Color(highlightCol.r, highlightCol.g, highlightCol.b, enemyStrength)
                 : Color.clear;
+            float allyStrength = isEnemy
+                ? 0f
+                : (tagged ? KalyeahResources.DefaultAllyFresnelStrength * 0.5f : KalyeahResources.DefaultAllyFresnelStrength);
 
             _surfaceBlock.Clear();
             _surfaceBlock.SetColor(BaseColorId, baseTint);
             _surfaceBlock.SetColor(GltfBaseColorId, baseTint);
             _surfaceBlock.SetColor(EmissionColorId, emissive);
             _surfaceBlock.SetColor(GltfEmissiveId, emissive);
+            _surfaceBlock.SetFloat(EnemyHighlightId, enemyStrength);
             _surfaceBlock.SetColor(EnemyHighlightColorId, enemyRim);
+            _surfaceBlock.SetColor(AllyFresnelColorId, KalyeahResources.DefaultAllyFresnelColor);
+            _surfaceBlock.SetFloat(AllyFresnelStrengthId, allyStrength);
             _surfaceBlock.SetFloat(HitFlashId, flash);
             _surfaceBlock.SetColor(AuraColorId, hasBuff ? new Color(auraRgb.r, auraRgb.g, auraRgb.b, auraPulse) : Color.clear);
             _surfaceBlock.SetFloat(TaggedDimId, tagged ? 1f : 0f);

@@ -1112,6 +1112,22 @@ namespace Kalyeah.Game
         static readonly int CullModeId = Shader.PropertyToID("_CullMode");
         static readonly int SmoothnessId = Shader.PropertyToID("_Smoothness");
         static readonly int MetallicId = Shader.PropertyToID("_Metallic");
+        static readonly int AmbientMinId = Shader.PropertyToID("_AmbientMin");
+        static readonly int AmbientMaxId = Shader.PropertyToID("_AmbientMax");
+        static readonly int EnemyHighlightId = Shader.PropertyToID("_EnemyHighlight");
+        static readonly int EnemyHighlightColorId = Shader.PropertyToID("_EnemyHighlightColor");
+        static readonly int AllyFresnelColorId = Shader.PropertyToID("_AllyFresnelColor");
+        static readonly int AllyFresnelStrengthId = Shader.PropertyToID("_AllyFresnelStrength");
+        static readonly int DepthStartId = Shader.PropertyToID("_DepthStart");
+        static readonly int DepthEndId = Shader.PropertyToID("_DepthEnd");
+        static readonly int DepthBrightenMaxId = Shader.PropertyToID("_DepthBrightenMax");
+        static readonly int DepthFresnelBoostId = Shader.PropertyToID("_DepthFresnelBoost");
+        static readonly int SkinUnderglowStrengthId = Shader.PropertyToID("_SkinUnderglowStrength");
+        static readonly int FresnelUpWeightId = Shader.PropertyToID("_FresnelUpWeight");
+
+        /// <summary>Subtle neutral-blue VALORANT ally Fresnel rim color shared by <c>Kalyeah/Kid</c> and <see cref="KidView"/>.</summary>
+        public static readonly Color DefaultAllyFresnelColor = new Color(0.58f, 0.80f, 1.00f, 1.0f);
+        public const float DefaultAllyFresnelStrength = 0.28f;
 
         /// <summary>unity/Data/*.json as the view and the sim read it.</summary>
         public static DataSource Data() => new DataSource(name =>
@@ -1380,6 +1396,20 @@ namespace Kalyeah.Game
             {
                 mat.SetFloat(HasOrmMapId, 0f);
             }
+
+            // Guarantee clean VALORANT clarity defaults so clean allies use the zero-MPB SRP Batcher fast path.
+            if (mat.HasProperty(AmbientMinId)) mat.SetFloat(AmbientMinId, 0.28f);
+            if (mat.HasProperty(AmbientMaxId)) mat.SetFloat(AmbientMaxId, 0.82f);
+            if (mat.HasProperty(EnemyHighlightId)) mat.SetFloat(EnemyHighlightId, 0f);
+            if (mat.HasProperty(EnemyHighlightColorId)) mat.SetColor(EnemyHighlightColorId, Color.clear);
+            if (mat.HasProperty(AllyFresnelColorId)) mat.SetColor(AllyFresnelColorId, DefaultAllyFresnelColor);
+            if (mat.HasProperty(AllyFresnelStrengthId)) mat.SetFloat(AllyFresnelStrengthId, DefaultAllyFresnelStrength);
+            if (mat.HasProperty(DepthStartId)) mat.SetFloat(DepthStartId, 12f);
+            if (mat.HasProperty(DepthEndId)) mat.SetFloat(DepthEndId, 45f);
+            if (mat.HasProperty(DepthBrightenMaxId)) mat.SetFloat(DepthBrightenMaxId, 0.26f);
+            if (mat.HasProperty(DepthFresnelBoostId)) mat.SetFloat(DepthFresnelBoostId, 0.72f);
+            if (mat.HasProperty(SkinUnderglowStrengthId)) mat.SetFloat(SkinUnderglowStrengthId, 0.28f);
+            if (mat.HasProperty(FresnelUpWeightId)) mat.SetFloat(FresnelUpWeightId, 0.65f);
 
             KidMaterialCache[cacheKey] = mat;
             return mat;
