@@ -31,6 +31,10 @@ namespace Kalyeah.Sim
         public List<float> ObstacleScales = new List<float>();
         public List<string> ObstacleProps = new List<string>();
         public List<Rect2> WaterObstacles = new List<Rect2>();
+        /// <summary>Own-half low covers (benches, low walls): they stop walking but not throws, and a kid vaults them (docs/SPEC.md §7).</summary>
+        public List<Rect2> LowCovers = new List<Rect2>();
+        /// <summary>Height in metres of each own-half low cover (same order as <see cref="LowCovers"/>).</summary>
+        public List<float> LowCoverHeights = new List<float>();
         public double BoundaryThickness;
         public double SceneryScale = 1.0;
         public double CoverHeight = 1.15;
@@ -49,6 +53,8 @@ namespace Kalyeah.Sim
             copy.ObstacleScales = new List<float>(ObstacleScales);
             copy.ObstacleProps = new List<string>(ObstacleProps);
             copy.WaterObstacles = new List<Rect2>(WaterObstacles);
+            copy.LowCovers = new List<Rect2>(LowCovers);
+            copy.LowCoverHeights = new List<float>(LowCoverHeights);
             return copy;
         }
 
@@ -289,10 +295,29 @@ namespace Kalyeah.Sim
             return result;
         }
 
+        /// <summary>Every low cover: own-half pieces plus point-symmetric enemy-half mirrors.</summary>
+        public List<Rect2> LowCoverRects()
+        {
+            var result = new List<Rect2>();
+            foreach (Rect2 rect in LowCovers) result.Add(rect);
+            foreach (Rect2 rect in LowCovers) result.Add(new Rect2(-rect.End, rect.Size));
+            return result;
+        }
+
+        /// <summary>Height of the low cover at <paramref name="index"/> of <see cref="LowCoverRects"/> (mirrors share their twin's height).</summary>
+        public double LowCoverHeight(int index)
+        {
+            if (LowCovers.Count == 0) return CoverHeight;
+            int baseIdx = index % LowCovers.Count;
+            return baseIdx < LowCoverHeights.Count ? LowCoverHeights[baseIdx] : CoverHeight;
+        }
+
+        /// <summary>What stops walking: buildings, water and low covers.</summary>
         public List<Rect2> WalkObstacleRects()
         {
             List<Rect2> result = ObstacleRects();
             result.AddRange(WaterRects());
+            result.AddRange(LowCoverRects());
             return result;
         }
 

@@ -54,6 +54,15 @@ namespace Kalyeah.Net.Tests
             return rules;
         }
         public static MapLayout Layout => Data.MapLayout;
+
+        /// <summary>The map the Godot server recordings were made on: today's layout without the low covers added since.</summary>
+        public static MapLayout RecordedLayout()
+        {
+            MapLayout recorded = Layout.Duplicate();
+            recorded.LowCovers = new System.Collections.Generic.List<Rect2>();
+            recorded.LowCoverHeights = new System.Collections.Generic.List<float>();
+            return recorded;
+        }
         public static StreetCatalog Games => new StreetCatalog(Data);
 
         public static RoomService Service(long seed = 7) => new RoomService(Net, Games, seed);

@@ -76,6 +76,10 @@ namespace Kalyeah.Sim
         public OrderedDict<int, PlayerState> Players = new OrderedDict<int, PlayerState>();
         /// <summary>Cover on the street (from the map layout).</summary>
         public List<Rect2> Obstacles = new List<Rect2>();
+        /// <summary>Low covers (from the map layout): they stop walking, not throws, and the jump button vaults them.</summary>
+        public List<Rect2> LowCovers = new List<Rect2>();
+        /// <summary>Height of each low cover, in the order of <see cref="LowCovers"/>.</summary>
+        public List<double> LowCoverHeights = new List<double>();
         public WeaponSystem Weapons = new WeaponSystem();
         public WeaponCasting Casting = new WeaponCasting();
         public MatchObjectives Objectives = new MatchObjectives();
@@ -130,6 +134,8 @@ namespace Kalyeah.Sim
             Rng.Seed = seed;
             _tripRng.Seed = seed ^ TripSeedMix;
             Obstacles = layout.ObstacleRects();
+            LowCovers = layout.LowCoverRects();
+            for (int i = 0; i < LowCovers.Count; i++) LowCoverHeights.Add(layout.LowCoverHeight(i));
             _walkObstacles.AddRange(layout.WalkObstacleRects());
             _street = layout.LaneRect();
             _blocking.AddRange(layout.BoundaryRects());
@@ -187,6 +193,8 @@ namespace Kalyeah.Sim
             Mode = mode;
             Powerups.Clear();
             Obstacles.Clear();
+            LowCovers.Clear();
+            LowCoverHeights.Clear();
             _walkObstacles.Clear();
             _blocking.Clear();
             _blocking.AddRange(Layout.BoundaryRects());
@@ -724,18 +732,28 @@ namespace Kalyeah.Sim
         void StepHeroActions(PlayerState state, PlayerInput input)
         {
             // 0. Jump and slide
-            bool jumpFresh = input.IsPressed(PlayerInput.BtnJump) && (state.PreviousButtons & PlayerInput.BtnJump) == 0;
-            if (jumpFresh && state.AirY <= 0.01 && state.JumpCd <= 0.0 && state.DashLeft <= 0.0
-                && state.SlideLeft <= 0.0 && state.CastLockLeft <= 0.0 && state.Effects.CanMove() && Rules.JumpVelocity > 0.0)
-            {
-                state.VelY = Rules.JumpVelocity;
-                state.JumpCd = Rules.JumpCooldown;
-                state.Crouching = false;
-            }
-
             Vec2 stickMove = input.Move.LimitLength(1.0);
             double stickMag = stickMove.Length();
             bool hasTargetRun = stickMag <= 0.001 && state.HasMoveTarget && state.Position.DistanceSquaredTo(state.MoveTarget) > 0.04;
+
+            // One jump button (docs/SPEC.md §7): moving into a low cover vaults it, anything else is a jump.
+            bool jumpFresh = input.IsPressed(PlayerInput.BtnJump) && (state.PreviousButtons & PlayerInput.BtnJump) == 0;
+            if (jumpFresh && state.AirY <= 0.01 && state.JumpCd <= 0.0 && state.DashLeft <= 0.0 && state.VaultLeft <= 0.0
+                && state.SlideLeft <= 0.0 && state.CastLockLeft <= 0.0 && state.Effects.CanMove())
+            {
+                Vec2 moveDir = stickMag > 0.001 ? stickMove : hasTargetRun ? state.MoveTarget - state.Position : Vec2.Zero;
+                if (TryStartVault(state, moveDir))
+                {
+                    state.JumpCd = Rules.JumpCooldown;
+                    state.Crouching = false;
+                }
+                else if (Rules.JumpVelocity > 0.0)
+                {
+                    state.VelY = Rules.JumpVelocity;
+                    state.JumpCd = Rules.JumpCooldown;
+                    state.Crouching = false;
+                }
+            }
             bool runningFast = (stickMag >= Rules.WalkRunThreshold || hasTargetRun) && !state.Overclocked;
             bool slideFresh = input.IsPressed(PlayerInput.BtnSlide) && (state.PreviousButtons & PlayerInput.BtnSlide) == 0;
             bool crouchFresh = input.IsPressed(PlayerInput.BtnCrouch) && (state.PreviousButtons & PlayerInput.BtnCrouch) == 0;
@@ -762,7 +780,7 @@ namespace Kalyeah.Sim
 
             // 1. Dash (fresh press)
             bool dashFresh = input.IsPressed(PlayerInput.BtnDash) && (state.PreviousButtons & PlayerInput.BtnDash) == 0;
-            if (dashFresh && state.DashCd <= 0.0 && state.DashLeft <= 0.0 && state.Effects.CanMove() && Rules.DashDuration > 0.0)
+            if (dashFresh && state.DashCd <= 0.0 && state.DashLeft <= 0.0 && state.VaultLeft <= 0.0 && state.Effects.CanMove() && Rules.DashDuration > 0.0)
             {
                 Vec2 dir;
                 if (input.Move.LengthSquared() > 0.001) dir = input.Move.Normalized();
@@ -955,8 +973,80 @@ namespace Kalyeah.Sim
             }
         }
 
+        /// <summary>Extra height the vault arc clears above the cover.</summary>
+        public const double VaultClearance = 0.25;
+        /// <summary>How far past the far side of the cover a vault lands.</summary>
+        const double VaultLandingGap = 0.05;
+
+        /// <summary>
+        /// Starts a vault when a low cover no higher than <c>vault_max_height</c> lies within <c>vault_reach</c> ahead along
+        /// <paramref name="moveDir"/> and the kid fits on its far side. Returns false (a plain jump) otherwise.
+        /// </summary>
+        bool TryStartVault(PlayerState state, Vec2 moveDir)
+        {
+            if (Rules.VaultDuration <= 0.0 || Rules.VaultMaxHeight <= 0.0 || moveDir.LengthSquared() < 1e-6) return false;
+            Vec2 dir = moveDir.Normalized();
+            int best = -1;
+            double bestEnter = double.PositiveInfinity, bestExit = 0.0;
+            for (int i = 0; i < LowCovers.Count; i++)
+            {
+                if (LowCoverHeights[i] > Rules.VaultMaxHeight + Epsilon) continue;
+                if (!RayEntersRect(state.Position, dir, LowCovers[i].Grow(state.Radius), out double enter, out double exit)) continue;
+                if (enter > Rules.VaultReach || enter >= bestEnter) continue;
+                best = i;
+                bestEnter = enter;
+                bestExit = exit;
+            }
+            if (best < 0) return false;
+            Vec2 landing = state.Position + dir * (bestExit + VaultLandingGap);
+            Vec2 settled = Layout.ClampToArena(Collision.Resolve(landing, state.Radius, _walkBlocking), state.Radius);
+            if (settled.DistanceSquaredTo(landing) > 1e-6) return false; // no room on the far side
+            state.VaultFrom = state.Position;
+            state.VaultTo = landing;
+            state.VaultHeight = LowCoverHeights[best];
+            state.VaultLeft = Rules.VaultDuration;
+            state.Facing = dir;
+            state.SlideLeft = 0.0;
+            return true;
+        }
+
+        /// <summary>Distances along a unit ray at which it enters and leaves <paramref name="rect"/> (enter may be ~0 when touching).</summary>
+        static bool RayEntersRect(Vec2 origin, Vec2 dir, Rect2 rect, out double enter, out double exit)
+        {
+            enter = -Epsilon;
+            exit = double.PositiveInfinity;
+            Vec2 end = rect.End;
+            for (int axis = 0; axis < 2; axis++)
+            {
+                double o = origin[axis], d = dir[axis], low = rect.Position[axis], high = end[axis];
+                if (GMath.IsZeroApprox(d))
+                {
+                    if (o < low || o > high) return false;
+                    continue;
+                }
+                double t1 = (low - o) / d, t2 = (high - o) / d;
+                enter = GMath.Maxf(enter, GMath.Minf(t1, t2));
+                exit = GMath.Minf(exit, GMath.Maxf(t1, t2));
+                if (enter > exit) return false;
+            }
+            return exit > 0.0;
+        }
+
+        /// <summary>Carries a vaulting kid over the cover on an arc, ignoring walls (the landing was checked at the start).</summary>
+        void StepVault(PlayerState state, double dt)
+        {
+            state.VaultLeft = GMath.Maxf(0.0, state.VaultLeft - dt);
+            double f = Rules.VaultDuration > 0.0 ? 1.0 - state.VaultLeft / Rules.VaultDuration : 1.0;
+            state.Position = state.VaultFrom.Lerp(state.VaultTo, f);
+            state.AirY = state.VaultLeft > 0.0 ? (state.VaultHeight + VaultClearance) * 4.0 * f * (1.0 - f) : 0.0;
+            state.VelY = 0.0;
+            state.Walking = false;
+            state.Crouching = false;
+        }
+
         void StepAir(PlayerState state, double dt)
         {
+            if (state.VaultLeft > 0.0) return; // the vault arc owns the height
             if (state.AirY > 0.0 || state.VelY > 0.0)
             {
                 state.AirY += state.VelY * dt;
@@ -1174,6 +1264,11 @@ namespace Kalyeah.Sim
             if (input != null) TakeMoveOrder(state, input);
             state.AimingDown = Mode == null && input != null && input.IsPressed(PlayerInput.BtnAds);
             StepAir(state, dt);
+            if (state.VaultLeft > 0.0)
+            {
+                StepVault(state, dt);
+                return;
+            }
             if (state.DashLeft > 0.0)
             {
                 state.DashLeft = GMath.Maxf(0.0, state.DashLeft - dt);

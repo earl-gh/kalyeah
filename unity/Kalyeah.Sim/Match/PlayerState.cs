@@ -81,6 +81,12 @@ namespace Kalyeah.Sim
         public double SlideLeft;
         public double SlideCd;
         public Vec2 SlideDir = Vec2.Zero;
+        /// <summary>Seconds of a vault left (0: not vaulting). The kid travels from <see cref="VaultFrom"/> to <see cref="VaultTo"/> over the cover.</summary>
+        public double VaultLeft;
+        public Vec2 VaultFrom = Vec2.Zero;
+        public Vec2 VaultTo = Vec2.Zero;
+        /// <summary>Height of the cover being vaulted (the arc clears it).</summary>
+        public double VaultHeight;
         public int BuffType;
         public double BuffLeft;
         public double BuffRegenCarry;
