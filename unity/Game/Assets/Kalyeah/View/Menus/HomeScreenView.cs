@@ -433,7 +433,7 @@ namespace Kalyeah.Game
             _playerName.rectTransform.pivot = new Vector2(0f, 1f);
             FitSingleLine(_playerName, 12, 30);
 
-            ProfileButton = AttachButton(profile.gameObject, profilePlate, () => { TapFeedback(); Sheets?.OpenProfile(); }, 0.96f);
+            ProfileButton = AttachButton(profile.gameObject, profilePlate, () => Navigate(MenuStack.ProfileId), 0.96f);
 
             // 2. Framed Settings button (Donate lives inside Settings, docs/SPEC.md §8)
             RectTransform settings = Ui.Panel("Settings", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-Gutter, 0f), new Vector2(HitSize, HitSize));
