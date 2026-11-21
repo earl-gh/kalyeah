@@ -752,6 +752,26 @@ public static class KalyeahBuild
                 CaptureQuadAspect(kidsCamera, dir, "menu_kid_page", () => kidsView.OpenPage("karding"));
             }
 
+            // Settings (the Audio tab, then Donate) and the profile sheet over home
+            {
+                Canvas settingsCanvas = MakeMenuShotCanvas("Settings", data, out Camera settingsCamera);
+                using var settingsView = new SettingsScreenView(settingsCanvas.transform, data, onBack: () => { });
+                settingsView.Show();
+                CaptureQuadAspect(settingsCamera, dir, "menu_settings", settingsView.Show);
+                settingsView.SetActiveTab(SettingsScreenView.TabDonate);
+                CaptureDualAspect(settingsCamera, dir, "menu_settings_donate", settingsView.Show);
+            }
+            {
+                Canvas profileCanvas = MakeMenuShotCanvas("Profile", data, out Camera profileCamera);
+                var profileHome = new HomeScreenView(profileCanvas.transform, data, _ => { }, _ => { });
+                try
+                {
+                    profileHome.Sheets.OpenProfile();
+                    CaptureDualAspect(profileCamera, dir, "menu_profile", () => { profileHome.RefreshLayout(); profileHome.Sheets.RefreshLayout(); });
+                }
+                finally { profileHome.Dispose(); }
+            }
+
             SetFullViewport();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var root = new GameObject("MatchShot").transform;
