@@ -711,6 +711,15 @@ public static class KalyeahBuild
             Action<HomeScreenView> offlineHub = home => home.OpenOfflineHub();
             CaptureTitleShot(dir, "title_offline_prompt.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), offlinePrompt);
             CaptureTitleShot(dir, "title_offline_hub.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), offlineHub);
+            Action<HomeScreenView> profileSheet = home => home.Sheets.OpenProfile();
+            CaptureTitleShot(dir, "menu_profile.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), profileSheet);
+            CaptureTitleShot(
+                dir,
+                $"menu_profile_{NarrowWidth}x{NarrowHeight}.png",
+                NarrowWidth,
+                NarrowHeight,
+                ScreenFitMetrics.AsymmetricCutoutSafeRect(NarrowWidth, NarrowHeight),
+                profileSheet);
             CaptureTitleShot(
                 dir,
                 $"title_offline_hub_{NarrowWidth}x{NarrowHeight}.png",
@@ -761,17 +770,6 @@ public static class KalyeahBuild
                 settingsView.SetActiveTab(SettingsScreenView.TabDonate);
                 CaptureDualAspect(settingsCamera, dir, "menu_settings_donate", settingsView.Show);
             }
-            {
-                Canvas profileCanvas = MakeMenuShotCanvas("Profile", data, out Camera profileCamera);
-                var profileHome = new HomeScreenView(profileCanvas.transform, data, _ => { }, _ => { });
-                try
-                {
-                    profileHome.Sheets.OpenProfile();
-                    CaptureDualAspect(profileCamera, dir, "menu_profile", () => { profileHome.RefreshLayout(); profileHome.Sheets.RefreshLayout(); });
-                }
-                finally { profileHome.Dispose(); }
-            }
-
             SetFullViewport();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var root = new GameObject("MatchShot").transform;
