@@ -363,10 +363,10 @@ namespace Kalyeah.Game
             KidsScreenView.Place(_skillCost.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -68f), new Vector2(-48f, 34f));
             _skillCost.rectTransform.pivot = new Vector2(0.5f, 1f);
             _skillCost.horizontalOverflow = HorizontalWrapMode.Overflow;
-            _skillBody = KidsScreenView.Label("Body", card, "", 26, Cream, TextAnchor.UpperLeft);
+            _skillBody = KidsScreenView.Label("Body", card, "", 24, Cream, TextAnchor.UpperLeft);
             KidsScreenView.Stretch(_skillBody.rectTransform, Vector2.zero, Vector2.one);
-            _skillBody.rectTransform.offsetMin = new Vector2(24f, 20f);
-            _skillBody.rectTransform.offsetMax = new Vector2(-24f, -112f);
+            _skillBody.rectTransform.offsetMin = new Vector2(20f, 14f);
+            _skillBody.rectTransform.offsetMax = new Vector2(-20f, -104f);
             _skillBody.horizontalOverflow = HorizontalWrapMode.Wrap;
             _skillBody.verticalOverflow = VerticalWrapMode.Truncate;
         }
