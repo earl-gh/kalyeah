@@ -72,7 +72,7 @@ namespace Kalyeah.Game
         }
 
         [Test]
-        public void Tapping_AKid_PreviewsTheirRoleAndThreeSkills()
+        public void Tapping_AKid_PreviewsTheirRoleAndName()
         {
             string chosen = null;
             _pick.CharacterSelected += id => chosen = id;
@@ -80,13 +80,33 @@ namespace Kalyeah.Game
             Assert.AreEqual("jopay", chosen);
             Assert.AreEqual("jopay", _pick.SelectedCharacterId);
 
-            string detail = Texts(_pick.SafeRoot.Find("Body/NamePlate"));
-            StringAssert.Contains("JOPAY", detail);
-            StringAssert.Contains("DEFENDER", detail);
-            Transform skills = _pick.SafeRoot.Find("Body/DetailPanel/Skills");
-            Assert.AreEqual(3, skills.Cast<Transform>().Count(t => t.gameObject.activeSelf), "S1, S2 and the ultimate");
-            StringAssert.Contains("ULT", Texts(skills));
+            string plate = Texts(_pick.SafeRoot.Find("Body/NamePlate"));
+            StringAssert.Contains("JOPAY", plate);
+            StringAssert.Contains("DEFENDER", plate);
             Assert.AreEqual(0, _confirms, "a preview never locks");
+        }
+
+        [Test]
+        public void SkillSelector_ShowsOneSkillAtATime_StartingWithTheFirst()
+        {
+            Transform tabs = _pick.SafeRoot.Find("Body/DetailPanel/SkillTabs");
+            Assert.AreEqual(3, tabs.Cast<Transform>().Count(t => t.gameObject.activeSelf), "S1, S2 and the ultimate");
+            Transform card = _pick.SafeRoot.Find("Body/DetailPanel/SkillCard");
+
+            Assert.AreEqual(0, _pick.SelectedSkill);
+            string first = Texts(card);
+            StringAssert.Contains("Yoyo", first);
+            StringAssert.Contains("25 water, 10s cooldown", first);
+            StringAssert.DoesNotContain("Pogs Slam", first);
+
+            tabs.Find("Skill_2").GetComponent<Button>().onClick.Invoke();
+            Assert.AreEqual(2, _pick.SelectedSkill);
+            string ultimate = Texts(card);
+            StringAssert.Contains("Pogs Slam", ultimate);
+            StringAssert.Contains("Ultimate, 85s cooldown", ultimate);
+
+            _pick.SelectCharacter("narda");
+            Assert.AreEqual(0, _pick.SelectedSkill, "a new kid opens on their first skill");
         }
 
         [Test]

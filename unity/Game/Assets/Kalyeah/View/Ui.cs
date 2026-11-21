@@ -19,10 +19,42 @@ namespace Kalyeah.Game
         static Sprite _circle;
 
         /// <summary>
-        /// A canvas scaled to the 720 px tall base. With `camera` it renders through that camera (so Camera.Render captures it: the
-        /// screenshots); without, it is an overlay.
+        /// Menu canvases follow docs/SPEC.md §8 (screen fit): phones are 720 units tall, and a screen narrower than 16:9 keeps 1280
+        /// units of width and gains height (match width below 16:9, height above), so a menu never has less than 1280 by 720 to
+        /// lay out and nothing wraps or overflows on a tablet or a short, wide phone.
         /// </summary>
-        public static Canvas MakeCanvas(string name, Transform parent, Camera camera)
+        public sealed class KeepWidthBelowWide : MonoBehaviour
+        {
+            CanvasScaler _scaler;
+
+            void OnEnable()
+            {
+                ScreenFitMetrics.SimulatedViewportChanged += Apply;
+                Apply();
+            }
+
+            void OnDisable() => ScreenFitMetrics.SimulatedViewportChanged -= Apply;
+
+            void Update() => Apply();
+
+            void Apply()
+            {
+                if (_scaler == null) _scaler = GetComponent<CanvasScaler>();
+                if (_scaler == null) return;
+                float match = ScreenFitMetrics.AspectRatio < Base.x / Base.y - 0.001f ? 0f : 1f;
+                if (Mathf.Approximately(_scaler.matchWidthOrHeight, match)) return;
+                _scaler.matchWidthOrHeight = match;
+                _scaler.enabled = false; // re-enabling makes the scaler apply the new match at once, with no frame to wait for
+                _scaler.enabled = true;
+            }
+        }
+
+        /// <summary>
+        /// A canvas scaled to the 720 px tall base. With `camera` it renders through that camera (so Camera.Render captures it: the
+        /// screenshots); without, it is an overlay. Menu canvases keep 1280 units of width below 16:9; match HUDs pass
+        /// <paramref name="keepWidthBelowWide"/> false and always match the height.
+        /// </summary>
+        public static Canvas MakeCanvas(string name, Transform parent, Camera camera, bool keepWidthBelowWide = true)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             go.transform.SetParent(parent, false);
@@ -42,6 +74,7 @@ namespace Kalyeah.Game
             scaler.referenceResolution = Base;
             scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
             scaler.matchWidthOrHeight = 1f;
+            if (keepWidthBelowWide) go.AddComponent<KeepWidthBelowWide>();
             return canvas;
         }
 
