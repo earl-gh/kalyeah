@@ -277,7 +277,8 @@ namespace Kalyeah.Game
         {
             if (_pages == null)
             {
-                try { _pages = JsonUtility.FromJson<KidPagesRoot>(_data.Text("rules__kid_pages")).data.kids; }
+                // display text only (not sim data): assets/ui/kid_pages.json, from docs/KITS.md and docs/LORE.md
+                try { _pages = JsonUtility.FromJson<KidPagesRoot>(Resources.Load<TextAsset>("ui/kid_pages").text).data.kids; }
                 catch { _pages = new KidPageData[0]; }
             }
             foreach (KidPageData p in _pages) if (p.id == id) return p;
