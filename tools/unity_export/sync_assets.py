@@ -53,6 +53,14 @@ GODOT_ONLY = (
     ".gdignore",
 )
 
+CHARACTER_EXCLUDES = GODOT_ONLY + (
+    "*.blend",
+    "*.blend1",
+    "*_base.jpg",
+    "*_normal.png",
+    "*.tmp",
+)
+
 CS_EXCLUDES = ("bin", "obj", "*.csproj", "*.csproj.user")
 MATCH_SIM_RE = re.compile(r"\bclass\s+MatchSim\b")
 
@@ -211,10 +219,11 @@ def main() -> int:
     for rel_dir in ASSET_DIRS:
         src_dir = ROOT / "assets" / rel_dir
         if src_dir.is_dir():
+            excludes = CHARACTER_EXCLUDES if rel_dir == "models/characters" else GODOT_ONLY
             seen, encoded = mirror_tree(
                 src_dir,
                 IMPORTED / rel_dir,
-                GODOT_ONLY,
+                excludes,
                 convert_webp=True,
             )
             webp_seen_total += seen
@@ -259,10 +268,16 @@ def main() -> int:
     ensure_input_system_only()
 
     count = _count_non_meta_files(GAME / "Assets" / "Imported", SIM_PKG)
+    chars_dir = IMPORTED / "models" / "characters"
+    char_glbs = sum(1 for p in chars_dir.glob("*.glb") if not p.stem.endswith(("_lod1", "_lod2"))) if chars_dir.is_dir() else 0
+    char_lods = sum(1 for p in chars_dir.glob("*_lod[12].glb")) if chars_dir.is_dir() else 0
+    char_orms = sum(1 for p in chars_dir.glob("*_orm.png")) if chars_dir.is_dir() else 0
+    char_rigs = sum(1 for p in chars_dir.glob("*_rig.json")) if chars_dir.is_dir() else 0
     print(
         f"sync_assets: {count} files in unity/Game/Assets/Imported and "
         f"unity/Game/Packages/com.kalyeah.sim "
-        f"({webp_seen_total} webp->png [{webp_encoded_total} encoded], sim package {version})"
+        f"({webp_seen_total} webp->png [{webp_encoded_total} encoded], "
+        f"chars: {char_glbs} lod0 / {char_lods} lod1+2 / {char_orms} orm / {char_rigs} rig, sim package {version})"
     )
     return 0
 

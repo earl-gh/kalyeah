@@ -20,9 +20,27 @@ namespace Kalyeah.Game
 
         const float RescueCountingAlpha = 0.50f;
         const float RescueReadyAlpha = 0.55f;
+        const float BasePerimeterWidth = 0.28f;
+        const float RescuePerimeterWidth = 0.28f;
+        const float BaseEnemyDashCount = 24f;
+        const float RescueEnemyDashCount = 20f;
+        const int BaseCircleSegments = 56;
         const int ArcSegments = 48;
         const int MeriendaArcSegments = 32;
         const int MaxMeriendaStands = 4;
+
+        static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
+        static readonly int PropColor = Shader.PropertyToID("_Color");
+        static readonly int PropTint = Shader.PropertyToID("_Tint");
+        static readonly int PropInkColor = Shader.PropertyToID("_InkColor");
+        static readonly int PropPhase = Shader.PropertyToID("_Phase");
+        static readonly int PropSoftFade = Shader.PropertyToID("_SoftFade");
+        static readonly int PropFresnel = Shader.PropertyToID("_FresnelSoftness");
+        static readonly int PropSunlit = Shader.PropertyToID("_SunlitLift");
+        static readonly int PropHardEdgeWidth = Shader.PropertyToID("_HardEdgeWidth");
+        static readonly int PropDashCount = Shader.PropertyToID("_DashCount");
+        static readonly int PropEdgeBoost = Shader.PropertyToID("_EdgeBoost");
+        static readonly int PropInteriorAlpha = Shader.PropertyToID("_InteriorAlpha");
 
         static readonly Color OwnTeamColor = new Color(0.20f, 0.50f, 1.00f, 1f);
         static readonly Color EnemyTeamColor = new Color(1.00f, 0.28f, 0.28f, 1f);
@@ -58,6 +76,7 @@ namespace Kalyeah.Game
             readonly float _innerR, _outerR;
             readonly int _segments;
             float _shownProgress = -1f;
+            float _shownDashCount = -1f;
             Color _shownColor;
 
             public RadialArcMesh(
@@ -76,7 +95,19 @@ namespace Kalyeah.Game
                 _verts = new Vector3[(segments + 1) * 2];
                 var uvs = new Vector2[_verts.Length];
                 var normals = new Vector3[_verts.Length];
-                for (int i = 0; i < normals.Length; i++) normals[i] = Vector3.up;
+                var colors = new Color32[_verts.Length];
+                var white = new Color32(255, 255, 255, 255);
+                for (int i = 0; i <= segments; i++)
+                {
+                    float u = (float)i / segments;
+                    int b = i * 2;
+                    uvs[b] = new Vector2(u, 1f);
+                    uvs[b + 1] = new Vector2(u, 1f);
+                    normals[b] = Vector3.up;
+                    normals[b + 1] = Vector3.up;
+                    colors[b] = white;
+                    colors[b + 1] = white;
+                }
 
                 var tris = new int[segments * 6];
                 for (int i = 0; i < segments; i++)
@@ -97,6 +128,7 @@ namespace Kalyeah.Game
                 _mesh.vertices = _verts;
                 _mesh.normals = normals;
                 _mesh.uv = uvs;
+                _mesh.colors32 = colors;
                 _mesh.triangles = tris;
                 _mesh.bounds = new Bounds(Vector3.zero, new Vector3(outerR * 2.2f, 0.5f, outerR * 2.2f));
                 cleaner?.Track(_mesh);
@@ -111,6 +143,7 @@ namespace Kalyeah.Game
                 if (template != null)
                 {
                     var mat = new Material(template) { name = name + "_Mat" };
+                    ConfigureArcaneHardEdge(mat, hardEdgeWidth: 1f, dashCount: 0f, edgeBoost: 0.30f, interiorAlpha: 1f);
                     cleaner?.Track(mat);
                     Renderer.sharedMaterial = mat;
                 }
@@ -118,7 +151,7 @@ namespace Kalyeah.Game
                 SetArc(0f, Color.white);
             }
 
-            public void SetArc(float progress01, Color color)
+            public void SetArc(float progress01, Color color, float dashCount = 0f)
             {
                 float clamped = Mathf.Clamp01(progress01);
                 bool visible = clamped > 0.002f && color.a > 0.005f;
@@ -146,10 +179,19 @@ namespace Kalyeah.Game
                     _mesh.vertices = _verts;
                 }
 
-                if (_shownColor != color && Renderer.sharedMaterial != null)
+                Material mat = Renderer.sharedMaterial;
+                if (mat != null)
                 {
-                    _shownColor = color;
-                    SetMaterialColor(Renderer.sharedMaterial, color);
+                    if (_shownColor != color)
+                    {
+                        _shownColor = color;
+                        SetMaterialColor(mat, color);
+                    }
+                    if (Mathf.Abs(dashCount - _shownDashCount) > 0.05f)
+                    {
+                        _shownDashCount = dashCount;
+                        if (mat.HasProperty(PropDashCount)) mat.SetFloat(PropDashCount, dashCount);
+                    }
                 }
             }
         }
@@ -198,6 +240,7 @@ namespace Kalyeah.Game
         readonly RescueZoneNode _enemyRescue;
         readonly MeriendaStandNode[] _stands = new MeriendaStandNode[MaxMeriendaStands];
         int _ownSide;
+        int _lastEnemyHighlightMode = -1;
         float _animTime;
         bool _disposed;
 
@@ -324,8 +367,18 @@ namespace Kalyeah.Game
             if (_disposed) return;
             if (!reduceMotion && dt > 0f) _animTime += dt;
 
-            if ((_ownBase != null && _ownBase.Contested) || (_enemyBase != null && _enemyBase.Contested))
+            int enemyMode = ResolveEnemyMode();
+            if (enemyMode != _lastEnemyHighlightMode)
+            {
+                _lastEnemyHighlightMode = enemyMode;
+                if (_ownRescue != null) _ownRescue.ReadyState = -1;
+                if (_enemyRescue != null) _enemyRescue.ReadyState = -1;
                 RefreshBaseVisuals();
+            }
+            else if ((_ownBase != null && _ownBase.Contested) || (_enemyBase != null && _enemyBase.Contested))
+            {
+                RefreshBaseVisuals();
+            }
 
             for (int i = 0; i < MaxMeriendaStands; i++)
             {
@@ -366,38 +419,64 @@ namespace Kalyeah.Game
                 KalyeahResources.Kill(Root.gameObject);
         }
 
-        Color TintForSide(int side) => side == _ownSide ? OwnTeamColor : EnemyTeamColor;
+        static int ResolveEnemyMode()
+        {
+            SettingsStore settings = SettingsStore.Current;
+            return settings != null ? settings.ResolvedEnemyHighlightMode : SettingsStore.EnemyHighlightRed;
+        }
+
+        static Color ResolveEnemyZoneColor()
+        {
+            int mode = ResolveEnemyMode();
+            return mode == SettingsStore.EnemyHighlightRed
+                ? EnemyTeamColor
+                : KalyeahResources.ResolveEnemyHighlightColor(mode);
+        }
+
+        Color TintForSide(int side) => side == _ownSide ? OwnTeamColor : ResolveEnemyZoneColor();
 
         void ApplySideTints()
         {
+            _lastEnemyHighlightMode = ResolveEnemyMode();
             RefreshBaseVisuals();
         }
 
         void RefreshBaseVisuals()
         {
-            UpdateBaseNode(_ownBase, EnemyTeamColor);   // Enemy captures Own base
-            UpdateBaseNode(_enemyBase, OwnTeamColor);   // Own team captures Enemy base
+            UpdateBaseNode(_ownBase);
+            UpdateBaseNode(_enemyBase);
         }
 
-        void UpdateBaseNode(BaseZoneNode node, Color attackerColor)
+        void UpdateBaseNode(BaseZoneNode node)
         {
             if (node == null) return;
-            Color ownerColor = TintForSide(node.Side);
+            bool isEnemyOwned = node.Side != _ownSide;
+            bool attackerIsEnemy = !isEnemyOwned;
+            Color enemyCol = ResolveEnemyZoneColor();
+            Color ownerColor = isEnemyOwned ? enemyCol : OwnTeamColor;
+            Color attackerColor = attackerIsEnemy ? enemyCol : OwnTeamColor;
             float pulse = node.Contested ? (0.5f + 0.5f * Mathf.Sin(_animTime * 12f)) : 0f;
 
             Color chalkCol = node.Contested
                 ? Color.Lerp(ownerColor, ContestedFlashColor, pulse)
-                : new Color(ownerColor.r, ownerColor.g, ownerColor.b, 0.88f);
-            Color fillCol = new Color(ownerColor.r, ownerColor.g, ownerColor.b, node.Contested ? Mathf.Lerp(0.10f, 0.24f, pulse) : 0.12f);
+                : new Color(ownerColor.r, ownerColor.g, ownerColor.b, 0.92f);
+            // Clean low-overdraw geometric interior fill (zero murky translucent smog).
+            Color fillCol = new Color(ownerColor.r, ownerColor.g, ownerColor.b, node.Contested ? Mathf.Lerp(0.08f, 0.18f, pulse) : 0.10f);
 
-            if (node.ChalkMat != null) SetMaterialColor(node.ChalkMat, chalkCol);
+            if (node.ChalkMat != null)
+            {
+                SetMaterialColor(node.ChalkMat, chalkCol);
+                if (node.ChalkMat.HasProperty(PropDashCount))
+                    node.ChalkMat.SetFloat(PropDashCount, isEnemyOwned ? BaseEnemyDashCount : 0f);
+            }
             if (node.FillMat != null) SetMaterialColor(node.FillMat, fillCol);
 
             float arcValue = node.Contested && node.Capture01 < 0.08f ? 1f : node.Capture01;
             Color arcCol = node.Contested
                 ? Color.Lerp(attackerColor, ContestedFlashColor, pulse)
-                : new Color(attackerColor.r, attackerColor.g, attackerColor.b, 0.92f);
-            node.CaptureArc.SetArc(arcValue, arcCol);
+                : new Color(attackerColor.r, attackerColor.g, attackerColor.b, 0.94f);
+            float arcDash = attackerIsEnemy ? Mathf.Max(2f, BaseEnemyDashCount * arcValue) : 0f;
+            node.CaptureArc.SetArc(arcValue, arcCol, arcDash);
         }
 
         void UpdateRescueNode(RescueZoneNode node, float cooldownSec, bool hideCounts)
@@ -409,15 +488,22 @@ namespace Kalyeah.Game
             if (node.ReadyState != targetState)
             {
                 node.ReadyState = targetState;
-                Color sideTint = TintForSide(-node.Side);  // a jail is the rescue spot of the team playing from the other end
+                int rescuerSide = -node.Side; // a jail is the rescue spot of the team playing from the other end
+                bool isEnemyRescue = rescuerSide != _ownSide;
+                Color sideTint = TintForSide(rescuerSide);
                 // Binding rule: 0.50 white while counting -> 0.55 team tint when ready
                 Color chalkCol = ready
                     ? new Color(sideTint.r, sideTint.g, sideTint.b, RescueReadyAlpha)
                     : new Color(1f, 1f, 1f, RescueCountingAlpha);
                 Color fillCol = ready
-                    ? new Color(sideTint.r, sideTint.g, sideTint.b, 0.14f)
-                    : new Color(1f, 1f, 1f, 0.07f);
-                if (node.ChalkMat != null) SetMaterialColor(node.ChalkMat, chalkCol);
+                    ? new Color(sideTint.r, sideTint.g, sideTint.b, 0.12f)
+                    : new Color(1f, 1f, 1f, 0.06f);
+                if (node.ChalkMat != null)
+                {
+                    SetMaterialColor(node.ChalkMat, chalkCol);
+                    if (node.ChalkMat.HasProperty(PropDashCount))
+                        node.ChalkMat.SetFloat(PropDashCount, isEnemyRescue ? RescueEnemyDashCount : 0f);
+                }
                 if (node.FillMat != null) SetMaterialColor(node.FillMat, fillCol);
             }
 
@@ -442,13 +528,18 @@ namespace Kalyeah.Game
             group.SetParent(Root, false);
             group.position = center;
 
-            Material fillMat = CloneTransparent("BaseFill_" + side, new Color(1f, 1f, 1f, 0.12f));
-            AttachZoneMesh(group, "FillDisc", BuildDiscMesh("BaseDisc", r - 0.24f, 40, 0.015f), fillMat);
+            // Inset clean interior disc strictly inside outer perimeter so fill and chalk never double-blend.
+            Material fillMat = CloneZoneFill("BaseFill_" + side, new Color(1f, 1f, 1f, 0.10f));
+            AttachZoneMesh(group, "FillDisc", BuildDiscMesh("BaseDisc", Mathf.Max(0.5f, r - BasePerimeterWidth), 44, 0.015f), fillMat);
 
-            Material chalkMat = CloneTransparent("BaseChalk_" + side, Color.white);
-            AttachZoneMesh(group, "ChalkRing", BuildDashedChalkCircleMesh("BaseChalk", r - 0.16f, 0.32f, 44, 0.025f), chalkMat);
+            // Hard-edge geometric perimeter whose outer rim sits at exact gameplay BaseRadius (solid ally vs dashed enemy).
+            bool isEnemyOwned = side != _ownSide;
+            Material chalkMat = CloneZonePerimeter("BaseChalk_" + side, Color.white, isEnemyOwned ? BaseEnemyDashCount : 0f);
+            AttachZoneMesh(group, "ChalkRing", BuildPerimeterCircleMesh("BaseChalk", r, BasePerimeterWidth, BaseCircleSegments, 0.025f), chalkMat);
 
-            var arc = new RadialArcMesh(group, "CaptureProgressArc", center + Vector3.up * 0.033f, r - 0.62f, r - 0.20f, ArcSegments, _transparentTemplate, _cleaner);
+            float arcOuter = Mathf.Max(0.45f, r - BasePerimeterWidth - 0.04f);
+            float arcInner = Mathf.Max(0.25f, arcOuter - 0.36f);
+            var arc = new RadialArcMesh(group, "CaptureProgressArc", center + Vector3.up * 0.033f, arcInner, arcOuter, ArcSegments, _transparentTemplate, _cleaner);
             return new BaseZoneNode { Side = side, ChalkMat = chalkMat, FillMat = fillMat, CaptureArc = arc };
         }
 
@@ -459,11 +550,12 @@ namespace Kalyeah.Game
             var group = new GameObject(side == MapLayoutData.SideOwn ? "RescueZone_Own" : "RescueZone_Enemy").transform;
             group.SetParent(Root, false);
 
-            Material fillMat = CloneTransparent("RescueFill_" + side, new Color(1f, 1f, 1f, 0.08f));
-            AttachZoneMesh(group, "RescuePad", BuildFlatRectMesh("RescuePadMesh", rect, 0.16f, 0.015f), fillMat);
+            Material fillMat = CloneZoneFill("RescueFill_" + side, new Color(1f, 1f, 1f, 0.06f));
+            AttachZoneMesh(group, "RescuePad", BuildFlatRectMesh("RescuePadMesh", rect, RescuePerimeterWidth, 0.015f), fillMat);
 
-            Material chalkMat = CloneTransparent("RescueChalk_" + side, new Color(1f, 1f, 1f, RescueCountingAlpha));
-            AttachZoneMesh(group, "RescueChalkLoop", BuildRoundedRectChalkMesh("RescueChalkMesh", rect, 1.2f, 0.32f, 0.026f), chalkMat);
+            bool isEnemyRescue = (-side) != _ownSide;
+            Material chalkMat = CloneZonePerimeter("RescueChalk_" + side, new Color(1f, 1f, 1f, RescueCountingAlpha), isEnemyRescue ? RescueEnemyDashCount : 0f);
+            AttachZoneMesh(group, "RescueChalkLoop", BuildRoundedRectPerimeterMesh("RescueChalkMesh", rect, 1.2f, RescuePerimeterWidth, 0.026f), chalkMat);
 
             // Flat ground-lying WorldSpace Canvas: crisp Komiks numeral at 0.50 white alpha, zero floating billboard clutter
             var canvasGo = new GameObject("RescueCountdownGround");
@@ -522,9 +614,9 @@ namespace Kalyeah.Game
             standGo.transform.position = KalyeahResources.World(spot, 0f);
             standGo.SetActive(activeByDefault);
 
-            // Ground chalk pickup circle + radial respawn timer ring
-            Material padMat = CloneTransparent("MeriendaPad_" + index, new Color(1f, 0.94f, 0.76f, 0.22f));
-            var padGo = AttachZoneMesh(standGo.transform, "StandPad", BuildDiscMesh("MeriendaDisc", 0.96f, 24, 0.032f), padMat);
+            // Ground chalk pickup circle + radial respawn timer ring (zero overlap between pad and ring)
+            Material padMat = CloneZoneFill("MeriendaPad_" + index, new Color(1f, 0.94f, 0.76f, 0.16f));
+            var padGo = AttachZoneMesh(standGo.transform, "StandPad", BuildDiscMesh("MeriendaDisc", 0.84f, 24, 0.032f), padMat);
             padGo.transform.localPosition = Vector3.zero;
 
             var ring = new RadialArcMesh(standGo.transform, "RespawnRing", standGo.transform.position + Vector3.up * 0.040f, 0.84f, 1.08f, MeriendaArcSegments, _transparentTemplate, _cleaner);
@@ -597,23 +689,57 @@ namespace Kalyeah.Game
 
         Material CreateTransparentUnlitTemplate()
         {
+            Material arcane = KalyeahResources.Material("ArcaneFx", FxPool.ShaderName);
+            if (arcane != null)
+            {
+                var mat = new Material(arcane) { name = "ObjectiveHardEdgeZone" };
+                ConfigureArcaneHardEdge(mat, hardEdgeWidth: 1f, dashCount: 0f, edgeBoost: 0.28f, interiorAlpha: 1f);
+                mat.renderQueue = (int)RenderQueue.Transparent;
+                return _cleaner.Track(mat);
+            }
+
             Material src = Resources.Load<Material>("KalyeahMaterials/TransparentUnlit")
                         ?? Resources.Load<Material>("KalyeahMaterials/Unlit");
             Shader fallback = src == null ? Shader.Find("Universal Render Pipeline/Unlit") : null;
             if (src == null && fallback == null) return null;
-            Material mat = src != null
+            Material fallbackMat = src != null
                 ? new Material(src) { name = "ObjectiveTransparentUnlit" }
                 : new Material(fallback) { name = "ObjectiveTransparentUnlit" };
-            ConfigureTransparentUnlit(mat);
-            return _cleaner.Track(mat);
+            ConfigureTransparentUnlit(fallbackMat);
+            return _cleaner.Track(fallbackMat);
         }
 
-        Material CloneTransparent(string name, Color color)
+        Material CloneZoneFill(string name, Color color)
         {
             if (_transparentTemplate == null) return null;
             var mat = new Material(_transparentTemplate) { name = name };
+            ConfigureArcaneHardEdge(mat, hardEdgeWidth: 0f, dashCount: 0f, edgeBoost: 0f, interiorAlpha: 1f);
             SetMaterialColor(mat, color);
             return _cleaner.Track(mat);
+        }
+
+        Material CloneZonePerimeter(string name, Color color, float dashCount)
+        {
+            if (_transparentTemplate == null) return null;
+            var mat = new Material(_transparentTemplate) { name = name };
+            ConfigureArcaneHardEdge(mat, hardEdgeWidth: 1f, dashCount: dashCount, edgeBoost: 0.28f, interiorAlpha: 1f);
+            SetMaterialColor(mat, color);
+            return _cleaner.Track(mat);
+        }
+
+        static void ConfigureArcaneHardEdge(Material mat, float hardEdgeWidth, float dashCount, float edgeBoost, float interiorAlpha)
+        {
+            if (mat == null) return;
+            if (mat.HasProperty(PropTint)) mat.SetColor(PropTint, Color.white);
+            if (mat.HasProperty(PropInkColor)) mat.SetColor(PropInkColor, Color.clear);
+            if (mat.HasProperty(PropPhase)) mat.SetFloat(PropPhase, 0f);
+            if (mat.HasProperty(PropSoftFade)) mat.SetFloat(PropSoftFade, 1f);
+            if (mat.HasProperty(PropFresnel)) mat.SetFloat(PropFresnel, 0f);
+            if (mat.HasProperty(PropSunlit)) mat.SetFloat(PropSunlit, 0f);
+            if (mat.HasProperty(PropHardEdgeWidth)) mat.SetFloat(PropHardEdgeWidth, hardEdgeWidth);
+            if (mat.HasProperty(PropDashCount)) mat.SetFloat(PropDashCount, dashCount);
+            if (mat.HasProperty(PropEdgeBoost)) mat.SetFloat(PropEdgeBoost, edgeBoost);
+            if (mat.HasProperty(PropInteriorAlpha)) mat.SetFloat(PropInteriorAlpha, interiorAlpha);
         }
 
         static void ConfigureTransparentUnlit(Material mat)
@@ -629,8 +755,8 @@ namespace Kalyeah.Game
 
         static void SetMaterialColor(Material mat, Color color)
         {
-            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", color);
-            if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+            if (mat.HasProperty(PropBaseColor)) mat.SetColor(PropBaseColor, color);
+            if (mat.HasProperty(PropColor)) mat.SetColor(PropColor, color);
         }
 
         GameObject AttachZoneMesh(Transform parent, string name, Mesh mesh, Material material)
@@ -648,48 +774,119 @@ namespace Kalyeah.Game
 
         static Mesh BuildDiscMesh(string name, float radius, int segments, float y)
         {
-            var batch = new WorldMeshBatch(1);
-            batch.AddVerticalCylinder(new Vector3(0f, y - 0.004f, 0f), radius, radius, 0.004f, segments, 0, 0, true);
-            return batch.ToMesh(name);
+            var verts = new Vector3[segments + 1];
+            var normals = new Vector3[segments + 1];
+            var uvs = new Vector2[segments + 1];
+            var colors = new Color32[segments + 1];
+            var tris = new int[segments * 3];
+            var white = new Color32(255, 255, 255, 255);
+
+            verts[0] = new Vector3(0f, y, 0f);
+            normals[0] = Vector3.up;
+            uvs[0] = Vector2.zero;
+            colors[0] = white;
+
+            for (int i = 0; i < segments; i++)
+            {
+                float a = (Mathf.PI * 2f * i) / segments;
+                verts[i + 1] = new Vector3(Mathf.Sin(a) * radius, y, Mathf.Cos(a) * radius);
+                normals[i + 1] = Vector3.up;
+                uvs[i + 1] = new Vector2(i / (float)segments, 0f);
+                colors[i + 1] = white;
+
+                int next = (i + 1) % segments;
+                tris[i * 3] = 0;
+                tris[i * 3 + 1] = i + 1;
+                tris[i * 3 + 2] = next + 1;
+            }
+
+            var mesh = new Mesh { name = name };
+            mesh.vertices = verts;
+            mesh.normals = normals;
+            mesh.uv = uvs;
+            mesh.colors32 = colors;
+            mesh.triangles = tris;
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
-        static Mesh BuildDashedChalkCircleMesh(string name, float radius, float width, int dashes, float y)
+        /// <summary>
+        /// Continuous UV-mapped geometric perimeter ring whose outer rim matches <paramref name="outerRadius"/> exactly.
+        /// <c>uv.x</c> wraps cleanly 0..1 around the circle so <c>ArcaneFx</c> renders solid ally or dashed enemy edges.
+        /// </summary>
+        static Mesh BuildPerimeterCircleMesh(string name, float outerRadius, float width, int segments, float y)
         {
-            var batch = new WorldMeshBatch(1);
-            float half = width * 0.5f;
-            float step = Mathf.PI * 2f / dashes;
-            for (int i = 0; i < dashes; i++)
+            float innerR = Mathf.Max(0.05f, outerRadius - width);
+            int vertCount = (segments + 1) * 2;
+            var verts = new Vector3[vertCount];
+            var normals = new Vector3[vertCount];
+            var uvs = new Vector2[vertCount];
+            var colors = new Color32[vertCount];
+            var tris = new int[segments * 6];
+            var white = new Color32(255, 255, 255, 255);
+
+            for (int i = 0; i <= segments; i++)
             {
-                // Slight hand-drawn street-chalk gaps every 4th stroke
-                float fill = (i % 4 == 3) ? 0.62f : 0.88f;
-                float a0 = i * step;
-                float a1 = a0 + step * fill;
-                Vector3 d0 = new Vector3(Mathf.Sin(a0), 0f, Mathf.Cos(a0));
-                Vector3 d1 = new Vector3(Mathf.Sin(a1), 0f, Mathf.Cos(a1));
-                batch.AddQuad(
-                    d0 * (radius - half) + Vector3.up * y,
-                    d0 * (radius + half) + Vector3.up * y,
-                    d1 * (radius + half) + Vector3.up * y,
-                    d1 * (radius - half) + Vector3.up * y,
-                    Vector3.up);
+                float u = i / (float)segments;
+                float a = u * Mathf.PI * 2f;
+                float s = Mathf.Sin(a);
+                float c = Mathf.Cos(a);
+                int b = i * 2;
+                verts[b] = new Vector3(s * innerR, y, c * innerR);
+                verts[b + 1] = new Vector3(s * outerRadius, y, c * outerRadius);
+                normals[b] = Vector3.up;
+                normals[b + 1] = Vector3.up;
+                uvs[b] = new Vector2(u, 1f);
+                uvs[b + 1] = new Vector2(u, 1f);
+                colors[b] = white;
+                colors[b + 1] = white;
             }
-            return batch.ToMesh(name);
+
+            for (int i = 0; i < segments; i++)
+            {
+                int v = i * 2;
+                int t = i * 6;
+                tris[t] = v;
+                tris[t + 1] = v + 1;
+                tris[t + 2] = v + 3;
+                tris[t + 3] = v;
+                tris[t + 4] = v + 3;
+                tris[t + 5] = v + 2;
+            }
+
+            var mesh = new Mesh { name = name };
+            mesh.vertices = verts;
+            mesh.normals = normals;
+            mesh.uv = uvs;
+            mesh.colors32 = colors;
+            mesh.triangles = tris;
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         static Mesh BuildFlatRectMesh(string name, GroundRect rect, float inset, float y)
         {
-            var batch = new WorldMeshBatch(1);
             Vector3 a = KalyeahResources.World(new SVector2(rect.X + inset, rect.Y + inset), y);
             Vector3 b = KalyeahResources.World(new SVector2(rect.End.X - inset, rect.Y + inset), y);
             Vector3 c = KalyeahResources.World(new SVector2(rect.End.X - inset, rect.End.Y - inset), y);
             Vector3 d = KalyeahResources.World(new SVector2(rect.X + inset, rect.End.Y - inset), y);
-            batch.AddQuad(d, a, b, c, Vector3.up);
-            return batch.ToMesh(name);
+            var white = new Color32(255, 255, 255, 255);
+
+            var mesh = new Mesh { name = name };
+            mesh.vertices = new[] { d, a, b, c };
+            mesh.normals = new[] { Vector3.up, Vector3.up, Vector3.up, Vector3.up };
+            mesh.uv = new[] { Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero };
+            mesh.colors32 = new[] { white, white, white, white };
+            mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
-        static Mesh BuildRoundedRectChalkMesh(string name, GroundRect rect, float cornerRadius, float width, float y)
+        /// <summary>
+        /// Continuous arc-length UV-mapped rounded-rect perimeter aligned to the exact outer gameplay <paramref name="rect"/>.
+        /// </summary>
+        static Mesh BuildRoundedRectPerimeterMesh(string name, GroundRect rect, float cornerRadius, float width, float y)
         {
-            var batch = new WorldMeshBatch(1);
             float half = width * 0.5f;
             var shrunk = new GroundRect(rect.X + half, rect.Y + half, Mathf.Max(rect.W - width, 0.5f), Mathf.Max(rect.H - width, 0.5f));
             float r = Mathf.Min(Mathf.Max(cornerRadius - half, 0.1f), Mathf.Min(shrunk.W, shrunk.H) * 0.45f);
@@ -713,18 +910,60 @@ namespace Kalyeah.Game
             }
 
             int count = pts.Length;
+            var worldPts = new Vector3[count];
+            for (int i = 0; i < count; i++)
+                worldPts[i] = KalyeahResources.World(pts[i], y);
+
+            float totalLen = 0f;
+            for (int i = 0; i < count; i++)
+                totalLen += Vector3.Distance(worldPts[i], worldPts[(i + 1) % count]);
+            float invTotal = totalLen > 0.001f ? (1f / totalLen) : 1f;
+
+            var verts = new Vector3[count * 4];
+            var normals = new Vector3[count * 4];
+            var uvs = new Vector2[count * 4];
+            var colors = new Color32[count * 4];
+            var tris = new int[count * 6];
+            var white = new Color32(255, 255, 255, 255);
+
+            float accum = 0f;
+            int vCount = 0;
+            int tCount = 0;
             for (int i = 0; i < count; i++)
             {
-                if (i % 6 == 5) continue; // Subtle chalk break
                 int j = (i + 1) % count;
-                Vector3 p0 = KalyeahResources.World(pts[i], y);
-                Vector3 p1 = KalyeahResources.World(pts[j], y);
+                Vector3 p0 = worldPts[i];
+                Vector3 p1 = worldPts[j];
                 Vector3 seg = p1 - p0;
-                if (seg.sqrMagnitude < 0.0001f) continue;
-                Vector3 perp = new Vector3(-seg.z, 0f, seg.x).normalized * half;
-                batch.AddQuad(p0 - perp, p0 + perp, p1 + perp, p1 - perp, Vector3.up);
+                float segLen = seg.magnitude;
+                if (segLen < 0.001f) continue;
+
+                float u0 = accum * invTotal;
+                accum += segLen;
+                float u1 = accum * invTotal;
+
+                Vector3 perp = new Vector3(-seg.z, 0f, seg.x) * (half / segLen);
+                int b = vCount;
+                verts[vCount] = p0 - perp; normals[vCount] = Vector3.up; uvs[vCount] = new Vector2(u0, 1f); colors[vCount++] = white;
+                verts[vCount] = p0 + perp; normals[vCount] = Vector3.up; uvs[vCount] = new Vector2(u0, 1f); colors[vCount++] = white;
+                verts[vCount] = p1 + perp; normals[vCount] = Vector3.up; uvs[vCount] = new Vector2(u1, 1f); colors[vCount++] = white;
+                verts[vCount] = p1 - perp; normals[vCount] = Vector3.up; uvs[vCount] = new Vector2(u1, 1f); colors[vCount++] = white;
+
+                tris[tCount++] = b;
+                tris[tCount++] = b + 1;
+                tris[tCount++] = b + 2;
+                tris[tCount++] = b;
+                tris[tCount++] = b + 2;
+                tris[tCount++] = b + 3;
             }
-            return batch.ToMesh(name);
+
+            var mesh = new Mesh { name = name };
+            mesh.SetVertices(verts, 0, vCount);
+            mesh.SetNormals(normals, 0, vCount);
+            mesh.SetUVs(0, uvs, 0, vCount);
+            mesh.SetColors(colors, 0, vCount);
+            mesh.SetTriangles(tris, 0, tCount, 0, calculateBounds: true, baseVertex: 0);
+            return mesh;
         }
 
         static string[] BuildCountdownStrings(int max)

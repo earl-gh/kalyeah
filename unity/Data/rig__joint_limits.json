@@ -1,0 +1,7699 @@
+{
+  "source": "res://data/rig/joint_limits.tres",
+  "class": "RigJointLimits",
+  "data": {
+    "$class": "RigJointLimits",
+    "schemaVersion": 1,
+    "referenceSkeleton": "tools/blender/kids/clips/roster_clips.glb",
+    "armDropDeg": 40.0,
+    "referenceLegLengthM": 0.6957,
+    "squashAllowanceMm": 3.0,
+    "clampMethod": "swing_twist_ellipse",
+    "coordConventions": {
+      "model_blender": "+X left, -Y front, +Z up (right-handed)",
+      "model_gltf": "+X left, +Y up, +Z front (right-handed; map (x,y,z)->(x,z,-y))",
+      "model_unity": "-X left, +Y up, +Z front (left-handed glTFast; rot axis (bx,by,bz)->(+bx,-bz,+by))",
+      "local_blender": "bone rest space (= glTF bone rest space; +Y head->tail)",
+      "local_unity": "glTFast bone rest space for q_rel=Inverse(rest)*local (axis (lx,ly,lz)->(+lx,-ly,-lz))"
+    },
+    "joints": {
+      "Spine": {
+        "bone": "mixamorig:Spine",
+        "parent": "mixamorig:Hips",
+        "kind": "spine",
+        "flex": [
+          -15.0,
+          25.0
+        ],
+        "abduct": [
+          -15.0,
+          15.0
+        ],
+        "twist": [
+          -20.0,
+          20.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.999853,
+              0.017139
+            ],
+            "twist": [
+              0.0,
+              -0.017139,
+              0.999853
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.017139,
+              -0.999853
+            ],
+            "twist": [
+              0.0,
+              0.999853,
+              0.017139
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.017139,
+              0.999853
+            ],
+            "twist": [
+              0.0,
+              -0.999853,
+              -0.017139
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex forward (-Y), +abduct lean left (+X), +twist turn left"
+      },
+      "Spine1": {
+        "bone": "mixamorig:Spine1",
+        "parent": "mixamorig:Spine",
+        "kind": "spine",
+        "flex": [
+          -15.0,
+          25.0
+        ],
+        "abduct": [
+          -15.0,
+          15.0
+        ],
+        "twist": [
+          -20.0,
+          20.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.999853,
+              0.017139
+            ],
+            "twist": [
+              0.0,
+              -0.017139,
+              0.999853
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.017139,
+              -0.999853
+            ],
+            "twist": [
+              0.0,
+              0.999853,
+              0.017139
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.017139,
+              0.999853
+            ],
+            "twist": [
+              0.0,
+              -0.999853,
+              -0.017139
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex forward (-Y), +abduct lean left (+X), +twist turn left"
+      },
+      "Spine2": {
+        "bone": "mixamorig:Spine2",
+        "parent": "mixamorig:Spine1",
+        "kind": "spine",
+        "flex": [
+          -15.0,
+          25.0
+        ],
+        "abduct": [
+          -15.0,
+          15.0
+        ],
+        "twist": [
+          -20.0,
+          20.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.999436,
+              -0.033588
+            ],
+            "twist": [
+              0.0,
+              0.033588,
+              0.999436
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.033588,
+              -0.999436
+            ],
+            "twist": [
+              0.0,
+              0.999436,
+              -0.033588
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.033588,
+              0.999436
+            ],
+            "twist": [
+              0.0,
+              -0.999436,
+              0.033588
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex forward (-Y), +abduct lean left (+X), +twist turn left"
+      },
+      "Neck": {
+        "bone": "mixamorig:Neck",
+        "parent": "mixamorig:Spine2",
+        "kind": "ball",
+        "flex": [
+          -40.0,
+          40.0
+        ],
+        "abduct": [
+          -30.0,
+          30.0
+        ],
+        "twist": [
+          -50.0,
+          50.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.998802,
+              -0.048926
+            ],
+            "twist": [
+              0.0,
+              0.048926,
+              0.998802
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.048926,
+              -0.998802
+            ],
+            "twist": [
+              0.0,
+              0.998802,
+              -0.048926
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.048926,
+              0.998802
+            ],
+            "twist": [
+              0.0,
+              -0.998802,
+              0.048926
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex nod forward, +abduct tilt left, +twist turn left"
+      },
+      "Head": {
+        "bone": "mixamorig:Head",
+        "parent": "mixamorig:Neck",
+        "kind": "ball",
+        "flex": [
+          -25.0,
+          25.0
+        ],
+        "abduct": [
+          -15.0,
+          15.0
+        ],
+        "twist": [
+          -30.0,
+          30.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.999893,
+              0.014635
+            ],
+            "twist": [
+              0.0,
+              -0.014635,
+              0.999893
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.014635,
+              -0.999893
+            ],
+            "twist": [
+              0.0,
+              0.999893,
+              0.014635
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.014635,
+              0.999893
+            ],
+            "twist": [
+              0.0,
+              -0.999893,
+              -0.014635
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex nod forward, +abduct tilt left, +twist turn left"
+      },
+      "LeftShoulder": {
+        "bone": "mixamorig:LeftShoulder",
+        "parent": "mixamorig:Spine2",
+        "kind": "ball",
+        "flex": [
+          -20.0,
+          20.0
+        ],
+        "abduct": [
+          -10.0,
+          30.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.118994,
+              0.0,
+              -0.992895
+            ],
+            "abduct": [
+              0.048891,
+              -0.998787,
+              0.005859
+            ],
+            "twist": [
+              0.99169,
+              0.049241,
+              0.11885
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.118994,
+              -0.992895,
+              0.0
+            ],
+            "abduct": [
+              0.048891,
+              0.005859,
+              0.998787
+            ],
+            "twist": [
+              0.99169,
+              0.11885,
+              -0.049241
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.118994,
+              0.992895,
+              0.0
+            ],
+            "abduct": [
+              0.048891,
+              -0.005859,
+              -0.998787
+            ],
+            "twist": [
+              0.99169,
+              -0.11885,
+              0.049241
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex protract forward, +abduct shrug up"
+      },
+      "LeftArm": {
+        "bone": "mixamorig:LeftArm",
+        "parent": "mixamorig:LeftShoulder",
+        "kind": "ball",
+        "flex": [
+          -50.0,
+          160.0
+        ],
+        "abduct": [
+          -30.0,
+          140.0
+        ],
+        "twist": [
+          -80.0,
+          80.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              -0.642849,
+              0.0,
+              -0.765993
+            ],
+            "abduct": [
+              0.023171,
+              -0.999542,
+              -0.019446
+            ],
+            "twist": [
+              0.765642,
+              0.03025,
+              -0.642555
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              -0.642849,
+              -0.765993,
+              0.0
+            ],
+            "abduct": [
+              0.023171,
+              -0.019446,
+              0.999542
+            ],
+            "twist": [
+              0.765642,
+              -0.642555,
+              -0.03025
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              -0.642849,
+              0.765993,
+              0.0
+            ],
+            "abduct": [
+              0.023171,
+              0.019446,
+              -0.999542
+            ],
+            "twist": [
+              0.765642,
+              0.642555,
+              0.03025
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "twistRedistributedTo": [
+          "mixamorig:LeftArmTwist"
+        ],
+        "note": "+flex swing forward, +abduct raise outward/up, -abduct adduct toward torso"
+      },
+      "LeftForeArm": {
+        "bone": "mixamorig:LeftForeArm",
+        "parent": "mixamorig:LeftArm",
+        "kind": "hinge",
+        "flex": [
+          -5.0,
+          145.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          -85.0,
+          85.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              -0.64285,
+              0.0,
+              -0.765992
+            ],
+            "abduct": [
+              -0.039918,
+              -0.998641,
+              0.033501
+            ],
+            "twist": [
+              0.764952,
+              -0.052113,
+              -0.641976
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              -0.64285,
+              -0.765992,
+              0.0
+            ],
+            "abduct": [
+              -0.039918,
+              0.033501,
+              0.998641
+            ],
+            "twist": [
+              0.764952,
+              -0.641976,
+              0.052113
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              -0.64285,
+              0.765992,
+              0.0
+            ],
+            "abduct": [
+              -0.039918,
+              -0.033501,
+              -0.998641
+            ],
+            "twist": [
+              0.764952,
+              0.641976,
+              -0.052113
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "twistRedistributedTo": [
+          "mixamorig:LeftForeArmTwist1",
+          "mixamorig:LeftForeArmTwist2"
+        ],
+        "note": "hinge: +flex bend forearm forward (-Y), abduct locked 0, twist shared with ForeArmTwist1/2"
+      },
+      "LeftHand": {
+        "bone": "mixamorig:LeftHand",
+        "parent": "mixamorig:LeftForeArm",
+        "kind": "ball",
+        "flex": [
+          -60.0,
+          70.0
+        ],
+        "abduct": [
+          -20.0,
+          35.0
+        ],
+        "twist": [
+          -80.0,
+          80.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.102605,
+              0.990988,
+              -0.086106
+            ],
+            "abduct": [
+              0.642847,
+              -3e-06,
+              0.765995
+            ],
+            "twist": [
+              0.759092,
+              -0.133948,
+              -0.637054
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.102605,
+              -0.086106,
+              -0.990988
+            ],
+            "abduct": [
+              0.642847,
+              0.765995,
+              3e-06
+            ],
+            "twist": [
+              0.759092,
+              -0.637054,
+              0.133948
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.102605,
+              0.086106,
+              0.990988
+            ],
+            "abduct": [
+              0.642847,
+              -0.765995,
+              -3e-06
+            ],
+            "twist": [
+              0.759092,
+              0.637054,
+              -0.133948
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              -3e-06,
+              0.106615,
+              -0.9943
+            ],
+            "abduct": [
+              -1.0,
+              -1e-06,
+              3e-06
+            ],
+            "twist": [
+              -1e-06,
+              0.9943,
+              0.106615
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              -3e-06,
+              -0.106615,
+              0.9943
+            ],
+            "abduct": [
+              -1.0,
+              1e-06,
+              -3e-06
+            ],
+            "twist": [
+              -1e-06,
+              -0.9943,
+              -0.106615
+            ]
+          }
+        },
+        "twistRedistributedTo": [
+          "mixamorig:LeftForeArmTwist1",
+          "mixamorig:LeftForeArmTwist2"
+        ],
+        "note": "+flex toward palm, -abduct radial (thumb), +abduct ulnar (pinky), twist redistributed to forearm twist bones"
+      },
+      "LeftUpLeg": {
+        "bone": "mixamorig:LeftUpLeg",
+        "parent": "mixamorig:Hips",
+        "kind": "ball",
+        "flex": [
+          -20.0,
+          125.0
+        ],
+        "abduct": [
+          -25.0,
+          45.0
+        ],
+        "twist": [
+          -40.0,
+          40.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.99953,
+              0.030642
+            ],
+            "twist": [
+              0.0,
+              -0.030642,
+              -0.99953
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.030642,
+              0.99953
+            ],
+            "twist": [
+              0.0,
+              -0.99953,
+              0.030642
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.030642,
+              -0.99953
+            ],
+            "twist": [
+              0.0,
+              0.99953,
+              -0.030642
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex raise thigh forward, +abduct spread outward, -abduct adduct inward"
+      },
+      "LeftLeg": {
+        "bone": "mixamorig:LeftLeg",
+        "parent": "mixamorig:LeftUpLeg",
+        "kind": "hinge",
+        "flex": [
+          -3.0,
+          140.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          -10.0,
+          10.0
+        ],
+        "twistRequiresFlexDeg": 20.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.999739,
+              0.022865
+            ],
+            "twist": [
+              0.0,
+              0.022865,
+              -0.999739
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.022865,
+              -0.999739
+            ],
+            "twist": [
+              0.0,
+              -0.999739,
+              -0.022865
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.022865,
+              0.999739
+            ],
+            "twist": [
+              0.0,
+              0.999739,
+              0.022865
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "hinge: +flex bend knee backward (+Y), abduct locked 0, twist +-10 only while flexed > 20 deg"
+      },
+      "LeftFoot": {
+        "bone": "mixamorig:LeftFoot",
+        "parent": "mixamorig:LeftLeg",
+        "kind": "ball",
+        "flex": [
+          -20.0,
+          45.0
+        ],
+        "abduct": [
+          -30.0,
+          30.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.622387,
+              -0.78271
+            ],
+            "twist": [
+              0.0,
+              -0.78271,
+              -0.622387
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.78271,
+              -0.622387
+            ],
+            "twist": [
+              0.0,
+              -0.622387,
+              0.78271
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.78271,
+              0.622387
+            ],
+            "twist": [
+              0.0,
+              0.622387,
+              -0.78271
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              3e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              -3e-06
+            ]
+          }
+        },
+        "note": "+flex plantarflex (toes down), -flex dorsiflex (toes up), +-abduct bank/splay"
+      },
+      "LeftToeBase": {
+        "bone": "mixamorig:LeftToeBase",
+        "parent": "mixamorig:LeftFoot",
+        "kind": "hinge",
+        "flex": [
+          -30.0,
+          50.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.18041,
+              0.983591
+            ],
+            "twist": [
+              0.0,
+              -0.983591,
+              -0.18041
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.983591,
+              0.18041
+            ],
+            "twist": [
+              0.0,
+              -0.18041,
+              0.983591
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.983591,
+              -0.18041
+            ],
+            "twist": [
+              0.0,
+              0.18041,
+              -0.983591
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              -1e-06
+            ]
+          }
+        },
+        "note": "+flex dorsiflex toes up (stride push-off), -flex curl down"
+      },
+      "LeftHandIndex1": {
+        "bone": "mixamorig:LeftHandIndex1",
+        "parent": "mixamorig:LeftHand",
+        "kind": "ball",
+        "flex": [
+          -15.0,
+          90.0
+        ],
+        "abduct": [
+          -20.0,
+          20.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013817,
+              0.999837,
+              -0.011592
+            ],
+            "abduct": [
+              -0.809692,
+              0.004385,
+              -0.586839
+            ],
+            "twist": [
+              0.586692,
+              -0.017494,
+              -0.809621
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013817,
+              -0.011592,
+              -0.999837
+            ],
+            "abduct": [
+              -0.809692,
+              -0.586839,
+              -0.004385
+            ],
+            "twist": [
+              0.586692,
+              -0.809621,
+              0.017494
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013817,
+              0.011592,
+              0.999837
+            ],
+            "abduct": [
+              -0.809692,
+              0.586839,
+              0.004385
+            ],
+            "twist": [
+              0.586692,
+              0.809621,
+              -0.017494
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003427
+            ],
+            "abduct": [
+              -0.003427,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003427
+            ],
+            "abduct": [
+              -0.003427,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              -1e-06
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "LeftHandIndex2": {
+        "bone": "mixamorig:LeftHandIndex2",
+        "parent": "mixamorig:LeftHandIndex1",
+        "kind": "hinge",
+        "flex": [
+          0.0,
+          100.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013799,
+              0.999838,
+              -0.011577
+            ],
+            "abduct": [
+              -0.809519,
+              0.004375,
+              -0.587077
+            ],
+            "twist": [
+              0.586931,
+              -0.017473,
+              -0.809448
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013799,
+              -0.011577,
+              -0.999838
+            ],
+            "abduct": [
+              -0.809519,
+              -0.587077,
+              -0.004375
+            ],
+            "twist": [
+              0.586931,
+              -0.809448,
+              0.017473
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013799,
+              0.011577,
+              0.999838
+            ],
+            "abduct": [
+              -0.809519,
+              0.587077,
+              0.004375
+            ],
+            "twist": [
+              0.586931,
+              0.809448,
+              -0.017473
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003422
+            ],
+            "abduct": [
+              -0.003422,
+              -1e-06,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003422
+            ],
+            "abduct": [
+              -0.003422,
+              1e-06,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              -1e-06
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "LeftHandIndex3": {
+        "bone": "mixamorig:LeftHandIndex3",
+        "parent": "mixamorig:LeftHandIndex2",
+        "kind": "hinge",
+        "flex": [
+          -5.0,
+          80.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013793,
+              0.999838,
+              -0.011572
+            ],
+            "abduct": [
+              -0.809451,
+              0.00437,
+              -0.587171
+            ],
+            "twist": [
+              0.587025,
+              -0.017465,
+              -0.80938
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013793,
+              -0.011572,
+              -0.999838
+            ],
+            "abduct": [
+              -0.809451,
+              -0.587171,
+              -0.00437
+            ],
+            "twist": [
+              0.587025,
+              -0.80938,
+              0.017465
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013793,
+              0.011572,
+              0.999838
+            ],
+            "abduct": [
+              -0.809451,
+              0.587171,
+              0.00437
+            ],
+            "twist": [
+              0.587025,
+              0.80938,
+              -0.017465
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.00342
+            ],
+            "abduct": [
+              -0.00342,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.00342
+            ],
+            "abduct": [
+              -0.00342,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "LeftHandMiddle1": {
+        "bone": "mixamorig:LeftHandMiddle1",
+        "parent": "mixamorig:LeftHand",
+        "kind": "ball",
+        "flex": [
+          -15.0,
+          90.0
+        ],
+        "abduct": [
+          -15.0,
+          15.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013811,
+              0.999837,
+              -0.011587
+            ],
+            "abduct": [
+              -0.809639,
+              0.004382,
+              -0.586912
+            ],
+            "twist": [
+              0.586766,
+              -0.017488,
+              -0.809568
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013811,
+              -0.011587,
+              -0.999837
+            ],
+            "abduct": [
+              -0.809639,
+              -0.586912,
+              -0.004382
+            ],
+            "twist": [
+              0.586766,
+              -0.809568,
+              0.017488
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013811,
+              0.011587,
+              0.999837
+            ],
+            "abduct": [
+              -0.809639,
+              0.586912,
+              0.004382
+            ],
+            "twist": [
+              0.586766,
+              0.809568,
+              -0.017488
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003425
+            ],
+            "abduct": [
+              -0.003425,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003425
+            ],
+            "abduct": [
+              -0.003425,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "LeftHandMiddle2": {
+        "bone": "mixamorig:LeftHandMiddle2",
+        "parent": "mixamorig:LeftHandMiddle1",
+        "kind": "hinge",
+        "flex": [
+          0.0,
+          100.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013796,
+              0.999838,
+              -0.011575
+            ],
+            "abduct": [
+              -0.809488,
+              0.004373,
+              -0.587121
+            ],
+            "twist": [
+              0.586975,
+              -0.01747,
+              -0.809417
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013796,
+              -0.011575,
+              -0.999838
+            ],
+            "abduct": [
+              -0.809488,
+              -0.587121,
+              -0.004373
+            ],
+            "twist": [
+              0.586975,
+              -0.809417,
+              0.01747
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013796,
+              0.011575,
+              0.999838
+            ],
+            "abduct": [
+              -0.809488,
+              0.587121,
+              0.004373
+            ],
+            "twist": [
+              0.586975,
+              0.809417,
+              -0.01747
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003421
+            ],
+            "abduct": [
+              -0.003421,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003421
+            ],
+            "abduct": [
+              -0.003421,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "LeftHandMiddle3": {
+        "bone": "mixamorig:LeftHandMiddle3",
+        "parent": "mixamorig:LeftHandMiddle2",
+        "kind": "hinge",
+        "flex": [
+          -5.0,
+          80.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013791,
+              0.999838,
+              -0.011571
+            ],
+            "abduct": [
+              -0.809436,
+              0.004369,
+              -0.587191
+            ],
+            "twist": [
+              0.587046,
+              -0.017464,
+              -0.809365
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013791,
+              -0.011571,
+              -0.999838
+            ],
+            "abduct": [
+              -0.809436,
+              -0.587191,
+              -0.004369
+            ],
+            "twist": [
+              0.587046,
+              -0.809365,
+              0.017464
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013791,
+              0.011571,
+              0.999838
+            ],
+            "abduct": [
+              -0.809436,
+              0.587191,
+              0.004369
+            ],
+            "twist": [
+              0.587046,
+              0.809365,
+              -0.017464
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.00342
+            ],
+            "abduct": [
+              -0.00342,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.00342
+            ],
+            "abduct": [
+              -0.00342,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "LeftHandRing1": {
+        "bone": "mixamorig:LeftHandRing1",
+        "parent": "mixamorig:LeftHand",
+        "kind": "ball",
+        "flex": [
+          -15.0,
+          90.0
+        ],
+        "abduct": [
+          -15.0,
+          15.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013815,
+              0.999837,
+              -0.011591
+            ],
+            "abduct": [
+              -0.809678,
+              0.004384,
+              -0.586857
+            ],
+            "twist": [
+              0.586711,
+              -0.017492,
+              -0.809607
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013815,
+              -0.011591,
+              -0.999837
+            ],
+            "abduct": [
+              -0.809678,
+              -0.586857,
+              -0.004384
+            ],
+            "twist": [
+              0.586711,
+              -0.809607,
+              0.017492
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013815,
+              0.011591,
+              0.999837
+            ],
+            "abduct": [
+              -0.809678,
+              0.586857,
+              0.004384
+            ],
+            "twist": [
+              0.586711,
+              0.809607,
+              -0.017492
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003426
+            ],
+            "abduct": [
+              -0.003426,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003426
+            ],
+            "abduct": [
+              -0.003426,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "LeftHandRing2": {
+        "bone": "mixamorig:LeftHandRing2",
+        "parent": "mixamorig:LeftHandRing1",
+        "kind": "hinge",
+        "flex": [
+          0.0,
+          100.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013798,
+              0.999838,
+              -0.011577
+            ],
+            "abduct": [
+              -0.809507,
+              0.004374,
+              -0.587093
+            ],
+            "twist": [
+              0.586947,
+              -0.017472,
+              -0.809437
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013798,
+              -0.011577,
+              -0.999838
+            ],
+            "abduct": [
+              -0.809507,
+              -0.587093,
+              -0.004374
+            ],
+            "twist": [
+              0.586947,
+              -0.809437,
+              0.017472
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013798,
+              0.011577,
+              0.999838
+            ],
+            "abduct": [
+              -0.809507,
+              0.587093,
+              0.004374
+            ],
+            "twist": [
+              0.586947,
+              0.809437,
+              -0.017472
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003422
+            ],
+            "abduct": [
+              -0.003422,
+              1e-06,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              -1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003422
+            ],
+            "abduct": [
+              -0.003422,
+              -1e-06,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              1e-06
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "LeftHandRing3": {
+        "bone": "mixamorig:LeftHandRing3",
+        "parent": "mixamorig:LeftHandRing2",
+        "kind": "hinge",
+        "flex": [
+          -5.0,
+          80.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013792,
+              0.999838,
+              -0.011571
+            ],
+            "abduct": [
+              -0.809446,
+              0.00437,
+              -0.587178
+            ],
+            "twist": [
+              0.587032,
+              -0.017465,
+              -0.809375
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013792,
+              -0.011571,
+              -0.999838
+            ],
+            "abduct": [
+              -0.809446,
+              -0.587178,
+              -0.00437
+            ],
+            "twist": [
+              0.587032,
+              -0.809375,
+              0.017465
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013792,
+              0.011571,
+              0.999838
+            ],
+            "abduct": [
+              -0.809446,
+              0.587178,
+              0.00437
+            ],
+            "twist": [
+              0.587032,
+              0.809375,
+              -0.017465
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.00342
+            ],
+            "abduct": [
+              -0.00342,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.00342
+            ],
+            "abduct": [
+              -0.00342,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "LeftHandPinky1": {
+        "bone": "mixamorig:LeftHandPinky1",
+        "parent": "mixamorig:LeftHand",
+        "kind": "ball",
+        "flex": [
+          -15.0,
+          90.0
+        ],
+        "abduct": [
+          -20.0,
+          20.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013826,
+              0.999837,
+              -0.0116
+            ],
+            "abduct": [
+              -0.809788,
+              0.004391,
+              -0.586707
+            ],
+            "twist": [
+              0.58656,
+              -0.017505,
+              -0.809717
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013826,
+              -0.0116,
+              -0.999837
+            ],
+            "abduct": [
+              -0.809788,
+              -0.586707,
+              -0.004391
+            ],
+            "twist": [
+              0.58656,
+              -0.809717,
+              0.017505
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013826,
+              0.0116,
+              0.999837
+            ],
+            "abduct": [
+              -0.809788,
+              0.586707,
+              0.004391
+            ],
+            "twist": [
+              0.58656,
+              0.809717,
+              -0.017505
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003429
+            ],
+            "abduct": [
+              -0.003429,
+              -1e-06,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003429
+            ],
+            "abduct": [
+              -0.003429,
+              1e-06,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              -1e-06
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "LeftHandPinky2": {
+        "bone": "mixamorig:LeftHandPinky2",
+        "parent": "mixamorig:LeftHandPinky1",
+        "kind": "hinge",
+        "flex": [
+          0.0,
+          100.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013805,
+              0.999838,
+              -0.011583
+            ],
+            "abduct": [
+              -0.809581,
+              0.004378,
+              -0.586992
+            ],
+            "twist": [
+              0.586846,
+              -0.017481,
+              -0.80951
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013805,
+              -0.011583,
+              -0.999838
+            ],
+            "abduct": [
+              -0.809581,
+              -0.586992,
+              -0.004378
+            ],
+            "twist": [
+              0.586846,
+              -0.80951,
+              0.017481
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013805,
+              0.011583,
+              0.999838
+            ],
+            "abduct": [
+              -0.809581,
+              0.586992,
+              0.004378
+            ],
+            "twist": [
+              0.586846,
+              0.80951,
+              -0.017481
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003424
+            ],
+            "abduct": [
+              -0.003424,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003424
+            ],
+            "abduct": [
+              -0.003424,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "LeftHandPinky3": {
+        "bone": "mixamorig:LeftHandPinky3",
+        "parent": "mixamorig:LeftHandPinky2",
+        "kind": "hinge",
+        "flex": [
+          -5.0,
+          80.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013796,
+              0.999838,
+              -0.011575
+            ],
+            "abduct": [
+              -0.809495,
+              0.004373,
+              -0.587111
+            ],
+            "twist": [
+              0.586965,
+              -0.01747,
+              -0.809424
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013796,
+              -0.011575,
+              -0.999838
+            ],
+            "abduct": [
+              -0.809495,
+              -0.587111,
+              -0.004373
+            ],
+            "twist": [
+              0.586965,
+              -0.809424,
+              0.01747
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013796,
+              0.011575,
+              0.999838
+            ],
+            "abduct": [
+              -0.809495,
+              0.587111,
+              0.004373
+            ],
+            "twist": [
+              0.586965,
+              0.809424,
+              -0.01747
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003421
+            ],
+            "abduct": [
+              -0.003421,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003421
+            ],
+            "abduct": [
+              -0.003421,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "LeftHandThumb1": {
+        "bone": "mixamorig:LeftHandThumb1",
+        "parent": "mixamorig:LeftHand",
+        "kind": "ball",
+        "flex": [
+          -10.0,
+          50.0
+        ],
+        "abduct": [
+          -60.0,
+          60.0
+        ],
+        "twist": [
+          -30.0,
+          30.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.892664,
+              0.446861,
+              0.05887
+            ],
+            "abduct": [
+              -0.264401,
+              0.624945,
+              -0.734531
+            ],
+            "twist": [
+              0.365024,
+              -0.640124,
+              -0.676017
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.892664,
+              0.05887,
+              -0.446861
+            ],
+            "abduct": [
+              -0.264401,
+              -0.734531,
+              -0.624945
+            ],
+            "twist": [
+              0.365024,
+              -0.676017,
+              0.640124
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.892664,
+              -0.05887,
+              0.446861
+            ],
+            "abduct": [
+              -0.264401,
+              0.734531,
+              0.624945
+            ],
+            "twist": [
+              0.365024,
+              0.676017,
+              -0.640124
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.839454,
+              0.0,
+              -0.543431
+            ],
+            "abduct": [
+              0.543431,
+              1e-06,
+              0.839454
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.839454,
+              0.0,
+              0.543431
+            ],
+            "abduct": [
+              0.543431,
+              -1e-06,
+              -0.839454
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl across palm"
+      },
+      "LeftHandThumb2": {
+        "bone": "mixamorig:LeftHandThumb2",
+        "parent": "mixamorig:LeftHandThumb1",
+        "kind": "hinge",
+        "flex": [
+          0.0,
+          60.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.891391,
+              0.44892,
+              0.062391
+            ],
+            "abduct": [
+              -0.264184,
+              0.626487,
+              -0.733295
+            ],
+            "twist": [
+              0.368278,
+              -0.63717,
+              -0.677042
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.891391,
+              0.062391,
+              -0.44892
+            ],
+            "abduct": [
+              -0.264184,
+              -0.733295,
+              -0.626487
+            ],
+            "twist": [
+              0.368278,
+              -0.677042,
+              0.63717
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.891391,
+              -0.062391,
+              0.44892
+            ],
+            "abduct": [
+              -0.264184,
+              0.733295,
+              0.626487
+            ],
+            "twist": [
+              0.368278,
+              0.677042,
+              -0.63717
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.837868,
+              -1e-06,
+              -0.545872
+            ],
+            "abduct": [
+              0.545872,
+              1e-06,
+              0.837868
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              -1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.837868,
+              1e-06,
+              0.545872
+            ],
+            "abduct": [
+              0.545872,
+              -1e-06,
+              -0.837868
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              1e-06
+            ]
+          }
+        },
+        "note": "+flex curl across palm"
+      },
+      "LeftHandThumb3": {
+        "bone": "mixamorig:LeftHandThumb3",
+        "parent": "mixamorig:LeftHandThumb2",
+        "kind": "hinge",
+        "flex": [
+          -10.0,
+          80.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.890764,
+              0.449921,
+              0.064108
+            ],
+            "abduct": [
+              -0.264081,
+              0.627234,
+              -0.732693
+            ],
+            "twist": [
+              0.369865,
+              -0.635727,
+              -0.677533
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.890764,
+              0.064108,
+              -0.449921
+            ],
+            "abduct": [
+              -0.264081,
+              -0.732693,
+              -0.627234
+            ],
+            "twist": [
+              0.369865,
+              -0.677533,
+              0.635727
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.890764,
+              -0.064108,
+              0.449921
+            ],
+            "abduct": [
+              -0.264081,
+              0.732693,
+              0.627234
+            ],
+            "twist": [
+              0.369865,
+              0.677533,
+              -0.635727
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.837095,
+              1e-06,
+              -0.547058
+            ],
+            "abduct": [
+              0.547058,
+              1e-06,
+              0.837095
+            ],
+            "twist": [
+              -1e-06,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.837095,
+              -1e-06,
+              0.547058
+            ],
+            "abduct": [
+              0.547058,
+              -1e-06,
+              -0.837095
+            ],
+            "twist": [
+              -1e-06,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl across palm"
+      },
+      "RightShoulder": {
+        "bone": "mixamorig:RightShoulder",
+        "parent": "mixamorig:Spine2",
+        "kind": "ball",
+        "flex": [
+          -20.0,
+          20.0
+        ],
+        "abduct": [
+          -10.0,
+          30.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.118994,
+              0.0,
+              0.992895
+            ],
+            "abduct": [
+              0.048891,
+              0.998787,
+              -0.005859
+            ],
+            "twist": [
+              -0.991691,
+              0.049241,
+              0.11885
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.118994,
+              0.992895,
+              0.0
+            ],
+            "abduct": [
+              0.048891,
+              -0.005859,
+              -0.998787
+            ],
+            "twist": [
+              -0.991691,
+              0.11885,
+              -0.049241
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.118994,
+              -0.992895,
+              0.0
+            ],
+            "abduct": [
+              0.048891,
+              0.005859,
+              0.998787
+            ],
+            "twist": [
+              -0.991691,
+              -0.11885,
+              0.049241
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex protract forward, +abduct shrug up"
+      },
+      "RightArm": {
+        "bone": "mixamorig:RightArm",
+        "parent": "mixamorig:RightShoulder",
+        "kind": "ball",
+        "flex": [
+          -50.0,
+          160.0
+        ],
+        "abduct": [
+          -30.0,
+          140.0
+        ],
+        "twist": [
+          -80.0,
+          80.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              -0.642849,
+              0.0,
+              0.765993
+            ],
+            "abduct": [
+              0.023171,
+              0.999542,
+              0.019446
+            ],
+            "twist": [
+              -0.765642,
+              0.03025,
+              -0.642555
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              -0.642849,
+              0.765993,
+              0.0
+            ],
+            "abduct": [
+              0.023171,
+              0.019446,
+              -0.999542
+            ],
+            "twist": [
+              -0.765642,
+              -0.642555,
+              -0.03025
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              -0.642849,
+              -0.765993,
+              0.0
+            ],
+            "abduct": [
+              0.023171,
+              -0.019446,
+              0.999542
+            ],
+            "twist": [
+              -0.765642,
+              0.642555,
+              0.03025
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "twistRedistributedTo": [
+          "mixamorig:RightArmTwist"
+        ],
+        "note": "+flex swing forward, +abduct raise outward/up, -abduct adduct toward torso"
+      },
+      "RightForeArm": {
+        "bone": "mixamorig:RightForeArm",
+        "parent": "mixamorig:RightArm",
+        "kind": "hinge",
+        "flex": [
+          -5.0,
+          145.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          -85.0,
+          85.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              -0.642849,
+              0.0,
+              0.765993
+            ],
+            "abduct": [
+              0.039919,
+              -0.998641,
+              0.033501
+            ],
+            "twist": [
+              -0.764952,
+              -0.052113,
+              -0.641976
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              -0.642849,
+              0.765993,
+              0.0
+            ],
+            "abduct": [
+              0.039919,
+              0.033501,
+              0.998641
+            ],
+            "twist": [
+              -0.764952,
+              -0.641976,
+              0.052113
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              -0.642849,
+              -0.765993,
+              0.0
+            ],
+            "abduct": [
+              0.039919,
+              -0.033501,
+              -0.998641
+            ],
+            "twist": [
+              -0.764952,
+              0.641976,
+              -0.052113
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "twistRedistributedTo": [
+          "mixamorig:RightForeArmTwist1",
+          "mixamorig:RightForeArmTwist2"
+        ],
+        "note": "hinge: +flex bend forearm forward (-Y), abduct locked 0, twist shared with ForeArmTwist1/2"
+      },
+      "RightHand": {
+        "bone": "mixamorig:RightHand",
+        "parent": "mixamorig:RightForeArm",
+        "kind": "ball",
+        "flex": [
+          -60.0,
+          70.0
+        ],
+        "abduct": [
+          -20.0,
+          35.0
+        ],
+        "twist": [
+          -80.0,
+          80.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.102603,
+              -0.990988,
+              0.086108
+            ],
+            "abduct": [
+              0.642846,
+              0.0,
+              -0.765995
+            ],
+            "twist": [
+              -0.759092,
+              -0.133948,
+              -0.637053
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.102603,
+              0.086108,
+              0.990988
+            ],
+            "abduct": [
+              0.642846,
+              -0.765995,
+              0.0
+            ],
+            "twist": [
+              -0.759092,
+              -0.637053,
+              0.133948
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.102603,
+              -0.086108,
+              -0.990988
+            ],
+            "abduct": [
+              0.642846,
+              0.765995,
+              0.0
+            ],
+            "twist": [
+              -0.759092,
+              0.637053,
+              -0.133948
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.0,
+              -0.106615,
+              0.9943
+            ],
+            "abduct": [
+              -1.0,
+              2e-06,
+              0.0
+            ],
+            "twist": [
+              2e-06,
+              0.9943,
+              0.106615
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.0,
+              0.106615,
+              -0.9943
+            ],
+            "abduct": [
+              -1.0,
+              -2e-06,
+              0.0
+            ],
+            "twist": [
+              2e-06,
+              -0.9943,
+              -0.106615
+            ]
+          }
+        },
+        "twistRedistributedTo": [
+          "mixamorig:RightForeArmTwist1",
+          "mixamorig:RightForeArmTwist2"
+        ],
+        "note": "+flex toward palm, -abduct radial (thumb), +abduct ulnar (pinky), twist redistributed to forearm twist bones"
+      },
+      "RightUpLeg": {
+        "bone": "mixamorig:RightUpLeg",
+        "parent": "mixamorig:Hips",
+        "kind": "ball",
+        "flex": [
+          -20.0,
+          125.0
+        ],
+        "abduct": [
+          -25.0,
+          45.0
+        ],
+        "twist": [
+          -40.0,
+          40.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.99953,
+              -0.030642
+            ],
+            "twist": [
+              0.0,
+              -0.030642,
+              -0.99953
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.030642,
+              -0.99953
+            ],
+            "twist": [
+              0.0,
+              -0.99953,
+              0.030642
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.030642,
+              0.99953
+            ],
+            "twist": [
+              0.0,
+              0.99953,
+              -0.030642
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex raise thigh forward, +abduct spread outward, -abduct adduct inward"
+      },
+      "RightLeg": {
+        "bone": "mixamorig:RightLeg",
+        "parent": "mixamorig:RightUpLeg",
+        "kind": "hinge",
+        "flex": [
+          -3.0,
+          140.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          -10.0,
+          10.0
+        ],
+        "twistRequiresFlexDeg": 20.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.999739,
+              0.022865
+            ],
+            "twist": [
+              0.0,
+              0.022865,
+              -0.999739
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.022865,
+              -0.999739
+            ],
+            "twist": [
+              0.0,
+              -0.999739,
+              -0.022865
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.022865,
+              0.999739
+            ],
+            "twist": [
+              0.0,
+              0.999739,
+              0.022865
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "hinge: +flex bend knee backward (+Y), abduct locked 0, twist +-10 only while flexed > 20 deg"
+      },
+      "RightFoot": {
+        "bone": "mixamorig:RightFoot",
+        "parent": "mixamorig:RightLeg",
+        "kind": "ball",
+        "flex": [
+          -20.0,
+          45.0
+        ],
+        "abduct": [
+          -30.0,
+          30.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.622387,
+              -0.78271
+            ],
+            "twist": [
+              0.0,
+              -0.78271,
+              -0.622387
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.78271,
+              -0.622387
+            ],
+            "twist": [
+              0.0,
+              -0.622387,
+              0.78271
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.78271,
+              0.622387
+            ],
+            "twist": [
+              0.0,
+              0.622387,
+              -0.78271
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              3e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              -3e-06
+            ]
+          }
+        },
+        "note": "+flex plantarflex (toes down), -flex dorsiflex (toes up), +-abduct bank/splay"
+      },
+      "RightToeBase": {
+        "bone": "mixamorig:RightToeBase",
+        "parent": "mixamorig:RightFoot",
+        "kind": "hinge",
+        "flex": [
+          -30.0,
+          50.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.18041,
+              0.983591
+            ],
+            "twist": [
+              0.0,
+              -0.983591,
+              -0.18041
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.983591,
+              0.18041
+            ],
+            "twist": [
+              0.0,
+              -0.18041,
+              0.983591
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              -1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              -0.983591,
+              -0.18041
+            ],
+            "twist": [
+              0.0,
+              0.18041,
+              -0.983591
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "abduct": [
+              0.0,
+              0.0,
+              -1.0
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              -1e-06
+            ]
+          }
+        },
+        "note": "+flex dorsiflex toes up (stride push-off), -flex curl down"
+      },
+      "RightHandIndex1": {
+        "bone": "mixamorig:RightHandIndex1",
+        "parent": "mixamorig:RightHand",
+        "kind": "ball",
+        "flex": [
+          -15.0,
+          90.0
+        ],
+        "abduct": [
+          -20.0,
+          20.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013815,
+              -0.999837,
+              0.011594
+            ],
+            "abduct": [
+              -0.809692,
+              -0.004383,
+              0.586838
+            ],
+            "twist": [
+              -0.586692,
+              -0.017494,
+              -0.809621
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013815,
+              0.011594,
+              0.999837
+            ],
+            "abduct": [
+              -0.809692,
+              0.586838,
+              0.004383
+            ],
+            "twist": [
+              -0.586692,
+              -0.809621,
+              0.017494
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013815,
+              -0.011594,
+              -0.999837
+            ],
+            "abduct": [
+              -0.809692,
+              -0.586838,
+              -0.004383
+            ],
+            "twist": [
+              -0.586692,
+              0.809621,
+              -0.017494
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003429
+            ],
+            "abduct": [
+              -0.00343,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003429
+            ],
+            "abduct": [
+              -0.00343,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "RightHandIndex2": {
+        "bone": "mixamorig:RightHandIndex2",
+        "parent": "mixamorig:RightHandIndex1",
+        "kind": "hinge",
+        "flex": [
+          0.0,
+          100.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013797,
+              -0.999838,
+              0.011579
+            ],
+            "abduct": [
+              -0.80952,
+              -0.004372,
+              0.587076
+            ],
+            "twist": [
+              -0.586931,
+              -0.017473,
+              -0.809449
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013797,
+              0.011579,
+              0.999838
+            ],
+            "abduct": [
+              -0.80952,
+              0.587076,
+              0.004372
+            ],
+            "twist": [
+              -0.586931,
+              -0.809449,
+              0.017473
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013797,
+              -0.011579,
+              -0.999838
+            ],
+            "abduct": [
+              -0.80952,
+              -0.587076,
+              -0.004372
+            ],
+            "twist": [
+              -0.586931,
+              0.809449,
+              -0.017473
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003425
+            ],
+            "abduct": [
+              -0.003425,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003425
+            ],
+            "abduct": [
+              -0.003425,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "RightHandIndex3": {
+        "bone": "mixamorig:RightHandIndex3",
+        "parent": "mixamorig:RightHandIndex2",
+        "kind": "hinge",
+        "flex": [
+          -5.0,
+          80.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.01379,
+              -0.999838,
+              0.011574
+            ],
+            "abduct": [
+              -0.80945,
+              -0.004368,
+              0.587173
+            ],
+            "twist": [
+              -0.587027,
+              -0.017466,
+              -0.809379
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.01379,
+              0.011574,
+              0.999838
+            ],
+            "abduct": [
+              -0.80945,
+              0.587173,
+              0.004368
+            ],
+            "twist": [
+              -0.587027,
+              -0.809379,
+              0.017466
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.01379,
+              -0.011574,
+              -0.999838
+            ],
+            "abduct": [
+              -0.80945,
+              -0.587173,
+              -0.004368
+            ],
+            "twist": [
+              -0.587027,
+              0.809379,
+              -0.017466
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003423
+            ],
+            "abduct": [
+              -0.003423,
+              -1e-06,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003423
+            ],
+            "abduct": [
+              -0.003423,
+              1e-06,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "RightHandMiddle1": {
+        "bone": "mixamorig:RightHandMiddle1",
+        "parent": "mixamorig:RightHand",
+        "kind": "ball",
+        "flex": [
+          -15.0,
+          90.0
+        ],
+        "abduct": [
+          -15.0,
+          15.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013809,
+              -0.999838,
+              0.011589
+            ],
+            "abduct": [
+              -0.80964,
+              -0.004379,
+              0.58691
+            ],
+            "twist": [
+              -0.586764,
+              -0.017488,
+              -0.809569
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013809,
+              0.011589,
+              0.999838
+            ],
+            "abduct": [
+              -0.80964,
+              0.58691,
+              0.004379
+            ],
+            "twist": [
+              -0.586764,
+              -0.809569,
+              0.017488
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013809,
+              -0.011589,
+              -0.999838
+            ],
+            "abduct": [
+              -0.80964,
+              -0.58691,
+              -0.004379
+            ],
+            "twist": [
+              -0.586764,
+              0.809569,
+              -0.017488
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003428
+            ],
+            "abduct": [
+              -0.003428,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003428
+            ],
+            "abduct": [
+              -0.003428,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "RightHandMiddle2": {
+        "bone": "mixamorig:RightHandMiddle2",
+        "parent": "mixamorig:RightHandMiddle1",
+        "kind": "hinge",
+        "flex": [
+          0.0,
+          100.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013794,
+              -0.999838,
+              0.011576
+            ],
+            "abduct": [
+              -0.809488,
+              -0.00437,
+              0.587119
+            ],
+            "twist": [
+              -0.586974,
+              -0.01747,
+              -0.809418
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013794,
+              0.011576,
+              0.999838
+            ],
+            "abduct": [
+              -0.809488,
+              0.587119,
+              0.00437
+            ],
+            "twist": [
+              -0.586974,
+              -0.809418,
+              0.01747
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013794,
+              -0.011576,
+              -0.999838
+            ],
+            "abduct": [
+              -0.809488,
+              -0.587119,
+              -0.00437
+            ],
+            "twist": [
+              -0.586974,
+              0.809418,
+              -0.01747
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003424
+            ],
+            "abduct": [
+              -0.003424,
+              1e-06,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003424
+            ],
+            "abduct": [
+              -0.003424,
+              -1e-06,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              -1e-06
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "RightHandMiddle3": {
+        "bone": "mixamorig:RightHandMiddle3",
+        "parent": "mixamorig:RightHandMiddle2",
+        "kind": "hinge",
+        "flex": [
+          -5.0,
+          80.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013789,
+              -0.999838,
+              0.011572
+            ],
+            "abduct": [
+              -0.809438,
+              -0.004367,
+              0.58719
+            ],
+            "twist": [
+              -0.587044,
+              -0.017464,
+              -0.809367
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013789,
+              0.011572,
+              0.999838
+            ],
+            "abduct": [
+              -0.809438,
+              0.58719,
+              0.004367
+            ],
+            "twist": [
+              -0.587044,
+              -0.809367,
+              0.017464
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013789,
+              -0.011572,
+              -0.999838
+            ],
+            "abduct": [
+              -0.809438,
+              -0.58719,
+              -0.004367
+            ],
+            "twist": [
+              -0.587044,
+              0.809367,
+              -0.017464
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003423
+            ],
+            "abduct": [
+              -0.003423,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003423
+            ],
+            "abduct": [
+              -0.003423,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "RightHandRing1": {
+        "bone": "mixamorig:RightHandRing1",
+        "parent": "mixamorig:RightHand",
+        "kind": "ball",
+        "flex": [
+          -15.0,
+          90.0
+        ],
+        "abduct": [
+          -15.0,
+          15.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013813,
+              -0.999837,
+              0.011592
+            ],
+            "abduct": [
+              -0.809678,
+              -0.004382,
+              0.586857
+            ],
+            "twist": [
+              -0.586711,
+              -0.017492,
+              -0.809607
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013813,
+              0.011592,
+              0.999837
+            ],
+            "abduct": [
+              -0.809678,
+              0.586857,
+              0.004382
+            ],
+            "twist": [
+              -0.586711,
+              -0.809607,
+              0.017492
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013813,
+              -0.011592,
+              -0.999837
+            ],
+            "abduct": [
+              -0.809678,
+              -0.586857,
+              -0.004382
+            ],
+            "twist": [
+              -0.586711,
+              0.809607,
+              -0.017492
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003429
+            ],
+            "abduct": [
+              -0.003429,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003429
+            ],
+            "abduct": [
+              -0.003429,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "RightHandRing2": {
+        "bone": "mixamorig:RightHandRing2",
+        "parent": "mixamorig:RightHandRing1",
+        "kind": "hinge",
+        "flex": [
+          0.0,
+          100.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013796,
+              -0.999838,
+              0.011578
+            ],
+            "abduct": [
+              -0.809509,
+              -0.004371,
+              0.587092
+            ],
+            "twist": [
+              -0.586946,
+              -0.017472,
+              -0.809438
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013796,
+              0.011578,
+              0.999838
+            ],
+            "abduct": [
+              -0.809509,
+              0.587092,
+              0.004371
+            ],
+            "twist": [
+              -0.586946,
+              -0.809438,
+              0.017472
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013796,
+              -0.011578,
+              -0.999838
+            ],
+            "abduct": [
+              -0.809509,
+              -0.587092,
+              -0.004371
+            ],
+            "twist": [
+              -0.586946,
+              0.809438,
+              -0.017472
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003424
+            ],
+            "abduct": [
+              -0.003425,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003424
+            ],
+            "abduct": [
+              -0.003425,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              -1e-06
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "RightHandRing3": {
+        "bone": "mixamorig:RightHandRing3",
+        "parent": "mixamorig:RightHandRing2",
+        "kind": "hinge",
+        "flex": [
+          -5.0,
+          80.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.01379,
+              -0.999838,
+              0.011573
+            ],
+            "abduct": [
+              -0.809447,
+              -0.004367,
+              0.587177
+            ],
+            "twist": [
+              -0.587032,
+              -0.017465,
+              -0.809376
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.01379,
+              0.011573,
+              0.999838
+            ],
+            "abduct": [
+              -0.809447,
+              0.587177,
+              0.004367
+            ],
+            "twist": [
+              -0.587032,
+              -0.809376,
+              0.017465
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.01379,
+              -0.011573,
+              -0.999838
+            ],
+            "abduct": [
+              -0.809447,
+              -0.587177,
+              -0.004367
+            ],
+            "twist": [
+              -0.587032,
+              0.809376,
+              -0.017465
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003423
+            ],
+            "abduct": [
+              -0.003423,
+              -1e-06,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              -1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003423
+            ],
+            "abduct": [
+              -0.003423,
+              1e-06,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              1e-06
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "RightHandPinky1": {
+        "bone": "mixamorig:RightHandPinky1",
+        "parent": "mixamorig:RightHand",
+        "kind": "ball",
+        "flex": [
+          -15.0,
+          90.0
+        ],
+        "abduct": [
+          -20.0,
+          20.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013824,
+              -0.999837,
+              0.011602
+            ],
+            "abduct": [
+              -0.809787,
+              -0.004388,
+              0.586707
+            ],
+            "twist": [
+              -0.586561,
+              -0.017505,
+              -0.809716
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013824,
+              0.011602,
+              0.999837
+            ],
+            "abduct": [
+              -0.809787,
+              0.586707,
+              0.004388
+            ],
+            "twist": [
+              -0.586561,
+              -0.809716,
+              0.017505
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013824,
+              -0.011602,
+              -0.999837
+            ],
+            "abduct": [
+              -0.809787,
+              -0.586707,
+              -0.004388
+            ],
+            "twist": [
+              -0.586561,
+              0.809716,
+              -0.017505
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003432
+            ],
+            "abduct": [
+              -0.003432,
+              1e-06,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003432
+            ],
+            "abduct": [
+              -0.003432,
+              -1e-06,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              -1e-06
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "RightHandPinky2": {
+        "bone": "mixamorig:RightHandPinky2",
+        "parent": "mixamorig:RightHandPinky1",
+        "kind": "hinge",
+        "flex": [
+          0.0,
+          100.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013803,
+              -0.999838,
+              0.011584
+            ],
+            "abduct": [
+              -0.80958,
+              -0.004376,
+              0.586994
+            ],
+            "twist": [
+              -0.586848,
+              -0.017481,
+              -0.809509
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013803,
+              0.011584,
+              0.999838
+            ],
+            "abduct": [
+              -0.80958,
+              0.586994,
+              0.004376
+            ],
+            "twist": [
+              -0.586848,
+              -0.809509,
+              0.017481
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013803,
+              -0.011584,
+              -0.999838
+            ],
+            "abduct": [
+              -0.80958,
+              -0.586994,
+              -0.004376
+            ],
+            "twist": [
+              -0.586848,
+              0.809509,
+              -0.017481
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003427
+            ],
+            "abduct": [
+              -0.003427,
+              -2e-06,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              -1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003427
+            ],
+            "abduct": [
+              -0.003427,
+              2e-06,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              1e-06
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "RightHandPinky3": {
+        "bone": "mixamorig:RightHandPinky3",
+        "parent": "mixamorig:RightHandPinky2",
+        "kind": "hinge",
+        "flex": [
+          -5.0,
+          80.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.013794,
+              -0.999838,
+              0.011577
+            ],
+            "abduct": [
+              -0.809495,
+              -0.00437,
+              0.587111
+            ],
+            "twist": [
+              -0.586965,
+              -0.01747,
+              -0.809424
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.013794,
+              0.011577,
+              0.999838
+            ],
+            "abduct": [
+              -0.809495,
+              0.587111,
+              0.00437
+            ],
+            "twist": [
+              -0.586965,
+              -0.809424,
+              0.01747
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.013794,
+              -0.011577,
+              -0.999838
+            ],
+            "abduct": [
+              -0.809495,
+              -0.587111,
+              -0.00437
+            ],
+            "twist": [
+              -0.586965,
+              0.809424,
+              -0.01747
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.999994,
+              0.0,
+              -0.003424
+            ],
+            "abduct": [
+              -0.003424,
+              0.0,
+              -0.999994
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.999994,
+              0.0,
+              0.003424
+            ],
+            "abduct": [
+              -0.003424,
+              0.0,
+              0.999994
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl toward palm"
+      },
+      "RightHandThumb1": {
+        "bone": "mixamorig:RightHandThumb1",
+        "parent": "mixamorig:RightHand",
+        "kind": "ball",
+        "flex": [
+          -10.0,
+          50.0
+        ],
+        "abduct": [
+          -60.0,
+          60.0
+        ],
+        "twist": [
+          -30.0,
+          30.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.892663,
+              -0.446863,
+              -0.058871
+            ],
+            "abduct": [
+              0.264401,
+              0.624944,
+              -0.734532
+            ],
+            "twist": [
+              -0.365026,
+              -0.640124,
+              -0.676016
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.892663,
+              -0.058871,
+              0.446863
+            ],
+            "abduct": [
+              0.264401,
+              -0.734532,
+              -0.624944
+            ],
+            "twist": [
+              -0.365026,
+              -0.676016,
+              0.640124
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.892663,
+              0.058871,
+              -0.446863
+            ],
+            "abduct": [
+              0.264401,
+              0.734532,
+              0.624944
+            ],
+            "twist": [
+              -0.365026,
+              0.676016,
+              -0.640124
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.839455,
+              1e-06,
+              0.54343
+            ],
+            "abduct": [
+              -0.54343,
+              1e-06,
+              0.839454
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              -1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.839455,
+              -1e-06,
+              -0.54343
+            ],
+            "abduct": [
+              -0.54343,
+              -1e-06,
+              -0.839454
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              1e-06
+            ]
+          }
+        },
+        "note": "+flex curl across palm"
+      },
+      "RightHandThumb2": {
+        "bone": "mixamorig:RightHandThumb2",
+        "parent": "mixamorig:RightHandThumb1",
+        "kind": "hinge",
+        "flex": [
+          0.0,
+          60.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.891391,
+              -0.448921,
+              -0.06239
+            ],
+            "abduct": [
+              0.264186,
+              0.626487,
+              -0.733294
+            ],
+            "twist": [
+              -0.368278,
+              -0.637169,
+              -0.677043
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.891391,
+              -0.06239,
+              0.448921
+            ],
+            "abduct": [
+              0.264186,
+              -0.733294,
+              -0.626487
+            ],
+            "twist": [
+              -0.368278,
+              -0.677043,
+              0.637169
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.891391,
+              0.06239,
+              -0.448921
+            ],
+            "abduct": [
+              0.264186,
+              0.733294,
+              0.626487
+            ],
+            "twist": [
+              -0.368278,
+              0.677043,
+              -0.637169
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.837869,
+              1e-06,
+              0.545871
+            ],
+            "abduct": [
+              -0.545871,
+              1e-06,
+              0.837869
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              -1e-06
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.837869,
+              -1e-06,
+              -0.545871
+            ],
+            "abduct": [
+              -0.545871,
+              -1e-06,
+              -0.837869
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              1e-06
+            ]
+          }
+        },
+        "note": "+flex curl across palm"
+      },
+      "RightHandThumb3": {
+        "bone": "mixamorig:RightHandThumb3",
+        "parent": "mixamorig:RightHandThumb2",
+        "kind": "hinge",
+        "flex": [
+          -10.0,
+          80.0
+        ],
+        "abduct": [
+          0.0,
+          0.0
+        ],
+        "twist": [
+          0.0,
+          0.0
+        ],
+        "twistRequiresFlexDeg": 0.0,
+        "axes": {
+          "model_blender": {
+            "flex": [
+              0.890764,
+              -0.449923,
+              -0.064108
+            ],
+            "abduct": [
+              0.264082,
+              0.627233,
+              -0.732693
+            ],
+            "twist": [
+              -0.369866,
+              -0.635727,
+              -0.677533
+            ]
+          },
+          "model_gltf": {
+            "flex": [
+              0.890764,
+              -0.064108,
+              0.449923
+            ],
+            "abduct": [
+              0.264082,
+              -0.732693,
+              -0.627233
+            ],
+            "twist": [
+              -0.369866,
+              -0.677533,
+              0.635727
+            ]
+          },
+          "model_unity": {
+            "flex": [
+              0.890764,
+              0.064108,
+              -0.449923
+            ],
+            "abduct": [
+              0.264082,
+              0.732693,
+              0.627233
+            ],
+            "twist": [
+              -0.369866,
+              0.677533,
+              -0.635727
+            ]
+          },
+          "local_blender": {
+            "flex": [
+              0.837096,
+              0.0,
+              0.547056
+            ],
+            "abduct": [
+              -0.547056,
+              0.0,
+              0.837096
+            ],
+            "twist": [
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          "local_unity": {
+            "flex": [
+              0.837096,
+              0.0,
+              -0.547056
+            ],
+            "abduct": [
+              -0.547056,
+              0.0,
+              -0.837096
+            ],
+            "twist": [
+              0.0,
+              -1.0,
+              0.0
+            ]
+          }
+        },
+        "note": "+flex curl across palm"
+      }
+    },
+    "capsules": {
+      "domeng": {
+        "heightM": 1.6997,
+        "legLengthM": 0.5554,
+        "legLengthRatio": 0.7983,
+        "LeftArm": {
+          "a": [
+            0.2025,
+            0.0498,
+            1.1654
+          ],
+          "b": [
+            0.2745,
+            0.0526,
+            1.105
+          ],
+          "radiusM": 0.083,
+          "radiusCoreM": 0.0722,
+          "radiusOuterM": 0.1209
+        },
+        "LeftForeArm": {
+          "a": [
+            0.3463,
+            0.0594,
+            1.0446
+          ],
+          "b": [
+            0.3974,
+            0.0559,
+            1.0017
+          ],
+          "radiusM": 0.0871,
+          "radiusCoreM": 0.0708,
+          "radiusOuterM": 0.1337
+        },
+        "LeftUpLeg": {
+          "a": [
+            0.1361,
+            0.0232,
+            0.6607
+          ],
+          "b": [
+            0.1361,
+            0.0141,
+            0.3611
+          ],
+          "radiusM": 0.1407,
+          "radiusCoreM": 0.1326,
+          "radiusOuterM": 0.163
+        },
+        "LeftLeg": {
+          "a": [
+            0.1561,
+            0.0365,
+            0.3619
+          ],
+          "b": [
+            0.1561,
+            0.0424,
+            0.1057
+          ],
+          "radiusM": 0.0947,
+          "radiusCoreM": 0.075,
+          "radiusOuterM": 0.1096
+        },
+        "RightArm": {
+          "a": [
+            -0.1959,
+            0.0498,
+            1.1654
+          ],
+          "b": [
+            -0.2679,
+            0.0526,
+            1.105
+          ],
+          "radiusM": 0.083,
+          "radiusCoreM": 0.073,
+          "radiusOuterM": 0.1168
+        },
+        "RightForeArm": {
+          "a": [
+            -0.3397,
+            0.0594,
+            1.0446
+          ],
+          "b": [
+            -0.3907,
+            0.0559,
+            1.0017
+          ],
+          "radiusM": 0.0802,
+          "radiusCoreM": 0.0729,
+          "radiusOuterM": 0.1332
+        },
+        "RightUpLeg": {
+          "a": [
+            -0.1295,
+            0.0166,
+            0.6607
+          ],
+          "b": [
+            -0.1295,
+            0.0074,
+            0.3607
+          ],
+          "radiusM": 0.1381,
+          "radiusCoreM": 0.1264,
+          "radiusOuterM": 0.1676
+        },
+        "RightLeg": {
+          "a": [
+            -0.1494,
+            0.0365,
+            0.3619
+          ],
+          "b": [
+            -0.1494,
+            0.0424,
+            0.1057
+          ],
+          "radiusM": 0.1001,
+          "radiusCoreM": 0.0748,
+          "radiusOuterM": 0.1143
+        },
+        "Torso": {
+          "a": [
+            0.0033,
+            -0.0033,
+            0.7072
+          ],
+          "b": [
+            0.0232,
+            0.0384,
+            1.2491
+          ],
+          "radiusM": 0.2395,
+          "halfWidthXM": 0.1851
+        },
+        "skirtOrHemFlareM": 0.0412,
+        "measuredBaseContactsMm": {
+          "LeftForeArm_flex145_pen_mm": 0.0,
+          "RightForeArm_flex145_pen_mm": 0.0,
+          "LeftLeg_flex140_pen_mm": 45.15,
+          "RightLeg_flex140_pen_mm": 47.89,
+          "LeftArm_abd-30_pen_mm": 0.0,
+          "RightArm_abd-30_pen_mm": 55.75,
+          "LeftUpLeg_abd-25_pen_mm": 12.56,
+          "LeftUpLeg_flex125_pen_mm": 54.04,
+          "RightUpLeg_abd-25_pen_mm": 15.34,
+          "RightUpLeg_flex125_pen_mm": 49.86
+        }
+      },
+      "inggo": {
+        "heightM": 1.6913,
+        "legLengthM": 0.6611,
+        "legLengthRatio": 0.9502,
+        "LeftArm": {
+          "a": [
+            0.1693,
+            -0.0365,
+            1.1455
+          ],
+          "b": [
+            0.2498,
+            -0.0333,
+            1.078
+          ],
+          "radiusM": 0.0675,
+          "radiusCoreM": 0.0502,
+          "radiusOuterM": 0.0931
+        },
+        "LeftForeArm": {
+          "a": [
+            0.3269,
+            -0.0033,
+            1.0104
+          ],
+          "b": [
+            0.3775,
+            -0.0068,
+            0.968
+          ],
+          "radiusM": 0.0412,
+          "radiusCoreM": 0.0322,
+          "radiusOuterM": 0.0489
+        },
+        "LeftUpLeg": {
+          "a": [
+            0.0963,
+            -0.0564,
+            0.767
+          ],
+          "b": [
+            0.0963,
+            -0.0665,
+            0.4391
+          ],
+          "radiusM": 0.0948,
+          "radiusCoreM": 0.0908,
+          "radiusOuterM": 0.1072
+        },
+        "LeftLeg": {
+          "a": [
+            0.1361,
+            -0.0432,
+            0.4416
+          ],
+          "b": [
+            0.1361,
+            -0.0355,
+            0.1076
+          ],
+          "radiusM": 0.0735,
+          "radiusCoreM": 0.041,
+          "radiusOuterM": 0.0943
+        },
+        "RightArm": {
+          "a": [
+            -0.1627,
+            -0.0365,
+            1.1455
+          ],
+          "b": [
+            -0.2432,
+            -0.0333,
+            1.078
+          ],
+          "radiusM": 0.0649,
+          "radiusCoreM": 0.0487,
+          "radiusOuterM": 0.092
+        },
+        "RightForeArm": {
+          "a": [
+            -0.3203,
+            -0.0033,
+            1.0104
+          ],
+          "b": [
+            -0.3709,
+            -0.0068,
+            0.968
+          ],
+          "radiusM": 0.0404,
+          "radiusCoreM": 0.0344,
+          "radiusOuterM": 0.0461
+        },
+        "RightUpLeg": {
+          "a": [
+            -0.0896,
+            -0.0564,
+            0.767
+          ],
+          "b": [
+            -0.0896,
+            -0.0665,
+            0.4391
+          ],
+          "radiusM": 0.0967,
+          "radiusCoreM": 0.093,
+          "radiusOuterM": 0.1104
+        },
+        "RightLeg": {
+          "a": [
+            -0.1295,
+            -0.0432,
+            0.4416
+          ],
+          "b": [
+            -0.1295,
+            -0.0355,
+            0.1076
+          ],
+          "radiusM": 0.078,
+          "radiusCoreM": 0.043,
+          "radiusOuterM": 0.0967
+        },
+        "Torso": {
+          "a": [
+            0.0033,
+            -0.0697,
+            0.8068
+          ],
+          "b": [
+            0.0033,
+            -0.0539,
+            1.2278
+          ],
+          "radiusM": 0.1445,
+          "halfWidthXM": 0.1396
+        },
+        "skirtOrHemFlareM": 0.0174,
+        "measuredBaseContactsMm": {
+          "LeftForeArm_flex145_pen_mm": 0.0,
+          "RightForeArm_flex145_pen_mm": 0.0,
+          "LeftLeg_flex140_pen_mm": 47.11,
+          "RightLeg_flex140_pen_mm": 41.62,
+          "LeftArm_abd-30_pen_mm": 0.0,
+          "RightArm_abd-30_pen_mm": 0.0,
+          "LeftUpLeg_abd-25_pen_mm": 28.63,
+          "LeftUpLeg_flex125_pen_mm": 18.3,
+          "RightUpLeg_abd-25_pen_mm": 29.67,
+          "RightUpLeg_flex125_pen_mm": 14.61
+        }
+      },
+      "jopay": {
+        "heightM": 1.6992,
+        "legLengthM": 0.564,
+        "legLengthRatio": 0.8107,
+        "LeftArm": {
+          "a": [
+            0.1826,
+            -0.01,
+            1.1521
+          ],
+          "b": [
+            0.2505,
+            -0.0073,
+            1.0952
+          ],
+          "radiusM": 0.086,
+          "radiusCoreM": 0.0749,
+          "radiusOuterM": 0.0971
+        },
+        "LeftForeArm": {
+          "a": [
+            0.3144,
+            0.023,
+            1.0382
+          ],
+          "b": [
+            0.3619,
+            0.0198,
+            0.9984
+          ],
+          "radiusM": 0.043,
+          "radiusCoreM": 0.0387,
+          "radiusOuterM": 0.0453
+        },
+        "LeftUpLeg": {
+          "a": [
+            0.1029,
+            -0.0564,
+            0.6674
+          ],
+          "b": [
+            0.1029,
+            -0.0631,
+            0.4512
+          ],
+          "radiusM": 0.0854,
+          "radiusCoreM": 0.0804,
+          "radiusOuterM": 0.0972
+        },
+        "LeftLeg": {
+          "a": [
+            0.1428,
+            -0.0631,
+            0.4549
+          ],
+          "b": [
+            0.1428,
+            -0.055,
+            0.1034
+          ],
+          "radiusM": 0.0843,
+          "radiusCoreM": 0.0407,
+          "radiusOuterM": 0.112
+        },
+        "RightArm": {
+          "a": [
+            -0.176,
+            -0.01,
+            1.1521
+          ],
+          "b": [
+            -0.2439,
+            -0.0073,
+            1.0952
+          ],
+          "radiusM": 0.0808,
+          "radiusCoreM": 0.07,
+          "radiusOuterM": 0.097
+        },
+        "RightForeArm": {
+          "a": [
+            -0.3078,
+            0.023,
+            1.0382
+          ],
+          "b": [
+            -0.3552,
+            0.0198,
+            0.9984
+          ],
+          "radiusM": 0.0453,
+          "radiusCoreM": 0.0371,
+          "radiusOuterM": 0.0493
+        },
+        "RightUpLeg": {
+          "a": [
+            -0.0963,
+            -0.0564,
+            0.6674
+          ],
+          "b": [
+            -0.0963,
+            -0.0631,
+            0.4512
+          ],
+          "radiusM": 0.0854,
+          "radiusCoreM": 0.0742,
+          "radiusOuterM": 0.1021
+        },
+        "RightLeg": {
+          "a": [
+            -0.1361,
+            -0.0631,
+            0.4549
+          ],
+          "b": [
+            -0.1361,
+            -0.055,
+            0.1034
+          ],
+          "radiusM": 0.0931,
+          "radiusCoreM": 0.0452,
+          "radiusOuterM": 0.1154
+        },
+        "Torso": {
+          "a": [
+            0.0033,
+            -0.0697,
+            0.7338
+          ],
+          "b": [
+            -0.0033,
+            -0.0205,
+            1.2876
+          ],
+          "radiusM": 0.1761,
+          "halfWidthXM": 0.161
+        },
+        "skirtOrHemFlareM": 0.0279,
+        "measuredBaseContactsMm": {
+          "LeftForeArm_flex145_pen_mm": 0.0,
+          "RightForeArm_flex145_pen_mm": 0.0,
+          "LeftLeg_flex140_pen_mm": 42.27,
+          "RightLeg_flex140_pen_mm": 40.81,
+          "LeftArm_abd-30_pen_mm": 0.0,
+          "RightArm_abd-30_pen_mm": 0.0,
+          "LeftUpLeg_abd-25_pen_mm": 0.0,
+          "LeftUpLeg_flex125_pen_mm": 30.46,
+          "RightUpLeg_abd-25_pen_mm": 0.0,
+          "RightUpLeg_flex125_pen_mm": 48.85
+        }
+      },
+      "jumong": {
+        "heightM": 1.6949,
+        "legLengthM": 0.6774,
+        "legLengthRatio": 0.9737,
+        "LeftArm": {
+          "a": [
+            0.1693,
+            0.0232,
+            1.2053
+          ],
+          "b": [
+            0.2475,
+            0.0263,
+            1.1397
+          ],
+          "radiusM": 0.0644,
+          "radiusCoreM": 0.0495,
+          "radiusOuterM": 0.0927
+        },
+        "LeftForeArm": {
+          "a": [
+            0.3239,
+            0.0477,
+            1.074
+          ],
+          "b": [
+            0.3738,
+            0.0443,
+            1.0322
+          ],
+          "radiusM": 0.0411,
+          "radiusCoreM": 0.0326,
+          "radiusOuterM": 0.0433
+        },
+        "LeftUpLeg": {
+          "a": [
+            0.0963,
+            -0.01,
+            0.7736
+          ],
+          "b": [
+            0.0963,
+            -0.0198,
+            0.4525
+          ],
+          "radiusM": 0.0896,
+          "radiusCoreM": 0.0795,
+          "radiusOuterM": 0.1141
+        },
+        "LeftLeg": {
+          "a": [
+            0.1361,
+            -0.0166,
+            0.4549
+          ],
+          "b": [
+            0.1361,
+            -0.0084,
+            0.098
+          ],
+          "radiusM": 0.0675,
+          "radiusCoreM": 0.0341,
+          "radiusOuterM": 0.0874
+        },
+        "RightArm": {
+          "a": [
+            -0.1627,
+            0.0232,
+            1.2053
+          ],
+          "b": [
+            -0.2409,
+            0.0263,
+            1.1397
+          ],
+          "radiusM": 0.0602,
+          "radiusCoreM": 0.0472,
+          "radiusOuterM": 0.0913
+        },
+        "RightForeArm": {
+          "a": [
+            -0.3173,
+            0.0477,
+            1.074
+          ],
+          "b": [
+            -0.3671,
+            0.0443,
+            1.0322
+          ],
+          "radiusM": 0.0392,
+          "radiusCoreM": 0.0353,
+          "radiusOuterM": 0.042
+        },
+        "RightUpLeg": {
+          "a": [
+            -0.0896,
+            -0.01,
+            0.7736
+          ],
+          "b": [
+            -0.0896,
+            -0.0198,
+            0.4525
+          ],
+          "radiusM": 0.0854,
+          "radiusCoreM": 0.0708,
+          "radiusOuterM": 0.1122
+        },
+        "RightLeg": {
+          "a": [
+            -0.1295,
+            -0.0166,
+            0.4549
+          ],
+          "b": [
+            -0.1295,
+            -0.0084,
+            0.098
+          ],
+          "radiusM": 0.0711,
+          "radiusCoreM": 0.0379,
+          "radiusOuterM": 0.0904
+        },
+        "Torso": {
+          "a": [
+            0.0033,
+            -0.0166,
+            0.9197
+          ],
+          "b": [
+            0.0033,
+            0.0195,
+            1.2581
+          ],
+          "radiusM": 0.1679,
+          "halfWidthXM": 0.1456
+        },
+        "skirtOrHemFlareM": 0.0414,
+        "measuredBaseContactsMm": {
+          "LeftForeArm_flex145_pen_mm": 0.0,
+          "RightForeArm_flex145_pen_mm": 0.0,
+          "LeftLeg_flex140_pen_mm": 35.81,
+          "RightLeg_flex140_pen_mm": 36.84,
+          "LeftArm_abd-30_pen_mm": 0.0,
+          "RightArm_abd-30_pen_mm": 0.0,
+          "LeftUpLeg_abd-25_pen_mm": 12.09,
+          "LeftUpLeg_flex125_pen_mm": 0.0,
+          "RightUpLeg_abd-25_pen_mm": 21.74,
+          "RightUpLeg_flex125_pen_mm": 0.0
+        }
+      },
+      "karding": {
+        "heightM": 1.6988,
+        "legLengthM": 0.7134,
+        "legLengthRatio": 1.0255,
+        "LeftArm": {
+          "a": [
+            0.1627,
+            -0.1428,
+            1.2053
+          ],
+          "b": [
+            0.2477,
+            -0.1394,
+            1.134
+          ],
+          "radiusM": 0.0824,
+          "radiusCoreM": 0.059,
+          "radiusOuterM": 0.111
+        },
+        "LeftForeArm": {
+          "a": [
+            0.3328,
+            -0.1428,
+            1.0627
+          ],
+          "b": [
+            0.3913,
+            -0.1468,
+            1.0135
+          ],
+          "radiusM": 0.0373,
+          "radiusCoreM": 0.0283,
+          "radiusOuterM": 0.0436
+        },
+        "LeftUpLeg": {
+          "a": [
+            0.1096,
+            -0.1627,
+            0.7471
+          ],
+          "b": [
+            0.1096,
+            -0.1732,
+            0.4048
+          ],
+          "radiusM": 0.0981,
+          "radiusCoreM": 0.0891,
+          "radiusOuterM": 0.12
+        },
+        "LeftLeg": {
+          "a": [
+            0.1561,
+            -0.1428,
+            0.4084
+          ],
+          "b": [
+            0.1561,
+            -0.1343,
+            0.0373
+          ],
+          "radiusM": 0.2882,
+          "radiusCoreM": 0.0625,
+          "radiusOuterM": 0.3531
+        },
+        "RightArm": {
+          "a": [
+            -0.1561,
+            -0.1428,
+            1.2053
+          ],
+          "b": [
+            -0.241,
+            -0.1394,
+            1.134
+          ],
+          "radiusM": 0.0797,
+          "radiusCoreM": 0.0668,
+          "radiusOuterM": 0.1046
+        },
+        "RightForeArm": {
+          "a": [
+            -0.3261,
+            -0.1428,
+            1.0627
+          ],
+          "b": [
+            -0.3847,
+            -0.1468,
+            1.0135
+          ],
+          "radiusM": 0.0394,
+          "radiusCoreM": 0.0326,
+          "radiusOuterM": 0.0443
+        },
+        "RightUpLeg": {
+          "a": [
+            -0.1029,
+            -0.1627,
+            0.7471
+          ],
+          "b": [
+            -0.1029,
+            -0.1732,
+            0.4048
+          ],
+          "radiusM": 0.1019,
+          "radiusCoreM": 0.0931,
+          "radiusOuterM": 0.2767
+        },
+        "RightLeg": {
+          "a": [
+            -0.1494,
+            -0.1428,
+            0.4084
+          ],
+          "b": [
+            -0.1494,
+            -0.1343,
+            0.0373
+          ],
+          "radiusM": 0.2953,
+          "radiusCoreM": 0.0671,
+          "radiusOuterM": 0.3668
+        },
+        "Torso": {
+          "a": [
+            0.01,
+            -0.1627,
+            0.8201
+          ],
+          "b": [
+            0.0033,
+            -0.1392,
+            1.2594
+          ],
+          "radiusM": 0.1432,
+          "halfWidthXM": 0.1374
+        },
+        "skirtOrHemFlareM": 0.1836,
+        "measuredBaseContactsMm": {
+          "LeftForeArm_flex145_pen_mm": 0.0,
+          "RightForeArm_flex145_pen_mm": 0.0,
+          "LeftLeg_flex140_pen_mm": 33.67,
+          "RightLeg_flex140_pen_mm": 34.36,
+          "LeftArm_abd-30_pen_mm": 0.0,
+          "RightArm_abd-30_pen_mm": 0.0,
+          "LeftUpLeg_abd-25_pen_mm": 32.83,
+          "LeftUpLeg_flex125_pen_mm": 8.42,
+          "RightUpLeg_abd-25_pen_mm": 27.81,
+          "RightUpLeg_flex125_pen_mm": 0.0
+        }
+      },
+      "kikay": {
+        "heightM": 1.6974,
+        "legLengthM": 0.6836,
+        "legLengthRatio": 0.9826,
+        "LeftArm": {
+          "a": [
+            0.1428,
+            -0.01,
+            1.2119
+          ],
+          "b": [
+            0.2191,
+            -0.0069,
+            1.1479
+          ],
+          "radiusM": 0.0745,
+          "radiusCoreM": 0.055,
+          "radiusOuterM": 0.0867
+        },
+        "LeftForeArm": {
+          "a": [
+            0.2953,
+            -0.0015,
+            1.0838
+          ],
+          "b": [
+            0.3452,
+            -0.0049,
+            1.0419
+          ],
+          "radiusM": 0.0571,
+          "radiusCoreM": 0.0531,
+          "radiusOuterM": 0.06
+        },
+        "LeftUpLeg": {
+          "a": [
+            0.083,
+            -0.0299,
+            0.7869
+          ],
+          "b": [
+            0.083,
+            -0.0395,
+            0.4726
+          ],
+          "radiusM": 0.0727,
+          "radiusCoreM": 0.0644,
+          "radiusOuterM": 0.0948
+        },
+        "LeftLeg": {
+          "a": [
+            0.1162,
+            -0.01,
+            0.4748
+          ],
+          "b": [
+            0.1162,
+            -0.0015,
+            0.1058
+          ],
+          "radiusM": 0.0645,
+          "radiusCoreM": 0.0375,
+          "radiusOuterM": 0.0802
+        },
+        "RightArm": {
+          "a": [
+            -0.1361,
+            -0.01,
+            1.2119
+          ],
+          "b": [
+            -0.2124,
+            -0.0069,
+            1.1479
+          ],
+          "radiusM": 0.0773,
+          "radiusCoreM": 0.057,
+          "radiusOuterM": 0.0909
+        },
+        "RightForeArm": {
+          "a": [
+            -0.2886,
+            -0.0015,
+            1.0838
+          ],
+          "b": [
+            -0.3385,
+            -0.0049,
+            1.0419
+          ],
+          "radiusM": 0.0564,
+          "radiusCoreM": 0.0541,
+          "radiusOuterM": 0.0588
+        },
+        "RightUpLeg": {
+          "a": [
+            -0.0764,
+            -0.0299,
+            0.7869
+          ],
+          "b": [
+            -0.0764,
+            -0.0395,
+            0.4726
+          ],
+          "radiusM": 0.072,
+          "radiusCoreM": 0.0589,
+          "radiusOuterM": 0.0928
+        },
+        "RightLeg": {
+          "a": [
+            -0.1096,
+            -0.01,
+            0.4748
+          ],
+          "b": [
+            -0.1096,
+            -0.0015,
+            0.1058
+          ],
+          "radiusM": 0.0656,
+          "radiusCoreM": 0.0357,
+          "radiusOuterM": 0.0848
+        },
+        "Torso": {
+          "a": [
+            0.0033,
+            -0.0432,
+            0.8002
+          ],
+          "b": [
+            0.0033,
+            -0.0349,
+            1.2536
+          ],
+          "radiusM": 0.1433,
+          "halfWidthXM": 0.1302
+        },
+        "skirtOrHemFlareM": 0.0339,
+        "measuredBaseContactsMm": {
+          "LeftForeArm_flex145_pen_mm": 0.0,
+          "RightForeArm_flex145_pen_mm": 0.0,
+          "LeftLeg_flex140_pen_mm": 37.73,
+          "RightLeg_flex140_pen_mm": 38.15,
+          "LeftArm_abd-30_pen_mm": 0.0,
+          "RightArm_abd-30_pen_mm": 0.0,
+          "LeftUpLeg_abd-25_pen_mm": 5.5,
+          "LeftUpLeg_flex125_pen_mm": 0.0,
+          "RightUpLeg_abd-25_pen_mm": 5.59,
+          "RightUpLeg_flex125_pen_mm": 0.0
+        }
+      },
+      "manoy": {
+        "heightM": 1.6991,
+        "legLengthM": 0.639,
+        "legLengthRatio": 0.9184,
+        "LeftArm": {
+          "a": [
+            0.1693,
+            0.0365,
+            1.2053
+          ],
+          "b": [
+            0.2546,
+            0.0399,
+            1.1337
+          ],
+          "radiusM": 0.0686,
+          "radiusCoreM": 0.0467,
+          "radiusOuterM": 0.088
+        },
+        "LeftForeArm": {
+          "a": [
+            0.3384,
+            0.0607,
+            1.0621
+          ],
+          "b": [
+            0.3912,
+            0.0571,
+            1.0178
+          ],
+          "radiusM": 0.0507,
+          "radiusCoreM": 0.0418,
+          "radiusOuterM": 0.054
+        },
+        "LeftUpLeg": {
+          "a": [
+            0.1096,
+            -0.0166,
+            0.7404
+          ],
+          "b": [
+            0.1096,
+            -0.0262,
+            0.4261
+          ],
+          "radiusM": 0.098,
+          "radiusCoreM": 0.0889,
+          "radiusOuterM": 0.1202
+        },
+        "LeftLeg": {
+          "a": [
+            0.1428,
+            0.0033,
+            0.4283
+          ],
+          "b": [
+            0.1428,
+            0.0107,
+            0.1036
+          ],
+          "radiusM": 0.0781,
+          "radiusCoreM": 0.0457,
+          "radiusOuterM": 0.0963
+        },
+        "RightArm": {
+          "a": [
+            -0.1627,
+            0.0365,
+            1.2053
+          ],
+          "b": [
+            -0.248,
+            0.0399,
+            1.1337
+          ],
+          "radiusM": 0.065,
+          "radiusCoreM": 0.0489,
+          "radiusOuterM": 0.0875
+        },
+        "RightForeArm": {
+          "a": [
+            -0.3317,
+            0.0607,
+            1.0621
+          ],
+          "b": [
+            -0.3845,
+            0.0571,
+            1.0178
+          ],
+          "radiusM": 0.0494,
+          "radiusCoreM": 0.0429,
+          "radiusOuterM": 0.0506
+        },
+        "RightUpLeg": {
+          "a": [
+            -0.1029,
+            -0.0166,
+            0.7404
+          ],
+          "b": [
+            -0.1029,
+            -0.0262,
+            0.4261
+          ],
+          "radiusM": 0.1018,
+          "radiusCoreM": 0.089,
+          "radiusOuterM": 0.1269
+        },
+        "RightLeg": {
+          "a": [
+            -0.1361,
+            0.0033,
+            0.4283
+          ],
+          "b": [
+            -0.1361,
+            0.0107,
+            0.1036
+          ],
+          "radiusM": 0.0781,
+          "radiusCoreM": 0.0437,
+          "radiusOuterM": 0.099
+        },
+        "Torso": {
+          "a": [
+            0.01,
+            -0.01,
+            0.7537
+          ],
+          "b": [
+            0.01,
+            0.0123,
+            1.2227
+          ],
+          "radiusM": 0.1684,
+          "halfWidthXM": 0.1515
+        },
+        "skirtOrHemFlareM": 0.0379,
+        "measuredBaseContactsMm": {
+          "LeftForeArm_flex145_pen_mm": 0.0,
+          "RightForeArm_flex145_pen_mm": 0.0,
+          "LeftLeg_flex140_pen_mm": 44.64,
+          "RightLeg_flex140_pen_mm": 44.99,
+          "LeftArm_abd-30_pen_mm": 0.0,
+          "RightArm_abd-30_pen_mm": 0.0,
+          "LeftUpLeg_abd-25_pen_mm": 27.29,
+          "LeftUpLeg_flex125_pen_mm": 25.51,
+          "RightUpLeg_abd-25_pen_mm": 21.22,
+          "RightUpLeg_flex125_pen_mm": 30.35
+        }
+      },
+      "narda": {
+        "heightM": 1.6976,
+        "legLengthM": 0.7431,
+        "legLengthRatio": 1.0681,
+        "LeftArm": {
+          "a": [
+            0.1561,
+            0.0033,
+            1.2717
+          ],
+          "b": [
+            0.245,
+            0.0068,
+            1.197
+          ],
+          "radiusM": 0.098,
+          "radiusCoreM": 0.0654,
+          "radiusOuterM": 0.1214
+        },
+        "LeftForeArm": {
+          "a": [
+            0.3339,
+            0.0132,
+            1.1223
+          ],
+          "b": [
+            0.3852,
+            0.0097,
+            1.0793
+          ],
+          "radiusM": 0.0491,
+          "radiusCoreM": 0.0338,
+          "radiusOuterM": 0.055
+        },
+        "LeftUpLeg": {
+          "a": [
+            0.1029,
+            -0.0564,
+            0.9064
+          ],
+          "b": [
+            0.1029,
+            -0.0679,
+            0.534
+          ],
+          "radiusM": 0.1066,
+          "radiusCoreM": 0.0951,
+          "radiusOuterM": 0.1636
+        },
+        "LeftLeg": {
+          "a": [
+            0.1162,
+            -0.0764,
+            0.5346
+          ],
+          "b": [
+            0.1162,
+            -0.0677,
+            0.1549
+          ],
+          "radiusM": 0.1878,
+          "radiusCoreM": 0.1184,
+          "radiusOuterM": 0.2366
+        },
+        "RightArm": {
+          "a": [
+            -0.1494,
+            0.0033,
+            1.2717
+          ],
+          "b": [
+            -0.2384,
+            0.0068,
+            1.197
+          ],
+          "radiusM": 0.0945,
+          "radiusCoreM": 0.0593,
+          "radiusOuterM": 0.129
+        },
+        "RightForeArm": {
+          "a": [
+            -0.3272,
+            0.0132,
+            1.1223
+          ],
+          "b": [
+            -0.3785,
+            0.0097,
+            1.0793
+          ],
+          "radiusM": 0.0461,
+          "radiusCoreM": 0.035,
+          "radiusOuterM": 0.0508
+        },
+        "RightUpLeg": {
+          "a": [
+            -0.0963,
+            -0.0564,
+            0.9064
+          ],
+          "b": [
+            -0.0963,
+            -0.0679,
+            0.534
+          ],
+          "radiusM": 0.1151,
+          "radiusCoreM": 0.1034,
+          "radiusOuterM": 0.172
+        },
+        "RightLeg": {
+          "a": [
+            -0.1096,
+            -0.0764,
+            0.5346
+          ],
+          "b": [
+            -0.1096,
+            -0.0677,
+            0.1557
+          ],
+          "radiusM": 0.1893,
+          "radiusCoreM": 0.1251,
+          "radiusOuterM": 0.2437
+        },
+        "Torso": {
+          "a": [
+            0.0033,
+            -0.0896,
+            0.9994
+          ],
+          "b": [
+            0.0033,
+            0.0737,
+            1.3236
+          ],
+          "radiusM": 0.1769,
+          "halfWidthXM": 0.1215
+        },
+        "skirtOrHemFlareM": 0.0686,
+        "measuredBaseContactsMm": {
+          "LeftForeArm_flex145_pen_mm": 0.0,
+          "RightForeArm_flex145_pen_mm": 0.0,
+          "LeftLeg_flex140_pen_mm": 45.93,
+          "RightLeg_flex140_pen_mm": 49.39,
+          "LeftArm_abd-30_pen_mm": 0.0,
+          "RightArm_abd-30_pen_mm": 0.0,
+          "LeftUpLeg_abd-25_pen_mm": 51.51,
+          "LeftUpLeg_flex125_pen_mm": 0.0,
+          "RightUpLeg_abd-25_pen_mm": 47.6,
+          "RightUpLeg_flex125_pen_mm": 0.0
+        }
+      },
+      "oriang": {
+        "heightM": 1.6999,
+        "legLengthM": 0.6207,
+        "legLengthRatio": 0.8921,
+        "LeftArm": {
+          "a": [
+            0.1627,
+            -0.0299,
+            1.1588
+          ],
+          "b": [
+            0.2456,
+            -0.0266,
+            1.0892
+          ],
+          "radiusM": 0.0852,
+          "radiusCoreM": 0.0598,
+          "radiusOuterM": 0.1007
+        },
+        "LeftForeArm": {
+          "a": [
+            0.3144,
+            0.0375,
+            1.0196
+          ],
+          "b": [
+            0.3705,
+            0.0337,
+            0.9725
+          ],
+          "radiusM": 0.0465,
+          "radiusCoreM": 0.039,
+          "radiusOuterM": 0.0557
+        },
+        "LeftUpLeg": {
+          "a": [
+            0.0896,
+            -0.0564,
+            0.7205
+          ],
+          "b": [
+            0.0896,
+            -0.0666,
+            0.3909
+          ],
+          "radiusM": 0.0947,
+          "radiusCoreM": 0.0829,
+          "radiusOuterM": 0.1159
+        },
+        "LeftLeg": {
+          "a": [
+            0.1428,
+            -0.0631,
+            0.3951
+          ],
+          "b": [
+            0.1428,
+            -0.0564,
+            0.1029
+          ],
+          "radiusM": 0.0721,
+          "radiusCoreM": 0.0431,
+          "radiusOuterM": 0.0915
+        },
+        "RightArm": {
+          "a": [
+            -0.1561,
+            -0.0299,
+            1.1588
+          ],
+          "b": [
+            -0.239,
+            -0.0266,
+            1.0892
+          ],
+          "radiusM": 0.0812,
+          "radiusCoreM": 0.0536,
+          "radiusOuterM": 0.0985
+        },
+        "RightForeArm": {
+          "a": [
+            -0.3077,
+            0.0375,
+            1.0196
+          ],
+          "b": [
+            -0.3638,
+            0.0337,
+            0.9725
+          ],
+          "radiusM": 0.0471,
+          "radiusCoreM": 0.0421,
+          "radiusOuterM": 0.053
+        },
+        "RightUpLeg": {
+          "a": [
+            -0.083,
+            -0.0564,
+            0.7205
+          ],
+          "b": [
+            -0.083,
+            -0.0666,
+            0.3909
+          ],
+          "radiusM": 0.092,
+          "radiusCoreM": 0.0781,
+          "radiusOuterM": 0.1187
+        },
+        "RightLeg": {
+          "a": [
+            -0.1361,
+            -0.0631,
+            0.3951
+          ],
+          "b": [
+            -0.1361,
+            -0.0564,
+            0.1029
+          ],
+          "radiusM": 0.074,
+          "radiusCoreM": 0.0389,
+          "radiusOuterM": 0.0931
+        },
+        "Torso": {
+          "a": [
+            0.01,
+            -0.0697,
+            0.7604
+          ],
+          "b": [
+            0.0033,
+            -0.0533,
+            1.213
+          ],
+          "radiusM": 0.1664,
+          "halfWidthXM": 0.156
+        },
+        "skirtOrHemFlareM": 0.0406,
+        "measuredBaseContactsMm": {
+          "LeftForeArm_flex145_pen_mm": 0.0,
+          "RightForeArm_flex145_pen_mm": 0.0,
+          "LeftLeg_flex140_pen_mm": 42.51,
+          "RightLeg_flex140_pen_mm": 43.72,
+          "LeftArm_abd-30_pen_mm": 0.0,
+          "RightArm_abd-30_pen_mm": 0.0,
+          "LeftUpLeg_abd-25_pen_mm": 24.44,
+          "LeftUpLeg_flex125_pen_mm": 5.36,
+          "RightUpLeg_abd-25_pen_mm": 20.55,
+          "RightUpLeg_flex125_pen_mm": 6.63
+        }
+      },
+      "paeng": {
+        "heightM": 1.7,
+        "legLengthM": 0.6226,
+        "legLengthRatio": 0.8948,
+        "LeftArm": {
+          "a": [
+            0.1893,
+            0.0432,
+            1.192
+          ],
+          "b": [
+            0.2714,
+            0.0464,
+            1.1231
+          ],
+          "radiusM": 0.0793,
+          "radiusCoreM": 0.0585,
+          "radiusOuterM": 0.1031
+        },
+        "LeftForeArm": {
+          "a": [
+            0.3469,
+            0.0895,
+            1.0542
+          ],
+          "b": [
+            0.399,
+            0.086,
+            1.0104
+          ],
+          "radiusM": 0.0512,
+          "radiusCoreM": 0.0432,
+          "radiusOuterM": 0.0608
+        },
+        "LeftUpLeg": {
+          "a": [
+            0.0896,
+            0.01,
+            0.7338
+          ],
+          "b": [
+            0.0896,
+            -0.0002,
+            0.4028
+          ],
+          "radiusM": 0.1093,
+          "radiusCoreM": 0.0967,
+          "radiusOuterM": 0.1325
+        },
+        "LeftLeg": {
+          "a": [
+            0.1494,
+            0.0232,
+            0.4084
+          ],
+          "b": [
+            0.1494,
+            0.0299,
+            0.1168
+          ],
+          "radiusM": 0.0741,
+          "radiusCoreM": 0.0463,
+          "radiusOuterM": 0.0875
+        },
+        "RightArm": {
+          "a": [
+            -0.1826,
+            0.0432,
+            1.192
+          ],
+          "b": [
+            -0.2647,
+            0.0464,
+            1.1231
+          ],
+          "radiusM": 0.0756,
+          "radiusCoreM": 0.0547,
+          "radiusOuterM": 0.1061
+        },
+        "RightForeArm": {
+          "a": [
+            -0.3403,
+            0.0895,
+            1.0542
+          ],
+          "b": [
+            -0.3924,
+            0.086,
+            1.0104
+          ],
+          "radiusM": 0.0513,
+          "radiusCoreM": 0.0445,
+          "radiusOuterM": 0.0611
+        },
+        "RightUpLeg": {
+          "a": [
+            -0.083,
+            0.01,
+            0.7338
+          ],
+          "b": [
+            -0.083,
+            -0.0002,
+            0.404
+          ],
+          "radiusM": 0.1069,
+          "radiusCoreM": 0.0928,
+          "radiusOuterM": 0.1324
+        },
+        "RightLeg": {
+          "a": [
+            -0.1361,
+            0.0232,
+            0.4084
+          ],
+          "b": [
+            -0.1361,
+            0.0299,
+            0.1155
+          ],
+          "radiusM": 0.0809,
+          "radiusCoreM": 0.0427,
+          "radiusOuterM": 0.0934
+        },
+        "Torso": {
+          "a": [
+            -0.0033,
+            -0.0166,
+            0.7803
+          ],
+          "b": [
+            0.0033,
+            0.0334,
+            1.2637
+          ],
+          "radiusM": 0.1736,
+          "halfWidthXM": 0.1655
+        },
+        "skirtOrHemFlareM": 0.0396,
+        "measuredBaseContactsMm": {
+          "LeftForeArm_flex145_pen_mm": 0.0,
+          "RightForeArm_flex145_pen_mm": 0.0,
+          "LeftLeg_flex140_pen_mm": 36.9,
+          "RightLeg_flex140_pen_mm": 42.47,
+          "LeftArm_abd-30_pen_mm": 0.0,
+          "RightArm_abd-30_pen_mm": 0.0,
+          "LeftUpLeg_abd-25_pen_mm": 20.84,
+          "LeftUpLeg_flex125_pen_mm": 20.77,
+          "RightUpLeg_abd-25_pen_mm": 23.24,
+          "RightUpLeg_flex125_pen_mm": 12.95
+        }
+      },
+      "pamela": {
+        "heightM": 1.6986,
+        "legLengthM": 0.6615,
+        "legLengthRatio": 0.9509,
+        "LeftArm": {
+          "a": [
+            0.1561,
+            0.01,
+            1.2252
+          ],
+          "b": [
+            0.2373,
+            0.0132,
+            1.157
+          ],
+          "radiusM": 0.0587,
+          "radiusCoreM": 0.0404,
+          "radiusOuterM": 0.0814
+        },
+        "LeftForeArm": {
+          "a": [
+            0.3176,
+            0.029,
+            1.0888
+          ],
+          "b": [
+            0.3639,
+            0.0258,
+            1.05
+          ],
+          "radiusM": 0.0476,
+          "radiusCoreM": 0.0349,
+          "radiusOuterM": 0.0542
+        },
+        "LeftUpLeg": {
+          "a": [
+            0.0896,
+            -0.0166,
+            0.767
+          ],
+          "b": [
+            0.0896,
+            -0.0272,
+            0.4227
+          ],
+          "radiusM": 0.0882,
+          "radiusCoreM": 0.0786,
+          "radiusOuterM": 0.1233
+        },
+        "LeftLeg": {
+          "a": [
+            0.1428,
+            0.0166,
+            0.4283
+          ],
+          "b": [
+            0.1428,
+            0.0239,
+            0.1112
+          ],
+          "radiusM": 0.066,
+          "radiusCoreM": 0.0379,
+          "radiusOuterM": 0.0814
+        },
+        "RightArm": {
+          "a": [
+            -0.1494,
+            0.01,
+            1.2252
+          ],
+          "b": [
+            -0.2307,
+            0.0132,
+            1.157
+          ],
+          "radiusM": 0.0787,
+          "radiusCoreM": 0.0517,
+          "radiusOuterM": 0.1075
+        },
+        "RightForeArm": {
+          "a": [
+            -0.311,
+            0.029,
+            1.0888
+          ],
+          "b": [
+            -0.3572,
+            0.0258,
+            1.05
+          ],
+          "radiusM": 0.0469,
+          "radiusCoreM": 0.0391,
+          "radiusOuterM": 0.0514
+        },
+        "RightUpLeg": {
+          "a": [
+            -0.083,
+            -0.0166,
+            0.767
+          ],
+          "b": [
+            -0.083,
+            -0.0271,
+            0.4237
+          ],
+          "radiusM": 0.0888,
+          "radiusCoreM": 0.0779,
+          "radiusOuterM": 0.1238
+        },
+        "RightLeg": {
+          "a": [
+            -0.1295,
+            0.0166,
+            0.4283
+          ],
+          "b": [
+            -0.1295,
+            0.0238,
+            0.1122
+          ],
+          "radiusM": 0.0666,
+          "radiusCoreM": 0.039,
+          "radiusOuterM": 0.0821
+        },
+        "Torso": {
+          "a": [
+            0.01,
+            -0.0232,
+            0.8201
+          ],
+          "b": [
+            0.0166,
+            0.0051,
+            1.2775
+          ],
+          "radiusM": 0.1622,
+          "halfWidthXM": 0.1453
+        },
+        "skirtOrHemFlareM": 0.0459,
+        "measuredBaseContactsMm": {
+          "LeftForeArm_flex145_pen_mm": 0.0,
+          "RightForeArm_flex145_pen_mm": 0.0,
+          "LeftLeg_flex140_pen_mm": 27.79,
+          "RightLeg_flex140_pen_mm": 29.19,
+          "LeftArm_abd-30_pen_mm": 0.0,
+          "RightArm_abd-30_pen_mm": 0.0,
+          "LeftUpLeg_abd-25_pen_mm": 24.2,
+          "LeftUpLeg_flex125_pen_mm": 0.0,
+          "RightUpLeg_abd-25_pen_mm": 15.68,
+          "RightUpLeg_flex125_pen_mm": 0.0
+        }
+      },
+      "tere": {
+        "heightM": 1.6981,
+        "legLengthM": 0.7263,
+        "legLengthRatio": 1.044,
+        "LeftArm": {
+          "a": [
+            0.1797,
+            -0.0138,
+            1.2424
+          ],
+          "b": [
+            0.3535,
+            -0.007,
+            1.0965
+          ],
+          "radiusM": 0.1102,
+          "radiusCoreM": 0.0683,
+          "radiusOuterM": 0.1611
+        },
+        "LeftForeArm": {
+          "a": [
+            0.3536,
+            -0.0084,
+            1.0965
+          ],
+          "b": [
+            0.5266,
+            -0.0202,
+            0.9513
+          ],
+          "radiusM": 0.047,
+          "radiusCoreM": 0.0344,
+          "radiusOuterM": 0.0576
+        },
+        "LeftUpLeg": {
+          "a": [
+            0.1132,
+            -0.0471,
+            0.8232
+          ],
+          "b": [
+            0.1132,
+            -0.0584,
+            0.4532
+          ],
+          "radiusM": 0.1101,
+          "radiusCoreM": 0.1035,
+          "radiusOuterM": 0.1339
+        },
+        "LeftLeg": {
+          "a": [
+            0.165,
+            -0.0729,
+            0.4576
+          ],
+          "b": [
+            0.165,
+            -0.0647,
+            0.0992
+          ],
+          "radiusM": 0.1049,
+          "radiusCoreM": 0.0524,
+          "radiusOuterM": 0.1274
+        },
+        "RightArm": {
+          "a": [
+            -0.176,
+            -0.0142,
+            1.2424
+          ],
+          "b": [
+            -0.3446,
+            -0.0076,
+            1.1009
+          ],
+          "radiusM": 0.1215,
+          "radiusCoreM": 0.0687,
+          "radiusOuterM": 0.1807
+        },
+        "RightForeArm": {
+          "a": [
+            -0.3447,
+            -0.0103,
+            1.1009
+          ],
+          "b": [
+            -0.518,
+            -0.0222,
+            0.9555
+          ],
+          "radiusM": 0.0449,
+          "radiusCoreM": 0.034,
+          "radiusOuterM": 0.0552
+        },
+        "RightUpLeg": {
+          "a": [
+            -0.0991,
+            -0.0471,
+            0.8239
+          ],
+          "b": [
+            -0.0991,
+            -0.0583,
+            0.4574
+          ],
+          "radiusM": 0.1134,
+          "radiusCoreM": 0.1069,
+          "radiusOuterM": 0.1365
+        },
+        "RightLeg": {
+          "a": [
+            -0.1467,
+            -0.0729,
+            0.4613
+          ],
+          "b": [
+            -0.1467,
+            -0.0646,
+            0.0993
+          ],
+          "radiusM": 0.1005,
+          "radiusCoreM": 0.0582,
+          "radiusOuterM": 0.1285
+        },
+        "Torso": {
+          "a": [
+            0.0036,
+            -0.0471,
+            0.9146
+          ],
+          "b": [
+            0.0036,
+            -0.0385,
+            1.2643
+          ],
+          "radiusM": 0.2591,
+          "halfWidthXM": 0.1637
+        },
+        "skirtOrHemFlareM": 0.0304,
+        "measuredBaseContactsMm": {
+          "LeftForeArm_flex145_pen_mm": 16.13,
+          "RightForeArm_flex145_pen_mm": 18.99,
+          "LeftLeg_flex140_pen_mm": 44.76,
+          "RightLeg_flex140_pen_mm": 48.35,
+          "LeftArm_abd-30_pen_mm": 0.0,
+          "RightArm_abd-30_pen_mm": 0.0,
+          "LeftUpLeg_abd-25_pen_mm": 0.0,
+          "LeftUpLeg_flex125_pen_mm": 0.0,
+          "RightUpLeg_abd-25_pen_mm": 0.0,
+          "RightUpLeg_flex125_pen_mm": 0.0
+        }
+      }
+    },
+    "overrides": {
+      "domeng": {
+        "LeftLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 45.2mm at 140deg"
+        },
+        "RightLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 47.9mm at 140deg"
+        },
+        "RightArm": {
+          "abduct": [
+            -25.0,
+            140.0
+          ],
+          "reason": "arm-torso contact 55.7mm at -30deg"
+        },
+        "LeftUpLeg": {
+          "abduct": [
+            -15.0,
+            45.0
+          ],
+          "flex": [
+            -20.0,
+            90.0
+          ],
+          "reason": "thigh-thigh 12.6mm at -25deg; thigh-torso 54.0mm at 125deg"
+        },
+        "RightUpLeg": {
+          "abduct": [
+            -15.0,
+            45.0
+          ],
+          "flex": [
+            -20.0,
+            90.0
+          ],
+          "reason": "thigh-thigh 15.3mm at -25deg; thigh-torso 49.9mm at 125deg"
+        },
+        "LeftArm": {
+          "abduct": [
+            -25.0,
+            140.0
+          ]
+        }
+      },
+      "inggo": {
+        "LeftLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 47.1mm at 140deg"
+        },
+        "RightLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 41.6mm at 140deg"
+        },
+        "LeftUpLeg": {
+          "abduct": [
+            -10.0,
+            45.0
+          ],
+          "flex": [
+            -20.0,
+            115.0
+          ],
+          "reason": "thigh-thigh 28.6mm at -25deg; thigh-torso 18.3mm at 125deg"
+        },
+        "RightUpLeg": {
+          "abduct": [
+            -10.0,
+            45.0
+          ],
+          "flex": [
+            -20.0,
+            115.0
+          ],
+          "reason": "thigh-thigh 29.7mm at -25deg; thigh-torso 14.6mm at 125deg"
+        }
+      },
+      "jopay": {
+        "LeftLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 42.3mm at 140deg"
+        },
+        "RightLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 40.8mm at 140deg"
+        },
+        "LeftUpLeg": {
+          "flex": [
+            -20.0,
+            105.0
+          ],
+          "reason": "thigh-torso 30.5mm at 125deg"
+        },
+        "RightUpLeg": {
+          "flex": [
+            -20.0,
+            105.0
+          ],
+          "reason": "thigh-torso 48.8mm at 125deg"
+        }
+      },
+      "jumong": {
+        "LeftLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 35.8mm at 140deg"
+        },
+        "RightLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 36.8mm at 140deg"
+        },
+        "LeftUpLeg": {
+          "abduct": [
+            -10.0,
+            45.0
+          ],
+          "reason": "thigh-thigh 12.1mm at -25deg"
+        },
+        "RightUpLeg": {
+          "abduct": [
+            -10.0,
+            45.0
+          ],
+          "reason": "thigh-thigh 21.7mm at -25deg"
+        }
+      },
+      "karding": {
+        "LeftLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 33.7mm at 140deg"
+        },
+        "RightLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 34.4mm at 140deg"
+        },
+        "LeftUpLeg": {
+          "abduct": [
+            -10.0,
+            45.0
+          ],
+          "flex": [
+            -20.0,
+            120.0
+          ],
+          "reason": "thigh-thigh 32.8mm at -25deg; thigh-torso 8.4mm at 125deg"
+        },
+        "RightUpLeg": {
+          "abduct": [
+            -10.0,
+            45.0
+          ],
+          "reason": "thigh-thigh 27.8mm at -25deg",
+          "flex": [
+            -20.0,
+            120.0
+          ]
+        }
+      },
+      "kikay": {
+        "LeftLeg": {
+          "flex": [
+            -3.0,
+            125.0
+          ],
+          "reason": "calf-thigh contact 37.7mm at 140deg"
+        },
+        "RightLeg": {
+          "flex": [
+            -3.0,
+            125.0
+          ],
+          "reason": "calf-thigh contact 38.2mm at 140deg"
+        },
+        "LeftUpLeg": {
+          "abduct": [
+            -20.0,
+            45.0
+          ],
+          "reason": "thigh-thigh 5.5mm at -25deg"
+        },
+        "RightUpLeg": {
+          "abduct": [
+            -20.0,
+            45.0
+          ],
+          "reason": "thigh-thigh 5.6mm at -25deg"
+        }
+      },
+      "manoy": {
+        "LeftLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 44.6mm at 140deg"
+        },
+        "RightLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 45.0mm at 140deg"
+        },
+        "LeftUpLeg": {
+          "abduct": [
+            -10.0,
+            45.0
+          ],
+          "flex": [
+            -20.0,
+            110.0
+          ],
+          "reason": "thigh-thigh 27.3mm at -25deg; thigh-torso 25.5mm at 125deg"
+        },
+        "RightUpLeg": {
+          "abduct": [
+            -10.0,
+            45.0
+          ],
+          "flex": [
+            -20.0,
+            110.0
+          ],
+          "reason": "thigh-thigh 21.2mm at -25deg; thigh-torso 30.3mm at 125deg"
+        }
+      },
+      "narda": {
+        "LeftLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 45.9mm at 140deg"
+        },
+        "RightLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 49.4mm at 140deg"
+        },
+        "LeftUpLeg": {
+          "abduct": [
+            -5.0,
+            45.0
+          ],
+          "reason": "thigh-thigh 51.5mm at -25deg"
+        },
+        "RightUpLeg": {
+          "abduct": [
+            -5.0,
+            45.0
+          ],
+          "reason": "thigh-thigh 47.6mm at -25deg"
+        }
+      },
+      "oriang": {
+        "LeftLeg": {
+          "flex": [
+            -3.0,
+            110.0
+          ],
+          "reason": "calf-thigh contact 42.5mm at 140deg"
+        },
+        "RightLeg": {
+          "flex": [
+            -3.0,
+            110.0
+          ],
+          "reason": "calf-thigh contact 43.7mm at 140deg"
+        },
+        "LeftUpLeg": {
+          "abduct": [
+            -10.0,
+            45.0
+          ],
+          "flex": [
+            -20.0,
+            120.0
+          ],
+          "reason": "thigh-thigh 24.4mm at -25deg; thigh-torso 5.4mm at 125deg"
+        },
+        "RightUpLeg": {
+          "abduct": [
+            -10.0,
+            45.0
+          ],
+          "flex": [
+            -20.0,
+            120.0
+          ],
+          "reason": "thigh-thigh 20.6mm at -25deg; thigh-torso 6.6mm at 125deg"
+        }
+      },
+      "paeng": {
+        "LeftLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 36.9mm at 140deg"
+        },
+        "RightLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 42.5mm at 140deg"
+        },
+        "LeftUpLeg": {
+          "abduct": [
+            -10.0,
+            45.0
+          ],
+          "flex": [
+            -20.0,
+            110.0
+          ],
+          "reason": "thigh-thigh 20.8mm at -25deg; thigh-torso 20.8mm at 125deg"
+        },
+        "RightUpLeg": {
+          "abduct": [
+            -10.0,
+            45.0
+          ],
+          "flex": [
+            -20.0,
+            110.0
+          ],
+          "reason": "thigh-thigh 23.2mm at -25deg; thigh-torso 12.9mm at 125deg"
+        }
+      },
+      "pamela": {
+        "LeftLeg": {
+          "flex": [
+            -3.0,
+            125.0
+          ],
+          "reason": "calf-thigh contact 27.8mm at 140deg"
+        },
+        "RightLeg": {
+          "flex": [
+            -3.0,
+            125.0
+          ],
+          "reason": "calf-thigh contact 29.2mm at 140deg"
+        },
+        "LeftUpLeg": {
+          "abduct": [
+            -5.0,
+            45.0
+          ],
+          "reason": "thigh-thigh 24.2mm at -25deg"
+        },
+        "RightUpLeg": {
+          "abduct": [
+            -5.0,
+            45.0
+          ],
+          "reason": "thigh-thigh 15.7mm at -25deg"
+        }
+      },
+      "tere": {
+        "LeftForeArm": {
+          "flex": [
+            -5.0,
+            135.0
+          ],
+          "reason": "forearm-upperarm contact 16.1mm at 145deg"
+        },
+        "RightForeArm": {
+          "flex": [
+            -5.0,
+            135.0
+          ],
+          "reason": "forearm-upperarm contact 19.0mm at 145deg"
+        },
+        "LeftLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 44.8mm at 140deg"
+        },
+        "RightLeg": {
+          "flex": [
+            -3.0,
+            105.0
+          ],
+          "reason": "calf-thigh contact 48.4mm at 140deg"
+        }
+      }
+    }
+  }
+}

@@ -28,6 +28,10 @@ namespace Kalyeah.Game
 
         readonly List<KidSnapshot> _previous = new List<KidSnapshot>(12);
         readonly bool _ownsAudio;
+        readonly Volume _postVolume;
+        readonly VolumeProfile _postVolumeProfile;
+        readonly Bloom _postBloom;
+        readonly ColorAdjustments _postColorGrade;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         readonly PcCombatInput _pcInput;
         public PcCombatInput PcInput => _pcInput;
@@ -99,6 +103,18 @@ namespace Kalyeah.Game
             cameraObject.tag = "MainCamera";
             Camera = cameraObject.GetComponent<Camera>();
             Camera.clearFlags = CameraClearFlags.Skybox;
+            KidView.SetActiveCamera(Camera);
+
+            _postVolume = cameraObject.AddComponent<Volume>();
+            _postVolume.isGlobal = true;
+            _postVolume.priority = 1f;
+            _postVolumeProfile = ScriptableObject.CreateInstance<VolumeProfile>();
+            _postVolumeProfile.name = "KalyeahMatchPostProfile";
+            _postVolumeProfile.hideFlags = HideFlags.DontSave;
+            _postBloom = _postVolumeProfile.Add<Bloom>(true);
+            _postColorGrade = _postVolumeProfile.Add<ColorAdjustments>(true);
+            _postVolume.sharedProfile = _postVolumeProfile;
+            MatchBoot.ApplyCameraPostSettings(Camera, _postVolume, _postBloom, _postColorGrade, SettingsStore.Current.GraphicsProfile);
 
             View.Fx.ViewCamera = Camera;
 
@@ -116,6 +132,7 @@ namespace Kalyeah.Game
             Hud.OverheadBars.KidViewScale = cameraRules.KidViewScale;
 
             BindSimEvents();
+            MatchBoot.GraphicsProfileChanged += OnGraphicsProfileChanged;
             if (interactive)
             {
                 Haptics.Enabled = SettingsStore.Current.Haptics;
@@ -124,6 +141,13 @@ namespace Kalyeah.Game
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
                 _pcInput = new PcCombatInput();
 #endif
+            }
+            else
+            {
+                MatchBoot.ApplyGlobalClarityGlobals(
+                    SettingsStore.Current.GraphicsProfile,
+                    SettingsStore.Current.ResolvedEnemyHighlightMode,
+                    RenderSettings.sun);
             }
 
             Draw(1f, 0f);
@@ -267,6 +291,12 @@ namespace Kalyeah.Game
             SyncAudioSettings();
         }
 
+        void OnGraphicsProfileChanged(GraphicsTierProfile profile)
+        {
+            if (_disposed) return;
+            MatchBoot.ApplyCameraPostSettings(Camera, _postVolume, _postBloom, _postColorGrade, profile);
+        }
+
         void SyncAudioSettings()
         {
             if (Audio == null) return;
@@ -376,6 +406,7 @@ namespace Kalyeah.Game
 
             UnbindSimEvents();
             Sim?.Dispose();
+            MatchBoot.GraphicsProfileChanged -= OnGraphicsProfileChanged;
             if (Interactive)
                 SettingsStore.Current.Changed -= OnSettingsChanged;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
@@ -388,6 +419,9 @@ namespace Kalyeah.Game
             if (_ownsAudio)
                 Audio?.Dispose();
 
+            KidView.ClearActiveCamera(Camera);
+            if (_postVolumeProfile != null)
+                KalyeahResources.Kill(_postVolumeProfile);
             if (Camera != null)
                 KalyeahResources.Kill(Camera.gameObject);
         }
@@ -580,13 +614,197 @@ namespace Kalyeah.Game
             ApplyDeviceQualityAndFrameRate();
         }
 
+        public const string LowQualityShaderKeyword = "KALYEAH_QUALITY_LOW";
+        public const float DefaultAmbientMin = 0.28f;
+        public const float DefaultAmbientMax = 0.92f;
+
+        /// <summary>Matches MatchView's default golden-hour sun vector pointing toward the sun (URP <c>_MainLightPosition.xyz</c> convention).</summary>
+        public static readonly Vector3 FallbackSunDirection = new Vector3(0.412f, 0.743f, -0.527f).normalized;
+
+        static readonly int GraphicsTierGlobalId = Shader.PropertyToID("_KalyeahGraphicsTier");
+        static readonly int UseDetailMapsGlobalId = Shader.PropertyToID("_KalyeahUseDetailMaps");
+        static readonly int AmbientMinGlobalId = Shader.PropertyToID("_KalyeahAmbientMin");
+        static readonly int AmbientMaxGlobalId = Shader.PropertyToID("_KalyeahAmbientMax");
+        static readonly int EnemyHighlightColorGlobalId = Shader.PropertyToID("_KalyeahEnemyHighlightColor");
+        static readonly int SunDirGlobalId = Shader.PropertyToID("_KalyeahSunDir");
+
+        /// <summary>Last applied 4-tier graphics profile (Low / Medium / High / Ultra).</summary>
+        public static GraphicsTierProfile ActiveGraphicsProfile { get; private set; } = GraphicsTierProfile.Medium;
+
+        /// <summary>Raised whenever the active 4-tier graphics preset is applied at boot or live in Settings.</summary>
+        public static event Action<GraphicsTierProfile> GraphicsProfileChanged;
+
+        /// <summary>Colorblind-safe enemy highlight colour (0=Red, 1=Yellow, 2=Purple) shared across shaders and HUD.</summary>
+        public static Color ResolveEnemyHighlightColor(int mode)
+            => KalyeahResources.ResolveEnemyHighlightColor(mode);
+
+        /// <summary>True only for Low (tier 0), where <c>KALYEAH_QUALITY_LOW</c> strips non-clarity character/world shader passes.</summary>
+        public static bool IsLowQualityKeywordActive(int qualityIndex)
+            => GraphicsTierProfile.ForQuality(qualityIndex).QualityIndex == SettingsStore.GraphicsLow;
+
+        /// <summary>Unit vector pointing toward the primary directional sun, or <see cref="FallbackSunDirection"/> when absent.</summary>
+        public static Vector3 ResolveSunDirection(Light sunOverride = null)
+        {
+            Light sun = sunOverride != null ? sunOverride : RenderSettings.sun;
+            if (sun != null)
+            {
+                Vector3 towardSun = -sun.transform.forward;
+                if (towardSun.sqrMagnitude > 1e-6f)
+                    return towardSun.normalized;
+            }
+            return FallbackSunDirection;
+        }
+
+        /// <summary>
+        /// Sets engine-wide VALORANT clarity shader globals and toggles <c>KALYEAH_QUALITY_LOW</c> atomically with zero allocations.
+        /// </summary>
+        public static void ApplyGlobalClarityGlobals(
+            GraphicsTierProfile profile,
+            int enemyHighlightMode,
+            Light sunOverride = null,
+            float ambientMin = DefaultAmbientMin,
+            float ambientMax = DefaultAmbientMax)
+        {
+            float clampedMin = Mathf.Clamp01(ambientMin);
+            float clampedMax = Mathf.Clamp(ambientMax, clampedMin, 2f);
+            Vector3 sunDir = ResolveSunDirection(sunOverride);
+            Color enemyColor = ResolveEnemyHighlightColor(enemyHighlightMode);
+
+            Shader.SetGlobalFloat(GraphicsTierGlobalId, profile.QualityIndex);
+            Shader.SetGlobalFloat(UseDetailMapsGlobalId, profile.UseNormalAndOrmMaps ? 1f : 0f);
+            Shader.SetGlobalFloat(AmbientMinGlobalId, clampedMin);
+            Shader.SetGlobalFloat(AmbientMaxGlobalId, clampedMax);
+            Shader.SetGlobalColor(EnemyHighlightColorGlobalId, enemyColor);
+            Shader.SetGlobalVector(SunDirGlobalId, new Vector4(sunDir.x, sunDir.y, sunDir.z, 1f));
+
+            if (IsLowQualityKeywordActive(profile.QualityIndex))
+                Shader.EnableKeyword(LowQualityShaderKeyword);
+            else
+                Shader.DisableKeyword(LowQualityShaderKeyword);
+        }
+
+        public static int ResolveDeviceRefreshRateHz()
+        {
+            try
+            {
+                double hz = Screen.currentResolution.refreshRateRatio.value;
+                if (!double.IsNaN(hz) && !double.IsInfinity(hz) && hz >= 30.0 && hz <= 240.0)
+                    return (int)Math.Round(hz);
+            }
+            catch
+            {
+            }
+            return 60;
+        }
+
         public static void ApplyDeviceQualityAndFrameRate()
         {
-            Application.targetFrameRate = SettingsStore.Current.TargetFrameRate;
+            ApplyGraphicsPreset(SettingsStore.Current.GraphicsQuality);
+        }
+
+        /// <summary>
+        /// Applies a 4-tier graphics preset (0=Low, 1=Medium, 2=High, 3=Ultra) live to URP, <see cref="QualitySettings"/>,
+        /// sun shadows, global shader tier keywords, and all active <see cref="KidView"/> / camera listeners with zero restart.
+        /// </summary>
+        public static GraphicsTierProfile ApplyGraphicsPreset(int qualityIndex, int? deviceRefreshOverrideHz = null)
+        {
+            GraphicsTierProfile profile = GraphicsTierProfile.ForQuality(qualityIndex);
+            int refreshHz = deviceRefreshOverrideHz ?? ResolveDeviceRefreshRateHz();
+
+            int targetFps;
+            if (profile.QualityIndex == SettingsStore.GraphicsLow)
+            {
+                targetFps = profile.MaxFpsCap;
+            }
+            else if (SettingsStore.Current.TargetFrameRate <= 30)
+            {
+                targetFps = 30;
+            }
+            else if (profile.UsesDeviceRefreshCap)
+            {
+                int tierHz = refreshHz >= 110 ? 120 : (refreshHz >= 80 ? 90 : 60);
+                targetFps = Mathf.Clamp(tierHz, 60, profile.MaxFpsCap);
+            }
+            else
+            {
+                targetFps = Math.Min(SettingsStore.Current.TargetFrameRate, profile.MaxFpsCap);
+            }
+
+            Application.targetFrameRate = targetFps;
+
             var urp = (QualitySettings.renderPipeline as UniversalRenderPipelineAsset)
                       ?? (GraphicsSettings.currentRenderPipeline as UniversalRenderPipelineAsset);
             if (urp != null)
-                urp.renderScale = SettingsStore.Current.IsTurboGraphics ? SettingsStore.TurboRenderScale : 1f;
+            {
+                urp.renderScale = profile.RenderScale;
+                urp.msaaSampleCount = profile.MsaaSamples;
+                urp.shadowDistance = profile.ShadowDistance;
+            }
+
+            QualitySettings.globalTextureMipmapLimit = profile.TextureMipmapLimit;
+            QualitySettings.skinWeights = profile.SkinWeightsCount <= 2
+                ? SkinWeights.TwoBones
+                : SkinWeights.FourBones;
+
+            Light sun = RenderSettings.sun;
+            if (sun != null)
+            {
+                sun.shadows = profile.ShadowTier == 0
+                    ? LightShadows.None
+                    : (profile.SoftShadows ? LightShadows.Soft : LightShadows.Hard);
+            }
+
+            ApplyGlobalClarityGlobals(
+                profile,
+                SettingsStore.Current.ResolvedEnemyHighlightMode,
+                sun);
+
+            ActiveGraphicsProfile = profile;
+            GraphicsProfileChanged?.Invoke(profile);
+            return profile;
+        }
+
+        internal static void ApplyCameraPostSettings(
+            Camera cam,
+            Volume volume,
+            Bloom bloom,
+            ColorAdjustments grade,
+            GraphicsTierProfile profile)
+        {
+            if (cam != null)
+            {
+                UniversalAdditionalCameraData camData = cam.GetUniversalAdditionalCameraData();
+                if (camData != null)
+                {
+                    camData.renderPostProcessing = profile.PostProcessingEnabled;
+                    // docs/GRAPHICS.md: Low = none, Medium/High = cheap FXAA smoother, Ultra = 4x MSAA.
+                    camData.antialiasing = (profile.QualityIndex == SettingsStore.GraphicsMedium
+                        || profile.QualityIndex == SettingsStore.GraphicsHigh)
+                        ? AntialiasingMode.FastApproximateAntialiasing
+                        : AntialiasingMode.None;
+                }
+            }
+
+            if (volume != null)
+                volume.enabled = profile.PostProcessingEnabled;
+
+            if (bloom != null)
+            {
+                bloom.active = profile.PostProcessingEnabled;
+                bloom.threshold.Override(profile.FullPostProcessing ? 0.88f : 0.94f);
+                bloom.intensity.Override(profile.FullPostProcessing ? 0.34f : 0.24f);
+                bloom.scatter.Override(profile.FullPostProcessing ? 0.66f : 0.58f);
+            }
+
+            if (grade != null)
+            {
+                // Preserve warm true Filipino skin tones across every map and preset (no heavy saturation/crush).
+                grade.active = profile.PostProcessingEnabled;
+                grade.postExposure.Override(0.04f);
+                grade.contrast.Override(profile.FullPostProcessing ? 7f : 4f);
+                grade.saturation.Override(profile.FullPostProcessing ? 5f : 3f);
+                grade.colorFilter.Override(new Color(1.00f, 0.99f, 0.97f, 1f));
+            }
         }
 
         void DisposeActiveWorld()

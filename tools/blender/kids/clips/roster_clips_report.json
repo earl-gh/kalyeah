@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "fps": 30,
+  "limitsSource": "unity/Data/rig__joint_limits.json",
+  "referenceCapsulesM": {
+    "torso_r": 0.1012,
+    "hips_r": 0.1168,
+    "arm_r": 0.0549,
+    "forearm_r": 0.0327,
+    "hand_r": 0.026,
+    "thigh_r": 0.082,
+    "shin_r": 0.0555
+  },
+  "clipCount": 20,
+  "clips": {
+    "Airborne": {
+      "frames": 49,
+      "durationSec": 1.6,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.0,
+      "keysWritten": 527,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 0,
+      "sampleOvershoots": []
+    },
+    "Cast_OneHand": {
+      "frames": 67,
+      "durationSec": 2.2,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.19,
+      "keysWritten": 984,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 122,
+      "sampleOvershoots": [
+        "Cast_OneHand:LeftFoot@f24:14.7deg",
+        "Cast_OneHand:LeftFoot@f25:19.7deg",
+        "Cast_OneHand:LeftFoot@f26:20.3deg",
+        "Cast_OneHand:LeftFoot@f27:20.3deg",
+        "Cast_OneHand:LeftFoot@f28:20.3deg"
+      ]
+    },
+    "Cast_Run": {
+      "frames": 67,
+      "durationSec": 2.2,
+      "strideSpeedMps": 3.333,
+      "maxFootSlideCm": 0.0,
+      "keysWritten": 2753,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 142,
+      "sampleOvershoots": [
+        "Cast_Run:LeftFoot@f10:16.2deg",
+        "Cast_Run:LeftFoot@f11:37.5deg",
+        "Cast_Run:LeftFoot@f12:45.1deg",
+        "Cast_Run:LeftFoot@f13:49.5deg",
+        "Cast_Run:LeftFoot@f14:40.2deg"
+      ]
+    },
+    "Exhausted_Run": {
+      "frames": 28,
+      "durationSec": 0.9,
+      "strideSpeedMps": 1.232,
+      "maxFootSlideCm": 0.2,
+      "keysWritten": 938,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 57,
+      "sampleOvershoots": [
+        "Exhausted_Run:LeftFoot@f16:11.1deg",
+        "Exhausted_Run:LeftFoot@f17:13.1deg",
+        "Exhausted_Run:LeftFoot@f18:17.4deg",
+        "Exhausted_Run:LeftFoot@f19:21.6deg",
+        "Exhausted_Run:LeftFoot@f20:24.3deg"
+      ]
+    },
+    "Idle": {
+      "frames": 61,
+      "durationSec": 2.0,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.16,
+      "keysWritten": 544,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 134,
+      "sampleOvershoots": [
+        "Idle:RightArm@f0:12.0deg",
+        "Idle:RightArm@f1:12.0deg",
+        "Idle:RightArm@f2:12.0deg",
+        "Idle:RightArm@f3:12.0deg",
+        "Idle:RightArm@f4:11.9deg"
+      ]
+    },
+    "Run": {
+      "frames": 19,
+      "durationSec": 0.6,
+      "strideSpeedMps": 3.333,
+      "maxFootSlideCm": 0.0,
+      "keysWritten": 905,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 33,
+      "sampleOvershoots": [
+        "Run:LeftFoot@f11:16.9deg",
+        "Run:LeftFoot@f12:38.2deg",
+        "Run:LeftFoot@f13:45.6deg",
+        "Run:LeftFoot@f14:49.7deg",
+        "Run:LeftFoot@f15:40.3deg"
+      ]
+    },
+    "Stunned": {
+      "frames": 49,
+      "durationSec": 1.6,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.31,
+      "keysWritten": 489,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 0,
+      "sampleOvershoots": []
+    },
+    "Tripped": {
+      "frames": 109,
+      "durationSec": 3.6,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.0,
+      "keysWritten": 1072,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 170,
+      "sampleOvershoots": [
+        "Tripped:LeftFoot@f36:10.7deg",
+        "Tripped:LeftFoot@f37:11.4deg",
+        "Tripped:LeftFoot@f38:11.9deg",
+        "Tripped:LeftFoot@f39:12.2deg",
+        "Tripped:LeftFoot@f40:12.4deg"
+      ]
+    },
+    "cast_release_left": {
+      "frames": 31,
+      "durationSec": 1.0,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.17,
+      "keysWritten": 763,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 19,
+      "sampleOvershoots": [
+        "cast_release_left:LeftFoot@f3:10.6deg",
+        "cast_release_left:LeftFoot@f4:12.5deg",
+        "cast_release_left:LeftFoot@f5:14.5deg",
+        "cast_release_left:LeftFoot@f6:16.4deg",
+        "cast_release_left:LeftFoot@f7:18.3deg"
+      ]
+    },
+    "cast_release_right": {
+      "frames": 31,
+      "durationSec": 1.0,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.22,
+      "keysWritten": 764,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 21,
+      "sampleOvershoots": [
+        "cast_release_right:LeftFoot@f14:11.5deg",
+        "cast_release_right:LeftFoot@f15:16.7deg",
+        "cast_release_right:LeftFoot@f16:18.5deg",
+        "cast_release_right:LeftFoot@f17:19.1deg",
+        "cast_release_right:LeftFoot@f18:19.8deg"
+      ]
+    },
+    "cast_release_twohand": {
+      "frames": 34,
+      "durationSec": 1.1,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.04,
+      "keysWritten": 659,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 0,
+      "sampleOvershoots": []
+    },
+    "crouch": {
+      "frames": 43,
+      "durationSec": 1.4,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.17,
+      "keysWritten": 247,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 86,
+      "sampleOvershoots": [
+        "crouch:LeftFoot@f0:26.3deg",
+        "crouch:LeftFoot@f1:26.3deg",
+        "crouch:LeftFoot@f2:26.4deg",
+        "crouch:LeftFoot@f3:26.5deg",
+        "crouch:LeftFoot@f4:26.6deg"
+      ]
+    },
+    "hit": {
+      "frames": 19,
+      "durationSec": 0.6,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.37,
+      "keysWritten": 497,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 0,
+      "sampleOvershoots": []
+    },
+    "jump": {
+      "frames": 28,
+      "durationSec": 0.9,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.14,
+      "keysWritten": 636,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 0,
+      "sampleOvershoots": []
+    },
+    "slide": {
+      "frames": 31,
+      "durationSec": 1.0,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.0,
+      "keysWritten": 561,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 0,
+      "sampleOvershoots": []
+    },
+    "sprint": {
+      "frames": 15,
+      "durationSec": 0.4667,
+      "strideSpeedMps": 4.219,
+      "maxFootSlideCm": 0.0,
+      "keysWritten": 880,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 27,
+      "sampleOvershoots": [
+        "sprint:LeftFoot@f8:15.4deg",
+        "sprint:LeftFoot@f9:48.0deg",
+        "sprint:LeftFoot@f10:54.1deg",
+        "sprint:LeftFoot@f11:39.7deg",
+        "sprint:LeftFoot@f12:25.8deg"
+      ]
+    },
+    "throw": {
+      "frames": 31,
+      "durationSec": 1.0,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.22,
+      "keysWritten": 764,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 21,
+      "sampleOvershoots": [
+        "throw:LeftFoot@f14:11.5deg",
+        "throw:LeftFoot@f15:16.7deg",
+        "throw:LeftFoot@f16:18.5deg",
+        "throw:LeftFoot@f17:19.1deg",
+        "throw:LeftFoot@f18:19.8deg"
+      ]
+    },
+    "trip": {
+      "frames": 46,
+      "durationSec": 1.5,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.0,
+      "keysWritten": 508,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 4,
+      "sampleOvershoots": [
+        "trip:LeftFoot@f0:10.1deg",
+        "trip:LeftFoot@f45:10.1deg",
+        "trip:RightFoot@f0:10.1deg",
+        "trip:RightFoot@f45:10.1deg"
+      ]
+    },
+    "victory": {
+      "frames": 61,
+      "durationSec": 2.0,
+      "strideSpeedMps": 0.0,
+      "maxFootSlideCm": 0.16,
+      "keysWritten": 741,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 0,
+      "sampleOvershoots": []
+    },
+    "walk": {
+      "frames": 28,
+      "durationSec": 0.9,
+      "strideSpeedMps": 1.222,
+      "maxFootSlideCm": 0.22,
+      "keysWritten": 931,
+      "penetrationFixes": 0,
+      "sourceOvershootsOver10Deg": 91,
+      "sampleOvershoots": [
+        "walk:LeftFoot@f17:10.9deg",
+        "walk:LeftFoot@f18:13.0deg",
+        "walk:LeftFoot@f19:14.8deg",
+        "walk:LeftFoot@f20:17.0deg",
+        "walk:LeftFoot@f21:18.9deg"
+      ]
+    }
+  }
+}

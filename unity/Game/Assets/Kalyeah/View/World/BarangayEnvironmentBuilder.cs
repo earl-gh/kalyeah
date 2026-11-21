@@ -108,11 +108,42 @@ namespace Kalyeah.Game
         public const string SkyMaterialName = "TropicalSky";
         public const string SkyShaderName = "Kalyeah/TropicalSky";
 
+        // VALORANT clamped ambient readability bounds (soft bounce fill, zero pitch-black shadow pits).
+        public const float AmbientLuminanceMin = 0.24f;
+        public const float AmbientLuminanceMax = 0.92f;
+
         const float OuterGroundMargin = 1200f;
         const float Deg2Rad = MathF.PI / 180f;
 
-        // Warm afternoon haze matching TropicalSky.shader & ArenaEnvironment.gd
+        static readonly int PropArenaRadius = Shader.PropertyToID("_ArenaRadius");
+        static readonly int PropArenaHalf = Shader.PropertyToID("_ArenaHalf");
+        static readonly int PropOwnBaseCenter = Shader.PropertyToID("_OwnBaseCenter");
+        static readonly int PropEnemyBaseCenter = Shader.PropertyToID("_EnemyBaseCenter");
+        static readonly int PropWear = Shader.PropertyToID("_Wear");
+        static readonly int PropShadowFloor = Shader.PropertyToID("_ShadowFloor");
+        static readonly int PropAmbientMin = Shader.PropertyToID("_AmbientMin");
+        static readonly int PropAmbientMax = Shader.PropertyToID("_AmbientMax");
+        static readonly int PropDetailStrength = Shader.PropertyToID("_DetailStrength");
+        static readonly int PropSpecStrength = Shader.PropertyToID("_SpecStrength");
+        static readonly int PropCarveCreekSlot = Shader.PropertyToID("_CarveCreekSlot");
+        static readonly int PropIsCreekBed = Shader.PropertyToID("_IsCreekBed");
+        static readonly int PropParcelCount = Shader.PropertyToID("_ParcelCount");
+        static readonly int PropParcelPose = Shader.PropertyToID("_ParcelPose");
+        static readonly int PropParcelHalf = Shader.PropertyToID("_ParcelHalf");
+        static readonly int PropCreekHalfWidth = Shader.PropertyToID("_CreekHalfWidth");
+        static readonly int PropCurveScale = Shader.PropertyToID("_CurveScale");
+        static readonly int PropFlowSpeed = Shader.PropertyToID("_FlowSpeed");
+        static readonly int PropSunHotspotPower = Shader.PropertyToID("_SunHotspotPower");
+        static readonly int PropSunHotspotStrength = Shader.PropertyToID("_SunHotspotStrength");
+        static readonly int PropFresnelStrength = Shader.PropertyToID("_FresnelStrength");
+        static readonly int PropSunDiscSize = Shader.PropertyToID("_SunDiscSize");
+        static readonly int PropHorizonClarityBand = Shader.PropertyToID("_HorizonClarityBand");
+
+        // Warm afternoon haze & muted trilight bounce (keeps team red/blue out of the environment).
         static readonly Color WarmHorizonFog = new Color(0.89f, 0.84f, 0.75f, 1f);
+        static readonly Color WarmSkyAmbient = new Color(0.72f, 0.79f, 0.88f, 1f);
+        static readonly Color WarmEquatorAmbient = new Color(0.78f, 0.73f, 0.65f, 1f);
+        static readonly Color WarmGroundBounce = new Color(0.54f, 0.48f, 0.40f, 1f);
         static Material s_fallbackSky;
 
         /// <summary>
@@ -168,7 +199,8 @@ namespace Kalyeah.Game
         }
 
         /// <summary>
-        /// Applies the sunlit Philippine golden-hour <c>Kalyeah/TropicalSky</c> skybox and matching warm provincial horizon fog.
+        /// Applies the sunlit Philippine golden-hour <c>Kalyeah/TropicalSky</c> skybox, serene 0-25 deg horizon clarity,
+        /// warm provincial fog, and Valorant-clamped soft bounce ambient (zero pitch-black shadow pits).
         /// </summary>
         public static Material ApplySky()
         {
@@ -184,14 +216,65 @@ namespace Kalyeah.Game
             }
             if (sky != null)
             {
+                if (sky.HasProperty(PropSunDiscSize)) sky.SetFloat(PropSunDiscSize, 0.9978f);
+                if (sky.HasProperty(PropHorizonClarityBand)) sky.SetFloat(PropHorizonClarityBand, 0.24f);
                 RenderSettings.skybox = sky;
             }
             RenderSettings.fogColor = WarmHorizonFog;
+            EnsureClampedAmbient();
             return sky;
         }
 
         /// <summary>
-        /// Uploads arena bounds, base plaza centers, creek flags, and 32 oriented building parcel OBB uniforms onto a BarangayGround material.
+        /// Configures muted warm Valorant-style bounce lighting (soft sky + warm ground bounce, never pitch-black
+        /// shadow pits and free of saturated team red/blue).
+        /// </summary>
+        public static void ApplyClampedAmbient(bool trilight = true)
+        {
+            if (trilight)
+            {
+                RenderSettings.ambientMode = AmbientMode.Trilight;
+                RenderSettings.ambientSkyColor = ClampAmbientColor(WarmSkyAmbient);
+                RenderSettings.ambientEquatorColor = ClampAmbientColor(WarmEquatorAmbient);
+                RenderSettings.ambientGroundColor = ClampAmbientColor(WarmGroundBounce);
+            }
+            else
+            {
+                RenderSettings.ambientMode = AmbientMode.Flat;
+                RenderSettings.ambientLight = ClampAmbientColor(WarmEquatorAmbient);
+            }
+        }
+
+        /// <summary>Clamps an environment ambient color into [<see cref="AmbientLuminanceMin"/>, <see cref="AmbientLuminanceMax"/>].</summary>
+        public static Color ClampAmbientColor(Color c)
+        {
+            return new Color(
+                Mathf.Clamp(c.r, AmbientLuminanceMin, AmbientLuminanceMax),
+                Mathf.Clamp(c.g, AmbientLuminanceMin, AmbientLuminanceMax),
+                Mathf.Clamp(c.b, AmbientLuminanceMin, AmbientLuminanceMax),
+                1f);
+        }
+
+        static void EnsureClampedAmbient()
+        {
+            if (RenderSettings.ambientMode == AmbientMode.Skybox)
+            {
+                ApplyClampedAmbient(trilight: true);
+                return;
+            }
+            if (RenderSettings.ambientMode == AmbientMode.Trilight)
+            {
+                RenderSettings.ambientSkyColor = ClampAmbientColor(RenderSettings.ambientSkyColor);
+                RenderSettings.ambientEquatorColor = ClampAmbientColor(RenderSettings.ambientEquatorColor);
+                RenderSettings.ambientGroundColor = ClampAmbientColor(RenderSettings.ambientGroundColor);
+                return;
+            }
+            RenderSettings.ambientLight = ClampAmbientColor(RenderSettings.ambientLight);
+        }
+
+        /// <summary>
+        /// Uploads arena bounds, base plaza centers, creek flags, Valorant ambient/detail clarity uniforms,
+        /// and 32 oriented building parcel OBB uniforms onto a BarangayGround material.
         /// </summary>
         public static void ConfigureGroundMaterial(Material mat, MapLayoutData layout, bool carveCreekSlot, bool isCreekBed)
         {
@@ -201,13 +284,18 @@ namespace Kalyeah.Game
             SVector2 ownBase = layout.BaseCenter(MapLayoutData.SideOwn);
             SVector2 eneBase = layout.BaseCenter(MapLayoutData.SideEnemy);
 
-            mat.SetFloat("_ArenaRadius", layout.ArenaRadius);
-            mat.SetVector("_ArenaHalf", new Vector4(halfExtent, halfExtent, 0f, 0f));
-            mat.SetVector("_OwnBaseCenter", new Vector4(ownBase.X, ownBase.Y, 0f, 0f));
-            mat.SetVector("_EnemyBaseCenter", new Vector4(eneBase.X, eneBase.Y, 0f, 0f));
-            mat.SetFloat("_Wear", 1f);
-            mat.SetFloat("_CarveCreekSlot", carveCreekSlot ? 1f : 0f);
-            mat.SetFloat("_IsCreekBed", isCreekBed ? 1f : 0f);
+            mat.SetFloat(PropArenaRadius, layout.ArenaRadius);
+            mat.SetVector(PropArenaHalf, new Vector4(halfExtent, halfExtent, 0f, 0f));
+            mat.SetVector(PropOwnBaseCenter, new Vector4(ownBase.X, ownBase.Y, 0f, 0f));
+            mat.SetVector(PropEnemyBaseCenter, new Vector4(eneBase.X, eneBase.Y, 0f, 0f));
+            mat.SetFloat(PropWear, 1f);
+            if (mat.HasProperty(PropShadowFloor)) mat.SetFloat(PropShadowFloor, 0.34f);
+            if (mat.HasProperty(PropAmbientMin)) mat.SetFloat(PropAmbientMin, AmbientLuminanceMin);
+            if (mat.HasProperty(PropAmbientMax)) mat.SetFloat(PropAmbientMax, AmbientLuminanceMax);
+            if (mat.HasProperty(PropDetailStrength)) mat.SetFloat(PropDetailStrength, 0.72f);
+            if (mat.HasProperty(PropSpecStrength)) mat.SetFloat(PropSpecStrength, 0.12f);
+            mat.SetFloat(PropCarveCreekSlot, carveCreekSlot ? 1f : 0f);
+            mat.SetFloat(PropIsCreekBed, isCreekBed ? 1f : 0f);
 
             int count = Math.Min(layout.ParcelCount, 32);
             var poses = new Vector4[32];
@@ -239,9 +327,9 @@ namespace Kalyeah.Game
                 halves[i] = new Vector4(half.x, half.y, 0f, 0f);
             }
 
-            mat.SetFloat("_ParcelCount", count);
-            mat.SetVectorArray("_ParcelPose", poses);
-            mat.SetVectorArray("_ParcelHalf", halves);
+            mat.SetFloat(PropParcelCount, count);
+            mat.SetVectorArray(PropParcelPose, poses);
+            mat.SetVectorArray(PropParcelHalf, halves);
         }
 
         // ---- Estero Canal, Riprap Banks & 3 Footbridges -------------------------------------------------------------------------
@@ -272,9 +360,14 @@ namespace Kalyeah.Game
                 ?? MakeLitMaterial(env, litTemplate, "EsteroWater_Fallback", new Color(0.18f, 0.31f, 0.24f, 0.80f), 0.72f, 0f);
             if (waterMat != null)
             {
-                waterMat.SetFloat("_CreekHalfWidth", 3.75f);
-                waterMat.SetFloat("_CurveScale", 1f);
-                waterMat.SetFloat("_FlowSpeed", 0.50f);
+                if (waterMat.HasProperty(PropCreekHalfWidth)) waterMat.SetFloat(PropCreekHalfWidth, 3.75f);
+                if (waterMat.HasProperty(PropCurveScale)) waterMat.SetFloat(PropCurveScale, 1f);
+                if (waterMat.HasProperty(PropFlowSpeed)) waterMat.SetFloat(PropFlowSpeed, 0.50f);
+                if (waterMat.HasProperty(PropSunHotspotPower)) waterMat.SetFloat(PropSunHotspotPower, 38f);
+                if (waterMat.HasProperty(PropSunHotspotStrength)) waterMat.SetFloat(PropSunHotspotStrength, 0.42f);
+                if (waterMat.HasProperty(PropFresnelStrength)) waterMat.SetFloat(PropFresnelStrength, 0.24f);
+                if (waterMat.HasProperty(PropAmbientMin)) waterMat.SetFloat(PropAmbientMin, 0.30f);
+                if (waterMat.HasProperty(PropAmbientMax)) waterMat.SetFloat(PropAmbientMax, 0.96f);
             }
 
             Mesh waterMesh = env.Track(CreateGridMesh("EsteroWaterMesh", canalLen, 7.5f, 148, 12));
@@ -484,7 +577,7 @@ namespace Kalyeah.Game
         {
             Material deckMat = MakeLitMaterial(env, litTemplate, "BridgeConcreteDeck", new Color(0.36f, 0.34f, 0.30f), 0.14f, 0f);
             Material curbMat = MakeLitMaterial(env, litTemplate, "BridgeHazardCurb", new Color(0.48f, 0.39f, 0.23f), 0.18f, 0f);
-            Material railMat = MakeLitMaterial(env, litTemplate, "BridgeSteelPipe", new Color(0.24f, 0.36f, 0.38f), 0.56f, 0.35f);
+            Material railMat = MakeLitMaterial(env, litTemplate, "BridgeSteelPipe", new Color(0.36f, 0.40f, 0.39f), 0.48f, 0.30f);
 
             string[] names = { "EsteroFootbridge_West", "EsteroFootbridge_Center", "EsteroFootbridge_East" };
             float[] clearWidths = { 9.2f, 10.4f, 9.2f };
@@ -874,7 +967,7 @@ namespace Kalyeah.Game
             roof.AddChamferedBox(new Vector3(0f, 6.45f, 0f), Quaternion.identity, new Vector3(16.2f, 1.35f, 14.6f), 0.12f);
 
             Material pillarMat = MakeLitMaterial(env, litTemplate, "CourtPillarFallback", new Color(0.56f, 0.43f, 0.28f), 0.16f, 0f);
-            Material roofMat = MakeLitMaterial(env, litTemplate, "CourtRoofFallback", new Color(0.66f, 0.30f, 0.20f), 0.42f, 0.25f);
+            Material roofMat = MakeLitMaterial(env, litTemplate, "CourtRoofFallback", new Color(0.58f, 0.40f, 0.28f), 0.36f, 0.20f);
             CreateMeshObject("Pillars", go.transform, env.Track(pillars.ToMesh("CourtPillarsFallback")), pillarMat, Vector3.zero, receiveShadows: true, castShadows: true);
             CreateMeshObject("ArchRoof", go.transform, env.Track(roof.ToMesh("CourtRoofFallback")), roofMat, Vector3.zero, receiveShadows: true, castShadows: true);
             return go;
@@ -894,7 +987,7 @@ namespace Kalyeah.Game
             trim.AddChamferedBox(new Vector3(0f, 3.6f, 4.6f), Quaternion.identity, new Vector3(4.8f, 0.45f, 1.8f), 0.05f);
 
             Material facadeMat = MakeLitMaterial(env, litTemplate, "HallFacadeFallback", new Color(0.52f, 0.58f, 0.56f), 0.15f, 0f);
-            Material trimMat = MakeLitMaterial(env, litTemplate, "HallTealFallback", new Color(0.20f, 0.46f, 0.48f), 0.32f, 0.10f);
+            Material trimMat = MakeLitMaterial(env, litTemplate, "HallTealFallback", new Color(0.32f, 0.46f, 0.44f), 0.28f, 0.10f);
             CreateMeshObject("Facade", go.transform, env.Track(facade.ToMesh("HallFacadeFallback")), facadeMat, Vector3.zero, receiveShadows: true, castShadows: true);
             CreateMeshObject("TealTrim", go.transform, env.Track(trim.ToMesh("HallTrimFallback")), trimMat, Vector3.zero, receiveShadows: true, castShadows: true);
             return go;

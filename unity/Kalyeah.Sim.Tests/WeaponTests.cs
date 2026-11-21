@@ -347,7 +347,7 @@ namespace Kalyeah.Sim.Tests
             foreach (string source in data.Sources)
             {
                 string cls = data.ClassOf(source);
-                if (cls == "CameraRules" || cls == "NetRules") continue;
+                if (cls == "CameraRules" || cls == "NetRules" || cls == "RigJointLimits" || cls == "AnimClipMetrics") continue;
                 data.Get<object>(source);
             }
             CollectionAssert.IsEmpty(data.UnmappedKeys);

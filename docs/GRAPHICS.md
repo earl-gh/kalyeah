@@ -231,3 +231,34 @@ item says which kind of asset the owner makes.
 - **When the owner's art arrives:** a script checks size, facing and materials and the triangle and texture budgets
   (this doc and `docs/art-briefs/kids-retopo-spec.md`), then an in-game screenshot is shown beside the owner's
   reference picture.
+
+## Shader clarity architecture (VALORANT lessons)
+Kalyeah's URP Mobile shaders (`Kalyeah/Kid`, `Kalyeah/TeamOutline`, `Kalyeah/BarangayGround`, `Kalyeah/EsteroWater`,
+`Kalyeah/TropicalSky`, `Kalyeah/ArcaneFx`) apply Riot's gameplay-clarity shader pipeline while preserving URP SRP Batcher
+compatibility (`UnityPerMaterial` CBUFFER parity across passes) and atomic Low-tier scaling via the global
+`KALYEAH_QUALITY_LOW` keyword toggled by `MatchBoot.ApplyGraphicsPreset`:
+
+- **Gradient Lambert single-sun diffuse (`Kalyeah/Kid`):** `NdotL * 0.5 + 0.5` is remapped through a 3-zone highlight /
+  mid-tone / lifted core-shadow curve on the primary sun light only, preventing crushed black shadows without multi-light cost.
+- **Fake skin SSS + warm shadow shift (`Kalyeah/Kid`):** darker shadow zones shift subtly warmer/redder and add a cheap
+  grazing-shadow ZBrush-wax underglow away from direct sunlight so Filipino skin tones stay warm and readable in shade without
+  extra texture taps.
+- **Panoramic sun-hotspot specular (dropped on Low):** Medium/High/Ultra characters derive stylized specular from an analytical
+  sky/ground hemisphere plus a sun hotspot aligned with `_KalyeahSunDir`, roughness-blurred from the ORM roughness channel
+  (inverted roughness as specular control) with split diffuse vs. stronger specular indirect attenuation in shade. Under
+  `KALYEAH_QUALITY_LOW`, character specular and normal/ORM texture taps drop completely while 100% of diffuse, ambient,
+  Fresnel, and depth readability stays intact.
+- **Clamped ambient bounds (`_KalyeahAmbientMin` / `_KalyeahAmbientMax`):** indirect SH/ambient lighting is clamped globally
+  between safe floor and ceiling bounds so shaded interiors never hide a kid and bright sun never blows out silhouettes.
+- **Up-facing + upper-body Friend-or-Foe Fresnel & clamped depth scaling (`Kalyeah/Kid`, `Kalyeah/TeamOutline`):** Fresnel rim
+  highlighting is weighted upward (`N.y`) and toward the head/shoulders so targets pop from walls; enemies use the player's
+  colorblind-safe `_KalyeahEnemyHighlightColor` (Red, Yellow, or Purple) while allies keep a subtle neutral-blue rim. Clamped
+  depth brightening and distance Fresnel enlargement across 12 m–45 m keep distant kids readable without washing them out.
+- **Aggressive environment Low scaling (`BarangayGround`, `EsteroWater`, `TropicalSky`):** because world geometry fills most
+  pixels, `KALYEAH_QUALITY_LOW` aggressively strips multi-octave ground noise/specular layers, multi-wave water normals/foam,
+  and extra sky cloud octaves while keeping clean matte lane/chalk readability, panoramic sun-aligned water reflections on
+  Med–Ultra, and a serene 0°–25° shoulder horizon.
+- **Hard-edge geometric VFX boundaries (`ArcaneFx`, zones, aim telegraphs, `FxPool`):** every skill perimeter renders with a
+  razor-sharp, angle-independent geometric edge (solid for allies, dashed for enemies) and avoids stacked translucent smoke
+  cards that break depth sorting. On Low, purely cosmetic secondary puffs halve in count and interior wisps strip away, while
+  every gameplay radius, edge, and timing remains pixel-identical across all four presets.

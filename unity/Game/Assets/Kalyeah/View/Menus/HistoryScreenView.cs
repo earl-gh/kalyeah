@@ -14,17 +14,25 @@ namespace Kalyeah.Game
     {
         static readonly Color BackdropSolid = new Color(0.02f, 0.035f, 0.07f, 1f);
         static readonly Color BackdropWash = new Color(0.02f, 0.035f, 0.07f, 0.72f);
-        static readonly Color HeaderBg = new Color(0f, 0f, 0f, 0f);
-        static readonly Color PanelBg = new Color(0.06f, 0.10f, 0.19f, 0.86f);
-        static readonly Color CardBg = new Color(0.10f, 0.14f, 0.22f, 0.92f);
-        static readonly Color WinRowBg = new Color(0.20f, 0.62f, 0.42f, 0.22f);
-        static readonly Color LossRowBg = new Color(0.80f, 0.30f, 0.34f, 0.20f);
-        static readonly Color Gold = new Color(0.961f, 0.725f, 0.227f, 1f);
+        static readonly Color TileTop = new Color(0.100f, 0.152f, 0.242f, 0.92f);
+        static readonly Color TileBottom = new Color(0.052f, 0.086f, 0.152f, 0.96f);
+        static readonly Color TileLockedTop = new Color(0.058f, 0.088f, 0.148f, 0.78f);
+        static readonly Color TileLockedBottom = new Color(0.034f, 0.054f, 0.098f, 0.86f);
+        static readonly Color WinRowTop = new Color(0.080f, 0.195f, 0.185f, 0.92f);
+        static readonly Color WinRowBottom = new Color(0.042f, 0.108f, 0.125f, 0.96f);
+        static readonly Color WinRowBorder = new Color(0.24f, 0.82f, 0.56f, 0.34f);
+        static readonly Color LossRowTop = new Color(0.205f, 0.095f, 0.135f, 0.92f);
+        static readonly Color LossRowBottom = new Color(0.112f, 0.052f, 0.088f, 0.96f);
+        static readonly Color LossRowBorder = new Color(0.96f, 0.38f, 0.26f, 0.34f);
+        static readonly Color TrackTop = new Color(0.024f, 0.044f, 0.082f, 0.98f);
+        static readonly Color TrackBottom = new Color(0.056f, 0.092f, 0.160f, 0.98f);
+        static readonly Color TrackBorder = new Color(0.76f, 0.88f, 0.96f, 0.24f);
+        static readonly Color DividerColor = new Color(0.76f, 0.88f, 0.96f, 0.14f);
+        static readonly Color Gold = MenuArt.Gold;
         static readonly Color Coral = new Color(0.96f, 0.38f, 0.26f, 1f);
-        static readonly Color BackChip = new Color(0.16f, 0.22f, 0.36f, 1f); // the back button: a light navy chip (white at low alpha blends too bright in linear space)
-        static readonly Color WinGreen = new Color(0.32f, 0.92f, 0.56f, 1f);
-        static readonly Color Muted = new Color(0.76f, 0.83f, 0.94f, 1f);
-        static readonly Color Ink = new Color(0.08f, 0.10f, 0.16f, 1f);
+        static readonly Color WinGreen = MenuArt.SuccessGreen;
+        static readonly Color Muted = MenuArt.MutedText;
+        static readonly Color Ink = MenuArt.Ink;
 
         static readonly string[] TierEmblemInitials = { "K", "B", "T", "P", "G", "BR", "BK" };
 
@@ -81,11 +89,13 @@ namespace Kalyeah.Game
         readonly RectTransform _shell;
 
         readonly Image[] _tierBadgeBgs = new Image[AppSession.RankTiers.Length];
+        readonly Image[] _tierBadgeOutlines = new Image[AppSession.RankTiers.Length];
         readonly Text[] _tierBadgeLabels = new Text[AppSession.RankTiers.Length];
         readonly List<GameObject> _spawnedRows = new List<GameObject>(32);
 
         RectTransform _headerRect;
         RectTransform _backBtnRect;
+        RectTransform _headerAccentRect;
         RectTransform _headerTitleRect;
         RectTransform _playerChipRect;
         RectTransform _bodyRect;
@@ -95,7 +105,7 @@ namespace Kalyeah.Game
         Text _backLabel;
         Text _playerChipText;
 
-        Image _heroCardBg;
+        Image _heroAccentRail;
         Image _heroCrestBg;
         Text _heroCrestEmblem;
         Text _heroTierName;
@@ -207,41 +217,45 @@ namespace Kalyeah.Game
 
                 float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
                 float minGutter = Mathf.Max(8f, ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinGutterDp, _canvas));
-                float headerH = Mathf.Max(108f, minTouch + 12f);
+                float headerH = Mathf.Max(104f, minTouch + 8f);
 
                 if (_headerRect != null)
                 {
-                    _headerRect.anchoredPosition = new Vector2(0f, -6f);
+                    _headerRect.anchoredPosition = new Vector2(0f, -4f);
                     _headerRect.sizeDelta = new Vector2(0f, headerH);
                 }
 
-                Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(140f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+                Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(142f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
                 if (_backBtnRect != null)
                 {
                     _backBtnRect.anchoredPosition = new Vector2(10f, 0f);
                     _backBtnRect.sizeDelta = backSize;
                 }
 
+                float titleLeft = 10f + backSize.x + minGutter + 6f;
+                if (_headerAccentRect != null)
+                    _headerAccentRect.anchoredPosition = new Vector2(titleLeft, 0f);
+
                 if (_headerTitleRect != null)
                 {
                     _headerTitleRect.anchorMin = new Vector2(0f, 0f);
                     _headerTitleRect.anchorMax = new Vector2(0.67f, 1f);
-                    _headerTitleRect.offsetMin = new Vector2(10f + backSize.x + minGutter, 8f);
+                    _headerTitleRect.offsetMin = new Vector2(titleLeft + 14f, 8f);
                     _headerTitleRect.offsetMax = new Vector2(-8f, -8f);
                 }
 
                 if (_playerChipRect != null)
                 {
-                    _playerChipRect.anchorMin = new Vector2(0.69f, 0.18f);
-                    _playerChipRect.anchorMax = new Vector2(1f, 0.82f);
-                    _playerChipRect.offsetMin = Vector2.zero;
-                    _playerChipRect.offsetMax = new Vector2(-10f, 0f);
+                    _playerChipRect.anchorMin = new Vector2(0.69f, 0.5f);
+                    _playerChipRect.anchorMax = new Vector2(1f, 0.5f);
+                    _playerChipRect.offsetMin = new Vector2(0f, -24f);
+                    _playerChipRect.offsetMax = new Vector2(-10f, 24f);
                 }
 
                 if (_bodyRect != null)
                 {
                     _bodyRect.offsetMin = new Vector2(0f, 8f);
-                    _bodyRect.offsetMax = new Vector2(0f, -(6f + headerH + 10f));
+                    _bodyRect.offsetMax = new Vector2(0f, -(4f + headerH + 8f));
                 }
 
                 LayoutRebuilder.ForceRebuildLayoutImmediate(_shell);
@@ -287,50 +301,77 @@ namespace Kalyeah.Game
         void BuildHeader(RectTransform parent)
         {
             float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
-            float headerH = Mathf.Max(108f, minTouch + 12f);
+            float headerH = Mathf.Max(104f, minTouch + 8f);
 
-            _headerRect = Ui.Panel("Header", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -6f), new Vector2(0f, headerH));
-            Image bg = KomiksUi.MakeSlicedFill("HeaderBg", _headerRect, HeaderBg, KomiksUi.RadiusM);
-            Stretch(bg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            _headerRect = Ui.Panel("Header", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -4f), new Vector2(0f, headerH));
 
-            Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(140f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            Image divider = Ui.MakeImage("HeaderDivider", _headerRect, DividerColor);
+            Stretch(divider.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(10f, 0f), new Vector2(-10f, 1.5f));
+
+            Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(142f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
             _backBtnRect = Ui.Panel("BackButton", _headerRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, 0f), backSize);
-            Image backImg = _backBtnRect.gameObject.AddComponent<Image>();
-            backImg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
-            backImg.type = Image.Type.Sliced;
-            backImg.color = BackChip;
+            Image backHit = _backBtnRect.gameObject.AddComponent<Image>();
+            backHit.color = Color.clear; // transparent >= 48 dp hit catcher
+
+            RectTransform backVisual = Ui.Panel("Visual", _backBtnRect, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 52f));
+            Image backFace = Ui.MakeSliced("Plate", backVisual, MenuArt.CtaGhost(12), Color.white, raycast: false);
+
+            Image chev = Ui.MakeImage("Chevron", backVisual, MenuArt.GoldLight, round: false, raycast: false);
+            chev.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Chevron);
+            RectTransform cr = chev.rectTransform;
+            cr.anchorMin = cr.anchorMax = new Vector2(0f, 0.5f);
+            cr.pivot = new Vector2(0.5f, 0.5f);
+            cr.anchoredPosition = new Vector2(22f, 0f);
+            cr.sizeDelta = new Vector2(16f, 16f);
+            cr.localEulerAngles = new Vector3(0f, 0f, 180f);
+
             Button backBtn = _backBtnRect.gameObject.AddComponent<Button>();
-            backBtn.targetGraphic = backImg;
+            backBtn.targetGraphic = backFace;
             backBtn.onClick.AddListener(() => _onBack?.Invoke());
+            Ui.AddPressFeel(_backBtnRect, 0.95f);
 
-            _backLabel = MakeFittedText("Label", _backBtnRect, "<- BACK", 20, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            Stretch(_backLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 4f), new Vector2(-8f, -4f));
+            _backLabel = MakeFittedText("Label", backVisual, "BACK", 20, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Stretch(_backLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(34f, 4f), new Vector2(-10f, -4f));
 
-            _headerTitle = MakeFittedText("Title", _headerRect, "RANKED & MATCH HISTORY", 26, Gold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _headerAccentRect = Ui.Panel("TitleAccent", _headerRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(166f, 0f), new Vector2(4f, 34f));
+            Image accentImg = _headerAccentRect.gameObject.AddComponent<Image>();
+            accentImg.sprite = MenuArt.AccentRail(2);
+            accentImg.type = Image.Type.Sliced;
+            accentImg.color = Gold;
+            accentImg.raycastTarget = false;
+
+            _headerTitle = MakeFittedText("Title", _headerRect, "RANKED & MATCH HISTORY", 28, MenuArt.Cream, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
             _headerTitleRect = _headerTitle.rectTransform;
-            Stretch(_headerTitleRect, new Vector2(0f, 0f), new Vector2(0.67f, 1f), new Vector2(166f, 8f), new Vector2(-8f, -8f));
+            Stretch(_headerTitleRect, new Vector2(0f, 0f), new Vector2(0.67f, 1f), new Vector2(180f, 8f), new Vector2(-8f, -8f));
 
-            Image playerChip = KomiksUi.MakeSlicedFill("PlayerChip", _headerRect, CardBg, KomiksUi.RadiusS);
+            Image playerChip = Ui.MakeSliced("PlayerChip", _headerRect, MenuArt.StatChip(10), Color.white, raycast: false);
             _playerChipRect = playerChip.rectTransform;
-            Stretch(_playerChipRect, new Vector2(0.69f, 0.18f), new Vector2(1f, 0.82f), Vector2.zero, new Vector2(-10f, 0f));
-            _playerChipText = MakeFittedText("PlayerName", playerChip.transform, "", 20, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            Stretch(_playerChipText.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 2f), new Vector2(-10f, -2f));
+            Stretch(_playerChipRect, new Vector2(0.69f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0f, -24f), new Vector2(-10f, 24f));
+            Ui.MakeAccentRail("ChipRail", _playerChipRect, Gold, width: 3f, verticalInset: 10f);
+            _playerChipText = MakeFittedText("PlayerName", playerChip.transform, "", 20, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Stretch(_playerChipText.rectTransform, Vector2.zero, Vector2.one, new Vector2(14f, 2f), new Vector2(-10f, -2f));
         }
 
         void BuildBody(RectTransform parent)
         {
             _bodyRect = Ui.Panel("Body", parent, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             _bodyRect.offsetMin = new Vector2(0f, 8f);
-            _bodyRect.offsetMax = new Vector2(0f, -124f);
+            _bodyRect.offsetMax = new Vector2(0f, -116f);
 
             // Left 46%: Current Tier Hero Card + 7-Tier Tagalog Ranked Ladder
             RectTransform leftCol = Ui.Panel("RankedColumn", _bodyRect, new Vector2(0f, 0f), new Vector2(0.46f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
             leftCol.offsetMax = new Vector2(-8f, 0f);
 
-            _heroCardBg = KomiksUi.MakeSlicedFill("HeroTierCard", leftCol, PanelBg, KomiksUi.RadiusM);
-            Stretch(_heroCardBg.rectTransform, new Vector2(0f, 0.44f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+            Image heroCardBg = Ui.MakeSliced("HeroTierCard", leftCol, MenuArt.ChamferGlass(16), Color.white, raycast: false);
+            Stretch(heroCardBg.rectTransform, new Vector2(0f, 0.44f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
+            Ui.MakeCornerBrackets("HeroBrackets", heroCardBg.transform, new Color(Gold.r, Gold.g, Gold.b, 0.45f));
+            _heroAccentRail = Ui.MakeAccentRail("HeroRail", heroCardBg.transform, Gold, width: 4f, verticalInset: 18f).GetComponent<Image>();
 
-            RectTransform crestFrame = Ui.Panel("CrestFrame", _heroCardBg.transform, new Vector2(0.05f, 0.56f), new Vector2(0.26f, 0.94f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            RectTransform crestFrame = Ui.Panel("CrestFrame", heroCardBg.transform, new Vector2(0.05f, 0.56f), new Vector2(0.26f, 0.94f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            Image crestGlow = Ui.MakeImage("CrestGlow", crestFrame, new Color(Gold.r, Gold.g, Gold.b, 0.24f), round: false, raycast: false);
+            crestGlow.sprite = MenuArt.Glow();
+            Stretch(crestGlow.rectTransform, Vector2.zero, Vector2.one, new Vector2(-8f, -8f), new Vector2(8f, 8f));
+
             var crestGo = new GameObject("TierCrest", typeof(RectTransform), typeof(Image), typeof(AspectRatioFitter));
             crestGo.transform.SetParent(crestFrame, false);
             _heroCrestBg = crestGo.GetComponent<Image>();
@@ -347,38 +388,40 @@ namespace Kalyeah.Game
             crestRing.sprite = KomiksUi.RingSprite(128, 4);
             Stretch(crestRing.rectTransform, Vector2.zero, Vector2.one, new Vector2(5f, 5f), new Vector2(-5f, -5f));
 
-            _heroCrestEmblem = MakeFittedText("Emblem", _heroCrestBg.transform, "K", 36, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            _heroCrestEmblem = MakeFittedText("Emblem", _heroCrestBg.transform, "K", 36, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             _heroCrestEmblem.verticalOverflow = VerticalWrapMode.Overflow;
             Stretch(_heroCrestEmblem.rectTransform, Vector2.zero, Vector2.one, new Vector2(6f, 4f), new Vector2(-6f, -4f));
 
-            _heroTierName = MakeFittedText("TierName", _heroCardBg.transform, "KAHOY", 34, Gold, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
+            _heroTierName = MakeFittedText("TierName", heroCardBg.transform, "KAHOY", 34, Gold, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
             Stretch(_heroTierName.rectTransform, new Vector2(0.29f, 0.72f), new Vector2(0.96f, 0.94f), Vector2.zero, Vector2.zero);
 
-            _heroFlavorText = MakeFittedText("TierFlavor", _heroCardBg.transform, "", 18, Muted, TextAnchor.UpperLeft);
+            _heroFlavorText = MakeFittedText("TierFlavor", heroCardBg.transform, "", 18, Muted, TextAnchor.UpperLeft);
+            Ui.ClearOutline(_heroFlavorText);
             Stretch(_heroFlavorText.rectTransform, new Vector2(0.29f, 0.56f), new Vector2(0.96f, 0.72f), Vector2.zero, Vector2.zero);
 
             // LP Progress Bar
-            Image barTrack = KomiksUi.MakeSlicedFill("LpBarTrack", _heroCardBg.transform, new Color(0.03f, 0.05f, 0.11f, 0.95f), KomiksUi.RadiusS);
+            Image barTrack = Ui.MakeSliced("LpBarTrack", heroCardBg.transform, MenuArt.Round(TrackTop, TrackBottom, TrackBorder, 8, 1, 0.12f), Color.white, raycast: false);
             Stretch(barTrack.rectTransform, new Vector2(0.05f, 0.36f), new Vector2(0.95f, 0.50f), Vector2.zero, Vector2.zero);
 
-            Image barFillImg = KomiksUi.MakeSlicedFill("LpBarFill", barTrack.transform, Gold, KomiksUi.RadiusS);
+            Image barFillImg = Ui.MakeSliced("LpBarFill", barTrack.transform, MenuArt.AccentRail(6), Gold, raycast: false);
             _lpBarFill = barFillImg.rectTransform;
-            Stretch(_lpBarFill, Vector2.zero, new Vector2(0.25f, 1f), new Vector2(2f, 2f), new Vector2(-2f, -2f));
+            Stretch(_lpBarFill, Vector2.zero, new Vector2(0.25f, 1f), new Vector2(3f, 3f), new Vector2(-3f, -3f));
 
-            _heroLpNumbers = MakeFittedText("LpNumbers", barTrack.transform, "0 / 200 LP", 18, Ui.Cream, TextAnchor.MiddleCenter);
+            _heroLpNumbers = MakeFittedText("LpNumbers", barTrack.transform, "0 / 200 LP", 18, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             _heroLpNumbers.verticalOverflow = VerticalWrapMode.Overflow;
             Stretch(_heroLpNumbers.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, 0f));
 
             // 3 Stat Tiles: Peak LP, Win Rate, Matches
-            _peakLpValue = BuildStatTile(_heroCardBg.rectTransform, "PeakLpTile", new Vector2(0.05f, 0.06f), new Vector2(0.33f, 0.30f), "PEAK LP");
-            _winRateValue = BuildStatTile(_heroCardBg.rectTransform, "WinRateTile", new Vector2(0.36f, 0.06f), new Vector2(0.64f, 0.30f), "WIN RATE");
-            _matchesValue = BuildStatTile(_heroCardBg.rectTransform, "MatchesTile", new Vector2(0.67f, 0.06f), new Vector2(0.95f, 0.30f), "RECORD");
+            _peakLpValue = BuildStatTile(heroCardBg.rectTransform, "PeakLpTile", new Vector2(0.05f, 0.06f), new Vector2(0.33f, 0.30f), "PEAK LP");
+            _winRateValue = BuildStatTile(heroCardBg.rectTransform, "WinRateTile", new Vector2(0.36f, 0.06f), new Vector2(0.64f, 0.30f), "WIN RATE");
+            _matchesValue = BuildStatTile(heroCardBg.rectTransform, "MatchesTile", new Vector2(0.67f, 0.06f), new Vector2(0.95f, 0.30f), "RECORD");
 
             // 7-Tier Tagalog Progression Strip (Kahoy -> Batang Kalyeah)
-            Image ladderCard = KomiksUi.MakeSlicedFill("TierLadderCard", leftCol, PanelBg, KomiksUi.RadiusM);
+            Image ladderCard = Ui.MakeSliced("TierLadderCard", leftCol, MenuArt.ChamferGlass(16), Color.white, raycast: false);
             Stretch(ladderCard.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.41f), Vector2.zero, Vector2.zero);
 
-            _ladderHeader = MakeFittedText("LadderTitle", ladderCard.transform, "7-TIER TAGALOG LADDER", 19, Gold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _ladderHeader = MakeFittedText("LadderTitle", ladderCard.transform, "7-TIER TAGALOG LADDER", 19, MenuArt.GoldLight, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(_ladderHeader);
             Stretch(_ladderHeader.rectTransform, new Vector2(0.04f, 0.80f), new Vector2(0.96f, 0.97f), Vector2.zero, Vector2.zero);
 
             RectTransform tiersGrid = Ui.Panel("TiersGrid", ladderCard.transform, new Vector2(0.03f, 0.04f), new Vector2(0.97f, 0.79f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
@@ -389,36 +432,46 @@ namespace Kalyeah.Game
             grid.cellSize = new Vector2(96f, 76f);
             _ladderSizer = tiersGrid.gameObject.AddComponent<LadderCellSizer>();
 
+            Sprite unlockedBadgeSprite = MenuArt.ChamferCard(TileTop, TileBottom, MenuArt.PanelBorder, 8, 1, 0.20f);
+            Sprite activeOutlineSprite = MenuArt.ChamferOutline(MenuArt.GoldBorder, 8, 2);
+
             for (int i = 0; i < AppSession.RankTiers.Length; i++)
             {
                 RankTierInfo t = AppSession.RankTiers[i];
                 var badgeGo = new GameObject($"Tier_{t.Id}", typeof(RectTransform), typeof(Image));
                 badgeGo.transform.SetParent(tiersGrid, false);
                 var bg = badgeGo.GetComponent<Image>();
-                bg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+                bg.sprite = unlockedBadgeSprite;
                 bg.type = Image.Type.Sliced;
-                bg.color = CardBg;
+                bg.color = Color.white;
+                bg.raycastTarget = false;
 
-                Image topBand = Ui.MakeImage("Band", badgeGo.transform, HexColor(t.ColorHex, Gold));
-                Stretch(topBand.rectTransform, new Vector2(0f, 0.88f), Vector2.one, new Vector2(2f, 0f), new Vector2(-2f, 0f));
+                Image topBand = Ui.MakeSliced("Band", badgeGo.transform, MenuArt.AccentRail(2), HexColor(t.ColorHex, Gold), raycast: false);
+                Stretch(topBand.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(8f, -5f), new Vector2(-8f, -1f));
 
-                Text lbl = MakeFittedText("Label", badgeGo.transform, $"{t.Name}\n{t.MinLp}+ LP", 16, Ui.Cream, TextAnchor.MiddleCenter, minSize: 11);
+                Image activeOutline = Ui.MakeSliced("ActiveOutline", badgeGo.transform, activeOutlineSprite, Color.white, raycast: false);
+                activeOutline.enabled = false;
+
+                Text lbl = MakeFittedText("Label", badgeGo.transform, $"{t.Name}\n{t.MinLp}+ LP", 16, MenuArt.Cream, TextAnchor.MiddleCenter, minSize: 11);
                 lbl.resizeTextMinSize = 11;
                 lbl.resizeTextMaxSize = 16;
                 lbl.lineSpacing = 0.92f;
+                Ui.ClearOutline(lbl);
                 Stretch(lbl.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.87f), new Vector2(3f, 2f), new Vector2(-3f, -1f));
 
                 _tierBadgeBgs[i] = bg;
+                _tierBadgeOutlines[i] = activeOutline;
                 _tierBadgeLabels[i] = lbl;
             }
 
             // Right 54%: Scrollable Match Log
             RectTransform rightCol = Ui.Panel("HistoryColumn", _bodyRect, new Vector2(0.46f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
             rightCol.offsetMin = new Vector2(8f, 0f);
-            Image rightBg = KomiksUi.MakeSlicedFill("HistoryBg", rightCol, PanelBg, KomiksUi.RadiusM);
+            Image rightBg = Ui.MakeSliced("HistoryBg", rightCol, MenuArt.ChamferGlass(16), Color.white, raycast: false);
             Stretch(rightBg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
-            _logHeader = MakeFittedText("LogTitle", rightCol, "RECENT MATCHES", 22, Gold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _logHeader = MakeFittedText("LogTitle", rightCol, "RECENT MATCHES", 22, MenuArt.GoldLight, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(_logHeader);
             Stretch(_logHeader.rectTransform, new Vector2(0.03f, 0.90f), new Vector2(0.97f, 0.99f), Vector2.zero, Vector2.zero);
 
             var scrollGo = new GameObject("HistoryScroll", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
@@ -458,29 +511,31 @@ namespace Kalyeah.Game
             _emptyStateCard = new GameObject("EmptyState", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
             _emptyStateCard.transform.SetParent(_historyContent, false);
             var emptyImg = _emptyStateCard.GetComponent<Image>();
-            emptyImg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+            emptyImg.sprite = MenuArt.ChamferCard(TileTop, TileBottom, MenuArt.PanelBorder, 10, 1, 0.20f);
             emptyImg.type = Image.Type.Sliced;
-            emptyImg.color = new Color(0.06f, 0.10f, 0.20f, 0.9f);
+            emptyImg.color = Color.white;
+            emptyImg.raycastTarget = false;
             var emptyLe = _emptyStateCard.GetComponent<LayoutElement>();
             emptyLe.minHeight = 140f;
             emptyLe.preferredHeight = 140f;
             _emptyStateText = MakeFittedText("EmptyText", _emptyStateCard.transform, "", 19, Muted, TextAnchor.MiddleCenter);
+            Ui.ClearOutline(_emptyStateText);
             Stretch(_emptyStateText.rectTransform, Vector2.zero, Vector2.one, new Vector2(18f, 12f), new Vector2(-18f, -12f));
         }
 
         static Text BuildStatTile(RectTransform parent, string name, Vector2 min, Vector2 max, string caption)
         {
             RectTransform tile = Ui.Panel(name, parent, min, max, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            Image bg = KomiksUi.MakeSlicedFill("Bg", tile, new Color(0.05f, 0.08f, 0.16f, 0.92f), KomiksUi.RadiusS);
-            Stretch(bg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            Ui.MakeSliced("Bg", tile, MenuArt.StatChip(8), Color.white, raycast: false);
 
-            Text cap = MakeFittedText("Caption", tile, caption, 18, Muted, TextAnchor.UpperCenter);
+            Text cap = MakeFittedText("Caption", tile, caption, 16, Muted, TextAnchor.UpperCenter, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(cap);
             cap.verticalOverflow = VerticalWrapMode.Overflow;
-            Stretch(cap.rectTransform, new Vector2(0f, 0.54f), new Vector2(1f, 0.96f), new Vector2(4f, 0f), new Vector2(-4f, -2f));
+            Stretch(cap.rectTransform, new Vector2(0f, 0.54f), new Vector2(1f, 0.94f), new Vector2(4f, 0f), new Vector2(-4f, -2f));
 
-            Text val = MakeFittedText("Value", tile, "-", 22, Ui.Cream, TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
+            Text val = MakeFittedText("Value", tile, "-", 22, MenuArt.GoldLight, TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
             val.verticalOverflow = VerticalWrapMode.Overflow;
-            Stretch(val.rectTransform, new Vector2(0f, 0.06f), new Vector2(1f, 0.56f), new Vector2(4f, 2f), new Vector2(-4f, 0f));
+            Stretch(val.rectTransform, new Vector2(0f, 0.08f), new Vector2(1f, 0.56f), new Vector2(4f, 2f), new Vector2(-4f, 0f));
             return val;
         }
 
@@ -490,7 +545,7 @@ namespace Kalyeah.Game
             bool fil = SettingsStore.Current.Language == "fil";
 
             if (_headerTitle != null) _headerTitle.text = fil ? "RANGGO AT KASAYSAYAN" : "RANKED & MATCH HISTORY";
-            if (_backLabel != null) _backLabel.text = fil ? "<- BALIK" : "<- BACK";
+            if (_backLabel != null) _backLabel.text = fil ? "BALIK" : "BACK";
             if (_ladderHeader != null) _ladderHeader.text = fil ? "7-ANTAS NG RANGGO SA KALYE" : "7-TIER TAGALOG LADDER";
             if (_logHeader != null) _logHeader.text = fil ? $"MGA LABAN ({session.History.Count})" : $"MATCH LOG ({session.History.Count})";
             if (_playerChipText != null) _playerChipText.text = $"{session.PlayerName}  ·  {session.CurrentTier.Name.ToUpperInvariant()}";
@@ -498,11 +553,9 @@ namespace Kalyeah.Game
             int currentTierIdx = Mathf.Clamp(session.TierIndex, 0, AppSession.RankTiers.Length - 1);
             RankTierInfo tier = session.CurrentTier;
             Color tierColor = HexColor(tier.ColorHex, Gold);
-            Color tierDark = HexColor(tier.DarkHex, PanelBg);
             Color tierAccent = HexColor(tier.AccentHex, Gold);
 
-            if (_heroCardBg != null)
-                _heroCardBg.color = new Color(Mathf.Lerp(PanelBg.r, tierDark.r, 0.45f), Mathf.Lerp(PanelBg.g, tierDark.g, 0.45f), Mathf.Lerp(PanelBg.b, tierDark.b, 0.45f), 0.97f);
+            if (_heroAccentRail != null) _heroAccentRail.color = tierColor;
             if (_heroCrestBg != null) _heroCrestBg.color = tierColor;
             if (_heroCrestEmblem != null)
             {
@@ -510,10 +563,8 @@ namespace Kalyeah.Game
                     ? TierEmblemInitials[currentTierIdx]
                     : (!string.IsNullOrEmpty(tier.Name) ? tier.Name.Substring(0, 1).ToUpperInvariant() : "K");
                 _heroCrestEmblem.text = initial;
-                bool lightDisc = (0.2126f * tierColor.r + 0.7152f * tierColor.g + 0.0722f * tierColor.b) > 0.62f;
-                _heroCrestEmblem.color = lightDisc ? Ink : Ui.Cream;
-                Outline emblemOutline = _heroCrestEmblem.GetComponent<Outline>();
-                if (emblemOutline != null) emblemOutline.enabled = !lightDisc;
+                bool lightDisc = Ui.Luminance(tierColor) > 0.62f;
+                Ui.SetTextColor(_heroCrestEmblem, lightDisc ? Ink : MenuArt.Cream);
             }
             if (_heroTierName != null)
             {
@@ -546,6 +597,8 @@ namespace Kalyeah.Game
             if (_matchesValue != null)
                 _matchesValue.text = string.Format(CultureInfo.InvariantCulture, "{0}W - {1}L", session.TotalWins, Mathf.Max(0, session.TotalMatches - session.TotalWins));
 
+            Sprite unlockedBadgeSprite = MenuArt.ChamferCard(TileTop, TileBottom, MenuArt.PanelBorder, 8, 1, 0.20f);
+            Sprite lockedBadgeSprite = MenuArt.ChamferCard(TileLockedTop, TileLockedBottom, DividerColor, 8, 1, 0.12f);
             for (int i = 0; i < AppSession.RankTiers.Length; i++)
             {
                 RankTierInfo t = AppSession.RankTiers[i];
@@ -553,17 +606,16 @@ namespace Kalyeah.Game
                 bool unlocked = i <= currentTierIdx;
                 if (_tierBadgeBgs[i] != null)
                 {
-                    _tierBadgeBgs[i].color = isCurrent
-                        ? new Color(0.24f, 0.34f, 0.56f, 1f)
-                        : unlocked
-                            ? CardBg
-                            : new Color(0.05f, 0.08f, 0.15f, 0.72f);
+                    _tierBadgeBgs[i].sprite = unlocked ? unlockedBadgeSprite : lockedBadgeSprite;
+                    _tierBadgeBgs[i].color = Color.white;
                 }
+                if (_tierBadgeOutlines[i] != null)
+                    _tierBadgeOutlines[i].enabled = isCurrent;
                 if (_tierBadgeLabels[i] != null)
                 {
                     string marker = isCurrent ? "» " : ""; // Barlow Condensed has no star
                     _tierBadgeLabels[i].text = $"{marker}{t.Name}\n{t.MinLp}+ LP";
-                    _tierBadgeLabels[i].color = isCurrent ? Gold : unlocked ? Ui.Cream : new Color(0.55f, 0.62f, 0.74f, 0.85f);
+                    _tierBadgeLabels[i].color = isCurrent ? MenuArt.GoldLight : unlocked ? MenuArt.Cream : new Color(0.55f, 0.62f, 0.74f, 0.85f);
                 }
             }
 
@@ -587,33 +639,35 @@ namespace Kalyeah.Game
                 return;
             }
 
+            Sprite winCard = MenuArt.ChamferCard(WinRowTop, WinRowBottom, WinRowBorder, 10, 1, 0.22f);
+            Sprite lossCard = MenuArt.ChamferCard(LossRowTop, LossRowBottom, LossRowBorder, 10, 1, 0.22f);
+
             for (int i = 0; i < entries.Count; i++)
             {
                 MatchHistoryEntry e = entries[i];
                 var rowGo = new GameObject($"MatchRow_{i}", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
                 rowGo.transform.SetParent(_historyContent, false);
                 var rowImg = rowGo.GetComponent<Image>();
-                rowImg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+                rowImg.sprite = e.Won ? winCard : lossCard;
                 rowImg.type = Image.Type.Sliced;
-                rowImg.color = e.Won ? WinRowBg : LossRowBg;
+                rowImg.color = Color.white;
+                rowImg.raycastTarget = false;
 
                 var le = rowGo.GetComponent<LayoutElement>();
                 le.minHeight = 86f;
                 le.preferredHeight = 86f;
 
-                Image stripe = Ui.MakeImage("OutcomeStripe", rowGo.transform, e.Won ? WinGreen : Coral);
-                Stretch(stripe.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 2f), new Vector2(8f, -2f));
+                Ui.MakeAccentRail("OutcomeStripe", rowGo.transform, e.Won ? WinGreen : Coral, width: 5f, verticalInset: 10f);
 
                 RectTransform portraitFrame = Ui.Panel("PortraitFrame", rowGo.transform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
-                Stretch(portraitFrame, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(16f, 8f), new Vector2(70f, -8f));
-                Image pPlate = KomiksUi.MakeSlicedFill("Plate", portraitFrame, new Color(0.06f, 0.09f, 0.18f, 0.85f), KomiksUi.RadiusS);
-                Stretch(pPlate.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                Stretch(portraitFrame, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(18f, 8f), new Vector2(72f, -8f));
+                Ui.MakeSliced("Plate", portraitFrame, MenuArt.StatChip(8), Color.white, raycast: false);
 
                 Texture2D portrait = KalyeahResources.Texture("portraits/" + e.CharacterId) ?? KalyeahResources.Texture("ui/avatars/" + e.CharacterId);
                 if (portrait != null)
                 {
                     RectTransform portraitSlot = Ui.Panel("PortraitSlot", portraitFrame, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-                    Stretch(portraitSlot, Vector2.zero, Vector2.one, new Vector2(2f, 2f), new Vector2(-2f, -2f));
+                    Stretch(portraitSlot, Vector2.zero, Vector2.one, new Vector2(3f, 3f), new Vector2(-3f, -3f));
 
                     var pGo = new GameObject("Portrait", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
                     pGo.transform.SetParent(portraitSlot, false);
@@ -629,23 +683,30 @@ namespace Kalyeah.Game
 
                 string outcomeWord = e.Won ? (fil ? "PANALO" : "VICTORY") : (fil ? "TALO" : "DEFEAT");
                 Text outcomeLbl = MakeRowText("Outcome", rowGo.transform, outcomeWord, 21, e.Won ? WinGreen : Coral, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
-                Stretch(outcomeLbl.rectTransform, new Vector2(0f, 0.50f), new Vector2(0.54f, 0.94f), new Vector2(82f, 0f), Vector2.zero);
+                Stretch(outcomeLbl.rectTransform, new Vector2(0f, 0.50f), new Vector2(0.54f, 0.94f), new Vector2(84f, 0f), Vector2.zero);
 
                 string kidLabel = string.IsNullOrEmpty(e.CharacterId) ? "Junjun" : (char.ToUpperInvariant(e.CharacterId[0]) + e.CharacterId.Substring(1));
                 string modeLabel = FormatModeName(e.Mode);
-                Text subLbl = MakeRowText("ModeAndKid", rowGo.transform, $"{modeLabel}  ·  {kidLabel}", 18, Ui.Cream, TextAnchor.UpperLeft);
-                Stretch(subLbl.rectTransform, new Vector2(0f, 0.06f), new Vector2(0.56f, 0.50f), new Vector2(82f, 0f), Vector2.zero);
+                Text subLbl = MakeRowText("ModeAndKid", rowGo.transform, $"{modeLabel}  ·  {kidLabel}", 17, MenuArt.Cream, TextAnchor.UpperLeft);
+                Ui.ClearOutline(subLbl);
+                Stretch(subLbl.rectTransform, new Vector2(0f, 0.06f), new Vector2(0.54f, 0.50f), new Vector2(84f, 0f), Vector2.zero);
 
-                Text scoreLbl = MakeRowText("Score", rowGo.transform, $"{e.MyScore} - {e.TheirScore}", 24, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-                Stretch(scoreLbl.rectTransform, new Vector2(0.56f, 0.14f), new Vector2(0.73f, 0.86f), Vector2.zero, Vector2.zero);
+                // Framed tactical score chip
+                RectTransform scoreChip = Ui.MakeStatChip("ScoreChip", rowGo.transform, $"{e.MyScore} - {e.TheirScore}", MenuArt.Cream, out Text scoreLbl, fontSize: 22, font: KalyeahResources.DisplayFont());
+                Stretch(scoreChip, new Vector2(0.55f, 0.5f), new Vector2(0.73f, 0.5f), new Vector2(0f, -22f), new Vector2(0f, 22f));
+                scoreLbl.resizeTextForBestFit = true;
+                scoreLbl.resizeTextMinSize = 12;
+                scoreLbl.resizeTextMaxSize = 22;
+                scoreLbl.verticalOverflow = VerticalWrapMode.Overflow;
 
                 string deltaStr = e.LpDelta >= 0 ? ("+" + e.LpDelta.ToString(CultureInfo.InvariantCulture) + " LP") : (e.LpDelta.ToString(CultureInfo.InvariantCulture) + " LP");
-                Text deltaLbl = MakeRowText("LpDelta", rowGo.transform, deltaStr, 20, e.LpDelta >= 0 ? Gold : Coral, TextAnchor.LowerRight, KalyeahResources.DisplayFont());
-                Stretch(deltaLbl.rectTransform, new Vector2(0.73f, 0.50f), new Vector2(1f, 0.94f), Vector2.zero, new Vector2(-14f, 0f));
+                Text deltaLbl = MakeRowText("LpDelta", rowGo.transform, deltaStr, 20, e.LpDelta >= 0 ? MenuArt.GoldLight : Coral, TextAnchor.LowerRight, KalyeahResources.DisplayFont());
+                Stretch(deltaLbl.rectTransform, new Vector2(0.74f, 0.50f), new Vector2(1f, 0.94f), Vector2.zero, new Vector2(-14f, 0f));
 
                 string timeStr = FormatTimestamp(e.TimestampUnixSeconds);
-                Text timeLbl = MakeRowText("Timestamp", rowGo.transform, timeStr, 18, Muted, TextAnchor.UpperRight);
-                Stretch(timeLbl.rectTransform, new Vector2(0.73f, 0.06f), new Vector2(1f, 0.50f), Vector2.zero, new Vector2(-14f, 0f));
+                Text timeLbl = MakeRowText("Timestamp", rowGo.transform, timeStr, 17, Muted, TextAnchor.UpperRight);
+                Ui.ClearOutline(timeLbl);
+                Stretch(timeLbl.rectTransform, new Vector2(0.74f, 0.06f), new Vector2(1f, 0.50f), Vector2.zero, new Vector2(-14f, 0f));
 
                 _spawnedRows.Add(rowGo);
             }

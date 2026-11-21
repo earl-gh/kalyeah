@@ -24,13 +24,14 @@ namespace Kalyeah.Game
         public const string LobbyId = "lobby";
         public const string HotspotId = "hotspot";
 
-        static readonly Color ScrimColor = new Color(0.03f, 0.05f, 0.12f, 0.82f);
-        static readonly Color InkBorderColor = new Color(0.09f, 0.07f, 0.14f, 0.98f);
-        static readonly Color CardBodyColor = new Color(0.98f, 0.95f, 0.89f, 1f);
-        static readonly Color HeaderBandColor = new Color(0.92f, 0.47f, 0.16f, 1f);
-        static readonly Color CancelBtnColor = new Color(0.19f, 0.48f, 0.88f, 1f);
-        static readonly Color QuitBtnColor = new Color(0.86f, 0.25f, 0.22f, 1f);
-        static readonly Color EspressoText = new Color(0.14f, 0.10f, 0.08f, 1f);
+        static readonly Color ScrimColor = new Color(0.01f, 0.03f, 0.06f, 0.86f);
+        static readonly Color QuitTopColor = new Color(0.95f, 0.34f, 0.30f, 1f);
+        static readonly Color QuitBottomColor = new Color(0.66f, 0.14f, 0.14f, 1f);
+        static readonly Color QuitBorderColor = new Color(1.00f, 0.66f, 0.62f, 0.85f);
+        static readonly Color HeaderTopColor = new Color(0.13f, 0.20f, 0.31f, 0.96f);
+        static readonly Color HeaderBottomColor = new Color(0.06f, 0.10f, 0.17f, 0.98f);
+        const float ScreenFadeDuration = 0.14f;
+        const float ScreenFadeStartAlpha = 0.68f;
 
         static readonly Dictionary<string, Sprite> UiSpriteCache = new Dictionary<string, Sprite>(StringComparer.Ordinal);
         static Sprite _roundedSprite;
@@ -59,6 +60,8 @@ namespace Kalyeah.Game
             void OnDisable() => UnsubscribeViewport();
 
             void OnRectTransformDimensionsChange() => Owner?.RefreshModalLayout();
+
+            void Update() => Owner?.TickTransition(Time.unscaledDeltaTime);
 
             void OnApplicationPause(bool paused)
             {
@@ -119,6 +122,8 @@ namespace Kalyeah.Game
         Button _cancelButton;
         Button _quitButton;
         StackLifecycle _lifecycle;
+        CanvasGroup _fadeGroup;
+        float _fadeElapsed;
         string _defaultRootId;
         bool _persistenceBound;
         bool _disposed;
@@ -243,6 +248,7 @@ namespace Kalyeah.Game
             target.Root.gameObject.SetActive(true);
             target.Root.SetAsLastSibling();
             KeepModalOnTop();
+            BeginScreenTransition(target.Root);
             target.OnShow?.Invoke();
             FocusInitialSelectable(target.Root);
             ScreenChanged?.Invoke(key);
@@ -273,6 +279,7 @@ namespace Kalyeah.Game
                 next.Root.gameObject.SetActive(true);
                 next.Root.SetAsLastSibling();
                 KeepModalOnTop();
+                BeginScreenTransition(next.Root);
                 next.OnShow?.Invoke();
                 FocusInitialSelectable(next.Root);
             }
@@ -303,6 +310,7 @@ namespace Kalyeah.Game
                 root.Root.gameObject.SetActive(true);
                 root.Root.SetAsLastSibling();
                 KeepModalOnTop();
+                BeginScreenTransition(root.Root);
                 root.OnShow?.Invoke();
                 FocusInitialSelectable(root.Root);
             }
@@ -435,6 +443,11 @@ namespace Kalyeah.Game
         {
             if (_disposed) return;
             _disposed = true;
+            if (_fadeGroup != null)
+            {
+                _fadeGroup.alpha = 1f;
+                _fadeGroup = null;
+            }
             DetachPersistenceListeners();
             if (_quitSafeArea != null)
             {
@@ -513,20 +526,16 @@ namespace Kalyeah.Game
                 Vector2.zero,
                 new Vector2(520f, 340f));
             Image outerImg = inkOuter.gameObject.AddComponent<Image>();
-            outerImg.sprite = RoundedSprite();
+            outerImg.sprite = MenuArt.ChamferGlass(16);
             outerImg.type = Image.Type.Sliced;
-            outerImg.color = InkBorderColor;
+            outerImg.color = Color.white;
             outerImg.raycastTarget = true;
+            Ui.MakeCornerBrackets("Brackets", inkOuter, new Color(MenuArt.Gold.r, MenuArt.Gold.g, MenuArt.Gold.b, 0.52f));
             _quitCard = inkOuter;
 
             RectTransform body = Ui.Fill("QuitCardBody", inkOuter);
             body.offsetMin = new Vector2(5f, 5f);
             body.offsetMax = new Vector2(-5f, -5f);
-            Image bodyImg = body.gameObject.AddComponent<Image>();
-            bodyImg.sprite = RoundedSprite();
-            bodyImg.type = Image.Type.Sliced;
-            bodyImg.color = CardBodyColor;
-            bodyImg.raycastTarget = false;
 
             _quitHeaderRect = Ui.Panel(
                 "HeaderBand",
@@ -537,17 +546,18 @@ namespace Kalyeah.Game
                 new Vector2(0f, -6f),
                 new Vector2(-12f, 76f));
             Image headerImg = _quitHeaderRect.gameObject.AddComponent<Image>();
-            headerImg.sprite = RoundedSprite();
+            headerImg.sprite = MenuArt.ChamferCard(HeaderTopColor, HeaderBottomColor, MenuArt.PanelBorder, 12, 2, 0.24f);
             headerImg.type = Image.Type.Sliced;
-            headerImg.color = HeaderBandColor;
+            headerImg.color = Color.white;
             headerImg.raycastTarget = false;
+            Ui.MakeAccentRail("Rail", _quitHeaderRect, MenuArt.Gold, width: 4f, verticalInset: 14f);
 
             _quitTitleLabel = Ui.MakeText(
                 "QuitTitle",
                 _quitHeaderRect,
                 "Quit Kalyeah?",
                 32,
-                Ui.Cream,
+                MenuArt.Cream,
                 TextAnchor.MiddleCenter,
                 KalyeahResources.DisplayFont());
             _quitTitleLabel.resizeTextForBestFit = true;
@@ -564,10 +574,10 @@ namespace Kalyeah.Game
                 body,
                 "Leave the street and close the game?",
                 22,
-                EspressoText,
+                MenuArt.MutedText,
                 TextAnchor.MiddleCenter);
-            _quitBodyLabel.fontStyle = FontStyle.Bold;
-            _quitBodyLabel.GetComponent<Outline>().enabled = false;
+            _quitBodyLabel.fontStyle = FontStyle.Normal;
+            Ui.ClearOutline(_quitBodyLabel);
             _quitBodyLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
             _quitBodyLabel.verticalOverflow = VerticalWrapMode.Truncate;
             _quitBodyLabel.resizeTextForBestFit = true;
@@ -583,7 +593,7 @@ namespace Kalyeah.Game
                 "Cancel",
                 body,
                 "Cancel",
-                CancelBtnColor,
+                destructive: false,
                 new Vector2(0f, 0f),
                 new Vector2(0f, 0f),
                 new Vector2(20f, 18f),
@@ -595,7 +605,7 @@ namespace Kalyeah.Game
                 "Quit",
                 body,
                 "Quit",
-                QuitBtnColor,
+                destructive: true,
                 new Vector2(1f, 0f),
                 new Vector2(1f, 0f),
                 new Vector2(-20f, 18f),
@@ -612,7 +622,7 @@ namespace Kalyeah.Game
             string name,
             Transform parent,
             string text,
-            Color tint,
+            bool destructive,
             Vector2 anchor,
             Vector2 pivot,
             Vector2 anchoredPos,
@@ -620,19 +630,19 @@ namespace Kalyeah.Game
             out Text label)
         {
             rect = Ui.Panel(name, parent, anchor, anchor, pivot, anchoredPos, new Vector2(212f, 96f));
-            Image border = rect.gameObject.AddComponent<Image>();
-            border.sprite = RoundedSprite();
-            border.type = Image.Type.Sliced;
-            border.color = InkBorderColor;
-            border.raycastTarget = true;
+            Image hit = rect.gameObject.AddComponent<Image>();
+            hit.color = new Color(0f, 0f, 0f, 0f);
+            hit.raycastTarget = true;
 
             RectTransform fillRect = Ui.Fill("Fill", rect);
-            fillRect.offsetMin = new Vector2(3f, 3f);
-            fillRect.offsetMax = new Vector2(-3f, -3f);
+            fillRect.offsetMin = new Vector2(0f, 6f);
+            fillRect.offsetMax = new Vector2(0f, -6f);
             Image bg = fillRect.gameObject.AddComponent<Image>();
-            bg.sprite = RoundedSprite();
+            bg.sprite = destructive
+                ? MenuArt.ChamferCard(QuitTopColor, QuitBottomColor, QuitBorderColor, 12, 2, 0.40f)
+                : MenuArt.CtaGhost(12);
             bg.type = Image.Type.Sliced;
-            bg.color = tint;
+            bg.color = Color.white;
             bg.raycastTarget = false;
 
             Button btn = rect.gameObject.AddComponent<Button>();
@@ -640,10 +650,11 @@ namespace Kalyeah.Game
             ColorBlock colors = btn.colors;
             colors.normalColor = Color.white;
             colors.highlightedColor = new Color(1f, 0.97f, 0.88f, 1f);
-            colors.pressedColor = new Color(0.84f, 0.84f, 0.88f, 1f);
+            colors.pressedColor = new Color(0.84f, 0.86f, 0.90f, 1f);
             btn.colors = colors;
+            Ui.AddPressFeel(rect, 0.95f);
 
-            label = Ui.MakeText("Label", fillRect, text, 26, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            label = Ui.MakeText("Label", fillRect, text, 26, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             label.resizeTextForBestFit = true;
             label.resizeTextMinSize = 18;
             label.resizeTextMaxSize = 26;
@@ -653,6 +664,43 @@ namespace Kalyeah.Game
             lr.offsetMin = new Vector2(12f, 4f);
             lr.offsetMax = new Vector2(-12f, -4f);
             return btn;
+        }
+
+        void BeginScreenTransition(RectTransform screenRoot)
+        {
+            if (_fadeGroup != null)
+            {
+                _fadeGroup.alpha = 1f;
+                _fadeGroup = null;
+            }
+            if (screenRoot == null || !Application.isPlaying) return;
+            if (SettingsStore.Current != null && SettingsStore.Current.ReduceMotion) return;
+
+            CanvasGroup group = screenRoot.GetComponent<CanvasGroup>();
+            if (group == null) group = screenRoot.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = ScreenFadeStartAlpha;
+            _fadeGroup = group;
+            _fadeElapsed = 0f;
+        }
+
+        void TickTransition(float dt)
+        {
+            if (_fadeGroup == null) return;
+            if (!Application.isPlaying || (SettingsStore.Current != null && SettingsStore.Current.ReduceMotion))
+            {
+                _fadeGroup.alpha = 1f;
+                _fadeGroup = null;
+                return;
+            }
+            _fadeElapsed += Mathf.Max(0f, dt);
+            float t = Mathf.Clamp01(_fadeElapsed / ScreenFadeDuration);
+            float eased = 1f - (1f - t) * (1f - t);
+            _fadeGroup.alpha = Mathf.Lerp(ScreenFadeStartAlpha, 1f, eased);
+            if (t >= 1f)
+            {
+                _fadeGroup.alpha = 1f;
+                _fadeGroup = null;
+            }
         }
 
         void RefreshQuitCopy()
