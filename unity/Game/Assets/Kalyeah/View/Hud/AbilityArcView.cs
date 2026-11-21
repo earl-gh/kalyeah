@@ -65,8 +65,10 @@ namespace Kalyeah.Game
         static readonly string[] TenthsTable = BuildTenthsTable();
         static readonly string[] WholeTable = BuildWholeTable();
         static readonly string[] PercentTable = BuildPercentTable();
+        static readonly string[] AmmoSlashTable = BuildAmmoSlashTable();
 
         static Sprite _dropSprite;
+        static Sprite _reloadSprite;
 
         public static string Tenths(float seconds)
         {
@@ -90,6 +92,15 @@ namespace Kalyeah.Game
         {
             int pct = Mathf.Clamp(Mathf.FloorToInt(value0To100 + 0.01f), 0, PercentTable.Length - 1);
             return PercentTable[pct];
+        }
+
+        public static string AmmoFraction(int ammo, int maxAmmo)
+        {
+            int m = Mathf.Clamp(maxAmmo, 1, 9);
+            int a = Mathf.Clamp(ammo, 0, m);
+            if (m == 7 && a < AmmoSlashTable.Length)
+                return AmmoSlashTable[a];
+            return Whole(a);
         }
 
         public static void SetTextIfChanged(Text label, string value)
@@ -197,6 +208,55 @@ namespace Kalyeah.Game
             return _dropSprite;
         }
 
+        public static Sprite ReloadSprite()
+        {
+            if (_reloadSprite != null) return _reloadSprite;
+            const int size = 64;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = "KalyeahReloadArc",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            var px = new Color32[size * size];
+            float c = size * 0.5f;
+            float rMid = size * 0.31f;
+            float thick = size * 0.075f;
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = x + 0.5f - c;
+                    float dy = y + 0.5f - c;
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    float ang = Mathf.Atan2(dy, dx) * Mathf.Rad2Deg;
+                    if (ang < 0f) ang += 360f;
+
+                    // 280-degree open circular sweep + triangular arrowhead at top-right (45 deg)
+                    bool inArc = ang >= 55f && ang <= 345f;
+                    float ring = inArc ? Mathf.Clamp01(1f - Mathf.Abs(dist - rMid) / thick) : 0f;
+
+                    // Arrowhead near angle ~50 deg on outer ring
+                    float ax = c + Mathf.Cos(50f * Mathf.Deg2Rad) * rMid;
+                    float ay = c + Mathf.Sin(50f * Mathf.Deg2Rad) * rMid;
+                    float adx = (x + 0.5f) - ax;
+                    float ady = (y + 0.5f) - ay;
+                    float arrow = (adx >= -8f && adx <= 7f && ady >= -7f && ady <= 7f && (Mathf.Abs(adx + ady * 0.3f) + Mathf.Abs(ady - adx * 0.3f)) < 8.5f)
+                        ? 1f
+                        : 0f;
+
+                    float a = Mathf.Clamp01(Mathf.Max(ring, arrow));
+                    px[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                }
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            _reloadSprite = Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
+            _reloadSprite.name = "KalyeahReloadArc";
+            return _reloadSprite;
+        }
+
         public static Sprite MakeSprite(Texture2D tex)
         {
             if (tex == null) return null;
@@ -231,6 +291,11 @@ namespace Kalyeah.Game
             for (int i = 0; i < arr.Length; i++)
                 arr[i] = i.ToString(CultureInfo.InvariantCulture) + "%";
             return arr;
+        }
+
+        static string[] BuildAmmoSlashTable()
+        {
+            return new[] { "0/7", "1/7", "2/7", "3/7", "4/7", "5/7", "6/7", "7/7" };
         }
     }
 
@@ -285,8 +350,21 @@ namespace Kalyeah.Game
         static readonly Color SweepShade = new Color(0.03f, 0.05f, 0.10f, 0.74f);
         static readonly Color PrimaryCadenceShade = new Color(1.00f, 0.88f, 0.42f, 0.16f);
         static readonly Color DenyTint = new Color(0.96f, 0.22f, 0.20f, 0.86f);
+        static readonly Color WaterBadgeReady = new Color(0.32f, 0.88f, 1.00f, 1.00f);
+        static readonly Color WaterBadgeLow = new Color(1.00f, 0.42f, 0.36f, 1.00f);
+        static readonly Color WaterLowRimA = new Color(0.24f, 0.62f, 0.90f, 0.52f);
+        static readonly Color WaterLowRimB = new Color(0.96f, 0.34f, 0.30f, 0.86f);
+        static readonly Color ChargePipLit = new Color(1.00f, 0.90f, 0.34f, 1.00f);
+        static readonly Color ChargePipSpent = new Color(0.14f, 0.18f, 0.26f, 0.72f);
+        static readonly Color AmmoPipLit = new Color(0.98f, 0.95f, 0.84f, 0.98f);
+        static readonly Color AmmoPipEmpowered = new Color(0.34f, 0.94f, 1.00f, 1.00f);
+        static readonly Color AmmoPipSpent = new Color(0.10f, 0.13f, 0.20f, 0.60f);
+        static readonly Color RecastRimGold = new Color(1.00f, 0.78f, 0.20f, 1.00f);
         static readonly Color CancelIdlePlate = new Color(0.68f, 0.12f, 0.14f, 0.92f);
         static readonly Color CancelHotPlate = new Color(0.94f, 0.16f, 0.16f, 0.98f);
+
+        const int MaxAmmoPips = 7;
+        const int MaxChargePips = 3;
 
         enum ButtonRole
         {
@@ -323,8 +401,10 @@ namespace Kalyeah.Game
             public Text CenterText;
             public Text CooldownText;
             public Text BadgeText;
+            public Image[] ChargePips;
             public string LastWeaponId = "";
             public bool Ready;
+            public bool InsufficientWater;
             public float DenyTimer;
             public float FlashTimer;
             public Vector2 RestPos;
@@ -337,6 +417,9 @@ namespace Kalyeah.Game
         readonly float[] _layoutRadii = new float[TotalButtonCount];
         readonly string[] _slotWeaponIds = { "", "", "" };
         readonly float[] _slotMaxRanges = { 16f, 16f, 16f };
+        readonly AimCameraKind[] _slotAimCameras = { AimCameraKind.Normal, AimCameraKind.Normal, AimCameraKind.Normal };
+        readonly Image[] _ammoPips = new Image[MaxAmmoPips];
+        RectTransform _ammoPipGroup;
 
         RectTransform _root;
         RectTransform _clusterRoot;
@@ -386,8 +469,13 @@ namespace Kalyeah.Game
         bool _canMove = true;
         bool _canCast = true;
         bool _canSlideNow;
+        bool _usingSpecKit;
+        bool _canManualReload;
         float _ultPulsePhase;
+        float _waterPulsePhase;
 
+        public AudioHub Audio { get; set; }
+        public AimCameraKind ActiveAimCamera { get; private set; } = AimCameraKind.Normal;
         public RectTransform Root => _root;
         public RectTransform PrimaryButtonRect => _buttons[(int)ButtonRole.Primary]?.Rect;
         public RectTransform DashButtonRect => _buttons[(int)ButtonRole.Dash]?.Rect;
@@ -539,6 +627,9 @@ namespace Kalyeah.Game
             icon.rectTransform.offsetMax = Vector2.zero;
 
             Text centerText = Ui.MakeText("FallbackLabel", rect, "", 16, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            centerText.resizeTextForBestFit = true;
+            centerText.resizeTextMinSize = 10;
+            centerText.resizeTextMaxSize = 16;
             FillRect(centerText.rectTransform, new Vector2(6f, 6f));
 
             Image sweep = Ui.MakeImage("CooldownSweep", rect, SweepShade, round: true, raycast: false);
@@ -554,13 +645,53 @@ namespace Kalyeah.Game
             FillRect(rim.rectTransform, new Vector2(-2f, -2f));
 
             Text cdText = Ui.MakeText("CooldownText", rect, "", 20, Color.white, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            cdText.resizeTextForBestFit = true;
+            cdText.resizeTextMinSize = 11;
+            cdText.resizeTextMaxSize = 20;
             FillRect(cdText.rectTransform, Vector2.zero);
 
-            Text badgeText = Ui.MakeText("BadgeText", rect, "", 14, new Color(1f, 0.90f, 0.45f, 0.98f), TextAnchor.LowerCenter);
+            Text badgeText = Ui.MakeText("BadgeText", rect, "", 14, new Color(1f, 0.90f, 0.45f, 0.98f), TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
+            badgeText.resizeTextForBestFit = true;
+            badgeText.resizeTextMinSize = 10;
+            badgeText.resizeTextMaxSize = 14;
             badgeText.rectTransform.anchorMin = new Vector2(0f, 0f);
             badgeText.rectTransform.anchorMax = new Vector2(1f, 0.36f);
-            badgeText.rectTransform.offsetMin = Vector2.zero;
-            badgeText.rectTransform.offsetMax = new Vector2(0f, 2f);
+            badgeText.rectTransform.offsetMin = new Vector2(4f, 4f);
+            badgeText.rectTransform.offsetMax = new Vector2(-4f, 0f);
+
+            Image[] chargePips = null;
+            if (role == ButtonRole.Slot0 || role == ButtonRole.Slot1)
+            {
+                chargePips = new Image[MaxChargePips];
+                for (int p = 0; p < MaxChargePips; p++)
+                {
+                    Image pip = Ui.MakeImage("ChargePip_" + p, rect, ChargePipLit, round: true, raycast: false);
+                    pip.rectTransform.anchorMin = pip.rectTransform.anchorMax = new Vector2(0.5f, 1f);
+                    pip.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+                    pip.rectTransform.sizeDelta = new Vector2(8f, 8f);
+                    pip.rectTransform.anchoredPosition = new Vector2((p - 1) * 11f, -10f);
+                    pip.gameObject.SetActive(false);
+                    chargePips[p] = pip;
+                }
+            }
+
+            if (role == ButtonRole.Primary)
+            {
+                _ammoPipGroup = Ui.Panel("AmmoPips", rect, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 10f), new Vector2(66f, 12f));
+                for (int p = 0; p < MaxAmmoPips; p++)
+                {
+                    float t = (p / (float)(MaxAmmoPips - 1)) - 0.5f; // -0.5 .. +0.5
+                    float x = t * 52f;
+                    float arcLift = (1f - 4f * t * t) * 3.5f;
+                    Image pip = Ui.MakeImage("StonePip_" + p, _ammoPipGroup, AmmoPipLit, round: true, raycast: false);
+                    pip.rectTransform.anchorMin = pip.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+                    pip.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+                    pip.rectTransform.anchoredPosition = new Vector2(x, -arcLift);
+                    pip.rectTransform.sizeDelta = new Vector2(6f, 6f);
+                    _ammoPips[p] = pip;
+                }
+                _ammoPipGroup.gameObject.SetActive(false);
+            }
 
             _buttons[idx] = new ButtonWidget
             {
@@ -574,6 +705,7 @@ namespace Kalyeah.Game
                 CenterText = centerText,
                 CooldownText = cdText,
                 BadgeText = badgeText,
+                ChargePips = chargePips,
                 Ready = true,
             };
             _buttonRects[idx] = rect;
@@ -909,6 +1041,7 @@ namespace Kalyeah.Game
             _pendingReleaseUseDragAim = false;
             _pendingReleaseUseCrosshairAim = false;
             _latchedPulseButtons = 0;
+            ActiveAimCamera = AimCameraKind.Normal;
 
             if (wasHoldingAbility)
                 _latchedAimCancel = true;
@@ -954,12 +1087,17 @@ namespace Kalyeah.Game
                                  kid.StatusKind != StatusKind.Polymorph &&
                                  kid.StatusKind != StatusKind.Knockout &&
                                  kid.StatusKind != StatusKind.Tripped;
-            bool statusCanMove = statusCanCast && kid.StatusKind != StatusKind.Airborne;
+            // docs/KITS.md: Root blocks movement only, NOT shooting or skills
+            bool statusCanMove = statusCanCast && kid.StatusKind != StatusKind.Airborne && kid.StatusKind != StatusKind.Root;
 
+            _usingSpecKit = kid.UsingSpecKit;
             _matchInteractive = playing && !_kidTagged;
             _castingBlocked = kid.CastingBlocked || kid.InRescueZone;
             _canCast = _matchInteractive && statusCanCast && !_castingBlocked;
             _canMove = _matchInteractive && statusCanMove;
+
+            if (!_reduceMotion)
+                _waterPulsePhase = Mathf.Repeat(_waterPulsePhase + Mathf.Max(0f, dt) * 4.4f, Mathf.PI * 2f);
 
             if ((!_canCast && _heldSlot >= 0) || (!_matchInteractive && (_primaryPointer != NoPointer || _primaryTapPending || _crouchPointer != NoPointer)))
                 CancelAll();
@@ -972,31 +1110,58 @@ namespace Kalyeah.Game
             if (_statusBanner != null)
             {
                 bool showZoneBlock = _matchInteractive && _castingBlocked;
-                if (_statusBanner.gameObject.activeSelf != showZoneBlock)
-                    _statusBanner.gameObject.SetActive(showZoneBlock);
+                bool showSkyCast = _matchInteractive && !showZoneBlock && _heldSlot >= 0 && ActiveAimCamera == AimCameraKind.MapCast;
+                bool showBanner = showZoneBlock || showSkyCast;
+                if (_statusBanner.gameObject.activeSelf != showBanner)
+                    _statusBanner.gameObject.SetActive(showBanner);
                 if (showZoneBlock)
                 {
                     HudIconCache.SetTextIfChanged(
                         _statusBannerText,
                         kid.InRescueZone ? "NO CAST IN RESCUE" : "NO CAST IN BASE");
                 }
+                else if (showSkyCast)
+                {
+                    HudIconCache.SetTextIfChanged(_statusBannerText, "SKY CAST - AIM");
+                }
             }
 
-            // 1. Primary (Tirador) — stays vivid during normal < 1.0 s shot cadence
+            // 1. Primary (Tirador) — 7-pip stone magazine, reload sweep, and hold-to-charge rim glow in Spec Kit mode
             float primCd = Mathf.Max(0f, kid.PrimaryCooldown);
             float primMax = Mathf.Max(0.1f, kid.PrimaryMaxCooldown > 0.01f
                 ? kid.PrimaryMaxCooldown
                 : (sim.PrimaryWeaponInfo.HasValue ? sim.PrimaryWeaponInfo.Value.Cooldown : 0.48f));
-            UpdatePrimaryVisual(_buttons[(int)ButtonRole.Primary], _canCast, primCd, primMax, _primaryPointer != NoPointer || _primaryTapPending);
+            UpdatePrimaryVisual(
+                _buttons[(int)ButtonRole.Primary],
+                _canCast,
+                primCd,
+                primMax,
+                _primaryPointer != NoPointer || _primaryTapPending,
+                in kid);
 
-            // 2. 3 Superpower Slots
+            // 2. Skill Slots (S1, S2, and Reload in Spec Kit mode; or 3 Superpowers in legacy mode)
             int handCount = kid.HandWeaponIds != null ? kid.HandWeaponIds.Length : 0;
             for (int s = 0; s < SuperpowerCount; s++)
             {
-                ButtonWidget w = _buttons[(int)ButtonRole.Slot0 + s];
                 string wid = s < handCount ? (kid.HandWeaponIds[s] ?? "") : "";
                 _slotWeaponIds[s] = wid;
 
+                WeaponInfo? wInfo = !string.IsNullOrEmpty(wid) ? sim.GetWeaponInfo(wid) : null;
+                _slotMaxRanges[s] = wInfo.HasValue && wInfo.Value.MaxRange > 0.1f ? wInfo.Value.MaxRange : 16f;
+                _slotAimCameras[s] = (kid.SlotAimCameras != null && s < kid.SlotAimCameras.Length)
+                    ? kid.SlotAimCameras[s]
+                    : (wInfo.HasValue ? wInfo.Value.AimCamera : AimCameraKind.Normal);
+
+                if (_usingSpecKit && s == 2)
+                {
+                    // Repurpose Slot2 into crisp Tirador Reload button (keeps all 8 InteractiveButtonRects active for ScreenFitBoundsTests!)
+                    ButtonWidget rldBtn = _buttons[(int)ButtonRole.Slot2];
+                    if (!rldBtn.Rect.gameObject.activeSelf) rldBtn.Rect.gameObject.SetActive(true);
+                    UpdateReloadVisual(rldBtn, in kid);
+                    continue;
+                }
+
+                ButtonWidget w = _buttons[(int)ButtonRole.Slot0 + s];
                 if (string.IsNullOrEmpty(wid))
                 {
                     if (w.Rect.gameObject.activeSelf) w.Rect.gameObject.SetActive(false);
@@ -1004,24 +1169,65 @@ namespace Kalyeah.Game
                 }
                 if (!w.Rect.gameObject.activeSelf) w.Rect.gameObject.SetActive(true);
 
-                WeaponInfo? wInfo = sim.GetWeaponInfo(wid);
-                _slotMaxRanges[s] = wInfo.HasValue && wInfo.Value.MaxRange > 0.1f ? wInfo.Value.MaxRange : 16f;
                 BindDynamicWeaponIcon(w, wid, wInfo);
 
                 float cd = (kid.SlotCooldowns != null && s < kid.SlotCooldowns.Length) ? Mathf.Max(0f, kid.SlotCooldowns[s]) : 0f;
                 float maxCd = (kid.SlotMaxCooldowns != null && s < kid.SlotMaxCooldowns.Length && kid.SlotMaxCooldowns[s] > 0.01f)
                     ? kid.SlotMaxCooldowns[s]
                     : (wInfo.HasValue ? Mathf.Max(0.1f, wInfo.Value.Cooldown) : 1f);
-                int cost = (kid.SlotElixirCosts != null && s < kid.SlotElixirCosts.Length) ? kid.SlotElixirCosts[s] : 0;
-                bool affordable = !kid.CardsMode || kid.Elixir + 0.001f >= cost;
-                bool slotReady = _canCast && cd <= 0.01f && affordable;
 
-                string badge = kid.CardsMode && cost > 0 ? HudIconCache.Whole(cost) : "";
-                float sweepRatio = cd > 0.01f
-                    ? Mathf.Clamp01(cd / maxCd)
-                    : (!affordable && cost > 0 ? Mathf.Clamp01(1f - kid.Elixir / cost) : 0f);
+                if (_usingSpecKit)
+                {
+                    int waterCost = (kid.SlotWaterCosts != null && s < kid.SlotWaterCosts.Length)
+                        ? kid.SlotWaterCosts[s]
+                        : (wInfo.HasValue ? wInfo.Value.WaterCost : 0);
+                    int maxCharges = (kid.SlotMaxCharges != null && s < kid.SlotMaxCharges.Length && kid.SlotMaxCharges[s] > 0)
+                        ? kid.SlotMaxCharges[s]
+                        : (wInfo.HasValue && wInfo.Value.MaxCharges > 0 ? wInfo.Value.MaxCharges : 1);
+                    int charges = (kid.SlotCharges != null && s < kid.SlotCharges.Length)
+                        ? Mathf.Clamp(kid.SlotCharges[s], 0, maxCharges)
+                        : (cd <= 0.01f ? maxCharges : 0);
 
-                UpdateSlotVisual(w, slotReady, cd, sweepRatio, _heldSlot == s, badge);
+                    bool recastReady = s == 0 && kid.SyatoRecastReady;
+                    bool hasCharge = recastReady || (maxCharges > 1 ? charges > 0 : cd <= 0.01f);
+                    bool affordable = recastReady || waterCost <= 0 || kid.Water + 0.001f >= waterCost;
+                    bool slotReady = _canCast && hasCharge && affordable;
+                    w.InsufficientWater = !recastReady && waterCost > 0 && !affordable;
+
+                    string badge = recastReady
+                        ? "DASH"
+                        : (waterCost > 0 ? HudIconCache.Whole(waterCost) : "");
+                    float sweepRatio = (!hasCharge && cd > 0.01f)
+                        ? Mathf.Clamp01(cd / maxCd)
+                        : (w.InsufficientWater && waterCost > 0 ? Mathf.Clamp01(1f - kid.Water / waterCost) : 0f);
+
+                    UpdateSpecSlotVisual(
+                        w,
+                        slotReady,
+                        hasCharge ? 0f : cd,
+                        sweepRatio,
+                        _heldSlot == s,
+                        badge,
+                        w.InsufficientWater,
+                        recastReady,
+                        charges,
+                        maxCharges);
+                }
+                else
+                {
+                    w.InsufficientWater = false;
+                    HideChargePips(w);
+                    int cost = (kid.SlotElixirCosts != null && s < kid.SlotElixirCosts.Length) ? kid.SlotElixirCosts[s] : 0;
+                    bool affordable = !kid.CardsMode || kid.Elixir + 0.001f >= cost;
+                    bool slotReady = _canCast && cd <= 0.01f && affordable;
+
+                    string badge = kid.CardsMode && cost > 0 ? HudIconCache.Whole(cost) : "";
+                    float sweepRatio = cd > 0.01f
+                        ? Mathf.Clamp01(cd / maxCd)
+                        : (!affordable && cost > 0 ? Mathf.Clamp01(1f - kid.Elixir / cost) : 0f);
+
+                    UpdateSlotVisual(w, slotReady, cd, sweepRatio, _heldSlot == s, badge);
+                }
             }
 
             // 3. Dash (Luksong-Tinik)
@@ -1030,10 +1236,27 @@ namespace Kalyeah.Game
             bool dashReady = _canMove && dashCd <= 0.01f && !kid.Dashing;
             UpdateButtonState(_buttons[(int)ButtonRole.Dash], dashReady, dashCd, dashMax, kid.Dashing, "");
 
-            // 4. Ultimate (Bagsak ng Kalye)
-            float ultCharge = Mathf.Clamp(kid.UltCharge, 0f, 100f);
-            bool ultReady = _canCast && ultCharge >= 99.99f && sim.UltimateWeaponInfo.HasValue;
-            UpdateUltimateVisual(_buttons[(int)ButtonRole.Ultimate], ultReady, ultCharge, dt);
+            // 4. Ultimate (Spec ULT on slot 2 with 0 water & drag-aim, or legacy Bagsak ng Kalye 0..100% charge)
+            if (_usingSpecKit)
+            {
+                ButtonWidget ultBtn = _buttons[(int)ButtonRole.Ultimate];
+                string ultWid = _slotWeaponIds[2];
+                WeaponInfo? ultInfo = !string.IsNullOrEmpty(ultWid) ? sim.GetWeaponInfo(ultWid) : null;
+                if (!string.IsNullOrEmpty(ultWid))
+                    BindDynamicWeaponIcon(ultBtn, ultWid, ultInfo);
+                float ultCd = (kid.SlotCooldowns != null && kid.SlotCooldowns.Length > 2) ? Mathf.Max(0f, kid.SlotCooldowns[2]) : 0f;
+                float ultMax = (kid.SlotMaxCooldowns != null && kid.SlotMaxCooldowns.Length > 2 && kid.SlotMaxCooldowns[2] > 0.01f)
+                    ? kid.SlotMaxCooldowns[2]
+                    : (ultInfo.HasValue && ultInfo.Value.Cooldown > 0.1f ? ultInfo.Value.Cooldown : 85f);
+                bool ultReady = _canCast && ultCd <= 0.01f && !string.IsNullOrEmpty(ultWid);
+                UpdateSpecUltimateVisual(ultBtn, ultReady, ultCd, ultMax, _heldSlot == 2, dt);
+            }
+            else
+            {
+                float ultCharge = Mathf.Clamp(kid.UltCharge, 0f, 100f);
+                bool ultReady = _canCast && ultCharge >= 99.99f && sim.UltimateWeaponInfo.HasValue;
+                UpdateUltimateVisual(_buttons[(int)ButtonRole.Ultimate], ultReady, ultCharge, dt);
+            }
 
             // 5. Jump
             float jumpCd = Mathf.Max(0f, kid.JumpCooldown);
@@ -1068,6 +1291,11 @@ namespace Kalyeah.Game
                 _holdElapsed += Mathf.Max(0f, dt);
                 if (_holdElapsed > QuickTapMaxSeconds && !_isCancelHovered)
                     _hasDraggedPastDeadZone = _hasDraggedPastDeadZone || false; // hold-past-tap activates crosshair aim preview
+                ActiveAimCamera = _heldSlot < _slotAimCameras.Length ? _slotAimCameras[_heldSlot] : AimCameraKind.Normal;
+            }
+            else
+            {
+                ActiveAimCamera = AimCameraKind.Normal;
             }
 
             CurrentInput = SampleInput(sim, shoulder, worldCamera, layout);
@@ -1108,7 +1336,9 @@ namespace Kalyeah.Game
                 buttons |= InputButtons.Primary;
                 if (worldCamera != null || shoulder != null)
                 {
-                    float pRange = sim != null && sim.PrimaryWeaponInfo.HasValue ? sim.PrimaryWeaponInfo.Value.MaxRange : 18f;
+                    float pRange = localOpt.HasValue && localOpt.Value.TiradorCurrentRange > 0.5f
+                        ? localOpt.Value.TiradorCurrentRange
+                        : (sim != null && sim.PrimaryWeaponInfo.HasValue ? sim.PrimaryWeaponInfo.Value.MaxRange : 18f);
                     AimSolution pSol = AimSolver.Solve(worldCamera, kidFeet, kidFacing, pRange, layout, originH);
                     aim = pSol.SimAimDirection;
                     aimPoint = pSol.SimAimPoint;
@@ -1247,26 +1477,21 @@ namespace Kalyeah.Game
                 case ButtonRole.Slot1:
                 case ButtonRole.Slot2:
                 {
-                    if (_slotPointer != NoPointer || _heldSlot >= 0) return;
-                    int slot = (int)role - (int)ButtonRole.Slot0;
-                    if (!w.Ready || !_canCast || string.IsNullOrEmpty(_slotWeaponIds[slot]))
+                    if (_usingSpecKit && role == ButtonRole.Slot2)
                     {
-                        TriggerDeny(w);
+                        if (!_canCast || !_canManualReload)
+                        {
+                            TriggerDeny(w);
+                            return;
+                        }
+                        _latchedPulseButtons |= InputButtons.Reload;
+                        w.FlashTimer = PressFlashDuration;
+                        Haptics.LightTap();
                         return;
                     }
-                    _slotPointer = eventData.pointerId;
-                    _heldSlot = slot;
-                    _holdElapsed = 0f;
-                    _pressScreenPos = eventData.position;
-                    _currentScreenPos = eventData.position;
-                    _screenDragWay = Vector2.zero;
-                    _hasDraggedPastDeadZone = false;
-                    _isCancelHovered = false;
-                    _slotPressObservedBySim = false;
-                    _pendingReleaseSlot = -1;
-                    w.FlashTimer = PressFlashDuration;
-                    if (_cancelZone != null) _cancelZone.gameObject.SetActive(true);
-                    Haptics.LightTap();
+
+                    int slot = (int)role - (int)ButtonRole.Slot0;
+                    BeginSlotAim(w, slot, eventData);
                     break;
                 }
 
@@ -1278,6 +1503,11 @@ namespace Kalyeah.Game
                     break;
 
                 case ButtonRole.Ultimate:
+                    if (_usingSpecKit)
+                    {
+                        BeginSlotAim(w, 2, eventData);
+                        break;
+                    }
                     if (!w.Ready || !_canCast) { TriggerDeny(w); return; }
                     _latchedPulseButtons |= InputButtons.Ultimate;
                     w.FlashTimer = PressFlashDuration * 1.4f;
@@ -1310,9 +1540,44 @@ namespace Kalyeah.Game
             }
         }
 
+        void BeginSlotAim(ButtonWidget w, int slot, PointerEventData eventData)
+        {
+            if (_slotPointer != NoPointer || _heldSlot >= 0) return;
+            if (!w.Ready || !_canCast || slot < 0 || slot >= _slotWeaponIds.Length || string.IsNullOrEmpty(_slotWeaponIds[slot]))
+            {
+                TriggerDeny(w);
+                if (w.InsufficientWater)
+                    Audio?.PlayWaterEmpty();
+                return;
+            }
+            _slotPointer = eventData.pointerId;
+            _heldSlot = slot;
+            _holdElapsed = 0f;
+            _pressScreenPos = eventData.position;
+            _currentScreenPos = eventData.position;
+            _screenDragWay = Vector2.zero;
+            _hasDraggedPastDeadZone = false;
+            _isCancelHovered = false;
+            _slotPressObservedBySim = false;
+            _pendingReleaseSlot = -1;
+            ActiveAimCamera = slot < _slotAimCameras.Length ? _slotAimCameras[slot] : AimCameraKind.Normal;
+            w.FlashTimer = slot == 2 ? PressFlashDuration * 1.35f : PressFlashDuration;
+            if (_cancelZone != null) _cancelZone.gameObject.SetActive(true);
+            if (slot == 2) Haptics.HeavyImpact();
+            else Haptics.LightTap();
+        }
+
+        bool IsAimableSlotRole(ButtonRole role)
+        {
+            if (role == ButtonRole.Slot0 || role == ButtonRole.Slot1) return true;
+            if (role == ButtonRole.Slot2) return !_usingSpecKit;
+            if (role == ButtonRole.Ultimate) return _usingSpecKit;
+            return false;
+        }
+
         void HandleDrag(ButtonRole role, PointerEventData eventData)
         {
-            if (role < ButtonRole.Slot0 || role > ButtonRole.Slot2) return;
+            if (!IsAimableSlotRole(role)) return;
             if (eventData.pointerId != _slotPointer || _heldSlot < 0) return;
 
             _currentScreenPos = eventData.position;
@@ -1346,7 +1611,7 @@ namespace Kalyeah.Game
                 _crouchPointer = NoPointer;
                 return;
             }
-            if (role >= ButtonRole.Slot0 && role <= ButtonRole.Slot2 && eventData.pointerId == _slotPointer && _heldSlot >= 0)
+            if (IsAimableSlotRole(role) && eventData.pointerId == _slotPointer && _heldSlot >= 0)
             {
                 Canvas canvas = _root != null ? _root.GetComponentInParent<Canvas>() : null;
                 bool overCancel = _isCancelHovered || IsOverCancelZone(eventData.position, eventData.pressEventCamera ?? (canvas != null ? canvas.worldCamera : null));
@@ -1376,6 +1641,7 @@ namespace Kalyeah.Game
                 _screenDragWay = Vector2.zero;
                 _hasDraggedPastDeadZone = false;
                 _isCancelHovered = false;
+                ActiveAimCamera = AimCameraKind.Normal;
                 if (_cancelZone != null) _cancelZone.gameObject.SetActive(false);
             }
         }
@@ -1391,7 +1657,7 @@ namespace Kalyeah.Game
             }
             else if (role == ButtonRole.CrouchSlide && (eventData == null || pid == _crouchPointer))
                 _crouchPointer = NoPointer;
-            else if (role >= ButtonRole.Slot0 && role <= ButtonRole.Slot2 && (eventData == null || pid == _slotPointer))
+            else if (IsAimableSlotRole(role) && (eventData == null || pid == _slotPointer))
                 CancelAll();
         }
 
@@ -1477,8 +1743,63 @@ namespace Kalyeah.Game
             }
         }
 
-        void UpdatePrimaryVisual(ButtonWidget w, bool canCast, float cd, float maxCd, bool isHeld)
+        void UpdatePrimaryVisual(ButtonWidget w, bool canCast, float cd, float maxCd, bool isHeld, in KidSnapshot kid)
         {
+            bool showMagazine = kid.UsingSpecKit && kid.TiradorMaxAmmo > 0;
+            if (_ammoPipGroup != null && _ammoPipGroup.gameObject.activeSelf != showMagazine)
+                _ammoPipGroup.gameObject.SetActive(showMagazine);
+
+            if (showMagazine)
+            {
+                int maxAmmo = Mathf.Clamp(kid.TiradorMaxAmmo, 1, MaxAmmoPips);
+                int ammo = Mathf.Clamp(kid.TiradorAmmo, 0, maxAmmo);
+                Color litCol = kid.EmpoweredShotReady ? AmmoPipEmpowered : AmmoPipLit;
+                for (int i = 0; i < MaxAmmoPips; i++)
+                {
+                    bool usePip = i < maxAmmo;
+                    if (_ammoPips[i].gameObject.activeSelf != usePip)
+                        _ammoPips[i].gameObject.SetActive(usePip);
+                    if (usePip)
+                        _ammoPips[i].color = i < ammo ? litCol : AmmoPipSpent;
+                }
+
+                bool reloading = kid.TiradorReloadLeft > 0.01f;
+                if (reloading)
+                {
+                    float total = Mathf.Max(0.1f, kid.TiradorReloadTotal);
+                    w.Ready = false;
+                    w.CooldownSweep.color = SweepShade;
+                    w.CooldownSweep.fillAmount = Mathf.Clamp01(kid.TiradorReloadLeft / total);
+                    HudIconCache.SetTextIfChanged(w.CooldownText, HudIconCache.Tenths(kid.TiradorReloadLeft));
+                    HudIconCache.SetTextIfChanged(w.BadgeText, "RLD");
+                    w.BadgeText.color = RimHeld;
+                    w.Bg.color = DiscBgLocked;
+                    w.Rim.color = RimHeld;
+                    w.Icon.color = new Color(0.68f, 0.72f, 0.80f, 0.56f);
+                    w.Rect.localScale = Vector3.one;
+                    return;
+                }
+
+                bool charging = kid.TiradorCharge01 >= 0f;
+                w.Ready = canCast && cd <= 0.01f && ammo > 0;
+                w.CooldownSweep.color = PrimaryCadenceShade;
+                w.CooldownSweep.fillAmount = cd > 0.04f ? Mathf.Clamp01(cd / Mathf.Max(0.1f, maxCd)) : 0f;
+                HudIconCache.SetTextIfChanged(w.CooldownText, "");
+                HudIconCache.SetTextIfChanged(w.BadgeText, "");
+
+                bool denyingSpec = w.DenyTimer > 0.001f;
+                bool activeSpec = isHeld || charging || w.FlashTimer > 0f;
+                w.Bg.color = denyingSpec ? DenyTint : (canCast ? DiscBgPrimary : DiscBgLocked);
+                w.Rim.color = charging
+                    ? Color.Lerp(RimHeld, AmmoPipEmpowered, Mathf.Clamp01(kid.TiradorCharge01))
+                    : (activeSpec ? RimHeld : (kid.EmpoweredShotReady ? AmmoPipEmpowered : RimPrimaryReady));
+                w.Icon.color = canCast ? new Color(1f, 1f, 1f, 0.98f) : new Color(0.62f, 0.65f, 0.72f, 0.52f);
+
+                float scaleSpec = (!_reduceMotion && activeSpec) ? 1.06f : 1f;
+                w.Rect.localScale = new Vector3(scaleSpec, scaleSpec, 1f);
+                return;
+            }
+
             bool shortCadence = canCast && cd < 1.0f;
             if (!shortCadence)
             {
@@ -1501,6 +1822,144 @@ namespace Kalyeah.Game
 
             float scale = (!_reduceMotion && activePulse) ? 1.06f : 1f;
             w.Rect.localScale = new Vector3(scale, scale, 1f);
+        }
+
+        void UpdateReloadVisual(ButtonWidget w, in KidSnapshot kid)
+        {
+            w.LastWeaponId = "__reload__";
+            w.InsufficientWater = false;
+            HideChargePips(w);
+
+            w.Icon.sprite = HudIconCache.ReloadSprite();
+            w.Icon.enabled = true;
+            HudIconCache.SetTextIfChanged(w.CenterText, "");
+
+            int maxAmmo = Mathf.Max(1, kid.TiradorMaxAmmo);
+            int ammo = Mathf.Clamp(kid.TiradorAmmo, 0, maxAmmo);
+            bool reloading = kid.TiradorReloadLeft > 0.01f;
+            _canManualReload = !reloading && ammo < maxAmmo;
+            w.Ready = _canCast && _canManualReload;
+
+            float sweep = reloading && kid.TiradorReloadTotal > 0.01f
+                ? Mathf.Clamp01(kid.TiradorReloadLeft / kid.TiradorReloadTotal)
+                : 0f;
+            w.CooldownSweep.color = SweepShade;
+            w.CooldownSweep.fillAmount = sweep;
+            HudIconCache.SetTextIfChanged(w.CooldownText, reloading ? HudIconCache.Tenths(kid.TiradorReloadLeft) : "");
+            HudIconCache.SetTextIfChanged(w.BadgeText, HudIconCache.AmmoFraction(ammo, maxAmmo));
+            w.BadgeText.color = reloading ? RimHeld : (ammo <= 2 ? WaterBadgeLow : AmmoPipLit);
+
+            bool denying = w.DenyTimer > 0.001f;
+            bool lowAmmoAlert = !reloading && ammo <= 2 && _canCast;
+            w.Bg.color = denying ? DenyTint : (w.Ready ? DiscBgReady : DiscBgLocked);
+            w.Rim.color = reloading
+                ? RimHeld
+                : (lowAmmoAlert ? Color.Lerp(RimReady, RimHeld, 0.5f + 0.5f * Mathf.Sin(_waterPulsePhase)) : (w.Ready ? RimReady : RimLocked));
+            w.Icon.color = reloading
+                ? RimHeld
+                : (w.Ready ? Color.white : new Color(0.62f, 0.65f, 0.72f, 0.52f));
+
+            float scale = (!_reduceMotion && w.FlashTimer > 0f) ? 1.07f : 1f;
+            w.Rect.localScale = new Vector3(scale, scale, 1f);
+        }
+
+        void UpdateSpecSlotVisual(
+            ButtonWidget w,
+            bool ready,
+            float cd,
+            float sweepRatio,
+            bool isHeld,
+            string badge,
+            bool insufficientWater,
+            bool recastReady,
+            int charges,
+            int maxCharges)
+        {
+            w.Ready = ready;
+            w.CooldownSweep.color = SweepShade;
+            w.CooldownSweep.fillAmount = sweepRatio;
+            HudIconCache.SetTextIfChanged(w.CooldownText, cd > 0.04f ? HudIconCache.Tenths(cd) : "");
+            HudIconCache.SetTextIfChanged(w.BadgeText, badge);
+            w.BadgeText.color = recastReady
+                ? RecastRimGold
+                : (insufficientWater ? WaterBadgeLow : WaterBadgeReady);
+
+            if (w.ChargePips != null)
+            {
+                bool showPips = maxCharges > 1;
+                int visiblePips = showPips ? Mathf.Min(maxCharges, MaxChargePips) : 0;
+                for (int i = 0; i < w.ChargePips.Length; i++)
+                {
+                    bool active = i < visiblePips;
+                    if (w.ChargePips[i].gameObject.activeSelf != active)
+                        w.ChargePips[i].gameObject.SetActive(active);
+                    if (active)
+                    {
+                        float offset = (i - (visiblePips - 1) * 0.5f) * 11f;
+                        w.ChargePips[i].rectTransform.anchoredPosition = new Vector2(offset, -9f);
+                        w.ChargePips[i].color = i < charges ? ChargePipLit : ChargePipSpent;
+                    }
+                }
+            }
+
+            bool denying = w.DenyTimer > 0.001f;
+            float pulse = _reduceMotion ? 0.5f : (0.5f + 0.5f * Mathf.Sin(_waterPulsePhase));
+            w.Bg.color = denying
+                ? DenyTint
+                : (recastReady ? new Color(0.24f, 0.18f, 0.06f, 0.88f) : (ready ? DiscBgReady : DiscBgLocked));
+            w.Rim.color = isHeld
+                ? RimHeld
+                : (recastReady
+                    ? RecastRimGold
+                    : (insufficientWater
+                        ? Color.Lerp(WaterLowRimA, WaterLowRimB, pulse)
+                        : (ready ? RimReady : RimLocked)));
+            w.Icon.color = ready ? Color.white : new Color(0.56f, 0.60f, 0.68f, insufficientWater ? 0.42f : 0.50f);
+
+            float scale = (!_reduceMotion && (isHeld || w.FlashTimer > 0f)) ? 1.08f : 1f;
+            w.Rect.localScale = new Vector3(scale, scale, 1f);
+        }
+
+        void UpdateSpecUltimateVisual(ButtonWidget w, bool ready, float cd, float maxCd, bool isHeld, float dt)
+        {
+            w.Ready = ready;
+            w.InsufficientWater = false;
+            float sweep = (!ready && cd > 0.04f) ? Mathf.Clamp01(cd / Mathf.Max(0.1f, maxCd)) : 0f;
+            w.CooldownSweep.color = SweepShade;
+            w.CooldownSweep.fillAmount = sweep;
+            HudIconCache.SetTextIfChanged(w.CooldownText, (!ready && cd > 0.04f) ? HudIconCache.Tenths(cd) : "");
+            HudIconCache.SetTextIfChanged(w.BadgeText, ready ? "ULT" : "");
+            w.BadgeText.color = RimUltReady;
+
+            bool denying = w.DenyTimer > 0.001f;
+            w.Bg.color = denying ? DenyTint : (ready ? new Color(0.24f, 0.16f, 0.04f, 0.86f) : DiscBgLocked);
+            w.Rim.color = isHeld ? RimHeld : (ready ? RimUltReady : RimLocked);
+            w.Icon.color = ready ? new Color(1f, 0.96f, 0.80f, 1f) : new Color(0.65f, 0.67f, 0.74f, 0.52f);
+
+            if (w.Halo != null)
+            {
+                if (ready)
+                {
+                    if (!_reduceMotion) _ultPulsePhase = Mathf.Repeat(_ultPulsePhase + dt * 3.2f, Mathf.PI * 2f);
+                    float alpha = _reduceMotion ? 0.34f : (0.24f + 0.18f * (0.5f + 0.5f * Mathf.Sin(_ultPulsePhase)));
+                    w.Halo.color = new Color(1f, 0.82f, 0.24f, alpha);
+                }
+                else
+                {
+                    w.Halo.color = new Color(1f, 0.82f, 0.24f, 0f);
+                }
+            }
+
+            float scale = (!_reduceMotion && (isHeld || w.FlashTimer > 0f)) ? 1.10f : 1f;
+            w.Rect.localScale = new Vector3(scale, scale, 1f);
+        }
+
+        static void HideChargePips(ButtonWidget w)
+        {
+            if (w?.ChargePips == null) return;
+            for (int i = 0; i < w.ChargePips.Length; i++)
+                if (w.ChargePips[i].gameObject.activeSelf)
+                    w.ChargePips[i].gameObject.SetActive(false);
         }
 
         void UpdateButtonState(ButtonWidget w, bool ready, float cd, float maxCd, bool heldOrActive, string badge)
@@ -1526,6 +1985,7 @@ namespace Kalyeah.Game
             w.CooldownSweep.fillAmount = sweepRatio;
             HudIconCache.SetTextIfChanged(w.CooldownText, cd > 0.04f ? HudIconCache.Tenths(cd) : "");
             HudIconCache.SetTextIfChanged(w.BadgeText, badge);
+            w.BadgeText.color = new Color(1f, 0.90f, 0.45f, 0.98f);
 
             bool denying = w.DenyTimer > 0.001f;
             w.Bg.color = denying ? DenyTint : (ready ? DiscBgReady : DiscBgLocked);

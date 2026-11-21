@@ -3,7 +3,10 @@ using System.Collections.Generic;
 
 namespace Kalyeah.Sim
 {
-    /// <summary>A cosmetic character (port of character_def.gd). Never affects gameplay.</summary>
+    /// <summary>The 4 kid roles of docs/SPEC.md §7 and docs/KITS.md.</summary>
+    public enum CharacterRole { Striker = 0, Defender = 1, Seeker = 2, Controller = 3 }
+
+    /// <summary>A playable kid (port of character_def.gd). Stats are identical across all 12 kids; kits differ only by their 3 skills.</summary>
     [Serializable]
     public sealed class CharacterDef
     {
@@ -15,6 +18,9 @@ namespace Kalyeah.Sim
         public string Id = "";
         public string DisplayName = "";
         public string Description = "";
+        public CharacterRole Role = CharacterRole.Striker;
+        /// <summary>Approved 3-skill kit from docs/KITS.md in order [S1, S2, ULT].</summary>
+        public List<SkillDef> Skills = new List<SkillDef>();
         public GColor Tint = GColor.White;
         public GColor Skin = new GColor(0.78, 0.58, 0.42);
         public GColor HairColor = new GColor(0.1, 0.08, 0.07);
@@ -30,6 +36,9 @@ namespace Kalyeah.Sim
         public double CastReleaseStanding;
         public double CastReleaseMoving;
         public double BodyWidth = 1.0;
+
+        /// <summary>True when all 3 spec skills (S1, S2, ULT) are populated on this character.</summary>
+        public bool HasSpecKit() => Skills != null && Skills.Count >= 3;
     }
 
     /// <summary>One Practice difficulty (port of bot_level.gd).</summary>

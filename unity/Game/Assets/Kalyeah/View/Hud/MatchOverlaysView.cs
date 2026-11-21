@@ -69,6 +69,12 @@ namespace Kalyeah.Game
         static readonly Color ColTrailAmber = new Color(1f, 0.78f, 0.58f, 0.92f);
         static readonly Color ColRegenMint = new Color(0.28f, 0.92f, 0.56f, 0.96f);
         static readonly Color ColStamina = new Color(0.32f, 0.86f, 0.98f, 0.95f);
+        static readonly Color ColWaterFill = new Color(0.11f, 0.78f, 1.00f, 0.98f);
+        static readonly Color ColWaterFountain = new Color(0.46f, 0.96f, 1.00f, 1.00f);
+        static readonly Color ColWaterLow = new Color(0.96f, 0.42f, 0.34f, 0.98f);
+        static readonly Color ColShieldGlow = new Color(0.56f, 0.94f, 1.00f, 0.88f);
+        static readonly Color ColBlurEdge = new Color(0.10f, 0.09f, 0.14f, 1f);
+        static readonly Color ColRevealGold = new Color(1.00f, 0.80f, 0.24f, 1f);
         static readonly Color ColOverclock = new Color(1f, 0.84f, 0.26f, 0.98f);
         static readonly Color ColPalamig = new Color(0.26f, 0.88f, 0.96f, 0.96f);
         static readonly Color ColTeks = new Color(0.98f, 0.74f, 0.22f, 0.96f);
@@ -91,7 +97,10 @@ namespace Kalyeah.Game
         static Sprite s_pillSprite;
         static Sprite s_warningSprite;
         static Sprite s_edgeGradientSprite;
+        static Sprite s_blurVignetteSprite;
         static Sprite s_chevronSprite;
+
+        static readonly string[] WaterStrings = BuildWaterStrings();
 
         struct WaypointMarkerUi
         {
@@ -233,6 +242,9 @@ namespace Kalyeah.Game
         public bool IsBriefingVisible => _interactive && _briefingRoot != null && _briefingRoot.gameObject.activeSelf;
         public bool IsHurtPulseVisible => _hurtPulseRoot != null && _hurtPulseRoot.gameObject.activeSelf;
         public float HurtPulseAlpha => _hurtCurrentAlpha;
+        public bool IsBlurOverlayVisible => _blurOverlayRoot != null && _blurOverlayRoot.gameObject.activeSelf;
+        public float BlurOverlayAlpha => _blurCurrentAlpha;
+        public bool IsRevealedBadgeVisible => _revealedBadgeRoot != null && _revealedBadgeRoot.gameObject.activeSelf;
         public int ActiveWaypointCount { get; private set; }
         public bool IsTaggedOverlayVisible => _taggedRoot != null && _taggedRoot.gameObject.activeSelf;
         public bool IsCaptureAlertVisible => _captureAlertRoot != null && _captureAlertRoot.gameObject.activeSelf;
@@ -271,12 +283,17 @@ namespace Kalyeah.Game
         readonly Text _heroInitial;
         readonly RectTransform _heroHpFill;
         readonly Image _heroHpFillImg;
+        readonly RectTransform _heroShieldFill;
+        readonly GameObject _heroShieldObj;
         readonly RectTransform _heroTrailFill;
         readonly RectTransform _heroMissingFill;
         readonly Image _heroMissingImg;
         readonly Text _heroHpText;
+        readonly RectTransform _heroStamTrack;
         readonly RectTransform _heroStamFill;
         readonly Image _heroStamImg;
+        readonly Image _heroWaterFountainGlow;
+        readonly Text _heroWaterText;
         readonly Text _heroStatusText;
         readonly GameObject _heroBuffBadge;
         readonly Image _heroBuffDot;
@@ -285,6 +302,10 @@ namespace Kalyeah.Game
         bool _vitalsSynced;
         int _lastHp = -1;
         int _lastMaxHp = -1;
+        int _lastWaterWhole = -1;
+        bool _lastShowWaterMode;
+        bool _lastFountainChip;
+        float _fountainPulsePhase;
         float _trailShare = 1f;
         float _trailHoldLeft;
         BuffKind _lastBuffKind = BuffKind.None;
@@ -440,6 +461,16 @@ namespace Kalyeah.Game
         float _lowHpTime;
         float _hurtCurrentAlpha;
 
+        readonly RectTransform _blurOverlayRoot;
+        readonly Image _blurVignetteImg;
+        float _blurCurrentAlpha;
+        float _blurDriftPhase;
+
+        readonly RectTransform _revealedBadgeRoot;
+        readonly CanvasGroup _revealedBadgeGroup;
+        readonly Image _revealedEyeImg;
+        float _revealedPulsePhase;
+
         readonly RectTransform _waypointsRoot;
         readonly WaypointMarkerUi[] _waypoints = new WaypointMarkerUi[MaxWaypoints];
         float _waypointPulseTime;
@@ -485,13 +516,17 @@ namespace Kalyeah.Game
 
             // Build HUD layers back-to-front so modals cleanly sit over persistent chrome.
             BuildHurtPulseOverlay(out _hurtPulseRoot);
+            BuildBlurOverlay(out _blurOverlayRoot, out _blurVignetteImg);
             BuildWorldWaypointsOverlay(out _waypointsRoot);
             BuildSquadWings(out _wingsContainer, out _allyWingRoot, out _enemyWingRoot);
             BuildHeroVitals(
                 out _heroVitalsRoot, out _heroRing, out _heroFace, out _heroInitial,
-                out _heroHpFill, out _heroHpFillImg, out _heroTrailFill, out _heroMissingFill, out _heroMissingImg,
-                out _heroHpText, out _heroStamFill, out _heroStamImg, out _heroStatusText,
+                out _heroHpFill, out _heroHpFillImg, out _heroShieldFill, out _heroShieldObj,
+                out _heroTrailFill, out _heroMissingFill, out _heroMissingImg,
+                out _heroHpText, out _heroStamTrack, out _heroStamFill, out _heroStamImg,
+                out _heroWaterFountainGlow, out _heroWaterText, out _heroStatusText,
                 out _heroBuffBadge, out _heroBuffDot, out _heroBuffText);
+            BuildRevealedBadge(out _revealedBadgeRoot, out _revealedBadgeGroup, out _revealedEyeImg);
             BuildTakedownFeed(out _takedownRoot);
             BuildCaptureAlert(out _captureAlertRoot, out _captureIconRect, out _capturePlateImg, out _captureProgFill);
             BuildSpeechPool();
@@ -583,6 +618,9 @@ namespace Kalyeah.Game
             _lowHpTime = 0f;
             _hurtCurrentAlpha = 0f;
             if (_hurtPulseRoot != null) _hurtPulseRoot.gameObject.SetActive(false);
+            _blurCurrentAlpha = 0f;
+            if (_blurOverlayRoot != null) _blurOverlayRoot.gameObject.SetActive(false);
+            if (_revealedBadgeRoot != null) _revealedBadgeRoot.gameObject.SetActive(false);
             HideAllWaypoints();
             ClearTakedowns();
             ClearSpeechBubbles();
@@ -599,6 +637,7 @@ namespace Kalyeah.Game
                 _sim.Rescued += OnSimRescued;
                 _sim.PointScored += OnSimPointScored;
                 _sim.QuickChatSaid += OnSimQuickChatSaid;
+                _sim.PlayerRevealed += OnSimPlayerRevealed;
                 PopulateSwapCatalog(_sim);
             }
         }
@@ -611,6 +650,7 @@ namespace Kalyeah.Game
             _sim.Rescued -= OnSimRescued;
             _sim.PointScored -= OnSimPointScored;
             _sim.QuickChatSaid -= OnSimQuickChatSaid;
+            _sim.PlayerRevealed -= OnSimPlayerRevealed;
             _sim = null;
         }
 
@@ -638,7 +678,9 @@ namespace Kalyeah.Game
 
             SyncPhaseOverlays(sim, localKid, localTeam, safeDt);
             TickHurtPulse(sim, localKid, safeDt);
+            TickBlurOverlay(sim, localKid, safeDt);
             SyncHeroVitals(sim, localKid, safeDt);
+            SyncRevealedBadge(sim, localKid, safeDt);
             SyncSquadWings(sim, localId, localTeam);
             TickTakedownFeed(safeDt);
             SyncCaptureAlert(sim, localTeam, safeDt);
@@ -715,6 +757,7 @@ namespace Kalyeah.Game
             ApplyBleedOffsets(_victoryDimRect, bleedMin, bleedMax);
             ApplyBleedOffsets(_pauseDimRect, bleedMin, bleedMax);
             ApplyBleedOffsets(_hurtPulseRoot, bleedMin - new Vector2(8f, 8f), bleedMax + new Vector2(8f, 8f));
+            ApplyBleedOffsets(_blurOverlayRoot, bleedMin - new Vector2(8f, 8f), bleedMax + new Vector2(8f, 8f));
 
             float cornerRightInset = Mathf.Max(24f, ScreenFitMetrics.DpToCanvasPx(12f, _canvas));
             if (_pauseBtnRect != null)
@@ -1095,18 +1138,23 @@ namespace Kalyeah.Game
             out Text initial,
             out RectTransform hpFill,
             out Image hpFillImg,
+            out RectTransform shieldFill,
+            out GameObject shieldObj,
             out RectTransform trailFill,
             out RectTransform missingFill,
             out Image missingImg,
             out Text hpText,
+            out RectTransform stamTrack,
             out RectTransform stamFill,
             out Image stamImg,
+            out Image waterFountainGlow,
+            out Text waterText,
             out Text statusText,
             out GameObject buffBadge,
             out Image buffDot,
             out Text buffText)
         {
-            root = Ui.Panel("HeroVitalsChip", Root, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(12f, -80f), new Vector2(214f, 74f));
+            root = Ui.Panel("HeroVitalsChip", Root, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(12f, -80f), new Vector2(214f, 76f));
             Image card = KomiksUi.MakeInkPanel("Plate", root, ColCardDark, KomiksUi.InkOutline, 12, 2, raycast: false);
             Stretch(card.rectTransform, 0f);
 
@@ -1126,16 +1174,16 @@ namespace Kalyeah.Game
             initial = Ui.MakeText("Initial", avatarBox, "J", 20, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             Stretch(initial.rectTransform, 0f);
 
-            // Disjoint Numeric HP (left) + Status tag (right) so "OVERCLOCK" never collides with "100 / 100"
+            // Disjoint Numeric HP (left) + Status tag (right) so "OVERCLOCK" / "LANGIT!" never collides with "100 / 100"
             hpText = Ui.MakeText("HpText", root, "100 / 100", 16, ColHpWhite, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
             hpText.resizeTextForBestFit = true;
-            hpText.resizeTextMinSize = 12;
+            hpText.resizeTextMinSize = 11;
             hpText.resizeTextMaxSize = 16;
             RectTransform hpTextRt = hpText.rectTransform;
             hpTextRt.anchorMin = hpTextRt.anchorMax = new Vector2(0f, 1f);
             hpTextRt.pivot = new Vector2(0f, 1f);
-            hpTextRt.anchoredPosition = new Vector2(58f, -5f);
-            hpTextRt.sizeDelta = new Vector2(74f, 22f);
+            hpTextRt.anchoredPosition = new Vector2(58f, -4f);
+            hpTextRt.sizeDelta = new Vector2(76f, 20f);
 
             statusText = Ui.MakeText("StatusTag", root, "", 13, ColGold, TextAnchor.MiddleRight, KalyeahResources.DisplayFont());
             statusText.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -1145,11 +1193,11 @@ namespace Kalyeah.Game
             RectTransform stRt = statusText.rectTransform;
             stRt.anchorMin = new Vector2(0f, 1f);
             stRt.anchorMax = new Vector2(1f, 1f);
-            stRt.offsetMin = new Vector2(136f, -27f);
-            stRt.offsetMax = new Vector2(-8f, -5f);
+            stRt.offsetMin = new Vector2(136f, -24f);
+            stRt.offsetMax = new Vector2(-8f, -4f);
 
-            // HP bar with missing-coral + hit-trail + live white/mint fill
-            RectTransform hpTrack = Ui.Panel("HpBar", root, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(25f, -29f), new Vector2(-66f, 13f));
+            // HP bar with missing-coral + hit-trail + live white/mint fill + Sungka shield overlay
+            RectTransform hpTrack = Ui.Panel("HpBar", root, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(25f, -26f), new Vector2(-66f, 13f));
             Image hpBg = MakeSlicedImage("Track", hpTrack, ColInk, pill: true);
             Stretch(hpBg.rectTransform, 0f);
 
@@ -1171,17 +1219,42 @@ namespace Kalyeah.Game
             hpFill.anchorMax = Vector2.one;
             hpFill.sizeDelta = Vector2.zero;
 
-            // Gapless Stamina / Overclock bar directly below HP
-            RectTransform stamTrack = Ui.Panel("StaminaBar", root, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(25f, -45f), new Vector2(-66f, 7f));
+            Image shieldImg = Ui.MakeImage("ShieldHp", hpTrack, ColShieldGlow);
+            shieldFill = shieldImg.rectTransform;
+            shieldFill.anchorMin = new Vector2(1f, 0f);
+            shieldFill.anchorMax = Vector2.one;
+            shieldFill.sizeDelta = Vector2.zero;
+            shieldObj = shieldImg.gameObject;
+            shieldObj.SetActive(false);
+
+            // Water bar (Spec Kits: vivid cyan-blue + fountain pulse + numeric readout) or Stamina bar (legacy)
+            stamTrack = Ui.Panel("StaminaBar", root, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 1f), new Vector2(58f, -42f), new Vector2(-102f, 10f));
             Image stamBg = Ui.MakeImage("StamTrack", stamTrack, ColInk);
             Stretch(stamBg.rectTransform, 0f);
-            stamImg = Ui.MakeImage("StamFill", stamTrack, ColStamina);
+            waterFountainGlow = Ui.MakeImage("FountainGlow", stamTrack, new Color(ColWaterFountain.r, ColWaterFountain.g, ColWaterFountain.b, 0f), round: false, raycast: false);
+            waterFountainGlow.rectTransform.anchorMin = Vector2.zero;
+            waterFountainGlow.rectTransform.anchorMax = Vector2.one;
+            waterFountainGlow.rectTransform.offsetMin = new Vector2(-2f, -2f);
+            waterFountainGlow.rectTransform.offsetMax = new Vector2(2f, 2f);
+            waterFountainGlow.enabled = false;
+            stamImg = Ui.MakeImage("StamFill", stamTrack, ColWaterFill);
             stamFill = stamImg.rectTransform;
             stamFill.anchorMin = Vector2.zero;
             stamFill.anchorMax = Vector2.one;
             stamFill.sizeDelta = Vector2.zero;
 
-            // Active Merienda Buff badge (Palamig, Teks, Turon)
+            waterText = Ui.MakeText("WaterReadout", root, "100", 12, ColWaterFountain, TextAnchor.MiddleRight, KalyeahResources.DisplayFont());
+            waterText.resizeTextForBestFit = true;
+            waterText.resizeTextMinSize = 9;
+            waterText.resizeTextMaxSize = 12;
+            RectTransform wtRt = waterText.rectTransform;
+            wtRt.anchorMin = wtRt.anchorMax = new Vector2(1f, 1f);
+            wtRt.pivot = new Vector2(1f, 1f);
+            wtRt.anchoredPosition = new Vector2(-6f, -40f);
+            wtRt.sizeDelta = new Vector2(34f, 14f);
+            waterText.gameObject.SetActive(false);
+
+            // Active Merienda Buff / Fountain Refill badge
             RectTransform buffRect = Ui.Panel("MeriendaBuff", root, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(25f, 4f), new Vector2(-66f, 17f));
             buffBadge = buffRect.gameObject;
             Image buffPlate = MakeSlicedImage("BuffPlate", buffRect, new Color(0.04f, 0.06f, 0.10f, 0.84f), pill: true);
@@ -1192,6 +1265,9 @@ namespace Kalyeah.Game
             buffDot.rectTransform.anchoredPosition = new Vector2(5f, 0f);
             buffDot.rectTransform.sizeDelta = new Vector2(10f, 10f);
             buffText = Ui.MakeText("BuffLabel", buffRect, "PALAMIG 8s", 12, ColPalamig, TextAnchor.MiddleLeft);
+            buffText.resizeTextForBestFit = true;
+            buffText.resizeTextMinSize = 9;
+            buffText.resizeTextMaxSize = 12;
             buffText.rectTransform.anchorMin = Vector2.zero;
             buffText.rectTransform.anchorMax = Vector2.one;
             buffText.rectTransform.offsetMin = new Vector2(19f, 0f);
@@ -1256,7 +1332,7 @@ namespace Kalyeah.Game
             }
 
             bool regen = kid.ActiveBuff == BuffKind.Turon && kid.BuffLeft > 0.01f && !kid.Tagged;
-            _heroHpFillImg.color = regen ? ColRegenMint : ColHpWhite;
+            _heroHpFillImg.color = kid.LangitProtected ? ColGold : (regen ? ColRegenMint : ColHpWhite);
             _heroMissingImg.color = SettingsStore.Current.IsColorblind ? EnemyTeamColor() : ColMissingCoral;
 
             _heroHpFill.anchorMax = new Vector2(liveShare, 1f);
@@ -1265,12 +1341,94 @@ namespace Kalyeah.Game
             _heroMissingFill.anchorMin = new Vector2(Mathf.Clamp(_trailShare, liveShare, 1f), 0f);
             _heroMissingFill.anchorMax = Vector2.one;
 
-            float maxStam = Mathf.Max(kid.MaxStamina > 0f ? kid.MaxStamina : sim.MaxStamina, 1f);
-            float stamShare = Mathf.Clamp01(kid.Stamina / maxStam);
-            _heroStamFill.anchorMax = new Vector2(stamShare, 1f);
-            _heroStamImg.color = kid.Overclocked
-                ? ColOverclock
-                : (kid.ExhaustLeft > 0.01f ? ColStatusAlert : ColStamina);
+            bool hasShield = !kid.Tagged && kid.ShieldHp > 0.5f;
+            if (_heroShieldObj != null)
+            {
+                if (_heroShieldObj.activeSelf != hasShield)
+                    _heroShieldObj.SetActive(hasShield);
+                if (hasShield)
+                {
+                    float shShare = Mathf.Clamp01(kid.ShieldHp / maxHp);
+                    _heroShieldFill.anchorMin = new Vector2(Mathf.Clamp01(1f - shShare), 0f);
+                    _heroShieldFill.anchorMax = Vector2.one;
+                }
+            }
+
+            bool showWater = kid.UsingSpecKit || sim.SpecKitsActive;
+            if (showWater != _lastShowWaterMode)
+            {
+                _lastShowWaterMode = showWater;
+                if (_heroStamTrack != null)
+                {
+                    if (showWater)
+                    {
+                        _heroStamTrack.anchorMin = new Vector2(0f, 1f);
+                        _heroStamTrack.anchorMax = new Vector2(1f, 1f);
+                        _heroStamTrack.pivot = new Vector2(0f, 1f);
+                        _heroStamTrack.anchoredPosition = new Vector2(58f, -42f);
+                        _heroStamTrack.sizeDelta = new Vector2(-102f, 10f);
+                    }
+                    else
+                    {
+                        _heroStamTrack.anchorMin = new Vector2(0f, 1f);
+                        _heroStamTrack.anchorMax = new Vector2(1f, 1f);
+                        _heroStamTrack.pivot = new Vector2(0.5f, 1f);
+                        _heroStamTrack.anchoredPosition = new Vector2(25f, -44f);
+                        _heroStamTrack.sizeDelta = new Vector2(-66f, 8f);
+                    }
+                }
+                if (_heroWaterText != null)
+                    _heroWaterText.gameObject.SetActive(showWater);
+            }
+
+            bool fountainRefilling = false;
+            if (showWater)
+            {
+                float maxWater = Mathf.Max(kid.MaxWater > 0.5f ? kid.MaxWater : sim.MaxWater, 1f);
+                float curWater = Mathf.Clamp(kid.Water, 0f, maxWater);
+                float waterShare = Mathf.Clamp01(curWater / maxWater);
+                _heroStamFill.anchorMax = new Vector2(waterShare, 1f);
+
+                fountainRefilling = !kid.Tagged && kid.InHomeFountain && curWater < maxWater - 0.5f;
+                if (fountainRefilling)
+                {
+                    if (!SettingsStore.Current.ReduceMotion)
+                        _fountainPulsePhase = Mathf.Repeat(_fountainPulsePhase + dt * 6.5f, Mathf.PI * 2f);
+                    float pulse = SettingsStore.Current.ReduceMotion ? 0.65f : (0.5f + 0.5f * Mathf.Sin(_fountainPulsePhase));
+                    _heroStamImg.color = Color.Lerp(ColWaterFill, ColWaterFountain, pulse);
+                    if (_heroWaterFountainGlow != null)
+                    {
+                        _heroWaterFountainGlow.enabled = true;
+                        _heroWaterFountainGlow.color = new Color(ColWaterFountain.r, ColWaterFountain.g, ColWaterFountain.b, 0.24f + 0.34f * pulse);
+                    }
+                }
+                else
+                {
+                    _heroStamImg.color = curWater < 20f ? ColWaterLow : ColWaterFill;
+                    if (_heroWaterFountainGlow != null && _heroWaterFountainGlow.enabled)
+                        _heroWaterFountainGlow.enabled = false;
+                }
+
+                int waterWhole = Mathf.Clamp(Mathf.FloorToInt(curWater + 0.05f), 0, WaterStrings.Length - 1);
+                if (waterWhole != _lastWaterWhole && _heroWaterText != null)
+                {
+                    _lastWaterWhole = waterWhole;
+                    _heroWaterText.text = WaterStrings[waterWhole];
+                }
+                if (_heroWaterText != null)
+                    _heroWaterText.color = fountainRefilling ? ColWaterFountain : (curWater < 20f ? ColWaterLow : ColWaterFill);
+            }
+            else
+            {
+                if (_heroWaterFountainGlow != null && _heroWaterFountainGlow.enabled)
+                    _heroWaterFountainGlow.enabled = false;
+                float maxStam = Mathf.Max(kid.MaxStamina > 0f ? kid.MaxStamina : sim.MaxStamina, 1f);
+                float stamShare = Mathf.Clamp01(kid.Stamina / maxStam);
+                _heroStamFill.anchorMax = new Vector2(stamShare, 1f);
+                _heroStamImg.color = kid.Overclocked
+                    ? ColOverclock
+                    : (kid.ExhaustLeft > 0.01f ? ColStatusAlert : ColStamina);
+            }
 
             string statusWord = ResolveHeroStatusWord(kid, out Color statusColor);
             if (!string.Equals(_lastHeroStatus, statusWord, StringComparison.Ordinal))
@@ -1282,38 +1440,61 @@ namespace Kalyeah.Game
 
             BuffKind activeBuff = kid.BuffLeft > 0.01f ? kid.ActiveBuff : BuffKind.None;
             bool showBuff = activeBuff != BuffKind.None;
-            if (_heroBuffBadge.activeSelf != showBuff)
-                _heroBuffBadge.SetActive(showBuff);
+            bool showFountainBadge = !showBuff && fountainRefilling;
+            bool showBottomChip = showBuff || showFountainBadge;
+            if (_heroBuffBadge.activeSelf != showBottomChip)
+                _heroBuffBadge.SetActive(showBottomChip);
             if (showBuff)
             {
                 int sec = Mathf.Max(1, Mathf.CeilToInt(kid.BuffLeft));
-                if (activeBuff != _lastBuffKind || sec != _lastBuffCeilSec)
+                if (activeBuff != _lastBuffKind || sec != _lastBuffCeilSec || _lastFountainChip)
                 {
                     _lastBuffKind = activeBuff;
                     _lastBuffCeilSec = sec;
+                    _lastFountainChip = false;
                     Color bc = BuffColorOf(activeBuff);
                     _heroBuffDot.color = bc;
                     _heroBuffText.color = bc;
                     _heroBuffText.text = BuffDisplayName(activeBuff) + " " + sec.ToString(CultureInfo.InvariantCulture) + "s";
                 }
             }
+            else if (showFountainBadge)
+            {
+                if (!_lastFountainChip)
+                {
+                    _lastFountainChip = true;
+                    _lastBuffKind = BuffKind.None;
+                    _lastBuffCeilSec = -1;
+                    _heroBuffDot.color = ColWaterFountain;
+                    _heroBuffText.color = ColWaterFountain;
+                    _heroBuffText.text = "BASE WATER +25/s";
+                }
+            }
             else
             {
                 _lastBuffKind = BuffKind.None;
                 _lastBuffCeilSec = -1;
+                _lastFountainChip = false;
             }
         }
 
         static string ResolveHeroStatusWord(KidSnapshot kid, out Color color)
         {
             if (kid.Tagged) { color = ColStatusAlert; return "OUT"; }
-            if (kid.Overclocked) { color = ColOverclock; return "OVERCLOCK"; }
             if (kid.StatusKind == StatusKind.Stun || kid.StatusKind == StatusKind.Knockout || kid.StatusKind == StatusKind.Polymorph)
             {
                 color = ColTeks;
-                return "STUN";
+                return kid.StatusKind == StatusKind.Polymorph ? "CAN" : "STUN";
             }
+            if (kid.StatusKind == StatusKind.Root) { color = ColTeks; return "ROOTED"; }
             if (kid.StatusKind == StatusKind.Tripped) { color = ColStatusAlert; return "TRIPPED"; }
+            if (kid.StatusKind == StatusKind.Slip) { color = ColPalamig; return "SLIP"; }
+            if (kid.LangitProtected) { color = ColGold; return "LANGIT!"; }
+            if (kid.OnStilts) { color = ColTuron; return "STILTS"; }
+            if (kid.Invisible) { color = ColPalamig; return "HIDDEN"; }
+            if (kid.InSackRace) { color = ColGold; return "SACK"; }
+            if (kid.SpinningTrumpo) { color = ColTeks; return "SPIN"; }
+            if (kid.Overclocked) { color = ColOverclock; return "OVERCLOCK"; }
             if (kid.ExhaustLeft > 0.01f) { color = ColStatusAlert; return "EXHAUST"; }
             if (kid.Dashing) { color = ColPalamig; return "VAULT"; }
             if (kid.Sliding) { color = ColPalamig; return "SLIDE"; }
@@ -1589,6 +1770,15 @@ namespace Kalyeah.Game
             float share = Mathf.Clamp01((float)amount / Mathf.Max(_sim.MaxHp, 1));
             float peak = Mathf.Lerp(HurtFlashMinAlpha, HurtFlashMaxAlpha, Mathf.Clamp01(share / 0.30f));
             TriggerHurtFlash(peak, HurtFlashSeconds);
+        }
+
+        void OnSimPlayerRevealed(int targetId, int viewerTeam, RevealMarkerKind kind, bool knownAlert)
+        {
+            if (_sim == null || kind == RevealMarkerKind.None) return;
+            bool localTargeted = targetId == _sim.LocalPlayerId && knownAlert;
+            bool ourTeamRevealedEnemy = viewerTeam == _sim.LocalPlayerTeam && targetId != _sim.LocalPlayerId;
+            if (localTargeted || ourTeamRevealedEnemy)
+                Audio?.PlayRevealChime();
         }
 
         public void TriggerHurtFlash(float peak, float seconds)
@@ -2927,6 +3117,117 @@ namespace Kalyeah.Game
             {
                 if (_hurtEdges[i] != null)
                     _hurtEdges[i].color = tint;
+            }
+        }
+
+        void BuildBlurOverlay(out RectTransform root, out Image vignetteImg)
+        {
+            root = Ui.Fill("BlurEdgeOverlay", Root);
+            root.offsetMin = new Vector2(-8f, -8f);
+            root.offsetMax = new Vector2(8f, 8f);
+            var group = root.gameObject.AddComponent<CanvasGroup>();
+            group.interactable = false;
+            group.blocksRaycasts = false;
+
+            vignetteImg = Ui.MakeImage("BlurVignette", root, new Color(ColBlurEdge.r, ColBlurEdge.g, ColBlurEdge.b, 0f), round: false, raycast: false);
+            vignetteImg.sprite = BlurVignetteSprite();
+            Stretch(vignetteImg.rectTransform, 0f);
+            root.gameObject.SetActive(false);
+        }
+
+        void TickBlurOverlay(SimBridge sim, KidSnapshot? localKid, float dt)
+        {
+            if (_blurOverlayRoot == null || _blurVignetteImg == null) return;
+
+            bool blurred = !IsPaused &&
+                           !IsSwapPickerOpen &&
+                           sim.Phase == MatchPhaseKind.Playing &&
+                           localKid.HasValue &&
+                           !localKid.Value.Tagged &&
+                           localKid.Value.BlurLeft > 0.01f;
+
+            // docs/KITS.md L34-35: ReduceMotion softens edge blur but NEVER removes it
+            bool reduce = SettingsStore.Current.ReduceMotion;
+            float targetPeak = reduce ? 0.56f : 0.86f;
+            float fadeTail = blurred ? Mathf.Clamp01(localKid.Value.BlurLeft / 0.30f) : 0f;
+            float targetAlpha = blurred ? (targetPeak * fadeTail) : 0f;
+
+            if (reduce || dt <= 0f)
+                _blurCurrentAlpha = targetAlpha;
+            else
+                _blurCurrentAlpha = Mathf.MoveTowards(_blurCurrentAlpha, targetAlpha, dt * (blurred ? 8.0f : 5.0f));
+
+            bool show = _blurCurrentAlpha > 0.005f;
+            if (_blurOverlayRoot.gameObject.activeSelf != show)
+                _blurOverlayRoot.gameObject.SetActive(show);
+            if (!show) return;
+
+            float shimmer = 1f;
+            if (!reduce)
+            {
+                _blurDriftPhase = Mathf.Repeat(_blurDriftPhase + dt * 4.5f, Mathf.PI * 2f);
+                shimmer = 0.94f + 0.06f * Mathf.Sin(_blurDriftPhase);
+            }
+            _blurVignetteImg.color = new Color(ColBlurEdge.r, ColBlurEdge.g, ColBlurEdge.b, Mathf.Clamp01(_blurCurrentAlpha * shimmer));
+        }
+
+        void BuildRevealedBadge(out RectTransform root, out CanvasGroup group, out Image eyeImg)
+        {
+            // Seated directly above bottom-center HeroVitalsChip (y=98..126), strictly below the 45%x50% center sightbox (y>=180)
+            root = Ui.Panel("RevealedEyeBadge", Root, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 98f), new Vector2(146f, 28f));
+            group = root.gameObject.AddComponent<CanvasGroup>();
+            group.interactable = false;
+            group.blocksRaycasts = false;
+
+            Image plate = KomiksUi.MakeInkPanel("Plate", root, new Color(0.08f, 0.06f, 0.12f, 0.92f), ColRevealGold, 8, 2, raycast: false);
+            Stretch(plate.rectTransform, 0f);
+
+            eyeImg = Ui.MakeImage("EyeIcon", root, ColRevealGold, round: false, raycast: false);
+            eyeImg.sprite = OverheadBarsView.EyeIconSprite();
+            eyeImg.preserveAspect = true;
+            eyeImg.rectTransform.anchorMin = eyeImg.rectTransform.anchorMax = new Vector2(0f, 0.5f);
+            eyeImg.rectTransform.pivot = new Vector2(0f, 0.5f);
+            eyeImg.rectTransform.anchoredPosition = new Vector2(10f, 0f);
+            eyeImg.rectTransform.sizeDelta = new Vector2(24f, 16f);
+
+            Text label = Ui.MakeText("Label", root, "REVEALED", 13, ColRevealGold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 10;
+            label.resizeTextMaxSize = 13;
+            label.rectTransform.anchorMin = Vector2.zero;
+            label.rectTransform.anchorMax = Vector2.one;
+            label.rectTransform.offsetMin = new Vector2(38f, 2f);
+            label.rectTransform.offsetMax = new Vector2(-8f, -2f);
+
+            root.gameObject.SetActive(false);
+        }
+
+        void SyncRevealedBadge(SimBridge sim, KidSnapshot? localKid, float dt)
+        {
+            if (_revealedBadgeRoot == null) return;
+            bool hideBehindModal = IsPaused || IsSwapPickerOpen || _lastPhase == MatchPhaseKind.MatchOver;
+            bool show = !hideBehindModal &&
+                        sim.Phase == MatchPhaseKind.Playing &&
+                        localKid.HasValue &&
+                        !localKid.Value.Tagged &&
+                        localKid.Value.KnownRevealAlert &&
+                        localKid.Value.RevealAlertLeft > 0.01f;
+
+            if (_revealedBadgeRoot.gameObject.activeSelf != show)
+                _revealedBadgeRoot.gameObject.SetActive(show);
+            if (!show) return;
+
+            if (SettingsStore.Current.ReduceMotion)
+            {
+                _revealedBadgeGroup.alpha = 0.96f;
+            }
+            else
+            {
+                _revealedPulsePhase = Mathf.Repeat(_revealedPulsePhase + dt * 5.2f, Mathf.PI * 2f);
+                float pulse = 0.5f + 0.5f * Mathf.Sin(_revealedPulsePhase);
+                _revealedBadgeGroup.alpha = 0.84f + 0.16f * pulse;
+                if (_revealedEyeImg != null)
+                    _revealedEyeImg.color = Color.Lerp(ColRevealGold, Color.white, pulse * 0.35f);
             }
         }
 
@@ -4506,6 +4807,58 @@ namespace Kalyeah.Game
             s_edgeGradientSprite = Sprite.Create(tex, new Rect(0f, 0f, w, h), new Vector2(0.5f, 0.5f), 100f);
             s_edgeGradientSprite.name = "KalyeahHurtEdgeGradient";
             return s_edgeGradientSprite;
+        }
+
+        static Sprite BlurVignetteSprite()
+        {
+            if (s_blurVignetteSprite != null) return s_blurVignetteSprite;
+            const int w = 160;
+            const int h = 90;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
+            {
+                name = "KalyeahBlurEdgeVignette",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            var px = new Color32[w * h];
+            // Keep center elliptical sightbox around crosshair (0.50, 0.54) 100% crystal clear
+            const float cx = 0.50f;
+            const float cy = 0.54f;
+            const float clearRx = 0.25f;
+            const float clearRy = 0.27f;
+
+            for (int y = 0; y < h; y++)
+            {
+                float ny = (y + 0.5f) / h;
+                float dy = (ny - cy) / clearRy;
+                for (int x = 0; x < w; x++)
+                {
+                    float nx = (x + 0.5f) / w;
+                    float dx = (nx - cx) / clearRx;
+                    float r = Mathf.Sqrt(dx * dx + dy * dy);
+                    // 0.0 inside central sightbox (r <= 1.0), smooth frosted dark-edge ramp outside
+                    float t = Mathf.Clamp01((r - 1.02f) / 1.15f);
+                    float smooth = t * t * (3f - 2f * t);
+                    // Subtle concentric frost texture rings so edge reads as soft frosted blur, never flat matte ink
+                    float frost = 0.88f + 0.12f * Mathf.Sin(r * 14f + nx * 19f) * Mathf.Cos(ny * 17f);
+                    byte lum = (byte)Mathf.RoundToInt(Mathf.Lerp(210f, 255f, smooth * frost));
+                    byte a = (byte)Mathf.RoundToInt(Mathf.Clamp01(smooth) * 255f);
+                    px[y * w + x] = new Color32(lum, lum, lum, a);
+                }
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            s_blurVignetteSprite = Sprite.Create(tex, new Rect(0f, 0f, w, h), new Vector2(0.5f, 0.5f), 100f);
+            s_blurVignetteSprite.name = "KalyeahBlurEdgeVignette";
+            return s_blurVignetteSprite;
+        }
+
+        static string[] BuildWaterStrings()
+        {
+            var arr = new string[101];
+            for (int i = 0; i < arr.Length; i++)
+                arr[i] = i.ToString(CultureInfo.InvariantCulture);
+            return arr;
         }
 
         static Sprite ChevronSprite()
