@@ -856,7 +856,7 @@ namespace Kalyeah.Game
             return list.Count > 0 ? list.ToArray() : Array.Empty<RuntimeCapsule>();
         }
 
-        internal static void ConvertModelCapsuleToBoneLocal(
+        public static void ConvertModelCapsuleToBoneLocal(
             Transform modelRoot,
             Transform bone,
             Vector3 modelA,
@@ -868,7 +868,7 @@ namespace Kalyeah.Game
             localB = bone.InverseTransformPoint(modelRoot.TransformPoint(modelB));
         }
 
-        internal static void ConvertModelCorrectiveToBoneLocal(
+        public static void ConvertModelCorrectiveToBoneLocal(
             Transform modelRoot,
             Transform bone,
             Vector3 modelAxis,
@@ -888,7 +888,7 @@ namespace Kalyeah.Game
             localRestDir = r.sqrMagnitude > 1e-8f ? r.normalized : Vector3.down;
         }
 
-        internal static bool AreDistinctEightWayStates(
+        public static bool AreDistinctEightWayStates(
             AnimationState walk,
             AnimationState run,
             AnimationState strafeL,
@@ -2139,7 +2139,7 @@ namespace Kalyeah.Game
             bone.Transform.localRotation = bone.Transform.localRotation * Quaternion.AngleAxis(deg, axis);
         }
 
-        internal static void ComputeLocalAimAngles(
+        public static void ComputeLocalAimAngles(
             Vector3 localDir,
             float maxYawDeg,
             float maxPitchDeg,
