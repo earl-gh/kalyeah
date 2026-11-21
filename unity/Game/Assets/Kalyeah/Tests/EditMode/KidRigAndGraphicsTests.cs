@@ -632,5 +632,261 @@ namespace Kalyeah.Game
             Assert.Greater(tiltedUp.y, 0.45f, "Aiming up must tilt Spine1 forward upward toward +Y");
             Assert.Greater(tiltedUp.z, 0.80f);
         }
+
+        [Test]
+        public void MatchBoot_GlobalLowKeywordAndClarityGlobals_ToggleCleanlyAcrossAllFourTiers()
+        {
+            Assert.IsTrue(MatchBoot.IsLowQualityKeywordActive(SettingsStore.GraphicsLow));
+            Assert.IsTrue(MatchBoot.IsLowQualityKeywordActive(-2), "Below-range tier clamps to Low");
+            Assert.IsFalse(MatchBoot.IsLowQualityKeywordActive(SettingsStore.GraphicsMedium));
+            Assert.IsFalse(MatchBoot.IsLowQualityKeywordActive(SettingsStore.GraphicsHigh));
+            Assert.IsFalse(MatchBoot.IsLowQualityKeywordActive(SettingsStore.GraphicsUltra));
+            Assert.IsFalse(MatchBoot.IsLowQualityKeywordActive(99), "Above-range tier clamps to Ultra");
+
+            int tierId = Shader.PropertyToID("_KalyeahGraphicsTier");
+            int detailId = Shader.PropertyToID("_KalyeahUseDetailMaps");
+            int ambMinId = Shader.PropertyToID("_KalyeahAmbientMin");
+            int ambMaxId = Shader.PropertyToID("_KalyeahAmbientMax");
+            int sunDirId = Shader.PropertyToID("_KalyeahSunDir");
+
+            for (int tier = SettingsStore.GraphicsLow; tier <= SettingsStore.GraphicsUltra; tier++)
+            {
+                MatchBoot.ApplyGraphicsPreset(tier, deviceRefreshOverrideHz: 90);
+                bool expectedLow = tier == SettingsStore.GraphicsLow;
+                Assert.AreEqual(
+                    expectedLow,
+                    Shader.IsKeywordEnabled(MatchBoot.LowQualityShaderKeyword),
+                    $"KALYEAH_QUALITY_LOW mismatch on tier {tier}");
+                Assert.AreEqual(tier, Shader.GetGlobalFloat(tierId), 0.001f);
+                Assert.AreEqual(expectedLow ? 0f : 1f, Shader.GetGlobalFloat(detailId), 0.001f);
+
+                float ambMin = Shader.GetGlobalFloat(ambMinId);
+                float ambMax = Shader.GetGlobalFloat(ambMaxId);
+                Assert.AreEqual(MatchBoot.DefaultAmbientMin, ambMin, 0.001f);
+                Assert.AreEqual(MatchBoot.DefaultAmbientMax, ambMax, 0.001f);
+                Assert.Greater(ambMax, ambMin);
+
+                Vector4 sunVec = Shader.GetGlobalVector(sunDirId);
+                Assert.AreEqual(1f, new Vector3(sunVec.x, sunVec.y, sunVec.z).magnitude, 0.002f);
+                Assert.AreEqual(1f, sunVec.w, 0.001f);
+            }
+
+            // Directional light override aligns _KalyeahSunDir with -light.transform.forward (toward sun);
+            // null sun cleanly falls back to MatchBoot.FallbackSunDirection.
+            var sunGo = new GameObject("TestSunLight");
+            sunGo.transform.SetParent(_testRoot.transform, false);
+            sunGo.transform.rotation = Quaternion.Euler(42f, -35f, 0f);
+            Light testSun = sunGo.AddComponent<Light>();
+            testSun.type = LightType.Directional;
+
+            MatchBoot.ApplyGlobalClarityGlobals(GraphicsTierProfile.High, SettingsStore.EnemyHighlightRed, sunOverride: testSun);
+            Vector3 expectedSun = (-testSun.transform.forward).normalized;
+            Vector4 actualSun = Shader.GetGlobalVector(sunDirId);
+            Assert.Less(Vector3.Distance(expectedSun, new Vector3(actualSun.x, actualSun.y, actualSun.z)), 0.002f);
+
+            Light prevSun = RenderSettings.sun;
+            try
+            {
+                RenderSettings.sun = null;
+                MatchBoot.ApplyGlobalClarityGlobals(GraphicsTierProfile.Low, SettingsStore.EnemyHighlightRed, sunOverride: null);
+                Assert.IsTrue(Shader.IsKeywordEnabled(MatchBoot.LowQualityShaderKeyword));
+                Vector4 fallbackSun = Shader.GetGlobalVector(sunDirId);
+                Assert.Less(
+                    Vector3.Distance(MatchBoot.FallbackSunDirection, new Vector3(fallbackSun.x, fallbackSun.y, fallbackSun.z)),
+                    0.002f);
+            }
+            finally
+            {
+                RenderSettings.sun = prevSun;
+            }
+        }
+
+        [Test]
+        public void MatchBoot_ResolveEnemyHighlightColor_ReturnsDistinctColorblindSafeColorsAndSyncsGlobal()
+        {
+            Color red = MatchBoot.ResolveEnemyHighlightColor(SettingsStore.EnemyHighlightRed);
+            Color yellow = MatchBoot.ResolveEnemyHighlightColor(SettingsStore.EnemyHighlightYellow);
+            Color purple = MatchBoot.ResolveEnemyHighlightColor(SettingsStore.EnemyHighlightPurple);
+
+            Assert.AreEqual(KalyeahResources.ResolveEnemyHighlightColor(SettingsStore.EnemyHighlightRed), red);
+            Assert.AreEqual(KalyeahResources.ResolveEnemyHighlightColor(SettingsStore.EnemyHighlightYellow), yellow);
+            Assert.AreEqual(KalyeahResources.ResolveEnemyHighlightColor(SettingsStore.EnemyHighlightPurple), purple);
+
+            // Distinct chromatic separation for Red / Yellow / Purple colorblind-safe highlights.
+            Assert.Greater(red.r, 0.80f);
+            Assert.Greater(red.r, red.g * 2f);
+            Assert.Greater(red.r, red.b * 2f);
+
+            Assert.Greater(yellow.r, 0.80f);
+            Assert.Greater(yellow.g, 0.70f);
+            Assert.Less(yellow.b, 0.35f);
+
+            Assert.Greater(purple.b, 0.80f);
+            Assert.Greater(purple.r, 0.55f);
+            Assert.Less(purple.g, 0.50f);
+
+            Assert.Greater(ColorRgbDistance(red, yellow), 0.55f, "Red and Yellow highlights must stay distinct");
+            Assert.Greater(ColorRgbDistance(red, purple), 0.55f, "Red and Purple highlights must stay distinct");
+            Assert.Greater(ColorRgbDistance(yellow, purple), 0.55f, "Yellow and Purple highlights must stay distinct");
+
+            // Global _KalyeahEnemyHighlightColor tracks active highlight mode cleanly (accounting for Linear vs Gamma).
+            int globalHighlightId = Shader.PropertyToID("_KalyeahEnemyHighlightColor");
+            bool isLinear = QualitySettings.activeColorSpace == ColorSpace.Linear;
+            int[] modes =
+            {
+                SettingsStore.EnemyHighlightRed,
+                SettingsStore.EnemyHighlightYellow,
+                SettingsStore.EnemyHighlightPurple,
+            };
+
+            SettingsStore.Current.ColorblindMode = 0;
+            for (int i = 0; i < modes.Length; i++)
+            {
+                SettingsStore.Current.EnemyHighlightMode = modes[i];
+                MatchBoot.ApplyDeviceQualityAndFrameRate();
+                Color expected = MatchBoot.ResolveEnemyHighlightColor(modes[i]);
+                Color expectedShader = isLinear ? expected.linear : expected;
+                Color actualShader = Shader.GetGlobalColor(globalHighlightId);
+                Assert.Less(ColorRgbDistance(expectedShader, actualShader), 0.01f, $"Global enemy highlight mismatch for mode {modes[i]}");
+            }
+        }
+
+        [Test]
+        public void ValorantClarityShaders_AllSixResolveExposeExpectedPropertiesAndLowVariant()
+        {
+            AssertClarityShader(
+                "Kalyeah/Kid",
+                "KalyeahKid.shader",
+                new[]
+                {
+                    "_DiffShadowColor",
+                    "_DiffMidPos",
+                    "_DiffHighPos",
+                    "_DiffShadowLift",
+                    "_SkinWarmShift",
+                    "_SkinUnderglowColor",
+                    "_SkinUnderglowStrength",
+                    "_SpecStrength",
+                    "_SpecSkyColor",
+                    "_SpecGroundColor",
+                    "_SpecSunBoost",
+                    "_SpecIndirectShadow",
+                    "_AmbientMin",
+                    "_AmbientMax",
+                    "_FresnelUpWeight",
+                    "_FresnelHeightMin",
+                    "_FresnelHeightMax",
+                    "_FresnelPower",
+                    "_EnemyHighlight",
+                    "_EnemyHighlightColor",
+                    "_AllyFresnelColor",
+                    "_AllyFresnelStrength",
+                    "_DepthStart",
+                    "_DepthEnd",
+                    "_DepthBrightenMax",
+                    "_DepthFresnelBoost",
+                });
+
+            AssertClarityShader(
+                "Kalyeah/TeamOutline",
+                "TeamOutline.shader",
+                new[]
+                {
+                    "_OutlineColor",
+                    "_OutlineWidth",
+                    "_DistanceComp",
+                    "_DistanceBoost",
+                    "_DepthStart",
+                    "_DepthEnd",
+                    "_MaxDistance",
+                    "_HitFlash",
+                    "_AuraColor",
+                });
+
+            AssertClarityShader(
+                "Kalyeah/BarangayGround",
+                "BarangayGround.shader",
+                new[]
+                {
+                    "_AmbientMin",
+                    "_AmbientMax",
+                    "_DetailStrength",
+                    "_SpecStrength",
+                    "_BaseColor",
+                    "_ShadowFloor",
+                });
+
+            AssertClarityShader(
+                "Kalyeah/EsteroWater",
+                "EsteroWater.shader",
+                new[]
+                {
+                    "_SunHotspotPower",
+                    "_SunHotspotStrength",
+                    "_FresnelColor",
+                    "_FresnelStrength",
+                    "_AmbientMin",
+                    "_AmbientMax",
+                    "_ShallowColor",
+                    "_DeepColor",
+                    "_FoamColor",
+                });
+
+            AssertClarityShader(
+                "Kalyeah/TropicalSky",
+                "TropicalSky.shader",
+                new[]
+                {
+                    "_SunDiscSize",
+                    "_HorizonClarityBand",
+                    "_SkyZenith",
+                    "_SkyHorizon",
+                    "_Exposure",
+                });
+
+            AssertClarityShader(
+                "Kalyeah/ArcaneFx",
+                "ArcaneFx.shader",
+                new[]
+                {
+                    "_HardEdgeWidth",
+                    "_DashCount",
+                    "_EdgeBoost",
+                    "_InteriorAlpha",
+                    "_BaseColor",
+                    "_Tint",
+                    "_Phase",
+                });
+        }
+
+        static float ColorRgbDistance(Color a, Color b)
+        {
+            float dr = a.r - b.r;
+            float dg = a.g - b.g;
+            float db = a.b - b.b;
+            return Mathf.Sqrt(dr * dr + dg * dg + db * db);
+        }
+
+        static void AssertClarityShader(string shaderName, string shaderFileName, string[] expectedProperties)
+        {
+            Shader shader = Shader.Find(shaderName);
+            Assert.IsNotNull(shader, $"Shader '{shaderName}' must resolve cleanly via Shader.Find");
+
+            for (int i = 0; i < expectedProperties.Length; i++)
+            {
+                string prop = expectedProperties[i];
+                Assert.GreaterOrEqual(
+                    shader.FindPropertyIndex(prop),
+                    0,
+                    $"Shader '{shaderName}' is missing expected VALORANT clarity property '{prop}'");
+            }
+
+            string shaderPath = Path.Combine(Application.dataPath, "Kalyeah", "Shaders", shaderFileName);
+            Assert.IsTrue(File.Exists(shaderPath), $"Expected shader file at '{shaderPath}'");
+            string source = File.ReadAllText(shaderPath);
+            Assert.IsTrue(
+                source.Contains("#pragma multi_compile _ " + MatchBoot.LowQualityShaderKeyword),
+                $"Shader '{shaderFileName}' must declare '#pragma multi_compile _ {MatchBoot.LowQualityShaderKeyword}' so Low scaling never strips");
+        }
     }
 }

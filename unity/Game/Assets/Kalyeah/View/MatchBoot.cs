@@ -142,6 +142,13 @@ namespace Kalyeah.Game
                 _pcInput = new PcCombatInput();
 #endif
             }
+            else
+            {
+                MatchBoot.ApplyGlobalClarityGlobals(
+                    SettingsStore.Current.GraphicsProfile,
+                    SettingsStore.Current.ResolvedEnemyHighlightMode,
+                    RenderSettings.sun);
+            }
 
             Draw(1f, 0f);
         }
@@ -607,14 +614,74 @@ namespace Kalyeah.Game
             ApplyDeviceQualityAndFrameRate();
         }
 
+        public const string LowQualityShaderKeyword = "KALYEAH_QUALITY_LOW";
+        public const float DefaultAmbientMin = 0.28f;
+        public const float DefaultAmbientMax = 0.92f;
+
+        /// <summary>Matches MatchView's default golden-hour sun vector pointing toward the sun (URP <c>_MainLightPosition.xyz</c> convention).</summary>
+        public static readonly Vector3 FallbackSunDirection = new Vector3(0.412f, 0.743f, -0.527f).normalized;
+
         static readonly int GraphicsTierGlobalId = Shader.PropertyToID("_KalyeahGraphicsTier");
         static readonly int UseDetailMapsGlobalId = Shader.PropertyToID("_KalyeahUseDetailMaps");
+        static readonly int AmbientMinGlobalId = Shader.PropertyToID("_KalyeahAmbientMin");
+        static readonly int AmbientMaxGlobalId = Shader.PropertyToID("_KalyeahAmbientMax");
+        static readonly int EnemyHighlightColorGlobalId = Shader.PropertyToID("_KalyeahEnemyHighlightColor");
+        static readonly int SunDirGlobalId = Shader.PropertyToID("_KalyeahSunDir");
 
         /// <summary>Last applied 4-tier graphics profile (Low / Medium / High / Ultra).</summary>
         public static GraphicsTierProfile ActiveGraphicsProfile { get; private set; } = GraphicsTierProfile.Medium;
 
         /// <summary>Raised whenever the active 4-tier graphics preset is applied at boot or live in Settings.</summary>
         public static event Action<GraphicsTierProfile> GraphicsProfileChanged;
+
+        /// <summary>Colorblind-safe enemy highlight colour (0=Red, 1=Yellow, 2=Purple) shared across shaders and HUD.</summary>
+        public static Color ResolveEnemyHighlightColor(int mode)
+            => KalyeahResources.ResolveEnemyHighlightColor(mode);
+
+        /// <summary>True only for Low (tier 0), where <c>KALYEAH_QUALITY_LOW</c> strips non-clarity character/world shader passes.</summary>
+        public static bool IsLowQualityKeywordActive(int qualityIndex)
+            => GraphicsTierProfile.ForQuality(qualityIndex).QualityIndex == SettingsStore.GraphicsLow;
+
+        /// <summary>Unit vector pointing toward the primary directional sun, or <see cref="FallbackSunDirection"/> when absent.</summary>
+        public static Vector3 ResolveSunDirection(Light sunOverride = null)
+        {
+            Light sun = sunOverride != null ? sunOverride : RenderSettings.sun;
+            if (sun != null)
+            {
+                Vector3 towardSun = -sun.transform.forward;
+                if (towardSun.sqrMagnitude > 1e-6f)
+                    return towardSun.normalized;
+            }
+            return FallbackSunDirection;
+        }
+
+        /// <summary>
+        /// Sets engine-wide VALORANT clarity shader globals and toggles <c>KALYEAH_QUALITY_LOW</c> atomically with zero allocations.
+        /// </summary>
+        public static void ApplyGlobalClarityGlobals(
+            GraphicsTierProfile profile,
+            int enemyHighlightMode,
+            Light sunOverride = null,
+            float ambientMin = DefaultAmbientMin,
+            float ambientMax = DefaultAmbientMax)
+        {
+            float clampedMin = Mathf.Clamp01(ambientMin);
+            float clampedMax = Mathf.Clamp(ambientMax, clampedMin, 2f);
+            Vector3 sunDir = ResolveSunDirection(sunOverride);
+            Color enemyColor = ResolveEnemyHighlightColor(enemyHighlightMode);
+
+            Shader.SetGlobalFloat(GraphicsTierGlobalId, profile.QualityIndex);
+            Shader.SetGlobalFloat(UseDetailMapsGlobalId, profile.UseNormalAndOrmMaps ? 1f : 0f);
+            Shader.SetGlobalFloat(AmbientMinGlobalId, clampedMin);
+            Shader.SetGlobalFloat(AmbientMaxGlobalId, clampedMax);
+            Shader.SetGlobalColor(EnemyHighlightColorGlobalId, enemyColor);
+            Shader.SetGlobalVector(SunDirGlobalId, new Vector4(sunDir.x, sunDir.y, sunDir.z, 1f));
+
+            if (IsLowQualityKeywordActive(profile.QualityIndex))
+                Shader.EnableKeyword(LowQualityShaderKeyword);
+            else
+                Shader.DisableKeyword(LowQualityShaderKeyword);
+        }
 
         public static int ResolveDeviceRefreshRateHz()
         {
@@ -687,12 +754,10 @@ namespace Kalyeah.Game
                     : (profile.SoftShadows ? LightShadows.Soft : LightShadows.Hard);
             }
 
-            Shader.SetGlobalFloat(GraphicsTierGlobalId, profile.QualityIndex);
-            Shader.SetGlobalFloat(UseDetailMapsGlobalId, profile.UseNormalAndOrmMaps ? 1f : 0f);
-            if (profile.UseNormalAndOrmMaps)
-                Shader.DisableKeyword("KALYEAH_QUALITY_LOW");
-            else
-                Shader.EnableKeyword("KALYEAH_QUALITY_LOW");
+            ApplyGlobalClarityGlobals(
+                profile,
+                SettingsStore.Current.ResolvedEnemyHighlightMode,
+                sun);
 
             ActiveGraphicsProfile = profile;
             GraphicsProfileChanged?.Invoke(profile);

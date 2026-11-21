@@ -410,7 +410,11 @@ public static class KalyeahBuild
             dict.Clear();
     }
 
-    /// <summary>The materials the code makes things with (KalyeahResources.Material), saved so their shaders go into the IL2CPP build.</summary>
+    /// <summary>
+    /// The materials the code makes things with (KalyeahResources.Material), saved under Resources so Android/iOS IL2CPP builds
+    /// retain every upgraded shader (Kid, BarangayGround, EsteroWater, TropicalSky, ArcaneFx, TeamOutline) and their
+    /// <c>#pragma multi_compile _ KALYEAH_QUALITY_LOW</c> variants.
+    /// </summary>
     static void EnsureMaterials()
     {
         EnsureMaterial("Ground", "Universal Render Pipeline/Lit", m =>
@@ -464,12 +468,19 @@ public static class KalyeahBuild
         Material existing = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (existing != null)
         {
+            bool dirty = false;
             if (existing.shader != shader || !existing.shader.isSupported)
             {
                 existing.shader = shader;
                 configure?.Invoke(existing);
-                EditorUtility.SetDirty(existing);
+                dirty = true;
             }
+            if (existing.IsKeywordEnabled(MatchBoot.LowQualityShaderKeyword))
+            {
+                existing.DisableKeyword(MatchBoot.LowQualityShaderKeyword);
+                dirty = true;
+            }
+            if (dirty) EditorUtility.SetDirty(existing);
             return;
         }
         var material = new Material(shader) { name = name };
