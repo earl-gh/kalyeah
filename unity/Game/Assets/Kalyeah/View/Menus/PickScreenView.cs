@@ -45,8 +45,8 @@ namespace Kalyeah.Game
         const int SkillCount = 3;
 
         // the body's three columns, as shares of its width
-        const float RosterEnd = 0.43f;
-        const float HeroStart = 0.43f;
+        const float RosterEnd = 0.45f;
+        const float HeroStart = 0.45f;
         const float HeroEnd = 0.66f;
         const float DetailStart = 0.67f;
 
