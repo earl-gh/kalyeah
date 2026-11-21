@@ -1559,13 +1559,20 @@ public static class KalyeahBuild
         var titleCamera = new GameObject("TitleCamera", typeof(Camera)).GetComponent<Camera>();
         titleCamera.transform.SetParent(titleRoot, false);
         HomeScreenView home = null;
-        TitleScreen.Build(titleRoot, titleCamera, null, h =>
+        try
         {
-            home = h;
-            stage?.Invoke(h);
-        });
-        Capture(titleCamera, Path.Combine(dir, fileName), width, height);
-        if (home != null && fileName == "title.png") DumpHeroStage(home, dir);
+            TitleScreen.Build(titleRoot, titleCamera, null, h =>
+            {
+                home = h;
+                stage?.Invoke(h);
+            });
+            Capture(titleCamera, Path.Combine(dir, fileName), width, height);
+            if (home != null && fileName == "title.png") DumpHeroStage(home, dir);
+        }
+        finally
+        {
+            home?.Dispose();
+        }
     }
 
     /// <summary>Saves the home hero's RenderTexture on its own and logs its alpha coverage, so a blank hero is diagnosable from CI.</summary>

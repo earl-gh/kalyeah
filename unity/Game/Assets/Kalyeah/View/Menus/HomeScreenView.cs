@@ -1016,7 +1016,11 @@ namespace Kalyeah.Game
 
         public void Refresh()
         {
-            if (_disposed) return;
+            if (_disposed || Root == null)
+            {
+                OnDisabled();
+                return;
+            }
             AppSession session = AppSession.Current;
 
             if (!IsInteractive() && Sheets != null && Sheets.IsOpen)
@@ -1105,7 +1109,12 @@ namespace Kalyeah.Game
         /// </summary>
         public void RefreshLayout()
         {
-            if (_disposed || _topBar == null || _hubBody == null) return;
+            if (_disposed || Root == null)
+            {
+                OnDisabled();
+                return;
+            }
+            if (_topBar == null || _hubBody == null) return;
             Rect safe = SafeRoot.rect;
             Rect full = Root.rect;
             float width = safe.width;
