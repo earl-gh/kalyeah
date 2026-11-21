@@ -284,11 +284,7 @@ namespace Kalyeah.Game
             _stack.Register(
                 MenuStack.PickId,
                 _pick.Root,
-                onShow: () =>
-                {
-                    _pick.RefreshFromSession();
-                    _pick.RefreshResponsiveLayout();
-                });
+                onShow: _pick.RefreshFromSession);
 
             _stack.Register(MenuStack.CodexId, _codex.Root, onShow: _codex.Show, onHide: _codex.Hide);
             _stack.Register(MenuStack.KidsId, _kids.Root, onShow: _kids.Show, onHide: _kids.Hide, onBackOverride: _kids.HandleBack);

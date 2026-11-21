@@ -268,20 +268,20 @@ namespace Kalyeah.Game
         readonly List<Image> _tabBars = new List<Image>();
         RectTransform _content;
         Text _pagePersonality;
-        KidPageData[] _pages;
+        static KidPageData[] s_pages;
 
         /// <summary>The tab showing on the kid page (Skills, Skins, Story or Mastery).</summary>
         public int ActiveTab { get; private set; }
 
-        KidPageData PageFor(string id)
+        /// <summary>A kid's skills and story text (display text only, not sim data: assets/ui/kid_pages.json, from docs/KITS.md and docs/LORE.md).</summary>
+        internal static KidPageData PageFor(string id)
         {
-            if (_pages == null)
+            if (s_pages == null)
             {
-                // display text only (not sim data): assets/ui/kid_pages.json, from docs/KITS.md and docs/LORE.md
-                try { _pages = JsonUtility.FromJson<KidPagesRoot>(Resources.Load<TextAsset>("ui/kid_pages").text).data.kids; }
-                catch { _pages = new KidPageData[0]; }
+                try { s_pages = JsonUtility.FromJson<KidPagesRoot>(Resources.Load<TextAsset>("ui/kid_pages").text).data.kids; }
+                catch { s_pages = new KidPageData[0]; }
             }
-            foreach (KidPageData p in _pages) if (p.id == id) return p;
+            foreach (KidPageData p in s_pages) if (p.id == id) return p;
             return null;
         }
 
@@ -665,7 +665,7 @@ namespace Kalyeah.Game
             return header;
         }
 
-        static Text Label(string name, Transform parent, string text, int size, Color color, TextAnchor align, bool display = false, bool ink = false)
+        internal static Text Label(string name, Transform parent, string text, int size, Color color, TextAnchor align, bool display = false, bool ink = false)
         {
             Text label = Ui.MakeText(name, parent, text, size, color, align, display ? KalyeahResources.DisplayFont() : null);
             Outline outline = label.GetComponent<Outline>();
@@ -681,7 +681,7 @@ namespace Kalyeah.Game
             return label;
         }
 
-        static RawImage MakeRaw(string name, Transform parent, Texture texture)
+        internal static RawImage MakeRaw(string name, Transform parent, Texture texture)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(RawImage));
             go.transform.SetParent(parent, false);
@@ -692,7 +692,7 @@ namespace Kalyeah.Game
             return raw;
         }
 
-        static void Stretch(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
+        internal static void Stretch(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
         {
             rect.anchorMin = anchorMin;
             rect.anchorMax = anchorMax;
@@ -700,7 +700,7 @@ namespace Kalyeah.Game
             rect.offsetMax = Vector2.zero;
         }
 
-        static void Place(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax, Vector2 position, Vector2 size)
+        internal static void Place(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax, Vector2 position, Vector2 size)
         {
             rect.anchorMin = anchorMin;
             rect.anchorMax = anchorMax;
@@ -711,7 +711,7 @@ namespace Kalyeah.Game
         static Texture2D s_ramp;
 
         /// <summary>A vertical alpha ramp: 1 at the bottom row to 0 at the top.</summary>
-        static Texture2D Ramp()
+        internal static Texture2D Ramp()
         {
             if (s_ramp != null) return s_ramp;
             const int n = 64;

@@ -746,7 +746,7 @@ public static class KalyeahBuild
                 using var pickView = new PickScreenView(pickCanvas.transform, data, null);
                 if (pickView.SafeRoot.GetComponent<SafeArea>() == null)
                     pickView.SafeRoot.gameObject.AddComponent<SafeArea>().ForceApply();
-                CaptureQuadAspect(pickCamera, dir, "menu_pick", pickView.RefreshResponsiveLayout);
+                CaptureQuadAspect(pickCamera, dir, "menu_pick");
             }
 
             // Kids: the grid and Karding's kid page, on all four shapes
@@ -957,8 +957,7 @@ public static class KalyeahBuild
                 Canvas pickCanvas = MakeMenuShotCanvas("Pick", data, out Camera pickCam);
                 using var pick = new PickScreenView(pickCanvas.transform, data, onBack: () => { }, onConfirmed: () => { });
                 pick.RefreshFromSession();
-                pick.RefreshResponsiveLayout();
-                CaptureDualAspect(pickCam, dir, "gui_pick", pick.RefreshResponsiveLayout);
+                CaptureDualAspect(pickCam, dir, "gui_pick");
             }
 
             {
