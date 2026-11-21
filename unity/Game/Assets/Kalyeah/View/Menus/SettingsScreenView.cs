@@ -18,15 +18,16 @@ namespace Kalyeah.Game
         /// <summary>Donate lives in Settings, not on home (docs/SPEC.md §8).</summary>
         public const int TabDonate = 3;
 
-        static readonly Color BackdropSolid = new Color(0.06f, 0.10f, 0.20f, 1f);
-        static readonly Color BackdropWash = new Color(0.05f, 0.08f, 0.17f, 0.84f);
-        static readonly Color HeaderBg = new Color(0.06f, 0.10f, 0.22f, 0.96f);
-        static readonly Color PanelBg = new Color(0.08f, 0.12f, 0.24f, 0.96f);
-        static readonly Color RowBg = new Color(0.11f, 0.16f, 0.30f, 0.94f);
-        static readonly Color ChoiceIdleBg = new Color(0.06f, 0.10f, 0.20f, 0.96f);
-        static readonly Color Gold = new Color(0.99f, 0.79f, 0.20f, 1f);
-        static readonly Color Coral = new Color(0.96f, 0.38f, 0.26f, 1f);
-        static readonly Color Teal = new Color(0.22f, 0.78f, 0.68f, 1f);
+        // the home's palette: deep navy, dark glass panels and one gold (docs/SPEC.md §10, the plan page v10)
+        static readonly Color BackdropSolid = new Color(0.02f, 0.035f, 0.07f, 1f);
+        static readonly Color BackdropWash = new Color(0.02f, 0.035f, 0.07f, 0.72f);
+        static readonly Color HeaderBg = new Color(0f, 0f, 0f, 0f);
+        static readonly Color PanelBg = new Color(0.06f, 0.10f, 0.19f, 0.86f);
+        static readonly Color RowBg = new Color(1f, 1f, 1f, 0.08f);
+        static readonly Color ChoiceIdleBg = new Color(0.02f, 0.04f, 0.09f, 0.7f);
+        static readonly Color Gold = new Color(0.961f, 0.725f, 0.227f, 1f);
+        static readonly Color Coral = new Color(1f, 1f, 1f, 0.14f); // the back button: a light glass chip, not a red slab
+        static readonly Color Teal = new Color(0.961f, 0.725f, 0.227f, 1f); // ON toggles and fills are gold, as on the plan page
         static readonly Color Ink = new Color(0.08f, 0.10f, 0.16f, 1f);
 
         [ExecuteAlways]
@@ -270,7 +271,7 @@ namespace Kalyeah.Game
             {
                 bool fil = SettingsStore.Current.Language == "fil";
                 if (_headerTitle != null) _headerTitle.text = fil ? "MGA SETTING" : "SETTINGS";
-                if (_backLabel != null) _backLabel.text = fil ? "<- BALIK" : "<- BACK";
+                if (_backLabel != null) _backLabel.text = fil ? "BALIK" : "BACK";
                 if (_resetLabel != null) _resetLabel.text = fil ? "IBALIK SA DATI" : "RESET DEFAULTS";
                 if (_tabPillLabels[0] != null) _tabPillLabels[0].text = fil ? "TUNOG" : "AUDIO";
                 if (_tabPillLabels[1] != null) _tabPillLabels[1].text = fil ? "KONTROL" : "CONTROLS";
@@ -538,14 +539,14 @@ namespace Kalyeah.Game
             Stretch(baseFill.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             baseFill.gameObject.AddComponent<RectMask2D>();
 
-            Texture2D mainBg = KalyeahResources.Texture("ui/main_bg") ?? KalyeahResources.Texture("ui/boot/boot_bg");
+            Texture2D mainBg = KalyeahResources.Texture("ui/home/stall") ?? KalyeahResources.Texture("ui/main_bg") ?? KalyeahResources.Texture("ui/boot/boot_bg");
             if (mainBg != null)
             {
                 var rawGo = new GameObject("ArtBackdrop", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
                 rawGo.transform.SetParent(baseFill.transform, false);
                 var raw = rawGo.GetComponent<RawImage>();
                 raw.texture = mainBg;
-                raw.color = new Color(0.90f, 0.88f, 0.96f, 0.24f);
+                raw.color = new Color(1f, 1f, 1f, 0.32f);
                 raw.raycastTarget = false;
                 Stretch(raw.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
@@ -572,7 +573,7 @@ namespace Kalyeah.Game
             {
                 SavePersistedSettings();
                 _onBack?.Invoke();
-            }, out _backLabel, "<- BACK");
+            }, out _backLabel, "BACK");
 
             _headerTitle = MakeFittedText("Title", _headerRect, "SETTINGS", 28, Gold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
             _headerTitleRect = _headerTitle.rectTransform;
@@ -808,7 +809,7 @@ namespace Kalyeah.Game
             paneRoot.offsetMin = new Vector2(0f, 6f);
             paneRoot.offsetMax = new Vector2(0f, -228f);
 
-            Image bg = KomiksUi.MakeSlicedFill("PaneBg", paneRoot, PanelBg, KomiksUi.RadiusM);
+            Image bg = KomiksUi.MakeSlicedFill("PaneBg", paneRoot, PanelBg, KomiksUi.RadiusXL);
             Stretch(bg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             var scrollGo = new GameObject("Scroll", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
