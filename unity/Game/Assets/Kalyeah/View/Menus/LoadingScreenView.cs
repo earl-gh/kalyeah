@@ -22,10 +22,11 @@ namespace Kalyeah.Game
         static readonly Color BackdropTintColor = Color.white;
         static readonly Color ScrimTintColor = new Color(0.02f, 0.035f, 0.07f, 0.68f);
         static readonly Color HorizonGlowColor = new Color(0.961f, 0.725f, 0.227f, 0.08f);
-        static readonly Color ModeBadgeFill = new Color(0.10f, 0.15f, 0.30f, 0.96f);
-        static readonly Color CardFill = new Color(0.08f, 0.12f, 0.24f, 0.95f);
-        static readonly Color IconWellFill = new Color(0.16f, 0.22f, 0.42f, 1f);
-        static readonly Color TrackFill = new Color(0.04f, 0.07f, 0.15f, 0.98f);
+        static readonly Color BadgeTop = new Color(0.115f, 0.175f, 0.285f, 0.94f);
+        static readonly Color BadgeBottom = new Color(0.052f, 0.085f, 0.155f, 0.97f);
+        static readonly Color TrackTop = new Color(0.024f, 0.044f, 0.082f, 0.98f);
+        static readonly Color TrackBottom = new Color(0.056f, 0.092f, 0.160f, 0.98f);
+        static readonly Color TrackBorder = new Color(0.76f, 0.88f, 0.96f, 0.25f);
 
         readonly struct TipEntry
         {
@@ -527,38 +528,38 @@ namespace Kalyeah.Game
                 FillInset(fallbackLogo.rectTransform, 8f, 4f, 8f, 4f);
             }
 
-            // 2B. Mode Badge Pill
-            Image badgeBg = MakeSlicedPanel(
+            // 2B. Mode Badge Pill (tactical chamfered plate with gold border & accent pips)
+            Image badgeBg = Ui.MakeSliced(
                 "ModeBadge",
                 SafeRoot,
-                KomiksUi.BorderedSprite(KomiksUi.RadiusM, 3, ModeBadgeFill, KomiksUi.MangoGold, topGloss: true));
+                MenuArt.ChamferCard(BadgeTop, BadgeBottom, MenuArt.GoldBorder, 12, 2, 0.30f),
+                Color.white,
+                raycast: false);
             ModeBadgeRect = badgeBg.rectTransform;
             ModeBadgeRect.anchorMin = new Vector2(0.5f, 0.5f);
             ModeBadgeRect.anchorMax = new Vector2(0.5f, 0.5f);
             ModeBadgeRect.pivot = new Vector2(0.5f, 0.5f);
+            Ui.MakeAccentRail("LeftPip", ModeBadgeRect, MenuArt.Gold, width: 3f, verticalInset: 12f);
+            Ui.MakeAccentRail("RightPip", ModeBadgeRect, MenuArt.Gold, width: 3f, verticalInset: 12f, rightSide: true);
 
-            ModeTitleLabel = Ui.MakeText("ModeTitle", ModeBadgeRect, "", 24, KomiksUi.MangoGold, TextAnchor.MiddleCenter, displayFont);
+            ModeTitleLabel = Ui.MakeText("ModeTitle", ModeBadgeRect, "", 24, MenuArt.GoldLight, TextAnchor.MiddleCenter, displayFont);
             ConfigureReadableText(ModeTitleLabel, minSize: 14, maxSize: 24);
             FillInset(ModeTitleLabel.rectTransform, 22f, 6f, 22f, 6f);
 
             // 2C. Barangay Gameplay Tip Card
-            Image tipBg = MakeSlicedPanel(
-                "TipCard",
-                SafeRoot,
-                KomiksUi.BorderedSprite(KomiksUi.RadiusM, 3, CardFill, KomiksUi.SlateEspresso, topGloss: false));
+            Image tipBg = Ui.MakeSliced("TipCard", SafeRoot, MenuArt.ChamferGlass(16), Color.white, raycast: false);
             TipCardRect = tipBg.rectTransform;
             TipCardRect.anchorMin = new Vector2(0.5f, 0.5f);
             TipCardRect.anchorMax = new Vector2(0.5f, 0.5f);
             TipCardRect.pivot = new Vector2(0.5f, 0.5f);
+            Ui.MakeAccentRail("TipRail", TipCardRect, MenuArt.Gold, width: 4f, verticalInset: 16f);
 
-            Image iconWell = MakeSlicedPanel(
-                "TipIconWell",
-                TipCardRect,
-                KomiksUi.BorderedSprite(KomiksUi.RadiusS, 2, IconWellFill, KomiksUi.MangoAmber, topGloss: true));
+            Image iconWell = Ui.MakeSliced("TipIconWell", TipCardRect, MenuArt.StatChip(10), Color.white, raycast: false);
             _tipIconWellRect = iconWell.rectTransform;
             _tipIconWellRect.anchorMin = new Vector2(0f, 0.5f);
             _tipIconWellRect.anchorMax = new Vector2(0f, 0.5f);
             _tipIconWellRect.pivot = new Vector2(0f, 0.5f);
+            Ui.MakeSliced("WellRim", _tipIconWellRect, MenuArt.ChamferOutline(MenuArt.GoldBorder, 10, 1), Color.white, raycast: false);
 
             Texture2D tipIconTex = KalyeahResources.Texture("ui/tips_icon");
             if (tipIconTex != null)
@@ -577,57 +578,57 @@ namespace Kalyeah.Game
             }
             else
             {
-                Text bulbFallback = Ui.MakeText("TipGlyph", _tipIconWellRect, "!", 28, KomiksUi.MangoGold, TextAnchor.MiddleCenter, displayFont);
+                Text bulbFallback = Ui.MakeText("TipGlyph", _tipIconWellRect, "!", 28, MenuArt.GoldLight, TextAnchor.MiddleCenter, displayFont);
                 ConfigureReadableText(bulbFallback, minSize: 18, maxSize: 28);
                 FillFullBleed(bulbFallback.rectTransform);
             }
 
-            TipHeaderLabel = Ui.MakeText("TipHeader", TipCardRect, "", 20, KomiksUi.MangoGold, TextAnchor.MiddleLeft, displayFont);
+            TipHeaderLabel = Ui.MakeText("TipHeader", TipCardRect, "", 20, MenuArt.GoldLight, TextAnchor.MiddleLeft, displayFont);
             ConfigureReadableText(TipHeaderLabel, minSize: 18, maxSize: 20);
+            Ui.ClearOutline(TipHeaderLabel);
             _tipHeaderRect = TipHeaderLabel.rectTransform;
 
-            TipBodyLabel = Ui.MakeText("TipBody", TipCardRect, "", 20, Ui.Cream, TextAnchor.MiddleLeft, uiFont);
+            TipBodyLabel = Ui.MakeText("TipBody", TipCardRect, "", 20, MenuArt.Cream, TextAnchor.MiddleLeft, uiFont);
             ConfigureReadableText(TipBodyLabel, minSize: 14, maxSize: 21);
             TipBodyLabel.lineSpacing = 1.08f;
+            Ui.ClearOutline(TipBodyLabel);
             _tipBodyRect = TipBodyLabel.rectTransform;
 
-            // 2D. Komiks Progress Bar Card
-            Image progCardBg = MakeSlicedPanel(
-                "ProgressCard",
-                SafeRoot,
-                KomiksUi.BorderedSprite(KomiksUi.RadiusM, 3, CardFill, KomiksUi.SlateEspresso, topGloss: false));
+            // 2D. Tactical Progress Bar Card
+            Image progCardBg = Ui.MakeSliced("ProgressCard", SafeRoot, MenuArt.ChamferGlass(16), Color.white, raycast: false);
             ProgressCardRect = progCardBg.rectTransform;
             ProgressCardRect.anchorMin = new Vector2(0.5f, 0.5f);
             ProgressCardRect.anchorMax = new Vector2(0.5f, 0.5f);
             ProgressCardRect.pivot = new Vector2(0.5f, 0.5f);
+            Ui.MakeCornerBrackets("ProgressBrackets", ProgressCardRect, new Color(MenuArt.Gold.r, MenuArt.Gold.g, MenuArt.Gold.b, 0.45f));
 
-            StatusLabel = Ui.MakeText("StatusLabel", ProgressCardRect, "", 20, Ui.Cream, TextAnchor.MiddleLeft, displayFont);
+            StatusLabel = Ui.MakeText("StatusLabel", ProgressCardRect, "", 20, MenuArt.Cream, TextAnchor.MiddleLeft, displayFont);
             ConfigureReadableText(StatusLabel, minSize: 18, maxSize: 20);
             _statusRect = StatusLabel.rectTransform;
 
-            PercentLabel = Ui.MakeText("PercentLabel", ProgressCardRect, "", 22, KomiksUi.MangoGold, TextAnchor.MiddleRight, displayFont);
+            PercentLabel = Ui.MakeText("PercentLabel", ProgressCardRect, "", 22, MenuArt.GoldLight, TextAnchor.MiddleRight, displayFont);
             ConfigureReadableText(PercentLabel, minSize: 18, maxSize: 22);
             _percentRect = PercentLabel.rectTransform;
 
-            Image trackBg = MakeSlicedPanel(
+            Image trackBg = Ui.MakeSliced(
                 "ProgressTrack",
                 ProgressCardRect,
-                KomiksUi.BorderedSprite(KomiksUi.RadiusS, 3, TrackFill, KomiksUi.SlateEspresso, topGloss: false));
+                MenuArt.Round(TrackTop, TrackBottom, TrackBorder, 8, 1, 0.12f),
+                Color.white,
+                raycast: false);
             ProgressTrackRect = trackBg.rectTransform;
 
             _progressInnerRect = Ui.Fill("ProgressInner", ProgressTrackRect);
             FillInset(_progressInnerRect, 4f, 4f, 4f, 4f);
             _progressInnerRect.gameObject.AddComponent<RectMask2D>();
 
-            Image fillImg = MakeSlicedPanel(
-                "ProgressFill",
-                _progressInnerRect,
-                KomiksUi.BorderedSprite(6, 0, KomiksUi.MangoAmber, Color.clear, topGloss: true));
+            Image fillImg = Ui.MakeSliced("ProgressFill", _progressInnerRect, MenuArt.AccentRail(6), MenuArt.Gold, raycast: false);
             ProgressFillRect = fillImg.rectTransform;
             ProgressFillRect.anchorMin = Vector2.zero;
             ProgressFillRect.anchorMax = new Vector2(0.68f, 1f);
             ProgressFillRect.offsetMin = Vector2.zero;
             ProgressFillRect.offsetMax = Vector2.zero;
+            Ui.AddSheen(ProgressFillRect);
 
             SetTipIndex(deterministicTipIndex);
             SetModeTitle(string.IsNullOrWhiteSpace(modeTitle) ? DefaultModeTitle : modeTitle);
@@ -882,14 +883,6 @@ namespace Kalyeah.Game
             string lang = SettingsStore.Current.Language;
             return string.Equals(lang, "fil", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(lang, "tl", StringComparison.OrdinalIgnoreCase);
-        }
-
-        static Image MakeSlicedPanel(string name, Transform parent, Sprite sprite)
-        {
-            Image img = Ui.MakeImage(name, parent, Color.white, round: false, raycast: false);
-            img.sprite = sprite;
-            img.type = Image.Type.Sliced;
-            return img;
         }
 
         static void ConfigureReadableText(Text label, int minSize, int maxSize)

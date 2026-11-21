@@ -62,18 +62,21 @@ namespace Kalyeah.Game
         static readonly Regex DisallowedNameChars = new Regex(@"[^\p{L}\p{N} '._-]", RegexOptions.Compiled);
 
         static readonly Color ScrimColor = new Color(0.01f, 0.02f, 0.05f, 0.86f);
-        // the sheets use the home's dark-glass look: navy card, light rim, cream text, gold headings (plan page v10)
-        static readonly Color KomiksInk = new Color(1f, 1f, 1f, 0.16f); // rims and frames
-        static readonly Color SunlitCream = new Color(0.06f, 0.10f, 0.19f, 0.97f); // the card
-        static readonly Color SunlitPaper = new Color(0.10f, 0.15f, 0.27f, 1f); // plates on the card
-        static readonly Color Espresso = new Color(0.98f, 0.93f, 0.80f, 1f); // text on the card: cream
-        static readonly Color DarkOchre = new Color(0.961f, 0.725f, 0.227f, 1f); // headings: gold
-        static readonly Color MangoGold = new Color(0.13f, 0.19f, 0.32f, 1f); // the header band: a lighter navy than the card
-        static readonly Color FiestaOrange = new Color(0.961f, 0.725f, 0.227f, 1f); // the main action: the one gold, with dark text
+        // tactical AAA dark-glass sheet palette (docs/SPEC.md §10)
+        static readonly Color HeaderTop = new Color(0.115f, 0.175f, 0.285f, 0.95f);
+        static readonly Color HeaderBottom = new Color(0.058f, 0.095f, 0.172f, 0.97f);
+        static readonly Color PlateTop = new Color(0.095f, 0.148f, 0.238f, 0.92f);
+        static readonly Color PlateBottom = new Color(0.048f, 0.080f, 0.148f, 0.96f);
+        static readonly Color TileTop = new Color(0.090f, 0.138f, 0.225f, 0.95f);
+        static readonly Color TileBottom = new Color(0.042f, 0.070f, 0.130f, 0.98f);
+        static readonly Color InputIdleBorder = new Color(1.00f, 0.80f, 0.34f, 0.78f);
+        static readonly Color Espresso = MenuArt.Cream;
+        static readonly Color DarkOchre = MenuArt.Gold;
+        static readonly Color MangoGold = MenuArt.Gold;
+        static readonly Color FiestaOrange = MenuArt.Gold;
         static readonly Color BarrioBlue = new Color(0.17f, 0.25f, 0.42f, 1f);
-        static readonly Color JadeGreen = new Color(0.12f, 0.27f, 0.30f, 1f);
+        static readonly Color JadeGreen = MenuArt.SuccessGreen;
         static readonly Color SlateBtn = new Color(0.24f, 0.29f, 0.42f, 1f);
-        static readonly Color HeartRed = new Color(0.84f, 0.19f, 0.17f, 1f);
         static readonly Color ErrorRed = new Color(1f, 0.48f, 0.44f, 1f);
 
         /// <summary>Browser opener used by <c>DonateSheet</c> after grown-up confirmation; replaceable in tests.</summary>
@@ -173,7 +176,7 @@ namespace Kalyeah.Game
         RectTransform _scrimRect;
         RectTransform _modalCard;
         RectTransform _headerBandRect;
-        Image _headerBandImg;
+        Image _headerAccentRail;
         RawImage _headerIcon;
         Text _headerTitle;
         Button _closeBtn;
@@ -192,6 +195,8 @@ namespace Kalyeah.Game
         RectTransform _nameCaptionRowRect;
         Text _nameTagCaptionText;
         RectTransform _nameFieldBoxRect;
+        Image _inputFocusOutline;
+        bool _wasNameFocused;
         InputField _profileNameInput;
         Text _profileLetterCount;
         Text _profileHintText;
@@ -366,6 +371,9 @@ namespace Kalyeah.Game
                 _profileNameInput.text = AppSession.Current.PlayerName.ToUpperInvariant();
                 UpdateLetterCount(_profileNameInput.text);
             }
+            _wasNameFocused = false;
+            if (_inputFocusOutline != null)
+                _inputFocusOutline.color = InputIdleBorder;
             SetProfileHintVisible(false);
 
             RefreshProfileVisuals();
@@ -377,7 +385,7 @@ namespace Kalyeah.Game
             if (!IsInteractive) return;
             ActiveSheet = SheetKind.IdCamera;
 
-            SetHeader("YOUR ID PHOTO", BarrioBlue, null);
+            SetHeader("YOUR ID PHOTO", MenuArt.Teal, null);
             ShowOnlyBody(_cameraBody);
             PresentModal();
 
@@ -575,7 +583,7 @@ namespace Kalyeah.Game
             if (_headerTitle != null)
             {
                 bool hasIcon = _headerIcon != null && _headerIcon.gameObject.activeSelf;
-                _headerTitle.rectTransform.offsetMin = new Vector2(hasIcon ? 70f : 20f, 6f);
+                _headerTitle.rectTransform.offsetMin = new Vector2(hasIcon ? 74f : 24f, 6f);
                 _headerTitle.rectTransform.offsetMax = new Vector2(-(minTouch + 18f), -6f);
             }
 
@@ -838,20 +846,21 @@ namespace Kalyeah.Game
                 Vector2.zero,
                 new Vector2(880f, 620f));
 
-            Image border = _modalCard.gameObject.AddComponent<Image>();
-            border.sprite = MenuStack.RoundedSprite();
-            border.type = Image.Type.Sliced;
-            border.color = KomiksInk;
-            border.raycastTarget = true;
+            Image cardCatch = _modalCard.gameObject.AddComponent<Image>();
+            cardCatch.color = Color.clear;
+            cardCatch.raycastTarget = true;
 
+            // Keep exact GameObject name "CardCreamFill" (contract in ScreenFitBoundsTests) with upgraded chamfered tactical glass
             RectTransform bodyFill = Ui.Fill("CardCreamFill", _modalCard);
-            bodyFill.offsetMin = new Vector2(5f, 5f);
-            bodyFill.offsetMax = new Vector2(-5f, -5f);
-            Image cream = bodyFill.gameObject.AddComponent<Image>();
-            cream.sprite = MenuStack.RoundedSprite();
-            cream.type = Image.Type.Sliced;
-            cream.color = SunlitCream;
-            cream.raycastTarget = true;
+            bodyFill.offsetMin = new Vector2(2f, 2f);
+            bodyFill.offsetMax = new Vector2(-2f, -2f);
+            Image glassBg = bodyFill.gameObject.AddComponent<Image>();
+            glassBg.sprite = MenuArt.ChamferGlass(18);
+            glassBg.type = Image.Type.Sliced;
+            glassBg.color = Color.white;
+            glassBg.raycastTarget = true;
+
+            Ui.MakeCornerBrackets("CardBrackets", _modalCard, new Color(MenuArt.Gold.r, MenuArt.Gold.g, MenuArt.Gold.b, 0.52f), expand: 1f);
 
             _headerBandRect = Ui.Panel(
                 "HeaderBand",
@@ -861,10 +870,14 @@ namespace Kalyeah.Game
                 new Vector2(0.5f, 1f),
                 new Vector2(0f, -6f),
                 new Vector2(-12f, 108f));
-            _headerBandImg = _headerBandRect.gameObject.AddComponent<Image>();
-            _headerBandImg.sprite = MenuStack.RoundedSprite();
-            _headerBandImg.type = Image.Type.Sliced;
-            _headerBandImg.color = MangoGold;
+            Image headerBandImg = _headerBandRect.gameObject.AddComponent<Image>();
+            headerBandImg.sprite = MenuArt.ChamferCard(HeaderTop, HeaderBottom, MenuArt.PanelBorder, 12, 1, 0.26f);
+            headerBandImg.type = Image.Type.Sliced;
+            headerBandImg.color = Color.white;
+            headerBandImg.raycastTarget = false;
+
+            RectTransform accentRt = Ui.MakeAccentRail("HeaderAccent", _headerBandRect, MangoGold, width: 4f, verticalInset: 18f);
+            _headerAccentRail = accentRt.GetComponent<Image>();
 
             RectTransform iconBox = Ui.Panel(
                 "HeaderIconBox",
@@ -872,8 +885,8 @@ namespace Kalyeah.Game
                 new Vector2(0f, 0.5f),
                 new Vector2(0f, 0.5f),
                 new Vector2(0f, 0.5f),
-                new Vector2(16f, 0f),
-                new Vector2(46f, 46f));
+                new Vector2(20f, 0f),
+                new Vector2(44f, 44f));
             var iconGo = new GameObject("HeaderIcon", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
             iconGo.transform.SetParent(iconBox, false);
             _headerIcon = iconGo.GetComponent<RawImage>();
@@ -883,36 +896,49 @@ namespace Kalyeah.Game
             iconFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             iconFitter.aspectRatio = 1f;
 
-            _headerTitle = Ui.MakeText("Title", _headerBandRect, "YOUR PLAYER TAG", 28, Ui.Cream, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _headerTitle = Ui.MakeText("Title", _headerBandRect, "YOUR PLAYER TAG", 30, MenuArt.Cream, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
             _headerTitle.resizeTextForBestFit = true;
             _headerTitle.resizeTextMinSize = 18;
-            _headerTitle.resizeTextMaxSize = 28;
+            _headerTitle.resizeTextMaxSize = 30;
             RectTransform tr = _headerTitle.rectTransform;
             tr.anchorMin = Vector2.zero;
             tr.anchorMax = Vector2.one;
-            tr.offsetMin = new Vector2(20f, 6f);
+            tr.offsetMin = new Vector2(24f, 6f);
             tr.offsetMax = new Vector2(-114f, -6f);
 
-            _closeBtn = MakeActionButton(
-                "CloseSheetButton",
-                _headerBandRect,
-                "X",
-                KomiksInk,
-                Ui.Cream,
-                26,
-                () => Close(),
-                out _closeBtnRect);
+            // Sleek chamfered close button inside a >= 48 dp transparent hit catcher
+            var closeGo = new GameObject("CloseSheetButton", typeof(RectTransform), typeof(Image), typeof(Button));
+            closeGo.transform.SetParent(_headerBandRect, false);
+            _closeBtnRect = closeGo.GetComponent<RectTransform>();
             _closeBtnRect.anchorMin = _closeBtnRect.anchorMax = new Vector2(1f, 0.5f);
             _closeBtnRect.pivot = new Vector2(1f, 0.5f);
             _closeBtnRect.anchoredPosition = new Vector2(-6f, 0f);
             _closeBtnRect.sizeDelta = new Vector2(96f, 96f);
+
+            Image closeHit = closeGo.GetComponent<Image>();
+            closeHit.color = Color.clear;
+            closeHit.raycastTarget = true;
+
+            RectTransform closeFaceRt = Ui.Panel("CloseFace", _closeBtnRect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(52f, 52f));
+            Image closeFaceImg = Ui.MakeSliced("Plate", closeFaceRt, MenuArt.CtaGhost(10), Color.white, raycast: false);
+
+            Image closeGlyph = Ui.MakeImage("CloseGlyph", closeFaceRt, MenuArt.Cream, round: false, raycast: false);
+            closeGlyph.sprite = MenuArt.CloseIcon();
+            closeGlyph.rectTransform.anchorMin = closeGlyph.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            closeGlyph.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            closeGlyph.rectTransform.sizeDelta = new Vector2(22f, 22f);
+
+            _closeBtn = closeGo.GetComponent<Button>();
+            _closeBtn.targetGraphic = closeFaceImg;
+            _closeBtn.onClick.AddListener(() => Close());
+            Ui.AddPressFeel(closeGo, 0.92f);
         }
 
         void BuildProfileBody()
         {
             _profileBody = MakeContentPanel("ProfileSheet");
 
-            // Left column: School ID Nametag preview + >= 48 dp NameFieldBox + >= 48 dp Save button
+            // Left column: School ID Nametag preview + >= 48 dp dark tactical NameFieldBox + >= 48 dp Save & History buttons
             RectTransform leftCol = Ui.Panel("TagPreviewCol", _profileBody, new Vector2(0f, 0f), new Vector2(0.35f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
             leftCol.offsetMin = Vector2.zero;
             leftCol.offsetMax = Vector2.zero;
@@ -920,13 +946,18 @@ namespace Kalyeah.Game
             _nametagCardRect = Ui.Panel("NametagCard", leftCol, Vector2.zero, Vector2.one, new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
             _nametagCardRect.offsetMin = new Vector2(0f, 110f);
             _nametagCardRect.offsetMax = Vector2.zero;
-            MakeBorderedPlate(_nametagCardRect, SunlitPaper, 3f);
+            MakeTacticalPlate(_nametagCardRect, 12);
 
             _idPhotoFrameRect = Ui.Panel("IdPhotoFrame", _nametagCardRect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -12f), new Vector2(156f, 156f));
-            Image photoBorder = _idPhotoFrameRect.gameObject.AddComponent<Image>();
-            photoBorder.sprite = MenuStack.RoundedSprite();
-            photoBorder.type = Image.Type.Sliced;
-            photoBorder.color = KomiksInk;
+            Image photoWell = _idPhotoFrameRect.gameObject.AddComponent<Image>();
+            photoWell.sprite = MenuArt.RoundSolid(12);
+            photoWell.type = Image.Type.Sliced;
+            photoWell.color = MenuArt.InputBg;
+            photoWell.raycastTarget = false;
+
+            Image spotlight = Ui.MakeImage("Spotlight", _idPhotoFrameRect, new Color(1f, 0.94f, 0.78f, 0.16f), round: false, raycast: false);
+            spotlight.sprite = MenuArt.CardSpotlight();
+            Stretch(spotlight.rectTransform, 4f, 4f, -4f, -4f);
 
             RectTransform previewSlot = Ui.Fill("PreviewSlot", _idPhotoFrameRect);
             previewSlot.offsetMin = new Vector2(4f, 4f);
@@ -941,26 +972,27 @@ namespace Kalyeah.Game
             previewFit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             previewFit.aspectRatio = 1f;
 
+            Ui.MakeSliced("PhotoOutline", _idPhotoFrameRect, MenuArt.RoundOutline(MenuArt.GoldBorder, 12, 2), Color.white, raycast: false);
+            Ui.MakeCornerBrackets("PreviewBrackets", _idPhotoFrameRect, MenuArt.Gold, expand: 2f);
+
             _nameCaptionRowRect = Ui.Panel("NameCaptionRow", _nametagCardRect, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 114f), new Vector2(-24f, 26f));
 
-            _nameTagCaptionText = Ui.MakeText("Caption", _nameCaptionRowRect, "PLAYER TAG", 18, Espresso, TextAnchor.MiddleLeft);
-            _nameTagCaptionText.fontStyle = FontStyle.Bold;
-            _nameTagCaptionText.GetComponent<Outline>().enabled = false;
+            _nameTagCaptionText = Ui.MakeText("Caption", _nameCaptionRowRect, "PLAYER TAG", 17, MenuArt.GoldLight, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(_nameTagCaptionText);
             _nameTagCaptionText.resizeTextForBestFit = true;
-            _nameTagCaptionText.resizeTextMinSize = 16;
-            _nameTagCaptionText.resizeTextMaxSize = 18;
+            _nameTagCaptionText.resizeTextMinSize = 13;
+            _nameTagCaptionText.resizeTextMaxSize = 17;
             RectTransform capR = _nameTagCaptionText.rectTransform;
             capR.anchorMin = Vector2.zero;
             capR.anchorMax = new Vector2(0.68f, 1f);
             capR.offsetMin = Vector2.zero;
             capR.offsetMax = Vector2.zero;
 
-            _profileHintText = Ui.MakeText("Hint", _nameCaptionRowRect, "Pick a name!", 18, ErrorRed, TextAnchor.MiddleLeft);
-            _profileHintText.fontStyle = FontStyle.Bold;
-            _profileHintText.GetComponent<Outline>().enabled = false;
+            _profileHintText = Ui.MakeText("Hint", _nameCaptionRowRect, "Pick a name!", 17, ErrorRed, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(_profileHintText);
             _profileHintText.resizeTextForBestFit = true;
-            _profileHintText.resizeTextMinSize = 16;
-            _profileHintText.resizeTextMaxSize = 18;
+            _profileHintText.resizeTextMinSize = 13;
+            _profileHintText.resizeTextMaxSize = 17;
             RectTransform hr = _profileHintText.rectTransform;
             hr.anchorMin = Vector2.zero;
             hr.anchorMax = new Vector2(0.68f, 1f);
@@ -968,47 +1000,47 @@ namespace Kalyeah.Game
             hr.offsetMax = Vector2.zero;
             _profileHintText.gameObject.SetActive(false);
 
-            _profileLetterCount = Ui.MakeText("LetterCount", _nameCaptionRowRect, "4/12", 18, Espresso, TextAnchor.MiddleRight);
-            _profileLetterCount.fontStyle = FontStyle.Bold;
-            _profileLetterCount.GetComponent<Outline>().enabled = false;
+            _profileLetterCount = Ui.MakeText("LetterCount", _nameCaptionRowRect, "4/12", 17, MenuArt.MutedText, TextAnchor.MiddleRight, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(_profileLetterCount);
             RectTransform lcR = _profileLetterCount.rectTransform;
             lcR.anchorMin = new Vector2(0.68f, 0f);
             lcR.anchorMax = Vector2.one;
             lcR.offsetMin = Vector2.zero;
             lcR.offsetMax = Vector2.zero;
 
+            // Sleek deep-ink tactical input field with luminous gold border inside >= 48 dp hit target
             _nameFieldBoxRect = Ui.Panel("NameFieldBox", _nametagCardRect, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 12f), new Vector2(-24f, 96f));
-            Image inputBorder = _nameFieldBoxRect.gameObject.AddComponent<Image>();
-            inputBorder.sprite = MenuStack.RoundedSprite();
-            inputBorder.type = Image.Type.Sliced;
-            inputBorder.color = KomiksInk;
-            inputBorder.raycastTarget = true;
+            Image inputHit = _nameFieldBoxRect.gameObject.AddComponent<Image>();
+            inputHit.color = Color.clear;
+            inputHit.raycastTarget = true;
 
-            RectTransform inputFill = Ui.Fill("InputFill", _nameFieldBoxRect);
-            inputFill.offsetMin = new Vector2(3f, 3f);
-            inputFill.offsetMax = new Vector2(-3f, -3f);
+            RectTransform inputFill = Ui.Panel("InputFill", _nameFieldBoxRect, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 58f));
             Image inputBg = inputFill.gameObject.AddComponent<Image>();
-            inputBg.sprite = MenuStack.RoundedSprite();
-            inputBg.type = Image.Type.Sliced;
-            inputBg.color = Color.white;
             inputBg.raycastTarget = false;
+
+            _inputFocusOutline = Ui.MakeSliced("FocusOutline", inputFill, MenuArt.RoundOutline(Color.white, 12, 2), InputIdleBorder, raycast: false);
 
             _profileNameInput = _nameFieldBoxRect.gameObject.AddComponent<InputField>();
             _profileNameInput.targetGraphic = inputBg;
             _profileNameInput.characterLimit = AppSession.MaxNameLength;
             _profileNameInput.lineType = InputField.LineType.SingleLine;
+            _profileNameInput.caretColor = MenuArt.GoldLight;
+            _profileNameInput.selectionColor = new Color(MenuArt.Gold.r, MenuArt.Gold.g, MenuArt.Gold.b, 0.32f);
 
-            Text ph = Ui.MakeText("Placeholder", inputFill, "YOUR NAME", 20, new Color(0.38f, 0.33f, 0.28f, 0.75f), TextAnchor.MiddleCenter);
-            ph.GetComponent<Outline>().enabled = false;
-            Stretch(ph.rectTransform, 10f, 4f, -10f, -4f);
+            Text ph = Ui.MakeText("Placeholder", inputFill, "YOUR NAME", 20, MenuArt.MutedText, TextAnchor.MiddleCenter);
+            Ui.ClearOutline(ph);
+            Stretch(ph.rectTransform, 12f, 4f, -12f, -4f);
 
-            Text txt = Ui.MakeText("Text", inputFill, AppSession.Current.PlayerName, 26, new Color(0.08f, 0.10f, 0.16f, 1f), TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            txt.GetComponent<Outline>().enabled = false;
+            Text txt = Ui.MakeText("Text", inputFill, AppSession.Current.PlayerName, 26, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             txt.supportRichText = false;
             txt.resizeTextForBestFit = true;
-            txt.resizeTextMinSize = 18;
+            txt.resizeTextMinSize = 16;
             txt.resizeTextMaxSize = 26;
-            Stretch(txt.rectTransform, 10f, 4f, -10f, -4f);
+            Stretch(txt.rectTransform, 12f, 4f, -12f, -4f);
+
+            Ui.StyleTacticalInput(inputBg, _inputFocusOutline, txt, ph, focused: false);
+            Ui.ClearOutline(ph);
+            _inputFocusOutline.color = InputIdleBorder;
 
             _profileNameInput.textComponent = txt;
             _profileNameInput.placeholder = ph;
@@ -1019,8 +1051,8 @@ namespace Kalyeah.Game
                 leftCol,
                 "Save Name",
                 FiestaOrange,
-                Ui.Cream,
-                24,
+                MenuArt.Ink,
+                22,
                 () => SaveProfileName(),
                 out _saveProfileRect);
             _saveProfileRect.anchorMin = new Vector2(0f, 0f);
@@ -1034,8 +1066,8 @@ namespace Kalyeah.Game
                 leftCol,
                 "Match History",
                 BarrioBlue,
-                Ui.Cream,
-                24,
+                MenuArt.Cream,
+                22,
                 () => HistoryRequested?.Invoke(),
                 out _historyRect);
             _historyRect.anchorMin = new Vector2(0.51f, 0f);
@@ -1044,16 +1076,15 @@ namespace Kalyeah.Game
             _historyRect.anchoredPosition = Vector2.zero;
             _historyRect.sizeDelta = new Vector2(0f, 96f);
 
-            // Right column: All 10 kid avatar tiles (2x5 >= 48 dp inside ScrollRect) + >= 48 dp ID Camera / Remove Photo footer
+            // Right column: All 12 kid avatar tiles (>= 48 dp inside ScrollRect) + >= 48 dp ID Camera / Remove Photo footer
             RectTransform rightCol = Ui.Panel("PhotoOptionsCol", _profileBody, new Vector2(0.37f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
             rightCol.offsetMin = Vector2.zero;
             rightCol.offsetMax = Vector2.zero;
 
-            Text gridTitle = Ui.MakeText("GridHeading", rightCol, "CHOOSE KID AVATAR (12) OR SELFIE (ON-DEVICE ONLY)", 18, DarkOchre, TextAnchor.MiddleLeft);
-            gridTitle.fontStyle = FontStyle.Bold;
-            gridTitle.GetComponent<Outline>().enabled = false;
+            Text gridTitle = Ui.MakeText("GridHeading", rightCol, "CHOOSE KID AVATAR (12) OR SELFIE (ON-DEVICE ONLY)", 18, MenuArt.GoldLight, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(gridTitle);
             gridTitle.resizeTextForBestFit = true;
-            gridTitle.resizeTextMinSize = 16;
+            gridTitle.resizeTextMinSize = 14;
             gridTitle.resizeTextMaxSize = 18;
             RectTransform gtR = gridTitle.rectTransform;
             gtR.anchorMin = new Vector2(0f, 1f);
@@ -1097,10 +1128,11 @@ namespace Kalyeah.Game
                 _photoFooterRect,
                 "ID Camera \u00B7 Take Selfie",
                 BarrioBlue,
-                Ui.Cream,
-                22,
+                MenuArt.Cream,
+                21,
                 OpenIdCamera,
-                out _cameraTileRect);
+                out _cameraTileRect,
+                MenuArt.GlyphKind.Camera);
             _cameraTileRect.anchorMin = Vector2.zero;
             _cameraTileRect.anchorMax = Vector2.one;
             _cameraTileRect.offsetMin = Vector2.zero;
@@ -1111,8 +1143,8 @@ namespace Kalyeah.Game
                 _photoFooterRect,
                 "Remove Custom Photo",
                 SlateBtn,
-                Ui.Cream,
-                20,
+                MenuArt.Cream,
+                19,
                 RemoveCustomPhoto,
                 out _removePhotoRect);
             _removePhotoRect.anchorMin = new Vector2(0.56f, 0f);
@@ -1126,14 +1158,15 @@ namespace Kalyeah.Game
             var go = new GameObject("Avatar_" + avatarId, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
             var frame = go.GetComponent<Image>();
-            frame.sprite = MenuStack.RoundedSprite();
+            frame.sprite = MenuArt.Round(TileTop, TileBottom, MenuArt.PanelBorder, 10, 2, 0.20f);
             frame.type = Image.Type.Sliced;
-            frame.color = KomiksInk;
+            frame.color = Color.white;
 
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = frame;
             int captured = index;
             btn.onClick.AddListener(() => SelectAvatar(captured));
+            Ui.AddPressFeel(go, 0.94f);
 
             RectTransform inner = Ui.Fill("AvatarWell", go.transform);
             inner.offsetMin = new Vector2(4f, 4f);
@@ -1150,18 +1183,25 @@ namespace Kalyeah.Game
             fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             fit.aspectRatio = 1f;
 
+            // Transparent-center luminous gold frame + corner brackets + check medallion (zero veil over avatar face!)
             var ringGo = new GameObject("Ring", typeof(RectTransform), typeof(Image));
             ringGo.transform.SetParent(go.transform, false);
             var ring = ringGo.GetComponent<Image>();
-            ring.sprite = MenuStack.RoundedSprite();
+            ring.sprite = MenuArt.RoundOutline(MenuArt.GoldBorder, 10, 3);
             ring.type = Image.Type.Sliced;
-            ring.color = new Color(1f, 0.78f, 0.16f, 0.42f);
+            ring.color = Color.white;
             ring.raycastTarget = false;
             Stretch(ring.rectTransform, 0f, 0f, 0f, 0f);
 
-            RectTransform checkBadge = Ui.Panel("SelectedDot", ringGo.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-4f, -4f), new Vector2(26f, 26f));
-            Ui.MakeImage("DotBorder", checkBadge, KomiksInk, round: true).rectTransform.sizeDelta = new Vector2(26f, 26f);
-            Ui.MakeImage("DotBg", checkBadge, DarkOchre, round: true).rectTransform.sizeDelta = new Vector2(20f, 20f);
+            Ui.MakeCornerBrackets("Brackets", ringGo.transform, MenuArt.GoldLight);
+
+            Image checkBadge = Ui.MakeImage("SelectedDot", ringGo.transform, Color.white, round: false, raycast: false);
+            checkBadge.sprite = MenuArt.CheckBadge();
+            RectTransform checkRt = checkBadge.rectTransform;
+            checkRt.anchorMin = checkRt.anchorMax = new Vector2(1f, 1f);
+            checkRt.pivot = new Vector2(1f, 1f);
+            checkRt.anchoredPosition = new Vector2(-4f, -4f);
+            checkRt.sizeDelta = new Vector2(26f, 26f);
 
             return new AvatarTileUi
             {
@@ -1185,11 +1225,11 @@ namespace Kalyeah.Game
                 Espresso,
                 TextAnchor.MiddleCenter);
             _cameraMessageText.fontStyle = FontStyle.Bold;
-            _cameraMessageText.GetComponent<Outline>().enabled = false;
+            Ui.ClearOutline(_cameraMessageText);
             _cameraMessageText.horizontalOverflow = HorizontalWrapMode.Wrap;
             _cameraMessageText.verticalOverflow = VerticalWrapMode.Truncate;
             _cameraMessageText.resizeTextForBestFit = true;
-            _cameraMessageText.resizeTextMinSize = 18;
+            _cameraMessageText.resizeTextMinSize = 12;
             _cameraMessageText.resizeTextMaxSize = 20;
             _cameraMsgRect = _cameraMessageText.rectTransform;
             _cameraMsgRect.anchorMin = new Vector2(0f, 1f);
@@ -1200,15 +1240,18 @@ namespace Kalyeah.Game
 
             _cameraFrameRect = Ui.Panel("Frame", _cameraBody, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(220f, 220f));
             Image frameBg = _cameraFrameRect.gameObject.AddComponent<Image>();
-            frameBg.sprite = MenuStack.RoundedSprite();
+            frameBg.sprite = MenuArt.ChamferGlass(12);
             frameBg.type = Image.Type.Sliced;
-            frameBg.color = KomiksInk;
+            frameBg.color = Color.white;
+            frameBg.raycastTarget = false;
 
             var previewGo = new GameObject("Preview", typeof(RectTransform), typeof(RawImage));
             previewGo.transform.SetParent(_cameraFrameRect, false);
             _cameraPreviewRaw = previewGo.GetComponent<RawImage>();
             _cameraPreviewRaw.raycastTarget = false;
-            Stretch(_cameraPreviewRaw.rectTransform, 5f, 5f, -5f, -5f);
+            Stretch(_cameraPreviewRaw.rectTransform, 6f, 6f, -6f, -6f);
+
+            Ui.MakeCornerBrackets("CamBrackets", _cameraFrameRect, MenuArt.Gold, expand: 1f);
 
             _cameraBtnRowRect = Ui.Panel("Buttons", _cameraBody, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 4f), new Vector2(-16f, 96f));
 
@@ -1217,7 +1260,7 @@ namespace Kalyeah.Game
                 _cameraBtnRowRect,
                 "Back to Avatars",
                 SlateBtn,
-                Ui.Cream,
+                MenuArt.Cream,
                 22,
                 OnCameraSecondaryClicked,
                 out _camSecondaryRect);
@@ -1232,7 +1275,7 @@ namespace Kalyeah.Game
                 _cameraBtnRowRect,
                 "Allow Camera",
                 FiestaOrange,
-                Ui.Cream,
+                MenuArt.Ink,
                 22,
                 OnCameraPrimaryClicked,
                 out _camPrimaryRect);
@@ -1248,13 +1291,13 @@ namespace Kalyeah.Game
             _monthBody = MakeContentPanel("GameOfMonthSheet");
 
             _monthNavRect = Ui.Panel("MonthHeaderRow", _monthBody, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -2f), new Vector2(-8f, 104f));
-            _prevMonthBtn = MakeActionButton("PrevMonth", _monthNavRect, "<", SlateBtn, Ui.Cream, 28, () => StepGameOfMonth(-1), out _prevMonthRect);
+            _prevMonthBtn = MakeNavChevronButton("PrevMonth", _monthNavRect, flipLeft: true, () => StepGameOfMonth(-1), out _prevMonthRect);
             _prevMonthRect.anchorMin = _prevMonthRect.anchorMax = new Vector2(0f, 0.5f);
             _prevMonthRect.pivot = new Vector2(0f, 0.5f);
             _prevMonthRect.anchoredPosition = Vector2.zero;
             _prevMonthRect.sizeDelta = new Vector2(96f, 96f);
 
-            _nextMonthBtn = MakeActionButton("NextMonth", _monthNavRect, ">", SlateBtn, Ui.Cream, 28, () => StepGameOfMonth(1), out _nextMonthRect);
+            _nextMonthBtn = MakeNavChevronButton("NextMonth", _monthNavRect, flipLeft: false, () => StepGameOfMonth(1), out _nextMonthRect);
             _nextMonthRect.anchorMin = _nextMonthRect.anchorMax = new Vector2(1f, 0.5f);
             _nextMonthRect.pivot = new Vector2(1f, 0.5f);
             _nextMonthRect.anchoredPosition = Vector2.zero;
@@ -1264,9 +1307,8 @@ namespace Kalyeah.Game
             _monthCenterStackRect.offsetMin = new Vector2(112f, 2f);
             _monthCenterStackRect.offsetMax = new Vector2(-112f, -2f);
 
-            _monthKickerText = Ui.MakeText("Month", _monthCenterStackRect, "JANUARY", 18, DarkOchre, TextAnchor.UpperCenter);
-            _monthKickerText.fontStyle = FontStyle.Bold;
-            _monthKickerText.GetComponent<Outline>().enabled = false;
+            _monthKickerText = Ui.MakeText("Month", _monthCenterStackRect, "JANUARY", 18, DarkOchre, TextAnchor.UpperCenter, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(_monthKickerText);
             RectTransform kr = _monthKickerText.rectTransform;
             kr.anchorMin = new Vector2(0f, 0.72f);
             kr.anchorMax = Vector2.one;
@@ -1274,7 +1316,7 @@ namespace Kalyeah.Game
             kr.offsetMax = Vector2.zero;
 
             _monthGameNameText = Ui.MakeText("GameName", _monthCenterStackRect, "Patintero", 28, Espresso, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            _monthGameNameText.GetComponent<Outline>().enabled = false;
+            Ui.ClearOutline(_monthGameNameText);
             _monthGameNameText.resizeTextForBestFit = true;
             _monthGameNameText.resizeTextMinSize = 15;
             _monthGameNameText.resizeTextMaxSize = 28;
@@ -1284,9 +1326,8 @@ namespace Kalyeah.Game
             gnR.offsetMin = Vector2.zero;
             gnR.offsetMax = Vector2.zero;
 
-            _monthFactsText = Ui.MakeText("Facts", _monthCenterStackRect, "", 18, Espresso, TextAnchor.LowerCenter);
-            _monthFactsText.fontStyle = FontStyle.Bold;
-            _monthFactsText.GetComponent<Outline>().enabled = false;
+            _monthFactsText = Ui.MakeText("Facts", _monthCenterStackRect, "", 18, MenuArt.MutedText, TextAnchor.LowerCenter);
+            Ui.ClearOutline(_monthFactsText);
             _monthFactsText.resizeTextForBestFit = true;
             _monthFactsText.resizeTextMinSize = 13;
             _monthFactsText.resizeTextMaxSize = 18;
@@ -1299,10 +1340,11 @@ namespace Kalyeah.Game
             _monthListCardRect = Ui.Panel("RulesListCard", _monthBody, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             _monthListCardRect.offsetMin = new Vector2(4f, 4f);
             _monthListCardRect.offsetMax = new Vector2(-4f, -118f);
-            MakeBorderedPlate(_monthListCardRect, SunlitPaper, 3f);
+            MakeTacticalPlate(_monthListCardRect, 12);
+            Ui.MakeAccentRail("RulesRail", _monthListCardRect, MenuArt.Gold, width: 4f, verticalInset: 14f);
 
             RectTransform scrollViewport = Ui.Fill("RulesViewport", _monthListCardRect);
-            scrollViewport.offsetMin = new Vector2(4f, 4f);
+            scrollViewport.offsetMin = new Vector2(8f, 4f);
             scrollViewport.offsetMax = new Vector2(-4f, -4f);
             Image vpImg = scrollViewport.gameObject.AddComponent<Image>();
             vpImg.color = new Color(0f, 0f, 0f, 0.001f);
@@ -1335,7 +1377,7 @@ namespace Kalyeah.Game
             {
                 Text p = Ui.MakeText(rowNames[i], _monthScrollContentRect, "", 20, Espresso, TextAnchor.UpperLeft);
                 p.fontStyle = FontStyle.Bold;
-                p.GetComponent<Outline>().enabled = false;
+                Ui.ClearOutline(p);
                 p.supportRichText = true;
                 p.lineSpacing = 1.14f;
                 p.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -1348,44 +1390,45 @@ namespace Kalyeah.Game
         {
             _donateBody = MakeContentPanel("DonateSheet");
 
-            Text heart = Ui.MakeText("Heart", _donateBody, "\u2665", 44, HeartRed, TextAnchor.MiddleCenter);
-            heart.GetComponent<Outline>().enabled = false;
-            RectTransform hr = heart.rectTransform;
-            hr.anchorMin = new Vector2(0f, 1f);
-            hr.anchorMax = new Vector2(1f, 1f);
-            hr.pivot = new Vector2(0.5f, 1f);
-            hr.anchoredPosition = new Vector2(0f, -6f);
-            hr.sizeDelta = new Vector2(-24f, 50f);
+            RectTransform heartWell = Ui.Panel("Heart", _donateBody, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -6f), new Vector2(54f, 54f));
+            Ui.MakeSliced("WellBg", heartWell, MenuArt.StatChip(12), Color.white, raycast: false);
+            Ui.MakeSliced("WellRim", heartWell, MenuArt.ChamferOutline(MenuArt.GoldBorder, 12, 1), Color.white, raycast: false);
+            Image heartGlyph = Ui.MakeImage("HeartGlyph", heartWell, MenuArt.Coral, round: false, raycast: false);
+            heartGlyph.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Heart);
+            heartGlyph.rectTransform.anchorMin = heartGlyph.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            heartGlyph.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            heartGlyph.rectTransform.sizeDelta = new Vector2(26f, 26f);
 
             _donateThanksText = Ui.MakeText("Thanks", _donateBody, "Love Kalyeah? Chip in and help it grow!", 24, Espresso, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            _donateThanksText.GetComponent<Outline>().enabled = false;
+            Ui.ClearOutline(_donateThanksText);
             _donateThanksText.horizontalOverflow = HorizontalWrapMode.Wrap;
             _donateThanksText.verticalOverflow = VerticalWrapMode.Truncate;
             _donateThanksText.resizeTextForBestFit = true;
-            _donateThanksText.resizeTextMinSize = 18;
+            _donateThanksText.resizeTextMinSize = 12;
             _donateThanksText.resizeTextMaxSize = 24;
             RectTransform tr = _donateThanksText.rectTransform;
             tr.anchorMin = new Vector2(0f, 1f);
             tr.anchorMax = new Vector2(1f, 1f);
             tr.pivot = new Vector2(0.5f, 1f);
-            tr.anchoredPosition = new Vector2(0f, -60f);
-            tr.sizeDelta = new Vector2(-24f, 68f);
+            tr.anchoredPosition = new Vector2(0f, -64f);
+            tr.sizeDelta = new Vector2(-24f, 64f);
 
             _donateGrownBoxRect = Ui.Panel("GrownUpsNote", _donateBody, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -136f), new Vector2(-24f, 96f));
-            MakeBorderedPlate(_donateGrownBoxRect, SunlitPaper, 3f);
+            MakeTacticalPlate(_donateGrownBoxRect, 12);
+            Ui.MakeAccentRail("GrownUpsRail", _donateGrownBoxRect, MenuArt.Gold, width: 4f, verticalInset: 14f);
 
             _donateGrownUpsText = Ui.MakeText("GrownUpsText", _donateGrownBoxRect, "Ask a grown-up first. Gifts give nothing in the game.", 20, Espresso, TextAnchor.MiddleCenter);
             _donateGrownUpsText.fontStyle = FontStyle.Bold;
-            _donateGrownUpsText.GetComponent<Outline>().enabled = false;
+            Ui.ClearOutline(_donateGrownUpsText);
             _donateGrownUpsText.horizontalOverflow = HorizontalWrapMode.Wrap;
             _donateGrownUpsText.verticalOverflow = VerticalWrapMode.Truncate;
             _donateGrownUpsText.resizeTextForBestFit = true;
-            _donateGrownUpsText.resizeTextMinSize = 18;
+            _donateGrownUpsText.resizeTextMinSize = 12;
             _donateGrownUpsText.resizeTextMaxSize = 20;
-            Stretch(_donateGrownUpsText.rectTransform, 18f, 8f, -18f, -8f);
+            Stretch(_donateGrownUpsText.rectTransform, 22f, 8f, -18f, -8f);
 
             _donateSoonText = Ui.MakeText("Soon", _donateBody, "Coming soon!", 24, DarkOchre, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            _donateSoonText.GetComponent<Outline>().enabled = false;
+            Ui.ClearOutline(_donateSoonText);
             _donateSoonRect = _donateSoonText.rectTransform;
             _donateSoonRect.anchorMin = new Vector2(0f, 0f);
             _donateSoonRect.anchorMax = new Vector2(1f, 0f);
@@ -1400,7 +1443,7 @@ namespace Kalyeah.Game
                 _donateActionsRow,
                 "Cancel",
                 SlateBtn,
-                Ui.Cream,
+                MenuArt.Cream,
                 22,
                 () =>
                 {
@@ -1419,7 +1462,7 @@ namespace Kalyeah.Game
                 _donateActionsRow,
                 "Donate",
                 FiestaOrange,
-                Ui.Cream,
+                MenuArt.Ink,
                 22,
                 OnDonatePrimaryClicked,
                 out _donatePrimaryRect);
@@ -1835,6 +1878,16 @@ namespace Kalyeah.Game
         {
             if (!IsOpen) return;
 
+            if (ActiveSheet == SheetKind.Profile && _profileNameInput != null && _inputFocusOutline != null)
+            {
+                bool focused = _profileNameInput.isFocused;
+                if (focused != _wasNameFocused)
+                {
+                    _wasNameFocused = focused;
+                    _inputFocusOutline.color = focused ? MenuArt.GoldBorder : InputIdleBorder;
+                }
+            }
+
             if (ActiveSheet == SheetKind.IdCamera)
             {
                 if (CurrentCameraStep == CameraStep.Waiting)
@@ -1902,11 +1955,11 @@ namespace Kalyeah.Game
             {
                 _monthGameNameText.text = "Patintero";
                 _monthFactsText.text = "6 to 12 players \u00B7 20 min";
-                _monthParagraphs[0].text = "<color=#8A3B08>You need:</color> Chalk";
-                _monthParagraphs[1].text = "<color=#8A3B08>Set up:</color> Draw a grid; split into guards and runners.";
-                _monthParagraphs[2].text = "<color=#8A3B08>Play:</color> Guards stay on their lines. Cross every line and return.";
-                _monthParagraphs[3].text = "<color=#8A3B08>Win:</color> Each returning runner scores 1. Most points after 3 rounds wins.";
-                _monthParagraphs[4].text = "<color=#8A3B08>Stay safe:</color> Play away from traffic. Tag softly!";
+                _monthParagraphs[0].text = "<color=#F5B93A>You need:</color> Chalk";
+                _monthParagraphs[1].text = "<color=#F5B93A>Set up:</color> Draw a grid; split into guards and runners.";
+                _monthParagraphs[2].text = "<color=#F5B93A>Play:</color> Guards stay on their lines. Cross every line and return.";
+                _monthParagraphs[3].text = "<color=#F5B93A>Win:</color> Each returning runner scores 1. Most points after 3 rounds wins.";
+                _monthParagraphs[4].text = "<color=#F5B93A>Stay safe:</color> Play away from traffic. Tag softly!";
             }
             else
             {
@@ -1929,11 +1982,11 @@ namespace Kalyeah.Game
                 string winLine = FirstNonEmpty(ReadString(game, "quick_win", ""), JoinSentences(game, "rules"));
                 string safeLine = ReadString(game, "safety", "Play away from traffic!");
 
-                _monthParagraphs[0].text = "<color=#8A3B08>You need:</color> " + itemsLine;
-                _monthParagraphs[1].text = "<color=#8A3B08>Set up:</color> " + setupLine;
-                _monthParagraphs[2].text = "<color=#8A3B08>Play:</color> " + playLine;
-                _monthParagraphs[3].text = "<color=#8A3B08>Win:</color> " + winLine;
-                _monthParagraphs[4].text = "<color=#8A3B08>Stay safe:</color> " + safeLine;
+                _monthParagraphs[0].text = "<color=#F5B93A>You need:</color> " + itemsLine;
+                _monthParagraphs[1].text = "<color=#F5B93A>Set up:</color> " + setupLine;
+                _monthParagraphs[2].text = "<color=#F5B93A>Play:</color> " + playLine;
+                _monthParagraphs[3].text = "<color=#F5B93A>Win:</color> " + winLine;
+                _monthParagraphs[4].text = "<color=#F5B93A>Stay safe:</color> " + safeLine;
             }
 
             if (_monthScroll != null)
@@ -2046,8 +2099,8 @@ namespace Kalyeah.Game
 
         void SetHeader(string title, Color bandColor, Texture2D icon)
         {
-            if (_headerBandImg != null)
-                _headerBandImg.color = bandColor;
+            if (_headerAccentRail != null)
+                _headerAccentRail.color = bandColor;
             if (_headerIcon != null)
             {
                 _headerIcon.texture = icon;
@@ -2073,25 +2126,41 @@ namespace Kalyeah.Game
             return rt;
         }
 
-        static void MakeBorderedPlate(RectTransform container, Color fillColor, float borderPx)
+        static void MakeTacticalPlate(RectTransform container, int cut)
         {
-            Image border = container.gameObject.AddComponent<Image>();
-            border.sprite = MenuStack.RoundedSprite();
-            border.type = Image.Type.Sliced;
-            border.color = KomiksInk;
-            border.raycastTarget = false;
-
-            RectTransform fill = Ui.Fill("Fill", container);
-            fill.anchorMin = Vector2.zero;
-            fill.anchorMax = Vector2.one;
-            fill.offsetMin = new Vector2(borderPx, borderPx);
-            fill.offsetMax = new Vector2(-borderPx, -borderPx);
-            fill.SetAsFirstSibling();
-            Image bg = fill.gameObject.AddComponent<Image>();
-            bg.sprite = MenuStack.RoundedSprite();
+            Image bg = container.gameObject.AddComponent<Image>();
+            bg.sprite = MenuArt.ChamferCard(PlateTop, PlateBottom, MenuArt.PanelBorder, cut, 1, 0.24f);
             bg.type = Image.Type.Sliced;
-            bg.color = fillColor;
+            bg.color = Color.white;
             bg.raycastTarget = false;
+        }
+
+        static Button MakeNavChevronButton(string name, Transform parent, bool flipLeft, Action onClick, out RectTransform rect)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            rect = go.GetComponent<RectTransform>();
+
+            Image hitImg = go.GetComponent<Image>();
+            hitImg.color = Color.clear; // transparent >= 48 dp hit catcher
+            hitImg.raycastTarget = true;
+
+            RectTransform faceRt = Ui.Panel("Face", rect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(54f, 54f));
+            Image faceImg = Ui.MakeSliced("Plate", faceRt, MenuArt.CtaGhost(10), Color.white, raycast: false);
+
+            Image chev = Ui.MakeImage("Chevron", faceRt, MenuArt.GoldLight, round: false, raycast: false);
+            chev.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Chevron);
+            RectTransform cr = chev.rectTransform;
+            cr.anchorMin = cr.anchorMax = new Vector2(0.5f, 0.5f);
+            cr.pivot = new Vector2(0.5f, 0.5f);
+            cr.sizeDelta = new Vector2(20f, 20f);
+            if (flipLeft) cr.localEulerAngles = new Vector3(0f, 0f, 180f);
+
+            var btn = go.GetComponent<Button>();
+            btn.targetGraphic = faceImg;
+            btn.onClick.AddListener(() => onClick?.Invoke());
+            Ui.AddPressFeel(go, 0.93f);
+            return btn;
         }
 
         static Button MakeActionButton(
@@ -2102,47 +2171,61 @@ namespace Kalyeah.Game
             Color textColor,
             int fontSize,
             Action onClick,
-            out RectTransform rect)
+            out RectTransform rect,
+            MenuArt.GlyphKind? icon = null)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
             rect = go.GetComponent<RectTransform>();
-            if (fill == FiestaOrange) textColor = new Color(0.08f, 0.10f, 0.16f, 1f); // dark text on the gold main action
 
-            var borderImg = go.GetComponent<Image>();
-            borderImg.sprite = MenuStack.RoundedSprite();
-            borderImg.type = Image.Type.Sliced;
-            borderImg.color = KomiksInk;
-            borderImg.raycastTarget = true;
+            bool isPrimary = fill == FiestaOrange;
+            Color resolvedTextColor = isPrimary ? MenuArt.Ink : textColor;
 
-            RectTransform fillRect = Ui.Fill("Fill", rect);
-            fillRect.offsetMin = new Vector2(3f, 3f);
-            fillRect.offsetMax = new Vector2(-3f, -3f);
-            var fillImg = fillRect.gameObject.AddComponent<Image>();
-            fillImg.sprite = MenuStack.RoundedSprite();
+            Image hitImg = go.GetComponent<Image>();
+            hitImg.color = Color.clear; // transparent >= 48 dp hit catcher
+            hitImg.raycastTarget = true;
+
+            RectTransform fillRect = Ui.Panel("Fill", rect, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 58f));
+            Image fillImg = fillRect.gameObject.AddComponent<Image>();
+            fillImg.sprite = isPrimary ? MenuArt.CtaGold(12) : MenuArt.CtaGhost(12);
             fillImg.type = Image.Type.Sliced;
-            fillImg.color = fill;
+            fillImg.color = Color.white;
             fillImg.raycastTarget = false;
+
+            if (isPrimary)
+                Ui.AddSheen(fillRect);
+            else
+                Ui.MakeAccentRail("BtnRail", fillRect, fill == BarrioBlue ? MenuArt.Gold : MenuArt.PanelBorder, width: 3f, verticalInset: 12f);
+
+            float textLeft = isPrimary ? 10f : 14f;
+            if (icon.HasValue)
+            {
+                Image glyphImg = Ui.MakeImage("Icon", fillRect, MenuArt.GoldLight, round: false, raycast: false);
+                glyphImg.sprite = MenuArt.Glyph(icon.Value);
+                RectTransform ir = glyphImg.rectTransform;
+                ir.anchorMin = ir.anchorMax = new Vector2(0f, 0.5f);
+                ir.pivot = new Vector2(0f, 0.5f);
+                ir.anchoredPosition = new Vector2(16f, 0f);
+                ir.sizeDelta = new Vector2(20f, 20f);
+                textLeft = 42f;
+            }
 
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = fillImg;
             ColorBlock colors = btn.colors;
             colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(1f, 0.97f, 0.88f, 1f);
-            colors.pressedColor = new Color(0.84f, 0.84f, 0.88f, 1f);
+            colors.highlightedColor = new Color(1f, 0.98f, 0.92f, 1f);
+            colors.pressedColor = new Color(0.86f, 0.86f, 0.90f, 1f);
             btn.colors = colors;
             btn.onClick.AddListener(() => onClick?.Invoke());
+            Ui.AddPressFeel(go, 0.95f);
 
-            Text txt = Ui.MakeText("Label", fillRect, label, fontSize, textColor, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Text txt = Ui.MakeText("Label", fillRect, label, fontSize, resolvedTextColor, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             txt.resizeTextForBestFit = true;
-            txt.resizeTextMinSize = 18;
+            txt.resizeTextMinSize = 13;
             txt.resizeTextMaxSize = fontSize;
-            Stretch(txt.rectTransform, 10f, 4f, -10f, -4f);
-            if (fill == FiestaOrange)
-            {
-                Outline ink = txt.GetComponent<Outline>(); // dark text on gold takes no dark outline (it smudges)
-                if (ink != null) ink.enabled = false;
-            }
+            Stretch(txt.rectTransform, textLeft, 4f, -10f, -4f);
+            Ui.SetTextColor(txt, resolvedTextColor);
             return btn;
         }
 
