@@ -435,6 +435,7 @@ public static class KalyeahBuild
             if (m.HasProperty("_OutlineColor")) m.SetColor("_OutlineColor", new Color(0.20f, 0.50f, 1.00f, 1f));
             if (m.HasProperty("_OutlineWidth")) m.SetFloat("_OutlineWidth", 0.024f);
         });
+        EnsureMaterial("Kid", "Kalyeah/Kid");
         EnsureMaterial("ArcaneFx", "Kalyeah/ArcaneFx", m => m.enableInstancing = true);
         EnsureMaterial("TransparentUnlit", "Universal Render Pipeline/Unlit", m =>
         {

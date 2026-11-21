@@ -6,6 +6,275 @@ using System.Text;
 namespace Kalyeah.Game
 {
     /// <summary>
+    /// Engine-free 4-tier graphics preset profile (<c>docs/SPEC.md</c> §10 &amp; <c>docs/GRAPHICS.md</c>):
+    /// <c>0 = Low</c>, <c>1 = Medium</c>, <c>2 = High</c>, <c>3 = Ultra</c>.
+    /// Consumed by <c>MatchBoot</c>, <c>KidView</c>, <c>KalyeahResources</c>, and EditMode/sim tests with zero allocations.
+    /// </summary>
+    public readonly struct GraphicsTierProfile
+    {
+        public readonly int QualityIndex;
+        public readonly string Name;
+        public readonly int MaxFpsCap;
+        public readonly bool UsesDeviceRefreshCap;
+        public readonly float RenderScale;
+        public readonly int MsaaSamples;
+        /// <summary>0 = Blob shadows only (real-time off), 1 = Hard near, 2 = Soft, 3 = Soft long-distance.</summary>
+        public readonly int ShadowTier;
+        public readonly float ShadowDistance;
+        /// <summary>0 = full-res textures, 1 = half-res textures (<c>QualitySettings.globalTextureMipmapLimit</c>).</summary>
+        public readonly int TextureMipmapLimit;
+        /// <summary>2 = TwoBones, 4 = FourBones (<c>QualitySettings.skinWeights</c>).</summary>
+        public readonly int SkinWeightsCount;
+        /// <summary>Minimum character mesh LOD index (Low prefers LOD1/LOD2, Medium/High/Ultra start at LOD0).</summary>
+        public readonly int MinCharacterLod;
+        public readonly bool PreferLowerCharacterLod;
+        public readonly float Lod1Distance;
+        public readonly float Lod2Distance;
+        /// <summary>Hair/skirt/cape Verlet springs (strictly High &amp; Ultra per <c>docs/GRAPHICS.md</c>).</summary>
+        public readonly bool SpringBonesEnabled;
+        public readonly bool FootIkEnabled;
+        public readonly bool FootIkLocalOnly;
+        public readonly bool CorrectivesEnabled;
+        public readonly bool CorrectivesLocalOnly;
+        /// <summary>Max camera distance (m) for remote-kid springs, foot IK, and pose-space correctives.</summary>
+        public readonly float DetailFeatureDistance;
+        /// <summary>Distance (m) beyond which animations update every 2nd frame.</summary>
+        public readonly float AnimSkip2Distance;
+        /// <summary>Distance (m) beyond which animations update every 3rd frame.</summary>
+        public readonly float AnimSkip3Distance;
+        public readonly bool PostProcessingEnabled;
+        public readonly bool FullPostProcessing;
+        /// <summary>When false (Low preset), kid shader skips normal/ORM sampling while keeping identical shape and colors.</summary>
+        public readonly bool UseNormalAndOrmMaps;
+        public readonly float ParticleBudgetScale;
+
+        public bool RealTimeShadows => ShadowTier > 0;
+        public bool SoftShadows => ShadowTier >= 2;
+        public bool BlobShadowsOnly => ShadowTier == 0;
+
+        public GraphicsTierProfile(
+            int qualityIndex,
+            string name,
+            int maxFpsCap,
+            bool usesDeviceRefreshCap,
+            float renderScale,
+            int msaaSamples,
+            int shadowTier,
+            float shadowDistance,
+            int textureMipmapLimit,
+            int skinWeightsCount,
+            int minCharacterLod,
+            bool preferLowerCharacterLod,
+            float lod1Distance,
+            float lod2Distance,
+            bool springBonesEnabled,
+            bool footIkEnabled,
+            bool footIkLocalOnly,
+            bool correctivesEnabled,
+            bool correctivesLocalOnly,
+            float detailFeatureDistance,
+            float animSkip2Distance,
+            float animSkip3Distance,
+            bool postProcessingEnabled,
+            bool fullPostProcessing,
+            bool useNormalAndOrmMaps,
+            float particleBudgetScale)
+        {
+            QualityIndex = qualityIndex;
+            Name = name;
+            MaxFpsCap = maxFpsCap;
+            UsesDeviceRefreshCap = usesDeviceRefreshCap;
+            RenderScale = renderScale;
+            MsaaSamples = msaaSamples;
+            ShadowTier = shadowTier;
+            ShadowDistance = shadowDistance;
+            TextureMipmapLimit = textureMipmapLimit;
+            SkinWeightsCount = skinWeightsCount;
+            MinCharacterLod = minCharacterLod;
+            PreferLowerCharacterLod = preferLowerCharacterLod;
+            Lod1Distance = lod1Distance;
+            Lod2Distance = lod2Distance;
+            SpringBonesEnabled = springBonesEnabled;
+            FootIkEnabled = footIkEnabled;
+            FootIkLocalOnly = footIkLocalOnly;
+            CorrectivesEnabled = correctivesEnabled;
+            CorrectivesLocalOnly = correctivesLocalOnly;
+            DetailFeatureDistance = detailFeatureDistance;
+            AnimSkip2Distance = animSkip2Distance;
+            AnimSkip3Distance = animSkip3Distance;
+            PostProcessingEnabled = postProcessingEnabled;
+            FullPostProcessing = fullPostProcessing;
+            UseNormalAndOrmMaps = useNormalAndOrmMaps;
+            ParticleBudgetScale = particleBudgetScale;
+        }
+
+        public static readonly GraphicsTierProfile Low = new GraphicsTierProfile(
+            qualityIndex: SettingsStore.GraphicsLow,
+            name: "Low",
+            maxFpsCap: 30,
+            usesDeviceRefreshCap: false,
+            renderScale: 0.70f,
+            msaaSamples: 1,
+            shadowTier: 0,
+            shadowDistance: 0f,
+            textureMipmapLimit: 1,
+            skinWeightsCount: 2,
+            minCharacterLod: 1,
+            preferLowerCharacterLod: true,
+            lod1Distance: 8f,
+            lod2Distance: 18f,
+            springBonesEnabled: false,
+            footIkEnabled: false,
+            footIkLocalOnly: false,
+            correctivesEnabled: false,
+            correctivesLocalOnly: false,
+            detailFeatureDistance: 0f,
+            animSkip2Distance: 12f,
+            animSkip3Distance: 25f,
+            postProcessingEnabled: false,
+            fullPostProcessing: false,
+            useNormalAndOrmMaps: false,
+            particleBudgetScale: 0.50f);
+
+        public static readonly GraphicsTierProfile Medium = new GraphicsTierProfile(
+            qualityIndex: SettingsStore.GraphicsMedium,
+            name: "Medium",
+            maxFpsCap: 60,
+            usesDeviceRefreshCap: false,
+            renderScale: 0.85f,
+            msaaSamples: 1,
+            shadowTier: 1,
+            shadowDistance: 22f,
+            textureMipmapLimit: 0,
+            skinWeightsCount: 4,
+            minCharacterLod: 0,
+            preferLowerCharacterLod: false,
+            lod1Distance: 15f,
+            lod2Distance: 35f,
+            springBonesEnabled: false,
+            footIkEnabled: true,
+            footIkLocalOnly: true,
+            correctivesEnabled: true,
+            correctivesLocalOnly: true,
+            detailFeatureDistance: 12f,
+            animSkip2Distance: 24f,
+            animSkip3Distance: 40f,
+            postProcessingEnabled: false,
+            fullPostProcessing: false,
+            useNormalAndOrmMaps: true,
+            particleBudgetScale: 0.85f);
+
+        public static readonly GraphicsTierProfile High = new GraphicsTierProfile(
+            qualityIndex: SettingsStore.GraphicsHigh,
+            name: "High",
+            maxFpsCap: 60,
+            usesDeviceRefreshCap: false,
+            renderScale: 1.00f,
+            msaaSamples: 1,
+            shadowTier: 2,
+            shadowDistance: 40f,
+            textureMipmapLimit: 0,
+            skinWeightsCount: 4,
+            minCharacterLod: 0,
+            preferLowerCharacterLod: false,
+            lod1Distance: 15f,
+            lod2Distance: 35f,
+            springBonesEnabled: true,
+            footIkEnabled: true,
+            footIkLocalOnly: false,
+            correctivesEnabled: true,
+            correctivesLocalOnly: false,
+            detailFeatureDistance: 20f,
+            animSkip2Distance: 30f,
+            animSkip3Distance: 48f,
+            postProcessingEnabled: true,
+            fullPostProcessing: false,
+            useNormalAndOrmMaps: true,
+            particleBudgetScale: 1.00f);
+
+        public static readonly GraphicsTierProfile Ultra = new GraphicsTierProfile(
+            qualityIndex: SettingsStore.GraphicsUltra,
+            name: "Ultra",
+            maxFpsCap: 120,
+            usesDeviceRefreshCap: true,
+            renderScale: 1.00f,
+            msaaSamples: 4,
+            shadowTier: 3,
+            shadowDistance: 65f,
+            textureMipmapLimit: 0,
+            skinWeightsCount: 4,
+            minCharacterLod: 0,
+            preferLowerCharacterLod: false,
+            lod1Distance: 22f,
+            lod2Distance: 45f,
+            springBonesEnabled: true,
+            footIkEnabled: true,
+            footIkLocalOnly: false,
+            correctivesEnabled: true,
+            correctivesLocalOnly: false,
+            detailFeatureDistance: 28f,
+            animSkip2Distance: 35f,
+            animSkip3Distance: 55f,
+            postProcessingEnabled: true,
+            fullPostProcessing: true,
+            useNormalAndOrmMaps: true,
+            particleBudgetScale: 1.00f);
+
+        public static GraphicsTierProfile ForQuality(int quality)
+        {
+            switch (Math.Clamp(quality, SettingsStore.GraphicsLow, SettingsStore.GraphicsUltra))
+            {
+                case SettingsStore.GraphicsLow: return Low;
+                case SettingsStore.GraphicsMedium: return Medium;
+                case SettingsStore.GraphicsHigh: return High;
+                default: return Ultra;
+            }
+        }
+
+        /// <summary>
+        /// Resolves desired character mesh LOD (0, 1, or 2) for a camera distance. Far kids (&gt; 40 m) stay at LOD2
+        /// with full true size and colours (never culled or shrunk, per <c>docs/GRAPHICS.md</c>).
+        /// </summary>
+        public int ResolveCharacterLod(float distanceMeters, bool isLocal = false)
+        {
+            float d = distanceMeters < 0f ? 0f : distanceMeters;
+            int lod = d >= Lod2Distance ? 2 : (d >= Lod1Distance ? 1 : 0);
+            if (PreferLowerCharacterLod)
+                lod = isLocal ? Math.Max(MinCharacterLod, lod) : Math.Min(2, lod + 1);
+            return lod;
+        }
+
+        /// <summary>
+        /// Resolves animation sampling cadence: <c>0</c> = off-screen (sample only on clip/state change),
+        /// <c>1</c> = every frame, <c>2</c> = every 2nd frame, <c>3</c> = every 3rd frame.
+        /// </summary>
+        public int ResolveAnimUpdateInterval(float distanceMeters, bool isVisible)
+        {
+            if (!isVisible) return 0;
+            if (distanceMeters >= AnimSkip3Distance) return 3;
+            if (distanceMeters >= AnimSkip2Distance) return 2;
+            return 1;
+        }
+
+        public bool ShouldRunSprings(float distanceMeters)
+        {
+            return SpringBonesEnabled && distanceMeters <= DetailFeatureDistance;
+        }
+
+        public bool ShouldRunFootIk(float distanceMeters, bool isLocal)
+        {
+            if (!FootIkEnabled) return false;
+            return FootIkLocalOnly ? isLocal : (isLocal || distanceMeters <= DetailFeatureDistance);
+        }
+
+        public bool ShouldRunCorrectives(float distanceMeters, bool isLocal)
+        {
+            if (!CorrectivesEnabled) return false;
+            return CorrectivesLocalOnly ? isLocal : (isLocal || distanceMeters <= DetailFeatureDistance);
+        }
+    }
+
+    /// <summary>
     /// Engine-free player settings and JSON persistence contract (port of scripts/autoload/settings.gd).
     /// View/HUD/Audio scripts read and mutate <see cref="Current"/> and persist <see cref="ToJson"/> via PlayerPrefs or file I/O.
     /// </summary>
@@ -16,10 +285,24 @@ namespace Kalyeah.Game
         public const float ScaleSmall = 0.85f;
         public const float ScaleNormal = 1.0f;
         public const float ScaleLarge = 1.2f;
-        public const float TurboRenderScale = 0.75f;
+        public const float TurboRenderScale = 0.70f;
+
+        public const int GraphicsLow = 0;
+        public const int GraphicsMedium = 1;
+        public const int GraphicsHigh = 2;
+        public const int GraphicsUltra = 3;
+        public const int GraphicsTierCount = 4;
+
+        public const int EnemyHighlightRed = 0;
+        public const int EnemyHighlightYellow = 1;
+        public const int EnemyHighlightPurple = 2;
 
         public static readonly float[] ControlScales = { ScaleSmall, ScaleNormal, ScaleLarge };
         public static readonly int[] SupportedFrameRates = { 30, 60 };
+        public static readonly string[] GraphicsQualityLabelsEn = { "Low", "Medium", "High", "Ultra" };
+        public static readonly string[] GraphicsQualityLabelsFil = { "Mababa", "Katamtaman", "Mataas", "Ultra" };
+        public static readonly string[] EnemyHighlightLabelsEn = { "Red", "Yellow", "Purple" };
+        public static readonly string[] EnemyHighlightLabelsFil = { "Pula", "Dilaw", "Lila" };
 
         public static SettingsStore Current { get; } = new SettingsStore();
         public static SettingsStore Instance => Current;
@@ -46,7 +329,8 @@ namespace Kalyeah.Game
         float _controlScale = ScaleNormal;
 
         int _colorblindMode;
-        int _graphicsQuality = 1;
+        int _enemyHighlightMode = EnemyHighlightRed;
+        int _graphicsQuality = GraphicsMedium;
         int _targetFrameRate = 60;
         string _language = "en";
         string _botDifficulty = "medium";
@@ -160,14 +444,63 @@ namespace Kalyeah.Game
 
         public bool IsColorblind => _colorblindMode != 0;
 
-        /// <summary>0 = Low / Turbo (0.75x 3D scale, MSAA off), 1 = Medium / Standard, 2 = High.</summary>
+        /// <summary>Valorant-style enemy highlight colour (docs/SPEC.md §10): 0 = Red, 1 = Yellow, 2 = Purple.</summary>
+        public int EnemyHighlightMode
+        {
+            get => _enemyHighlightMode;
+            set => SetInt(ref _enemyHighlightMode, Math.Clamp(value, EnemyHighlightRed, EnemyHighlightPurple));
+        }
+
+        /// <summary>
+        /// Effective enemy highlight colour accounting for explicit <see cref="EnemyHighlightMode"/> and colorblind safety
+        /// (defaults to Yellow for Protan/Deuter and Purple for Tritan when highlight is left on Red).
+        /// </summary>
+        public int ResolvedEnemyHighlightMode
+        {
+            get
+            {
+                if (_enemyHighlightMode != EnemyHighlightRed) return _enemyHighlightMode;
+                if (_colorblindMode == 1 || _colorblindMode == 2) return EnemyHighlightYellow;
+                if (_colorblindMode == 3) return EnemyHighlightPurple;
+                return EnemyHighlightRed;
+            }
+        }
+
+        /// <summary>0 = Low (30 FPS / 0.70x / blob shadows), 1 = Medium (60 / 0.85x), 2 = High (60 / 1.0x), 3 = Ultra (1.0x / 4x MSAA).</summary>
         public int GraphicsQuality
         {
             get => _graphicsQuality;
-            set => SetInt(ref _graphicsQuality, Math.Clamp(value, 0, 2));
+            set => SetInt(ref _graphicsQuality, ClampGraphicsQuality(value));
         }
 
-        public bool IsTurboGraphics => _graphicsQuality == 0;
+        public bool IsTurboGraphics => _graphicsQuality == GraphicsLow;
+
+        public GraphicsTierProfile GraphicsProfile => GraphicsTierProfile.ForQuality(_graphicsQuality);
+
+        public static int ClampGraphicsQuality(int quality) => Math.Clamp(quality, GraphicsLow, GraphicsUltra);
+
+        public static string GraphicsQualityLabel(int quality, bool filipino = false)
+        {
+            int idx = ClampGraphicsQuality(quality);
+            return filipino ? GraphicsQualityLabelsFil[idx] : GraphicsQualityLabelsEn[idx];
+        }
+
+        /// <summary>
+        /// Resolves the active frame-rate ceiling from <see cref="GraphicsQuality"/>, <see cref="TargetFrameRate"/>, and the
+        /// display refresh rate (Low = 30, Medium/High = up to 60, Ultra = 60/90/120 phone limit unless 30 FPS saver is active).
+        /// </summary>
+        public int EffectiveFrameRateCap(int deviceRefreshHz = 60)
+        {
+            GraphicsTierProfile profile = GraphicsProfile;
+            if (profile.QualityIndex == GraphicsLow) return profile.MaxFpsCap;
+            if (_targetFrameRate <= 30) return 30;
+            if (profile.UsesDeviceRefreshCap)
+            {
+                int tierHz = deviceRefreshHz >= 110 ? 120 : (deviceRefreshHz >= 80 ? 90 : 60);
+                return Math.Clamp(tierHz, 60, profile.MaxFpsCap);
+            }
+            return Math.Min(_targetFrameRate, profile.MaxFpsCap);
+        }
 
         /// <summary>Mobile frame rate cap: 30 or 60 FPS.</summary>
         public int TargetFrameRate
@@ -260,7 +593,8 @@ namespace Kalyeah.Game
                 _cardsTrayPlacement = "bottom";
                 _controlScale = ScaleNormal;
                 _colorblindMode = 0;
-                _graphicsQuality = 1;
+                _enemyHighlightMode = EnemyHighlightRed;
+                _graphicsQuality = GraphicsMedium;
                 _targetFrameRate = 60;
                 _language = "en";
                 _botDifficulty = "medium";
@@ -295,6 +629,7 @@ namespace Kalyeah.Game
             AppendString(sb, "cards_tray_placement", _cardsTrayPlacement);
             AppendFloat(sb, "control_scale", _controlScale, false);
             AppendInt(sb, "colorblind_mode", _colorblindMode);
+            AppendInt(sb, "enemy_highlight", _enemyHighlightMode);
             AppendInt(sb, "graphics_quality", _graphicsQuality);
             AppendInt(sb, "target_frame_rate", _targetFrameRate);
             AppendString(sb, "language", _language);
@@ -339,6 +674,7 @@ namespace Kalyeah.Game
                 if (TryString(d, "cards_tray_placement", out string ctp)) CardsTrayPlacement = ctp;
                 if (TryFloat(d, "control_scale", out float cs)) ControlScale = cs;
                 if (TryInt(d, "colorblind_mode", out int cb)) ColorblindMode = cb;
+                if (TryInt(d, "enemy_highlight", out int eh)) EnemyHighlightMode = eh;
                 if (TryInt(d, "graphics_quality", out int gq)) GraphicsQuality = gq;
                 if (TryInt(d, "target_frame_rate", out int fps)) TargetFrameRate = fps;
                 if (TryString(d, "language", out string lang)) Language = lang;
