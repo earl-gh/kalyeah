@@ -9,8 +9,9 @@ namespace Kalyeah.Game
     /// Kid select, after the queue (docs/SPEC.md §4 and §8; the shape of an agent select, not a copy of one): the 12 kids in four
     /// role rows on the left, the chosen kid in 3D on a name plate in the middle, and on the right their three skills as a
     /// selector with the chosen skill's cost and description below it; a team bar at the foot shows your kid, the kids teammates
-    /// took and the roles still open, beside LOCK IN. Menu canvases are never narrower than 1280 units (<see cref="Ui.KeepWidthBelowWide"/>),
-    /// and every part is anchored to a share of the screen with room for its longest text, so nothing wraps or overflows.
+    /// took and the roles still open, beside LOCK IN. Every part is anchored to a share of the screen, sized so each control
+    /// still reaches 48 dp and each text still fits on the narrowest menu canvas (960 units, a 4:3 tablet) and grows on wider
+    /// ones, so nothing wraps or overflows.
     /// Only real content: the 30 s timer, hovers, hidden enemy picks and skill clips join when matchmaking and the clips exist.
     /// </summary>
     public sealed class PickScreenView : IDisposable
@@ -30,25 +31,24 @@ namespace Kalyeah.Game
         const float Gutter = 20f;
         const float HitSize = 96f;
         const float RowGap = 10f;
-        const float RowLabelWidth = 116f;
+        const float RowLabelWidth = 100f;
         const float CardGap = 10f;
         const float NamePlateHeight = 84f;
         const float SkillTabHeight = 112f;
         const float SkillTabGap = 10f;
-        const float BadgeSize = 56f;
-        const float SlotSize = 80f;
-        const float SlotGap = 14f;
-        const float CaptionWidth = 150f;
-        const float LockWidth = 340f;
+        const float BadgeSize = 64f;
+        const float SlotSize = 64f;
+        const float SlotGap = 10f;
+        const float LockWidth = 300f;
         const int Columns = 3;
         const int TeamSize = 5;
         const int SkillCount = 3;
 
         // the body's three columns, as shares of its width
-        const float RosterEnd = 0.37f;
-        const float HeroStart = 0.37f;
-        const float HeroEnd = 0.61f;
-        const float DetailStart = 0.62f;
+        const float RosterEnd = 0.43f;
+        const float HeroStart = 0.43f;
+        const float HeroEnd = 0.66f;
+        const float DetailStart = 0.67f;
 
         /// <summary>The four role rows, top to bottom (the order of the kids filter).</summary>
         public static readonly string[] Roles = { "STRIKER", "DEFENDER", "SEEKER", "CONTROLLER" };
@@ -76,7 +76,6 @@ namespace Kalyeah.Game
             public Image Frame;
             public Image Badge;
             public Text BadgeText;
-            public Text Name;
             public GameObject Root;
         }
 
@@ -193,7 +192,7 @@ namespace Kalyeah.Game
             title.rectTransform.pivot = new Vector2(0f, 0.5f);
         }
 
-        /// <summary>The chosen kid in 3D, standing on a glass plate with their role, purok and name.</summary>
+        /// <summary>The chosen kid in 3D, standing on a glass plate with the role icon, their purok and their name.</summary>
         void BuildHero(RectTransform body)
         {
             RectTransform area = Ui.Panel("HeroArea", body, new Vector2(HeroStart, 0f), new Vector2(HeroEnd, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
@@ -339,20 +338,14 @@ namespace Kalyeah.Game
                 glass.rectTransform.offsetMax = new Vector2(-3f, -3f);
 
                 Image badge = Ui.MakeImage("Badge", tab, SkillBadge, round: true);
-                KidsScreenView.Place(badge.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(BadgeSize, BadgeSize));
-                badge.rectTransform.pivot = new Vector2(0.5f, 1f);
-                Text badgeText = KidsScreenView.Label("Text", badge.rectTransform, "", 26, Gold, TextAnchor.MiddleCenter, display: true);
+                KidsScreenView.Place(badge.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(BadgeSize, BadgeSize));
+                Text badgeText = KidsScreenView.Label("Text", badge.rectTransform, "", 28, Gold, TextAnchor.MiddleCenter, display: true);
                 KidsScreenView.Stretch(badgeText.rectTransform, Vector2.zero, Vector2.one);
-                Text name = KidsScreenView.Label("Name", tab, "", 22, Cream, TextAnchor.LowerCenter, display: true);
-                KidsScreenView.Stretch(name.rectTransform, Vector2.zero, new Vector2(1f, 0.4f));
-                name.rectTransform.offsetMin = new Vector2(6f, 6f);
-                name.rectTransform.offsetMax = new Vector2(-6f, 0f);
-                name.horizontalOverflow = HorizontalWrapMode.Overflow;
 
                 Button b = tab.gameObject.AddComponent<Button>();
                 b.targetGraphic = frame;
                 b.onClick.AddListener(() => SelectSkill(index));
-                _skillTabs.Add(new SkillTab { Frame = frame, Badge = badge, BadgeText = badgeText, Name = name, Root = tab.gameObject });
+                _skillTabs.Add(new SkillTab { Frame = frame, Badge = badge, BadgeText = badgeText, Root = tab.gameObject });
             }
 
             RectTransform card = Ui.Panel("SkillCard", panel, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
@@ -382,14 +375,10 @@ namespace Kalyeah.Game
         {
             RectTransform bar = Ui.Panel("TeamBar", SafeRoot, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, Gutter), new Vector2(-2f * Gutter, TeamBarHeight));
 
-            Text caption = KidsScreenView.Label("Caption", bar, "YOUR TEAM", 22, Muted, TextAnchor.MiddleLeft, display: true);
-            KidsScreenView.Place(caption.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(CaptionWidth, 40f));
-            caption.rectTransform.pivot = new Vector2(0f, 0.5f);
-
             for (int i = 0; i < TeamSize; i++)
             {
                 Image ring = Ui.MakeImage("Slot_" + i, bar, Rim, round: true);
-                KidsScreenView.Place(ring.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(CaptionWidth + i * (SlotSize + SlotGap), 0f), new Vector2(SlotSize, SlotSize));
+                KidsScreenView.Place(ring.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(i * (SlotSize + SlotGap), 0f), new Vector2(SlotSize, SlotSize));
                 ring.rectTransform.pivot = new Vector2(0f, 0.5f);
                 Image fill = Ui.MakeImage("Fill", ring.rectTransform, CardBg, round: true);
                 KidsScreenView.Stretch(fill.rectTransform, Vector2.zero, Vector2.one);
@@ -405,7 +394,7 @@ namespace Kalyeah.Game
             }
 
             // the missing-role note fills the space between the slots and LOCK IN
-            float noteLeft = CaptionWidth + TeamSize * (SlotSize + SlotGap) + 10f;
+            float noteLeft = TeamSize * (SlotSize + SlotGap) + 6f;
             _openRoles = KidsScreenView.Label("OpenRoles", bar, "", 22, Muted, TextAnchor.MiddleLeft);
             KidsScreenView.Stretch(_openRoles.rectTransform, Vector2.zero, Vector2.one);
             _openRoles.rectTransform.offsetMin = new Vector2(noteLeft, 0f);
@@ -492,7 +481,7 @@ namespace Kalyeah.Game
             string role = RoleOf(_selected);
             string description = Field(_selected, "description") ?? "";
             _roleIcon.sprite = MenuArt.Glyph(HomeScreenView.RoleGlyph(role));
-            _roleLabel.text = role + "  ·  " + KidsScreenView.Purok(description).ToUpperInvariant();
+            _roleLabel.text = KidsScreenView.Purok(description).ToUpperInvariant();
             _nameLabel.text = (Field(_selected, "display_name") ?? _selected).ToUpperInvariant();
 
             KidsScreenView.KidPageData page = KidsScreenView.PageFor(_selected);
@@ -506,8 +495,6 @@ namespace Kalyeah.Game
                 tab.BadgeText.text = skill.slot;
                 tab.BadgeText.color = ultimate ? Ink : Gold;
                 tab.Badge.color = ultimate ? Gold : SkillBadge;
-                tab.Name.text = skill.name;
-                tab.Name.color = on ? Cream : Muted;
                 tab.Frame.color = on ? Gold : Rim;
                 if (on)
                 {

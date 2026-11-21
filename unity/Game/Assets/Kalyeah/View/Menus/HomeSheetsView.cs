@@ -2138,6 +2138,11 @@ namespace Kalyeah.Game
             txt.resizeTextMinSize = 18;
             txt.resizeTextMaxSize = fontSize;
             Stretch(txt.rectTransform, 10f, 4f, -10f, -4f);
+            if (fill == FiestaOrange)
+            {
+                Outline ink = txt.GetComponent<Outline>(); // dark text on gold takes no dark outline (it smudges)
+                if (ink != null) ink.enabled = false;
+            }
             return btn;
         }
 

@@ -82,7 +82,7 @@ namespace Kalyeah.Game
 
             string plate = Texts(_pick.SafeRoot.Find("Body/NamePlate"));
             StringAssert.Contains("JOPAY", plate);
-            StringAssert.Contains("DEFENDER", plate);
+            StringAssert.Contains("UPTOWN", plate, "the plate names the kid's purok; the role is its icon");
             Assert.AreEqual(0, _confirms, "a preview never locks");
         }
 

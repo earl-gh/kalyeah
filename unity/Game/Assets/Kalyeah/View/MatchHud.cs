@@ -80,7 +80,7 @@ namespace Kalyeah.Game
             Action onBackToHome = null)
         {
             Interactive = interactive;
-            Canvas = Ui.MakeCanvas("MatchHud", parent, camera, keepWidthBelowWide: false);
+            Canvas = Ui.MakeCanvas("MatchHud", parent, camera);
 
             var raycaster = Canvas.GetComponent<GraphicRaycaster>();
             if (!interactive && raycaster != null)

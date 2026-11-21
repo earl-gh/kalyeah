@@ -347,7 +347,7 @@ namespace Kalyeah.Game
             _onPlayAgain = onPlayAgain;
             _onHome = onHome;
 
-            Canvas = Ui.MakeCanvas("StreetHud", parent, camera, keepWidthBelowWide: false);
+            Canvas = Ui.MakeCanvas("StreetHud", parent, camera);
             if (!interactive)
             {
                 var raycaster = Canvas.GetComponent<GraphicRaycaster>();
