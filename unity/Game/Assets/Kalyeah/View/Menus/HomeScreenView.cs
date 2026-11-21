@@ -9,32 +9,38 @@ namespace Kalyeah.Game
     /// Home (docs/SPEC.md §8, owner layout read like CODM and Wild Rift; 1280x720 reference, SafeArea-pinned, hit areas &gt;= 48 dp).
     /// The selected kid stands in 3D (<see cref="HeroStage"/>) in front of a rendered Palengke stall (<c>ui/home/stall</c>, shot
     /// through the hero camera so both share one perspective), with dust drifting in the light. Profile (name only: rank shows
-    /// only where Ranked is chosen) top left, settings top right; a bottom bar to Kids and the Codex; the kid's name plate at
-    /// their feet; and on the right a mode card (the mode's name and how it feels, never team size, scoring or map rules) over
-    /// one big gold PLAY. Only real content: the pass, events, store, friends and party join when they are built (§12).
-    /// The connection check runs before home (<see cref="CheckConnectionAtLaunch"/>) and again on PLAY; offline is never a mode.
+    /// only where Ranked is chosen) top left, currencies and settings top right; sleek mission rail top left; frosted bottom nav
+    /// dock; grounded tactical hero pedestal nameplate at the kid's feet; and an esports queue mode card over a luminous gold PLAY.
+    /// Only real content plus the owner-approved sample panels (pass, event, daily gift, currencies, store, friends) that announce
+    /// themselves when tapped (§12). The connection check runs before home (<see cref="CheckConnectionAtLaunch"/>) and on PLAY;
+    /// offline is never a mode on Home.
     /// </summary>
     public sealed class HomeScreenView : IDisposable
     {
         static readonly Color Ink = MenuArt.Ink;
         static readonly Color Cream = MenuArt.Cream;
         static readonly Color Gold = MenuArt.Gold;
-        static readonly Color Muted = new Color(0.80f, 0.84f, 0.90f, 1f);
+        static readonly Color Muted = MenuArt.MutedText;
         static readonly Color Clear = new Color(0f, 0f, 0f, 0f);
-        static readonly Color PressTint = new Color(0.80f, 0.80f, 0.84f, 1f);
+        static readonly Color PressTint = new Color(0.84f, 0.86f, 0.90f, 1f);
         static readonly Color Shade = new Color(0.02f, 0.035f, 0.07f, 1f);
+        static readonly Color EventCrimson = new Color(0.92f, 0.27f, 0.34f, 1f);
 
-        const float TopBarHeight = 112f;
+        const float TopBarHeight = 104f;
         const float HitSize = 96f;
         const float Gutter = 20f;
-        const float PlayHeight = 124f;
-        const float ModeHeight = 176f;
-        const float ColumnGap = 20f;
-        const float NavItemWidth = 112f;
-        const float LeftWidth = 340f;
-        const float CardHeight = 96f;
-        const float CardGap = 12f;
-        const float NavHeight = 96f;
+        const float PlayHeight = 116f;
+        const float ModeHeight = 166f;
+        const float ModeToPlayGap = 16f;
+        const float ColumnGap = 16f;
+        const float NavItemWidth = 98f;
+        const float NavItemGap = 2f;
+        const float NavDockPadX = 4f;
+        const float BottomNavWidth = NavItemWidth * 3f + NavItemGap * 2f + NavDockPadX * 2f; // 306f
+        const float DefaultLeftWidth = 300f;
+        const float CardHeight = HitSize;
+        const float CardGap = 4f;
+        const float NavHeight = HitSize;
         const float WeaveTile = 96f;
         const int MoteCount = 18;
 
@@ -91,13 +97,9 @@ namespace Kalyeah.Game
         RawImage _heroImage;
         RawImage _avatarImage;
         Text _playerName;
+        Text _kidMeta;
         Text _kidName;
         Image _kidRoleIcon;
-
-        // PLAY
-        RectTransform _playClip;
-        RectTransform _playShine;
-        Image _playGlow;
 
         RectTransform _offlinePrompt;
         RectTransform _offlineHubBackdrop;
@@ -219,37 +221,44 @@ namespace Kalyeah.Game
                 if (_safeArea != null) _safeArea.Changed += OnSafeAreaChanged;
             }
             _entry = 0f;
+            _entryDone = false;
             Refresh();
             RefreshLayout();
         }
 
-        // entry: the four groups fade and grow in one after another over about a second, then the stall drifts behind the kid
+        // entry: the five HUD clusters ease in smoothly in Play mode, then the Palengke stall drifts subtly behind the kid
         float _entry;
+        bool _entryDone;
         CanvasGroup[] _groups;
         Vector2 _stallBase;
 
-        CanvasGroup Group(RectTransform rect)
+        static CanvasGroup Group(RectTransform rect)
         {
             if (rect == null) return null;
-            CanvasGroup g = rect.GetComponent<CanvasGroup>() ?? rect.gameObject.AddComponent<CanvasGroup>();
-            return g;
+            return rect.GetComponent<CanvasGroup>() ?? rect.gameObject.AddComponent<CanvasGroup>();
         }
 
         void AnimateEntry(float dt)
         {
-            if (_groups == null) _groups = new[] { Group(_topBar), Group(_leftColumn), Group(_bottomNav), Group(_modeColumn), Group(_kidPlate) };
             bool still = SettingsStore.Current.ReduceMotion;
-            _entry = still ? 10f : _entry + dt;
-            for (int i = 0; i < _groups.Length; i++)
+            if (!_entryDone)
             {
-                if (_groups[i] == null) continue;
-                float t = Mathf.Clamp01((_entry - 0.15f - 0.12f * i) / 0.45f);
-                float eased = 1f - (1f - t) * (1f - t) * (1f - t);
-                _groups[i].alpha = eased;
-                _groups[i].transform.localScale = Vector3.one * (0.94f + 0.06f * eased);
+                if (_groups == null) _groups = new[] { Group(_topBar), Group(_leftColumn), Group(_bottomNav), Group(_modeColumn), Group(_heroZone) };
+                _entry = still ? 10f : _entry + dt;
+                bool allDone = true;
+                for (int i = 0; i < _groups.Length; i++)
+                {
+                    if (_groups[i] == null) continue;
+                    float t = Mathf.Clamp01((_entry - 0.08f - 0.09f * i) / 0.36f);
+                    if (t < 1f) allDone = false;
+                    float eased = t >= 1f ? 1f : 1f - (1f - t) * (1f - t) * (1f - t);
+                    _groups[i].alpha = eased;
+                    _groups[i].transform.localScale = t >= 1f ? Vector3.one : Vector3.one * (0.96f + 0.04f * eased);
+                }
+                if (allDone) _entryDone = true;
             }
             if (!still && _stallRect != null)
-                _stallRect.anchoredPosition = _stallBase + new Vector2(Mathf.Sin(_time * 0.2f) * 14f, Mathf.Sin(_time * 0.13f) * 6f);
+                _stallRect.anchoredPosition = _stallBase + new Vector2(Mathf.Sin(_time * 0.2f) * 12f, Mathf.Sin(_time * 0.13f) * 5f);
         }
 
         void OnDisabled()
@@ -274,7 +283,6 @@ namespace Kalyeah.Game
             AnimateEntry(dt);
             if (SettingsStore.Current.ReduceMotion) return;
             PlaceMotes();
-            AnimatePlay();
         }
 
         public void Dispose()
@@ -331,36 +339,38 @@ namespace Kalyeah.Game
 
         void BuildHero(RectTransform parent)
         {
-            Image shadow = Ui.MakeImage("HeroShadow", parent, new Color(0f, 0f, 0f, 0.55f), round: true);
+            Image shadow = Ui.MakeImage("HeroShadow", parent, new Color(1f, 1f, 1f, 0.52f));
+            shadow.sprite = MenuArt.PedestalGlow();
             _heroShadowRect = shadow.rectTransform;
             AnchorLowerLeft(_heroShadowRect);
-            _heroShadowRect.sizeDelta = new Vector2(320f, 56f);
+            _heroShadowRect.sizeDelta = new Vector2(360f, 76f);
 
             _heroImage = MakeRaw("Hero", parent, _stage.Texture);
             _heroImageRect = _heroImage.rectTransform;
             _heroImageRect.anchorMin = _heroImageRect.anchorMax = new Vector2(0f, 0f);
             _heroImageRect.pivot = new Vector2(0.5f, 0f);
+            _stage.AttachOrbitDrag(_heroImageRect, 0.45f);
         }
 
-        /// <summary>Readability comes from light falling off toward the edges, not from panels behind the text.</summary>
+        /// <summary>Readability comes from light falling off toward the edges, leaving the center chalk map and 3D kid luminous.</summary>
         void BuildShades(RectTransform parent)
         {
             RectTransform shades = Ui.Fill("Shades", parent);
             // Ramp's first row is its bottom (dark there, clear at the top): flip it for the top shade
             RawImage top = MakeRaw("Top", shades, Ramp(false));
-            top.color = new Color(Shade.r, Shade.g, Shade.b, 0.75f);
+            top.color = new Color(Shade.r, Shade.g, Shade.b, 0.74f);
             top.uvRect = new Rect(0f, 1f, 1f, -1f);
             Stretch(top.rectTransform, new Vector2(0f, 0.78f), Vector2.one);
             RawImage bottom = MakeRaw("Bottom", shades, Ramp(false));
-            bottom.color = new Color(Shade.r, Shade.g, Shade.b, 0.92f);
-            Stretch(bottom.rectTransform, Vector2.zero, new Vector2(1f, 0.36f));
+            bottom.color = new Color(Shade.r, Shade.g, Shade.b, 0.90f);
+            Stretch(bottom.rectTransform, Vector2.zero, new Vector2(1f, 0.34f));
             RawImage left = MakeRaw("Left", shades, Ramp(true));
-            left.color = new Color(Shade.r, Shade.g, Shade.b, 0.6f);
+            left.color = new Color(Shade.r, Shade.g, Shade.b, 0.54f);
             _shadeLeft = left.rectTransform;
             Stretch(_shadeLeft, Vector2.zero, new Vector2(0f, 1f));
             _shadeLeft.pivot = new Vector2(0f, 0.5f);
             RawImage right = MakeRaw("Right", shades, Ramp(true));
-            right.color = new Color(Shade.r, Shade.g, Shade.b, 0.85f);
+            right.color = new Color(Shade.r, Shade.g, Shade.b, 0.84f);
             right.uvRect = new Rect(1f, 0f, -1f, 1f);
             _shadeRight = right.rectTransform;
             Stretch(_shadeRight, new Vector2(1f, 0f), Vector2.one);
@@ -373,223 +383,351 @@ namespace Kalyeah.Game
         {
             _topBar = Ui.Panel("TopBar", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, TopBarHeight));
 
-            // profile: the player's picture in a gold ring with a level badge, and their name (one button: opens the profile)
-            RectTransform profile = Ui.Panel("Profile", _topBar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(Gutter, 0f), new Vector2(380f, HitSize));
+            // 1. Profile badge (one >= 48 dp hit button: framed gold-rim avatar + level crest medallion + uppercase IGN + edit cue; NO rank per SPEC §8)
+            RectTransform profile = Ui.Panel("Profile", _topBar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(Gutter, 0f), new Vector2(340f, HitSize));
             Image profileHit = profile.gameObject.AddComponent<Image>();
             profileHit.color = Clear;
-            ProfileButton = AttachButton(profile.gameObject, profileHit, () => { TapFeedback(); Sheets?.OpenProfile(); });
+            profileHit.raycastTarget = true;
 
-            RectTransform avatar = Ui.Panel("Avatar", profile, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(80f, 80f));
-            Image ring = Ui.MakeImage("Ring", avatar, Gold, round: true);
+            RectTransform profilePlateHost = Ui.Fill("PlateHost", profile);
+            profilePlateHost.offsetMin = new Vector2(22f, 11f);
+            profilePlateHost.offsetMax = new Vector2(0f, -11f);
+            Image profilePlate = Ui.MakeSliced("Plate", profilePlateHost, MenuArt.ChamferGlass(12), Color.white);
+            Image profileCue = Ui.MakeImage("EditCue", profilePlateHost, new Color(Gold.r, Gold.g, Gold.b, 0.72f));
+            profileCue.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Chevron);
+            Place(profileCue.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-12f, 0f), new Vector2(18f, 18f));
+            profileCue.rectTransform.pivot = new Vector2(1f, 0.5f);
+
+            RectTransform avatar = Ui.Panel("Avatar", profile, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(78f, 78f));
+            Image outerInk = Ui.MakeImage("OuterInk", avatar, Ink, round: true);
+            Stretch(outerInk.rectTransform, Vector2.zero, Vector2.one);
+            Image ring = Ui.MakeImage("Ring", avatar, MenuArt.GoldBorder, round: true);
             Stretch(ring.rectTransform, Vector2.zero, Vector2.one);
+            ring.rectTransform.offsetMin = new Vector2(2f, 2f);
+            ring.rectTransform.offsetMax = new Vector2(-2f, -2f);
             Image well = Ui.MakeImage("Well", avatar, MenuArt.NightMid, round: true);
             Stretch(well.rectTransform, Vector2.zero, Vector2.one);
-            well.rectTransform.offsetMin = new Vector2(4f, 4f);
-            well.rectTransform.offsetMax = new Vector2(-4f, -4f);
+            well.rectTransform.offsetMin = new Vector2(6f, 6f);
+            well.rectTransform.offsetMax = new Vector2(-6f, -6f);
             well.gameObject.AddComponent<Mask>().showMaskGraphic = true;
             _avatarImage = MakeRaw("Photo", well.rectTransform, null);
-            Image level = Ui.MakeImage("Level", avatar, Gold, round: true);
-            Place(level.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(6f, -4f), new Vector2(40f, 40f));
-            Text levelText = Label("Text", level.rectTransform, "9", 24, Ink, TextAnchor.MiddleCenter, display: true);
+
+            // level crest medallion tucked cleanly inside TopBar so it never collides with the left mission rail
+            RectTransform levelBadge = Ui.Panel("Level", avatar, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0.5f), new Vector2(-4f, 6f), new Vector2(34f, 34f));
+            Image levelRim = Ui.MakeImage("Rim", levelBadge, Ink, round: true);
+            Stretch(levelRim.rectTransform, Vector2.zero, Vector2.one);
+            Image levelCore = Ui.MakeImage("Core", levelBadge, Gold, round: true);
+            Stretch(levelCore.rectTransform, Vector2.zero, Vector2.one);
+            levelCore.rectTransform.offsetMin = new Vector2(3f, 3f);
+            levelCore.rectTransform.offsetMax = new Vector2(-3f, -3f);
+            Text levelText = Label("Text", levelCore.rectTransform, "9", 18, Ink, TextAnchor.MiddleCenter, display: true, ink: false);
             Stretch(levelText.rectTransform, Vector2.zero, Vector2.one);
 
-            _playerName = Label("Name", profile, "", 34, Cream, TextAnchor.MiddleLeft, display: true, ink: true);
-            Place(_playerName.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(98f, 0f), new Vector2(-98f, 48f));
-            _playerName.rectTransform.pivot = new Vector2(0f, 0.5f);
-            _playerName.resizeTextForBestFit = true;
-            _playerName.resizeTextMinSize = 22;
-            _playerName.resizeTextMaxSize = 34;
+            Text profileKicker = Label("Kicker", profile, "PROFILE", 14, Gold, TextAnchor.LowerLeft, display: true, ink: false);
+            Place(profileKicker.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(90f, 9f), new Vector2(-124f, 20f));
+            profileKicker.rectTransform.pivot = new Vector2(0f, 0f);
+            FitSingleLine(profileKicker, 9, 14);
 
-            // settings (Donate lives there, docs/SPEC.md §8)
+            _playerName = Label("Name", profile, "", 30, Cream, TextAnchor.UpperLeft, display: true, ink: true);
+            Place(_playerName.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(90f, 8f), new Vector2(-124f, 38f));
+            _playerName.rectTransform.pivot = new Vector2(0f, 1f);
+            FitSingleLine(_playerName, 12, 30);
+
+            ProfileButton = AttachButton(profile.gameObject, profilePlate, () => { TapFeedback(); Sheets?.OpenProfile(); }, 0.96f);
+
+            // 2. Framed Settings button (Donate lives inside Settings, docs/SPEC.md §8)
             RectTransform settings = Ui.Panel("Settings", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-Gutter, 0f), new Vector2(HitSize, HitSize));
-            Image settingsPlate = RoundPlate(settings, MenuArt.RoundGlass(40));
-            Image gear = Ui.MakeImage("Gear", settings, Cream);
+            Image settingsHit = settings.gameObject.AddComponent<Image>();
+            settingsHit.color = Clear;
+            settingsHit.raycastTarget = true;
+            RectTransform settingsVisual = Ui.Panel("Visual", settings, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(72f, 72f));
+            Image settingsPlate = Ui.MakeSliced("Plate", settingsVisual, MenuArt.ChamferGlass(12), Color.white);
+            Ui.MakeCornerBrackets("Brackets", settingsVisual, new Color(Gold.r, Gold.g, Gold.b, 0.42f));
+            Image gear = Ui.MakeImage("Gear", settingsVisual, Cream);
             gear.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Gear);
-            Place(gear.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(46f, 46f));
-            AttachButton(settings.gameObject, settingsPlate, () => Navigate(MenuStack.SettingsId));
+            Place(gear.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(36f, 36f));
+            AttachButton(settings.gameObject, settingsPlate, () => Navigate(MenuStack.SettingsId), 0.92f);
 
-            // currencies (sample numbers until accounts and the store exist, docs/SPEC.md §12)
-            RectTransform chips = Ui.Panel("Currencies", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-(Gutter + HitSize + 16f), 0f), new Vector2(400f, 64f));
-            MakeCurrencyChip(chips, 0, "12,450", MenuArt.Gold, "barya", () => ComingSoon("Barya: earned in matches and tasks"));
-            MakeCurrencyChip(chips, 1, "80", new Color(0.35f, 0.76f, 0.94f, 1f), "diamonds", () => ComingSoon("Diamonds: the shop opens with accounts"));
+            // 3. Currencies (embossed Barya coin & faceted Diamond gem; sample balances until accounts/store exist, §12)
+            RectTransform chips = Ui.Panel("Currencies", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-(Gutter + HitSize + 12f), 0f), new Vector2(366f, HitSize));
+            MakeCurrencyChip(chips, 0, "12,450", MenuArt.BaryaCoin(), Gold, "barya", () => ComingSoon("Barya: earned in matches and tasks"));
+            MakeCurrencyChip(chips, 1, "80", MenuArt.DiamondGem(), MenuArt.DiamondCyan, "diamonds", () => ComingSoon("Diamonds: the shop opens with accounts"));
         }
 
-        void MakeCurrencyChip(RectTransform row, int fromRight, string value, Color coin, string name, Action onClick)
+        void MakeCurrencyChip(RectTransform row, int fromRight, string value, Sprite iconSprite, Color accent, string name, Action onClick)
         {
-            float w = fromRight == 0 ? 190f : 160f;
-            float x = fromRight == 0 ? -(160f + 12f) : 0f;
-            // the chip draws 64 tall inside a 96 tall hit area (48 dp)
+            float w = fromRight == 0 ? 186f : 162f;
+            float x = fromRight == 0 ? -(162f + 10f) : 0f;
+            // sleek 56 tall chamfered capsule centered inside a 96 tall (>= 48 dp) hit area
             RectTransform chip = Ui.Panel("Chip_" + name, row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(x, 0f), new Vector2(w, HitSize));
-            Image plate = RoundPlate(chip, MenuArt.RoundGlass(32));
-            plate.rectTransform.offsetMin = new Vector2(0f, 16f);
-            plate.rectTransform.offsetMax = new Vector2(0f, -16f);
-            Image disc = Ui.MakeImage("Coin", chip, coin, round: true);
-            Place(disc.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, 0f), new Vector2(44f, 44f));
-            disc.rectTransform.pivot = new Vector2(0f, 0.5f);
-            Text v = Label("Value", chip, value, 28, Cream, TextAnchor.MiddleLeft, display: true);
+            Image hit = chip.gameObject.AddComponent<Image>();
+            hit.color = Clear;
+            hit.raycastTarget = true;
+
+            RectTransform visual = Ui.Fill("Visual", chip);
+            visual.offsetMin = new Vector2(0f, 20f);
+            visual.offsetMax = new Vector2(0f, -20f);
+            Image plate = Ui.MakeSliced("Plate", visual, MenuArt.ChamferGlass(10), Color.white);
+            Ui.MakeAccentRail("Rail", visual, new Color(accent.r, accent.g, accent.b, 0.72f), width: 3f, verticalInset: 10f);
+
+            Image icon = Ui.MakeImage("Coin", visual, Color.white);
+            icon.sprite = iconSprite;
+            icon.preserveAspect = true;
+            Place(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(14f, 0f), new Vector2(38f, 38f));
+            icon.rectTransform.pivot = new Vector2(0f, 0.5f);
+
+            Text v = Label("Value", visual, value, 26, Cream, TextAnchor.MiddleLeft, display: true, ink: true);
             Stretch(v.rectTransform, Vector2.zero, Vector2.one);
-            v.rectTransform.offsetMin = new Vector2(62f, 0f);
+            v.rectTransform.offsetMin = new Vector2(58f, 0f);
             v.rectTransform.offsetMax = new Vector2(-12f, 0f);
-            AttachButton(chip.gameObject, plate, onClick);
+            FitSingleLine(v, 12, 26);
+
+            AttachButton(chip.gameObject, plate, onClick, 0.94f);
         }
 
         void BuildHub(RectTransform parent)
         {
             _hubBody = Ui.Fill("HubBody", parent);
 
-            // 0a. left column (CODM and Wild Rift): the pass, the event and the daily gift. Sample content until those systems
-            // exist; tapping each says so (docs/SPEC.md §12)
-            _leftColumn = Ui.Panel("LeftColumn", _hubBody, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(LeftWidth, 3f * CardHeight + 2f * CardGap));
-            MakeLeftCard(0, "Pass", "PASS  ·  1/3", "Rescue 3 teammates", null, () => ComingSoon("The battle pass comes with accounts"));
-            MakeLeftCard(1, "Event", "PASKO EVENT", "Ends in 12 days", new Color(0.86f, 0.28f, 0.34f, 1f), () => ComingSoon("Events come with accounts"));
+            // Child 0: Left Mission Rail (PASS · PASKO EVENT · DAY 3 GIFT) — sample panels until systems exist (§12)
+            _leftColumn = Ui.Panel("LeftColumn", _hubBody, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, -4f), new Vector2(DefaultLeftWidth, 3f * CardHeight + 2f * CardGap));
+            MakeLeftCard(0, "Pass", "PASS  ·  1/3", "Rescue 3 teammates", Gold, () => ComingSoon("The battle pass comes with accounts"));
+            MakeLeftCard(1, "Event", "PASKO EVENT", "Ends in 12 days", EventCrimson, () => ComingSoon("Events come with accounts"));
             MakeLeftCard(2, "Daily", "DAY 3 GIFT", "100 barya", Gold, () => ComingSoon("Daily gifts come with accounts"));
 
-            // 0b. bottom bar (Wild Rift): Kids, Store and Friends; the store and friends say so until they exist
-            _bottomNav = Ui.Panel("BottomNav", _hubBody, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(NavItemWidth * 3f, NavHeight));
+            // Child 1: Bottom-Left Frosted Tactical Nav Dock (KIDS · STORE · FRIENDS)
+            _bottomNav = Ui.Panel("BottomNav", _hubBody, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(BottomNavWidth, NavHeight));
+            RectTransform dockVisual = Ui.Fill("DockVisual", _bottomNav);
+            dockVisual.offsetMin = new Vector2(0f, 6f);
+            dockVisual.offsetMax = new Vector2(0f, -6f);
+            Ui.MakeSliced("DockPlate", dockVisual, MenuArt.ChamferGlass(12), Color.white);
+            Image dockRule = Ui.MakeImage("DockRule", dockVisual, new Color(Gold.r, Gold.g, Gold.b, 0.42f));
+            Place(dockRule.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 2f), new Vector2(-24f, 2f));
+            dockRule.rectTransform.pivot = new Vector2(0.5f, 0f);
+
             MakeNavItem(_bottomNav, 0, "Nav_Kids", "KIDS", MenuArt.GlyphKind.Kid, () => Navigate(MenuStack.KidsId));
             MakeNavItem(_bottomNav, 1, "Nav_Store", "STORE", MenuArt.GlyphKind.Bag, () => ComingSoon("The store comes with accounts"));
             MakeNavItem(_bottomNav, 2, "Nav_Friends", "FRIENDS", MenuArt.GlyphKind.People, () => ComingSoon("Friends and party come with accounts"), badge: "3");
 
-            // 1. hero zone: the kid's name plate at their feet (tap for their kid page)
+            // Child 2: Hero Zone — grounded tactical hero pedestal tag at the kid's feet (tap opens the kid page)
             _heroZone = Ui.Panel("HeroZone", _hubBody, Vector2.zero, new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
-            _kidPlate = Ui.Panel("KidPlate", _heroZone, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(300f, HitSize));
+            _kidPlate = Ui.Panel("KidPlate", _heroZone, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(320f, HitSize));
             Image plateHit = _kidPlate.gameObject.AddComponent<Image>();
             plateHit.color = Clear;
-            RectTransform pill = Ui.Panel("Pill", _kidPlate, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 64f));
-            Image pillPlate = Ui.MakeImage("Plate", pill, Color.white);
-            pillPlate.sprite = MenuArt.Round(new Color(Shade.r, Shade.g, Shade.b, 0.82f), new Color(Shade.r, Shade.g, Shade.b, 0.82f), new Color(1f, 1f, 1f, 0.16f), 32, 2, 0f);
-            pillPlate.type = Image.Type.Sliced;
-            Stretch(pillPlate.rectTransform, Vector2.zero, Vector2.one);
-            Image roleDisc = Ui.MakeImage("RoleDisc", pill, Gold, round: true);
-            Place(roleDisc.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, 0f), new Vector2(44f, 44f));
-            roleDisc.rectTransform.pivot = new Vector2(0f, 0.5f);
-            _kidRoleIcon = Ui.MakeImage("RoleIcon", roleDisc.rectTransform, Ink);
-            Place(_kidRoleIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(28f, 28f));
-            _kidName = Label("KidName", pill, "", 34, Cream, TextAnchor.MiddleLeft, display: true, ink: true);
-            Stretch(_kidName.rectTransform, Vector2.zero, Vector2.one);
-            _kidName.rectTransform.offsetMin = new Vector2(68f, 0f);
-            _kidName.rectTransform.offsetMax = new Vector2(-40f, 0f);
-            _kidName.resizeTextForBestFit = true;
-            _kidName.resizeTextMinSize = 22;
-            _kidName.resizeTextMaxSize = 34;
-            Image chevron = Ui.MakeImage("Chevron", pill, Gold);
-            chevron.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Chevron);
-            Place(chevron.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-14f, 0f), new Vector2(24f, 24f));
-            chevron.rectTransform.pivot = new Vector2(1f, 0.5f);
-            KidButton = AttachButton(_kidPlate.gameObject, plateHit, () => Navigate(MenuStack.KidPageId));
+            plateHit.raycastTarget = true;
 
-            // 2. right column: the mode card (tap to change) over one big gold PLAY
-            _modeColumn = Ui.Panel("ModeColumn", _hubBody, new Vector2(1f, 0f), Vector2.one, new Vector2(1f, 0.5f), Vector2.zero, new Vector2(380f, 0f));
+            RectTransform pill = Ui.Panel("Pill", _kidPlate, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 76f));
+            Image pillPlate = Ui.MakeSliced("Plate", pill, MenuArt.ChamferGlass(12), Color.white);
+            Ui.MakeCornerBrackets("Brackets", pill, new Color(Gold.r, Gold.g, Gold.b, 0.52f));
+            Image pedestalRule = Ui.MakeImage("PedestalRule", pill, new Color(Gold.r, Gold.g, Gold.b, 0.78f));
+            Place(pedestalRule.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 2f), new Vector2(-28f, 3f));
+            pedestalRule.rectTransform.pivot = new Vector2(0.5f, 0f);
+
+            // Role badge (neutral gold + ink shape icon — zero role colours per SPEC §10)
+            RectTransform roleWell = Ui.Panel("RoleDisc", pill, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(12f, 0f), new Vector2(44f, 44f));
+            Ui.MakeSliced("WellPlate", roleWell, MenuArt.ChamferCard(MenuArt.GoldLight, MenuArt.GoldDeep, MenuArt.GoldBorder, 8, 2, 0.45f), Color.white);
+            _kidRoleIcon = Ui.MakeImage("RoleIcon", roleWell, Ink);
+            Place(_kidRoleIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(26f, 26f));
+
+            // Strictly bounded text block between role badge (x=66) and framed chevron (right-54) — zero overlap at 1024x768..21:9
+            RectTransform textBlock = Ui.Fill("NameBlock", pill);
+            textBlock.offsetMin = new Vector2(66f, 8f);
+            textBlock.offsetMax = new Vector2(-54f, -8f);
+
+            _kidMeta = Label("KidMeta", textBlock, "", 15, Gold, TextAnchor.LowerLeft, display: true, ink: false);
+            Place(_kidMeta.rectTransform, new Vector2(0f, 1f), Vector2.one, Vector2.zero, new Vector2(0f, 22f));
+            _kidMeta.rectTransform.pivot = new Vector2(0.5f, 1f);
+            FitSingleLine(_kidMeta, 8, 15);
+
+            _kidName = Label("KidName", textBlock, "", 32, Cream, TextAnchor.UpperLeft, display: true, ink: true);
+            Place(_kidName.rectTransform, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, 36f));
+            _kidName.rectTransform.pivot = new Vector2(0.5f, 0f);
+            FitSingleLine(_kidName, 12, 32);
+
+            RectTransform chevronBox = Ui.Panel("ChevronFrame", pill, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-12f, 0f), new Vector2(32f, 32f));
+            Ui.MakeSliced("BoxPlate", chevronBox, MenuArt.StatChip(6), Color.white);
+            Image chevron = Ui.MakeImage("Chevron", chevronBox, Gold);
+            chevron.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Chevron);
+            Place(chevron.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(16f, 16f));
+
+            KidButton = AttachButton(_kidPlate.gameObject, pillPlate, () => Navigate(MenuStack.KidPageId), 0.96f);
+
+            // Child 3: Right Queue Cluster (Esports Mode card over luminous beveled PLAY CTA)
+            _modeColumn = Ui.Panel("ModeColumn", _hubBody, new Vector2(1f, 0f), Vector2.one, new Vector2(1f, 0.5f), Vector2.zero, new Vector2(372f, 0f));
             BuildModeCard(_modeColumn);
             BuildPlay(_modeColumn);
 
             BuildToast(parent);
         }
 
-        /// <summary>One left-column card: a ring (the pass) or a round badge, a gold title and a line, on dark glass.</summary>
-        void MakeLeftCard(int index, string name, string title, string line, Color? badge, Action onClick)
+        /// <summary>One sleek tactical left-rail mission strip inside a &gt;= 48 dp hit-box.</summary>
+        void MakeLeftCard(int index, string name, string title, string line, Color accent, Action onClick)
         {
             RectTransform card = Ui.Panel("Card_" + name, _leftColumn, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -index * (CardHeight + CardGap)), new Vector2(0f, CardHeight));
-            Image plate = RoundPlate(card, MenuArt.RoundGlass(40));
+            Image hit = card.gameObject.AddComponent<Image>();
+            hit.color = Clear;
+            hit.raycastTarget = true;
 
-            RectTransform art = Ui.Panel("Art", card, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(12f, 0f), new Vector2(72f, 72f));
-            if (badge == null)
+            RectTransform visual = Ui.Fill("Visual", card);
+            visual.offsetMin = new Vector2(0f, 8f);
+            visual.offsetMax = new Vector2(0f, -8f);
+            Image plate = Ui.MakeSliced("Plate", visual, MenuArt.ChamferGlass(12), Color.white);
+
+            // soft left ambient accent glow nestled inside the strip + crisp glowing vertical accent rail
+            Image glow = Ui.MakeImage("AccentGlow", visual, new Color(accent.r, accent.g, accent.b, index == 2 ? 0.22f : 0.15f));
+            glow.sprite = MenuArt.Glow();
+            Place(glow.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(48f, 0f), new Vector2(90f, 74f));
+            Ui.MakeAccentRail("Rail", visual, accent, width: 4.5f, verticalInset: 10f);
+
+            RectTransform art = Ui.Panel("Art", visual, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(18f, 0f), new Vector2(54f, 54f));
+            if (index == 0)
             {
-                Image track = Ui.MakeImage("Track", art, new Color(1f, 1f, 1f, 0.14f), round: true);
-                track.sprite = KomiksUi.RingSprite(128, 7);
+                // Battle Pass radial progress ring + crisp tier number
+                Image track = Ui.MakeImage("Track", art, new Color(1f, 1f, 1f, 0.14f));
+                track.sprite = KomiksUi.RingSprite(128, 8);
                 Stretch(track.rectTransform, Vector2.zero, Vector2.one);
                 Image arc = Ui.MakeImage("Arc", art, Gold);
-                arc.sprite = KomiksUi.RingSprite(128, 7);
+                arc.sprite = KomiksUi.RingSprite(128, 8);
                 arc.type = Image.Type.Filled;
                 arc.fillMethod = Image.FillMethod.Radial360;
                 arc.fillOrigin = (int)Image.Origin360.Top;
                 arc.fillClockwise = true;
                 arc.fillAmount = 0.4f;
                 Stretch(arc.rectTransform, Vector2.zero, Vector2.one);
-                Text level = Label("Level", art, "12", 28, Cream, TextAnchor.MiddleCenter, display: true);
+                Text level = Label("Level", art, "12", 22, Cream, TextAnchor.MiddleCenter, display: true, ink: true);
                 Stretch(level.rectTransform, Vector2.zero, Vector2.one);
+            }
+            else if (index == 1)
+            {
+                // Pasko Event crimson tactical emblem
+                Ui.MakeSliced("Badge", art, MenuArt.ChamferCard(new Color(0.95f, 0.34f, 0.38f, 1f), new Color(0.62f, 0.14f, 0.22f, 1f), new Color(1f, 0.68f, 0.70f, 0.75f), 10, 2, 0.35f), Color.white);
+                Image mark = Ui.MakeImage("Mark", art, Cream);
+                mark.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Star);
+                Place(mark.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(28f, 28f));
             }
             else
             {
-                Image disc = Ui.MakeImage("Badge", art, badge.Value, round: true);
-                Stretch(disc.rectTransform, Vector2.zero, Vector2.one);
-                Image mark = Ui.MakeImage("Mark", art, new Color(1f, 0.9f, 0.66f, 1f));
-                mark.sprite = MenuArt.Glyph(index == 1 ? MenuArt.GlyphKind.Star : MenuArt.GlyphKind.Diamond);
-                Place(mark.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(36f, 36f));
+                // Daily Gift warm amber claim highlight + embossed Barya coin
+                Ui.MakeSliced("Badge", art, MenuArt.ChamferCard(new Color(0.24f, 0.18f, 0.08f, 0.96f), new Color(0.11f, 0.08f, 0.04f, 0.98f), new Color(Gold.r, Gold.g, Gold.b, 0.72f), 10, 2, 0.3f), Color.white);
+                Image coin = Ui.MakeImage("Coin", art, Color.white);
+                coin.sprite = MenuArt.BaryaCoin();
+                coin.preserveAspect = true;
+                Place(coin.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(38f, 38f));
+                Ui.MakeSliced("ClaimRim", visual, MenuArt.ChamferOutline(new Color(Gold.r, Gold.g, Gold.b, 0.52f), 12, 2), Color.white);
+                Ui.AddPulse(glow, 0.14f, 0.28f, 2.2f, 0f);
             }
 
-            Text t = Label("Title", card, title, 24, Gold, TextAnchor.LowerLeft, display: true);
-            Place(t.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(96f, 2f), new Vector2(-108f, 30f));
+            float titleRightPad = index == 1 ? -34f : -14f;
+            Text t = Label("Title", visual, title, 20, index == 1 ? new Color(1f, 0.76f, 0.74f, 1f) : Gold, TextAnchor.LowerLeft, display: true, ink: true);
+            Place(t.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(82f, index == 0 ? 4f : 1f), new Vector2(titleRightPad - 82f, 26f));
             t.rectTransform.pivot = new Vector2(0f, 0f);
-            Text l = Label("Line", card, line, 22, Cream, TextAnchor.UpperLeft);
-            Place(l.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(96f, -4f), new Vector2(-108f, 30f));
+            FitSingleLine(t, 12, 20);
+
+            Text l = Label("Line", visual, line, 18, new Color(Cream.r, Cream.g, Cream.b, 0.92f), TextAnchor.UpperLeft, display: false, ink: false);
+            Place(l.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(82f, index == 0 ? 1f : -2f), new Vector2(-96f, 24f));
             l.rectTransform.pivot = new Vector2(0f, 1f);
-            AttachButton(card.gameObject, plate, onClick);
+            FitSingleLine(l, 10, 18);
+
+            if (index == 0)
+            {
+                // crisp thin progress bar along bottom of Pass text column
+                RectTransform barBg = Ui.Panel("ProgressTrack", visual, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(82f, 10f), new Vector2(-98f, 4f));
+                Image barBgImg = barBg.gameObject.AddComponent<Image>();
+                barBgImg.color = new Color(1f, 1f, 1f, 0.14f);
+                barBgImg.raycastTarget = false;
+                RectTransform barFill = Ui.Panel("ProgressFill", barBg, Vector2.zero, new Vector2(0.34f, 1f), Vector2.zero, Vector2.zero, Vector2.zero);
+                Image barFillImg = barFill.gameObject.AddComponent<Image>();
+                barFillImg.color = Gold;
+                barFillImg.raycastTarget = false;
+            }
+            else if (index == 1)
+            {
+                // live pulsing dot on Pasko Event strip (EditMode-inert)
+                Image halo = Ui.MakeImage("LiveHalo", visual, new Color(EventCrimson.r, EventCrimson.g, EventCrimson.b, 0.35f), round: true);
+                Place(halo.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-18f, -18f), new Vector2(18f, 18f));
+                Ui.AddPulse(halo, 0.15f, 0.55f, 3.0f, 0.18f);
+                Image dot = Ui.MakeImage("LiveDot", visual, EventCrimson, round: true);
+                Place(dot.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-18f, -18f), new Vector2(9f, 9f));
+                Ui.AddPulse(dot, 0.55f, 1f, 3.0f, 0f);
+            }
+
+            AttachButton(card.gameObject, plate, onClick, 0.96f);
         }
 
-        /// <summary>One bottom-bar item: a line icon over its label, with a thin divider before every item but the first.</summary>
+        /// <summary>One bottom-dock nav item (&gt;= 48 dp hit-box) seated on the frosted tactical dock plate.</summary>
         void MakeNavItem(RectTransform bar, int index, string name, string title, MenuArt.GlyphKind glyph, Action onClick, string badge = null)
         {
-            RectTransform item = Ui.Panel(name, bar, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(index * NavItemWidth, 0f), new Vector2(NavItemWidth, 0f));
+            float x = NavDockPadX + index * (NavItemWidth + NavItemGap);
+            RectTransform item = Ui.Panel(name, bar, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(x, 0f), new Vector2(NavItemWidth, 0f));
             Image hit = item.gameObject.AddComponent<Image>();
             hit.color = Clear;
+            hit.raycastTarget = true;
+
             Image icon = Ui.MakeImage("Icon", item, Cream);
             icon.sprite = MenuArt.Glyph(glyph);
-            Place(icon.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -14f), new Vector2(40f, 40f));
+            Place(icon.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -18f), new Vector2(34f, 34f));
             icon.rectTransform.pivot = new Vector2(0.5f, 1f);
-            Text label = Label("Label", item, title, 22, Cream, TextAnchor.LowerCenter, display: true, ink: true);
-            Stretch(label.rectTransform, Vector2.zero, new Vector2(1f, 0f));
+
+            Text label = Label("Label", item, title, 18, Cream, TextAnchor.LowerCenter, display: true, ink: true);
+            Place(label.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 14f), new Vector2(-8f, 24f));
             label.rectTransform.pivot = new Vector2(0.5f, 0f);
-            label.rectTransform.sizeDelta = new Vector2(0f, 30f);
-            label.rectTransform.anchoredPosition = new Vector2(0f, 10f);
+            FitSingleLine(label, 10, 18);
+
             if (index > 0)
             {
-                Image divider = Ui.MakeImage("Divider", item, new Color(Cream.r, Cream.g, Cream.b, 0.2f));
-                Place(divider.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(2f, 40f));
+                Image divider = Ui.MakeImage("Divider", item, new Color(Cream.r, Cream.g, Cream.b, 0.16f));
+                Place(divider.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(-1f, 0f), new Vector2(1.5f, 44f));
             }
             if (badge != null)
             {
-                Image dot = Ui.MakeImage("Badge", item, new Color(0.36f, 0.78f, 0.58f, 1f), round: true);
-                Place(dot.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(22f, -4f), new Vector2(32f, 32f));
-                Text count = Label("Count", dot.rectTransform, badge, 22, Ink, TextAnchor.MiddleCenter, display: true);
+                RectTransform badgeHost = Ui.Panel("Badge", item, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(22f, -20f), new Vector2(30f, 26f));
+                Ui.MakeSliced("BadgeRim", badgeHost, MenuArt.RoundSolid(13), Ink);
+                RectTransform core = Ui.Fill("BadgeCore", badgeHost);
+                core.offsetMin = new Vector2(2f, 2f);
+                core.offsetMax = new Vector2(-2f, -2f);
+                Ui.MakeSliced("Fill", core, MenuArt.RoundSolid(11), MenuArt.SuccessGreen);
+                Text count = Label("Count", core, badge, 16, Ink, TextAnchor.MiddleCenter, display: true, ink: false);
                 Stretch(count.rectTransform, Vector2.zero, Vector2.one);
             }
-            AttachButton(item.gameObject, hit, onClick);
+
+            AttachButton(item.gameObject, icon, onClick, 0.92f);
         }
 
         void BuildModeCard(RectTransform column)
         {
-            _modeZone = Ui.Panel("ModeZone", column, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, PlayHeight + ColumnGap + 8f), new Vector2(0f, ModeHeight));
-            Image plate = RoundPlate(_modeZone, MenuArt.RoundGlass(26));
+            _modeZone = Ui.Panel("ModeZone", column, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, PlayHeight + ModeToPlayGap), new Vector2(0f, ModeHeight));
+            Image plate = Ui.MakeSliced("Plate", _modeZone, MenuArt.ChamferGlass(14), Color.white, raycast: true);
+            Image spot = Ui.MakeImage("Spotlight", _modeZone, new Color(Gold.r, Gold.g, Gold.b, 0.08f));
+            spot.sprite = MenuArt.CardSpotlight();
+            Stretch(spot.rectTransform, Vector2.zero, Vector2.one);
+            Ui.MakeCornerBrackets("Brackets", _modeZone, new Color(Gold.r, Gold.g, Gold.b, 0.48f));
 
-            // a gold bar on the left edge marks the choice
-            Image bar = Ui.MakeImage("Bar", _modeZone, Gold);
-            Place(bar.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(10f, 0f), new Vector2(5f, -56f));
-            bar.rectTransform.pivot = new Vector2(0f, 0.5f);
+            // crisp gold left accent bar marks the active queue selection
+            Ui.MakeAccentRail("Bar", _modeZone, Gold, width: 5f, verticalInset: 18f);
 
-            Text kicker = Label("Kicker", _modeZone, "MODE", 22, Gold, TextAnchor.UpperLeft, display: true);
-            Place(kicker.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -22f), new Vector2(-64f, 28f));
-            kicker.rectTransform.pivot = new Vector2(0.5f, 1f);
+            Text kicker = Label("Kicker", _modeZone, "QUEUE MODE", 18, Gold, TextAnchor.UpperLeft, display: true, ink: false);
+            Place(kicker.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -18f), new Vector2(-102f, 24f));
+            kicker.rectTransform.pivot = new Vector2(0f, 1f);
+            FitSingleLine(kicker, 11, 18);
 
-            _modeName = Label("ModeName", _modeZone, "", 72, Cream, TextAnchor.MiddleLeft, display: true, ink: true);
-            Place(_modeName.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(-28f, -52f), new Vector2(-120f, 76f));
-            _modeName.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _modeName.resizeTextForBestFit = true;
-            _modeName.resizeTextMinSize = 40;
-            _modeName.resizeTextMaxSize = 72;
+            _modeName = Label("ModeName", _modeZone, "", 62, Cream, TextAnchor.MiddleLeft, display: true, ink: true);
+            Place(_modeName.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -44f), new Vector2(-102f, 68f));
+            _modeName.rectTransform.pivot = new Vector2(0f, 1f);
+            FitSingleLine(_modeName, 28, 62);
 
-            _modeDetail = Label("ModeDetail", _modeZone, "", 22, Muted, TextAnchor.UpperLeft);
-            Place(_modeDetail.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -132f), new Vector2(-64f, 30f));
-            _modeDetail.rectTransform.pivot = new Vector2(0.5f, 1f);
+            _modeDetail = Label("ModeDetail", _modeZone, "", 20, Muted, TextAnchor.UpperLeft, display: false, ink: false);
+            Place(_modeDetail.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -120f), new Vector2(-46f, 28f));
+            _modeDetail.rectTransform.pivot = new Vector2(0f, 1f);
+            FitSingleLine(_modeDetail, 11, 20);
 
-            Image chevronDisc = Ui.MakeImage("ChevronDisc", _modeZone, new Color(1f, 1f, 1f, 0.12f), round: true);
-            Place(chevronDisc.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-22f, 10f), new Vector2(52f, 52f));
-            chevronDisc.rectTransform.pivot = new Vector2(1f, 0.5f);
-            Image chevron = Ui.MakeImage("Chevron", chevronDisc.rectTransform, Cream);
+            // framed swap chevron visual (non-Selectable to avoid nested Selectables)
+            RectTransform chevronFrame = Ui.Panel("ChevronDisc", _modeZone, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-18f, 6f), new Vector2(48f, 48f));
+            Ui.MakeSliced("Frame", chevronFrame, MenuArt.CtaGhost(10), Color.white);
+            Image chevron = Ui.MakeImage("Chevron", chevronFrame, Gold);
             chevron.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Chevron);
-            Place(chevron.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(26f, 26f));
+            Place(chevron.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(22f, 22f));
 
-            ModeButton = AttachButton(_modeZone.gameObject, plate, CycleHomeMode);
+            ModeButton = AttachButton(_modeZone.gameObject, plate, CycleHomeMode, 0.97f);
             ShowHomeMode();
         }
 
@@ -597,48 +735,33 @@ namespace Kalyeah.Game
         {
             _playZone = Ui.Panel("PlayZone", column, Vector2.zero, new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, PlayHeight));
 
-            // a soft gold glow behind the button that breathes
-            _playGlow = Ui.MakeImage("Glow", _playZone, new Color(Gold.r, Gold.g, Gold.b, 0.35f));
-            _playGlow.sprite = MenuArt.Glow();
-            Stretch(_playGlow.rectTransform, Vector2.zero, Vector2.one);
-            _playGlow.rectTransform.offsetMin = new Vector2(-40f, -40f);
-            _playGlow.rectTransform.offsetMax = new Vector2(40f, 40f);
+            // soft warm gold aura behind PLAY (EditMode-inert ambient pulse)
+            Image playGlow = Ui.MakeImage("Glow", _playZone, new Color(Gold.r, Gold.g, Gold.b, 0.30f));
+            playGlow.sprite = MenuArt.Glow();
+            Stretch(playGlow.rectTransform, Vector2.zero, Vector2.one);
+            playGlow.rectTransform.offsetMin = new Vector2(-34f, -26f);
+            playGlow.rectTransform.offsetMax = new Vector2(34f, 26f);
+            Ui.AddPulse(playGlow, 0.18f, 0.36f, 2.2f, 0f);
 
-            Image plate = RoundPlate(_playZone, MenuArt.RoundGold(24));
+            Image plate = Ui.MakeSliced("Plate", _playZone, MenuArt.CtaGold(16), Color.white, raycast: true);
 
-            // a light sweep across the button now and then
-            _playClip = Ui.Fill("ShineClip", _playZone);
-            _playClip.offsetMin = new Vector2(22f, 10f);
-            _playClip.offsetMax = new Vector2(-22f, -10f);
-            _playClip.gameObject.AddComponent<RectMask2D>();
-            Image shine = Ui.MakeImage("Shine", _playClip, new Color(1f, 1f, 1f, 0.55f));
-            shine.sprite = MenuArt.Glow();
-            _playShine = shine.rectTransform;
-            _playShine.anchorMin = _playShine.anchorMax = new Vector2(0f, 0.5f);
-            _playShine.sizeDelta = new Vector2(100f, 320f);
-            _playShine.localRotation = Quaternion.Euler(0f, 0f, 20f);
-            _playShine.anchoredPosition = new Vector2(-200f, 0f);
+            // clipped ambient diagonal sheen in Play mode (strictly inert in EditMode & ReduceMotion)
+            Ui.AddSheen(_playZone, period: 3.8f, sweepDuration: 0.78f, peakAlpha: 0.34f);
 
-            Image triangle = Ui.MakeImage("Triangle", _playZone, Ink);
+            // centered icon + PLAY lockup lifted +3px above the bottom 3D press-lip bevel
+            RectTransform content = Ui.Panel("Content", _playZone, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 3f), new Vector2(236f, 68f));
+            Image triangle = Ui.MakeImage("Triangle", content, Ink);
             triangle.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Play);
-            Place(triangle.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(64f, 0f), new Vector2(52f, 52f));
+            Place(triangle.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(12f, 0f), new Vector2(40f, 40f));
             triangle.rectTransform.pivot = new Vector2(0f, 0.5f);
 
-            Text label = Label("Label", _playZone, "PLAY", 70, Ink, TextAnchor.MiddleCenter, display: true);
+            Text label = Label("Label", content, "PLAY", 64, Ink, TextAnchor.MiddleLeft, display: true, ink: false);
             Stretch(label.rectTransform, Vector2.zero, Vector2.one);
-            label.rectTransform.offsetMin = new Vector2(96f, 0f);
-            label.rectTransform.offsetMax = new Vector2(-40f, 0f);
-            PlayButton = AttachButton(_playZone.gameObject, plate, PressPlay);
-        }
+            label.rectTransform.offsetMin = new Vector2(66f, 0f);
+            label.rectTransform.offsetMax = Vector2.zero;
+            FitSingleLine(label, 36, 64);
 
-        /// <summary>A rounded panel (no cut corners, no hard shadow): the plate of every card on the new home.</summary>
-        static Image RoundPlate(RectTransform host, Sprite sprite)
-        {
-            Image image = Ui.MakeImage("Plate", host, Color.white, false, true);
-            image.sprite = sprite;
-            image.type = Image.Type.Sliced;
-            Stretch(image.rectTransform, Vector2.zero, Vector2.one);
-            return image;
+            PlayButton = AttachButton(_playZone.gameObject, plate, PressPlay, 0.96f);
         }
 
         // ---------------------------------------------------------------- toast
@@ -647,14 +770,18 @@ namespace Kalyeah.Game
         Text _toastText;
         float _toastUntil;
 
-        /// <summary>A short message at the top centre (Wild Rift style), for panels whose systems are not built yet.</summary>
+        /// <summary>A sleek tactical notification strip at top centre (Wild Rift style) for panels whose systems arrive later.</summary>
         void BuildToast(RectTransform parent)
         {
-            _toast = Ui.Panel("Toast", parent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -(TopBarHeight + 4f)), new Vector2(640f, 64f));
-            Image plate = RoundPlate(_toast, MenuArt.Round(new Color(0.03f, 0.05f, 0.09f, 0.9f), new Color(0.03f, 0.05f, 0.09f, 0.9f), new Color(1f, 1f, 1f, 0.16f), 32, 2, 0f));
-            plate.raycastTarget = false;
-            _toastText = Label("Text", _toast, "", 24, Cream, TextAnchor.MiddleCenter, display: false);
+            _toast = Ui.Panel("Toast", parent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -(TopBarHeight + 6f)), new Vector2(620f, 58f));
+            Ui.MakeSliced("Plate", _toast, MenuArt.ChamferGlass(12), Color.white);
+            Ui.MakeAccentRail("Rail", _toast, Gold, width: 4f, verticalInset: 10f);
+            Ui.MakeCornerBrackets("Brackets", _toast, new Color(Gold.r, Gold.g, Gold.b, 0.42f));
+            _toastText = Label("Text", _toast, "", 22, Cream, TextAnchor.MiddleCenter, display: false, ink: false);
             Stretch(_toastText.rectTransform, Vector2.zero, Vector2.one);
+            _toastText.rectTransform.offsetMin = new Vector2(24f, 0f);
+            _toastText.rectTransform.offsetMax = new Vector2(-20f, 0f);
+            FitSingleLine(_toastText, 12, 22);
             _toast.gameObject.SetActive(false);
         }
 
@@ -677,33 +804,42 @@ namespace Kalyeah.Game
         {
             _offlinePrompt = Ui.Fill("OfflinePrompt", Root);
             Image scrim = _offlinePrompt.gameObject.AddComponent<Image>();
-            scrim.color = new Color(0.01f, 0.04f, 0.06f, 0.84f);
+            scrim.color = new Color(0.01f, 0.03f, 0.06f, 0.86f);
             scrim.raycastTarget = true;
 
-            RectTransform card = Ui.Panel("Card", _offlinePrompt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(640f, 310f));
-            RoundPlate(card, MenuArt.RoundGlass(28)).raycastTarget = false;
+            RectTransform card = Ui.Panel("Card", _offlinePrompt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(620f, 320f));
+            Ui.MakeSliced("Plate", card, MenuArt.ChamferGlass(16), Color.white);
+            Ui.MakeCornerBrackets("Brackets", card, new Color(Gold.r, Gold.g, Gold.b, 0.56f));
+            Ui.MakeAccentRail("Rail", card, Gold, width: 5f, verticalInset: 24f);
 
-            Text title = Label("Title", card, "YOU'RE OFFLINE", 48, Cream, TextAnchor.UpperLeft, display: true, ink: true);
-            Stretch(title.rectTransform, new Vector2(0f, 1f), Vector2.one);
-            title.rectTransform.pivot = new Vector2(0.5f, 1f);
-            title.rectTransform.sizeDelta = new Vector2(-72f, 60f);
-            title.rectTransform.anchoredPosition = new Vector2(0f, -30f);
+            Text kicker = Label("Kicker", card, "CONNECTION CHECK", 18, Gold, TextAnchor.UpperLeft, display: true, ink: false);
+            Place(kicker.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(36f, -24f), new Vector2(-72f, 24f));
+            kicker.rectTransform.pivot = new Vector2(0f, 1f);
+            FitSingleLine(kicker, 14, 18);
+
+            Text title = Label("Title", card, "YOU'RE OFFLINE", 46, Cream, TextAnchor.UpperLeft, display: true, ink: true);
+            Place(title.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(36f, -50f), new Vector2(-72f, 56f));
+            title.rectTransform.pivot = new Vector2(0f, 1f);
+            FitSingleLine(title, 30, 46);
+
             Image rule = Ui.MakeImage("Rule", card, Gold);
-            Place(rule.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(36f, -94f), new Vector2(84f, 5f));
+            Place(rule.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(36f, -110f), new Vector2(88f, 4f));
             rule.rectTransform.pivot = new Vector2(0f, 1f);
-            Text body = Label("Body", card, "Play offline now, or retry once you are connected.", 22, Muted, TextAnchor.UpperLeft);
-            Stretch(body.rectTransform, new Vector2(0f, 1f), Vector2.one);
-            body.rectTransform.pivot = new Vector2(0.5f, 1f);
-            body.rectTransform.sizeDelta = new Vector2(-72f, 32f);
-            body.rectTransform.anchoredPosition = new Vector2(0f, -112f);
 
-            RectTransform actions = Ui.Panel("Actions", card, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 30f), new Vector2(-72f, HitSize));
+            Text body = Label("Body", card, "Play offline now, or retry once you are connected.", 21, Muted, TextAnchor.UpperLeft, display: false, ink: false);
+            Place(body.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(36f, -126f), new Vector2(-72f, 34f));
+            body.rectTransform.pivot = new Vector2(0f, 1f);
+            FitSingleLine(body, 12, 21);
+
+            RectTransform actions = Ui.Panel("Actions", card, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 28f), new Vector2(-72f, HitSize));
             MakeActionButton(actions, "Retry", "RETRY", false, new Vector2(0f, 0f), new Vector2(0.42f, 1f), Retry);
-            MakeActionButton(actions, "GoOffline", "PLAY OFFLINE", true, new Vector2(0.46f, 0f), new Vector2(1f, 1f), () =>
+            Button goOffline = MakeActionButton(actions, "GoOffline", "PLAY OFFLINE", true, new Vector2(0.46f, 0f), new Vector2(1f, 1f), () =>
             {
                 CloseOfflinePrompt();
                 OpenOfflineHub();
             });
+            RectTransform goOfflineVisual = goOffline.transform.Find("Visual") as RectTransform;
+            Ui.AddSheen(goOfflineVisual ?? goOffline.GetComponent<RectTransform>(), period: 4.0f, sweepDuration: 0.72f, peakAlpha: 0.28f);
             _offlinePrompt.gameObject.SetActive(false);
         }
 
@@ -715,7 +851,7 @@ namespace Kalyeah.Game
             block.raycastTarget = true;
             MakeRaw("Sky", _offlineHubBackdrop, MenuArt.Sky());
             RawImage weave = MakeRaw("Weave", _offlineHubBackdrop, MenuArt.Weave());
-            weave.color = new Color(MenuArt.TealLight.r, MenuArt.TealLight.g, MenuArt.TealLight.b, 0.09f);
+            weave.color = new Color(MenuArt.TealLight.r, MenuArt.TealLight.g, MenuArt.TealLight.b, 0.08f);
             weave.uvRect = new Rect(0f, 0f, 1280f / WeaveTile, 720f / WeaveTile);
             MakeRaw("Vignette", _offlineHubBackdrop, MenuArt.Vignette());
             _offlineHubBackdrop.gameObject.SetActive(false);
@@ -724,30 +860,43 @@ namespace Kalyeah.Game
             _offlineHub = Ui.Fill("OfflineHub", SafeRoot);
             RectTransform header = Ui.Panel("Header", _offlineHub, new Vector2(0f, 1f), Vector2.one, new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, TopBarHeight));
             RectTransform back = Ui.Panel("Back", header, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(Gutter, 0f), new Vector2(140f, HitSize));
-            Image backPlate = RoundPlate(back, MenuArt.RoundGlass(40));
-            Text backLabel = Label("Label", back, "BACK", 24, Cream, TextAnchor.MiddleCenter, display: true, ink: true);
+            Image backHit = back.gameObject.AddComponent<Image>();
+            backHit.color = Clear;
+            backHit.raycastTarget = true;
+            RectTransform backVisual = Ui.Fill("Visual", back);
+            backVisual.offsetMin = new Vector2(0f, 14f);
+            backVisual.offsetMax = new Vector2(0f, -14f);
+            Image backPlate = Ui.MakeSliced("Plate", backVisual, MenuArt.CtaGhost(12), Color.white);
+            Text backLabel = Label("Label", backVisual, "BACK", 24, Cream, TextAnchor.MiddleCenter, display: true, ink: true);
             Stretch(backLabel.rectTransform, Vector2.zero, Vector2.one);
-            AttachButton(back.gameObject, backPlate, CloseOfflineHub);
-            Text title = Label("Title", header, "OFFLINE", 52, Cream, TextAnchor.MiddleLeft, display: true, ink: true);
-            Place(title.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(Gutter + 140f + 28f, 0f), new Vector2(-(Gutter + 140f + 28f) - Gutter, 64f));
-            title.rectTransform.pivot = new Vector2(0f, 0.5f);
+            AttachButton(back.gameObject, backPlate, CloseOfflineHub, 0.94f);
+
+            Text hubKicker = Label("Kicker", header, "LOCAL & PRACTICE", 16, Gold, TextAnchor.LowerLeft, display: true, ink: false);
+            Place(hubKicker.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(Gutter + 140f + 24f, 16f), new Vector2(-(Gutter + 140f + 24f) - Gutter, 20f));
+            hubKicker.rectTransform.pivot = new Vector2(0f, 0f);
+            FitSingleLine(hubKicker, 13, 16);
+
+            Text title = Label("Title", header, "OFFLINE", 48, Cream, TextAnchor.UpperLeft, display: true, ink: true);
+            Place(title.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(Gutter + 140f + 24f, 14f), new Vector2(-(Gutter + 140f + 24f) - Gutter, 52f));
+            title.rectTransform.pivot = new Vector2(0f, 1f);
+            FitSingleLine(title, 32, 48);
 
             RectTransform cards = Ui.Fill("Cards", _offlineHub);
             cards.offsetMin = new Vector2(Gutter, 20f);
             cards.offsetMax = new Vector2(-Gutter, -(TopBarHeight + 8f));
 
-            RectTransform hotspot = MakeOfflineCard(cards, "Hotspot", 0, "HOTSPOT", "hotspot", MenuArt.Teal);
+            RectTransform hotspot = MakeOfflineCard(cards, "Hotspot", 0, "HOTSPOT", "Play over phone hotspot", "hotspot", MenuArt.Teal);
             RectTransform hotspotRow = ActionRow(hotspot);
-            MakeActionButton(hotspotRow, "Host", "HOST", true, Vector2.zero, new Vector2(0.49f, 1f), () => OpenHotspotFlow(true));
-            MakeActionButton(hotspotRow, "Join", "JOIN", false, new Vector2(0.51f, 0f), Vector2.one, () => OpenHotspotFlow(false));
+            MakeActionButton(hotspotRow, "Host", "HOST", true, Vector2.zero, new Vector2(0.48f, 1f), () => OpenHotspotFlow(true));
+            MakeActionButton(hotspotRow, "Join", "JOIN", false, new Vector2(0.52f, 0f), Vector2.one, () => OpenHotspotFlow(false));
 
-            RectTransform ai = MakeOfflineCard(cards, "PracticeAi", 1, "PRACTICE VS AI", "ai", Gold);
+            RectTransform ai = MakeOfflineCard(cards, "PracticeAi", 1, "PRACTICE VS AI", "Fight bots at your pace", "ai", Gold);
             RectTransform aiRow = ActionRow(ai);
-            Button diff = MakeActionButton(aiRow, "Difficulty", "MEDIUM", false, Vector2.zero, new Vector2(0.49f, 1f), CycleDifficulty);
+            Button diff = MakeActionButton(aiRow, "Difficulty", "MEDIUM", false, Vector2.zero, new Vector2(0.48f, 1f), CycleDifficulty);
             _difficultyLabel = diff.GetComponentInChildren<Text>(true);
-            MakeActionButton(aiRow, "Play", "PLAY", true, new Vector2(0.51f, 0f), Vector2.one, () => LaunchMode(GameMode.Practice));
+            MakeActionButton(aiRow, "Play", "PLAY", true, new Vector2(0.52f, 0f), Vector2.one, () => LaunchMode(GameMode.Practice));
 
-            RectTransform solo = MakeOfflineCard(cards, "PracticeSolo", 2, "PRACTICE SOLO", "solo", MenuArt.Coral);
+            RectTransform solo = MakeOfflineCard(cards, "PracticeSolo", 2, "PRACTICE SOLO", "Free movement and aim", "solo", MenuArt.Coral);
             MakeActionButton(ActionRow(solo), "Play", "PLAY", true, Vector2.zero, Vector2.one, () => LaunchMode(GameMode.Training));
 
             _offlineHub.gameObject.SetActive(false);
@@ -756,90 +905,111 @@ namespace Kalyeah.Game
         /// <summary>Hotspot, Practice vs AI, Practice solo (Explore joins when it is built: only real content, docs/SPEC.md §8).</summary>
         const int OfflineCardCount = 3;
 
-        RectTransform MakeOfflineCard(RectTransform cards, string name, int index, string title, string glyph, Color accent)
+        RectTransform MakeOfflineCard(RectTransform cards, string name, int index, string title, string subtitle, string glyph, Color accent)
         {
-            const float gap = 20f;
+            const float gap = 18f;
             const float share = 1f / OfflineCardCount;
             RectTransform card = Ui.Panel(name, cards, new Vector2(index * share, 0f), new Vector2((index + 1) * share, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             card.offsetMin = new Vector2(index == 0 ? 0f : gap * 0.5f, 8f);
-            card.offsetMax = new Vector2(index == OfflineCardCount - 1 ? -8f : -gap * 0.5f, 0f);
-            RoundPlate(card, MenuArt.RoundGlass(26)).raycastTarget = false;
+            card.offsetMax = new Vector2(index == OfflineCardCount - 1 ? 0f : -gap * 0.5f, 0f);
+            Ui.MakeSliced("Plate", card, MenuArt.ChamferGlass(16), Color.white);
+            Ui.MakeCornerBrackets("Brackets", card, new Color(accent.r, accent.g, accent.b, 0.45f));
 
-            // the art: the card's colour with the weave and a drawn glyph (no pictures)
-            RectTransform art = Ui.Panel("Art", card, new Vector2(0f, 0.42f), Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            art.offsetMin = new Vector2(12f, 0f);
-            art.offsetMax = new Vector2(-12f, -12f);
-            Stretch(ChipImage("Colour", art, accent, 14).rectTransform, Vector2.zero, Vector2.one);
+            // top accent bar across the card crown
+            Image topRule = Ui.MakeImage("TopBar", card, accent);
+            Place(topRule.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -2f), new Vector2(-44f, 4f));
+            topRule.rectTransform.pivot = new Vector2(0.5f, 1f);
+
+            // framed deep-tinted art bay with spotlight, weave and crisp icon glyph
+            RectTransform art = Ui.Panel("Art", card, new Vector2(0f, 0.44f), Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            art.offsetMin = new Vector2(14f, 0f);
+            art.offsetMax = new Vector2(-14f, -16f);
+            Color bayTop = Color.Lerp(MenuArt.PanelTop, accent, 0.42f);
+            Color bayBot = Color.Lerp(MenuArt.PanelBottom, accent, 0.18f);
+            Ui.MakeSliced("Colour", art, MenuArt.ChamferCard(bayTop, bayBot, new Color(accent.r, accent.g, accent.b, 0.48f), 12, 2, 0.30f), Color.white);
             RectTransform clip = Ui.Fill("Clip", art);
             clip.offsetMin = new Vector2(4f, 4f);
             clip.offsetMax = new Vector2(-4f, -4f);
             clip.gameObject.AddComponent<RectMask2D>();
             RawImage weave = MakeRaw("Weave", clip, MenuArt.Weave());
-            weave.color = new Color(1f, 1f, 1f, 0.16f);
+            weave.color = new Color(1f, 1f, 1f, 0.10f);
             weave.uvRect = new Rect(0f, 0f, 4f, 2f);
-            BuildCardGlyph(art, glyph);
+            Image spot = Ui.MakeImage("Spot", clip, new Color(accent.r, accent.g, accent.b, 0.24f));
+            spot.sprite = MenuArt.CardSpotlight();
+            Stretch(spot.rectTransform, Vector2.zero, Vector2.one);
+            Image bottomFade = Ui.MakeImage("Scrim", clip, new Color(1f, 1f, 1f, 0.65f));
+            bottomFade.sprite = MenuArt.BottomScrim();
+            Stretch(bottomFade.rectTransform, Vector2.zero, new Vector2(1f, 0.55f));
+            BuildCardGlyph(art, glyph, accent);
 
-            Text label = Label("Title", card, title, 32, Cream, TextAnchor.LowerLeft, display: true, ink: true);
-            Stretch(label.rectTransform, new Vector2(0f, 0.28f), new Vector2(1f, 0.4f));
-            label.rectTransform.offsetMin = new Vector2(22f, 0f);
-            label.rectTransform.offsetMax = new Vector2(-14f, 0f);
-            label.horizontalOverflow = HorizontalWrapMode.Wrap;
-            label.resizeTextForBestFit = true;
-            label.resizeTextMinSize = 22;
-            label.resizeTextMaxSize = 32;
+            Text label = Label("Title", card, title, 30, Cream, TextAnchor.LowerLeft, display: true, ink: true);
+            Stretch(label.rectTransform, new Vector2(0f, 0.31f), new Vector2(1f, 0.42f));
+            label.rectTransform.offsetMin = new Vector2(20f, 0f);
+            label.rectTransform.offsetMax = new Vector2(-18f, 0f);
+            FitSingleLine(label, 14, 30);
+
+            Text sub = Label("Subtitle", card, subtitle, 18, Muted, TextAnchor.UpperLeft, display: false, ink: false);
+            Stretch(sub.rectTransform, new Vector2(0f, 0.22f), new Vector2(1f, 0.30f));
+            sub.rectTransform.offsetMin = new Vector2(20f, 0f);
+            sub.rectTransform.offsetMax = new Vector2(-18f, 0f);
+            FitSingleLine(sub, 10, 18);
             return card;
         }
 
-        static void BuildCardGlyph(RectTransform art, string glyph)
+        static void BuildCardGlyph(RectTransform art, string glyph, Color accent)
         {
-            Color cream = new Color(Cream.r, Cream.g, Cream.b, 0.95f);
+            Color cream = new Color(Cream.r, Cream.g, Cream.b, 0.96f);
             switch (glyph)
             {
                 case "hotspot":
                     for (int i = 0; i < 3; i++)
                     {
-                        Image ring = Ui.MakeImage("Ring" + i, art, new Color(cream.r, cream.g, cream.b, 1f - 0.3f * i));
+                        Image ring = Ui.MakeImage("Ring" + i, art, new Color(cream.r, cream.g, cream.b, 0.95f - 0.26f * i));
                         ring.sprite = KomiksUi.RingSprite(256, 12);
-                        Place(ring.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (60f + i * 56f));
+                        Place(ring.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (56f + i * 50f));
                     }
-                    Image dot = Ui.MakeImage("Dot", art, cream, round: true);
+                    Image dot = Ui.MakeImage("Dot", art, accent, round: true);
                     Place(dot.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(22f, 22f));
                     break;
                 case "ai":
-                    Text vs = Label("Vs", art, "VS", 92, cream, TextAnchor.MiddleCenter, display: true, ink: true);
+                    Text vs = Label("Vs", art, "VS", 86, cream, TextAnchor.MiddleCenter, display: true, ink: true);
                     Stretch(vs.rectTransform, Vector2.zero, Vector2.one);
                     break;
                 default:
                     for (int i = 0; i < 2; i++)
                     {
-                        Image ring = Ui.MakeImage("Ring" + i, art, cream);
+                        Image ring = Ui.MakeImage("Ring" + i, art, new Color(cream.r, cream.g, cream.b, 0.92f - 0.25f * i));
                         ring.sprite = KomiksUi.RingSprite(256, 14);
-                        Place(ring.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (150f - i * 66f));
+                        Place(ring.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (138f - i * 58f));
                     }
-                    Image core = Ui.MakeImage("Core", art, cream, round: true);
-                    Place(core.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(30f, 30f));
+                    Image core = Ui.MakeImage("Core", art, accent, round: true);
+                    Place(core.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(28f, 28f));
                     break;
             }
         }
 
         static RectTransform ActionRow(RectTransform card)
         {
-            RectTransform row = Ui.Panel("Actions", card, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 20f), new Vector2(-40f, HitSize));
-            return row;
+            return Ui.Panel("Actions", card, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 16f), new Vector2(-36f, HitSize));
         }
 
         Button MakeActionButton(RectTransform row, string name, string title, bool primary, Vector2 anchorMin, Vector2 anchorMax, Action onClick)
         {
             RectTransform rect = Ui.Panel(name, row, anchorMin, anchorMax, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            Image plate = RoundPlate(rect, primary ? MenuArt.RoundGold(20) : MenuArt.RoundGlass(20));
-            Text label = Label("Label", rect, title, 26, primary ? Ink : Cream, TextAnchor.MiddleCenter, display: true);
+            Image hit = rect.gameObject.AddComponent<Image>();
+            hit.color = Clear;
+            hit.raycastTarget = true;
+
+            RectTransform visual = Ui.Fill("Visual", rect);
+            visual.offsetMin = new Vector2(0f, 10f);
+            visual.offsetMax = new Vector2(0f, -10f);
+            Image plate = Ui.MakeSliced("Plate", visual, primary ? MenuArt.CtaGold(12) : MenuArt.CtaGhost(12), Color.white);
+            Text label = Label("Label", visual, title, 25, primary ? Ink : Cream, TextAnchor.MiddleCenter, display: true, ink: !primary);
             Stretch(label.rectTransform, Vector2.zero, Vector2.one);
-            label.rectTransform.offsetMin = new Vector2(8f, 0f);
+            label.rectTransform.offsetMin = new Vector2(8f, primary ? 2f : 0f);
             label.rectTransform.offsetMax = new Vector2(-8f, 0f);
-            label.resizeTextForBestFit = true;
-            label.resizeTextMinSize = 22;
-            label.resizeTextMaxSize = 26;
-            return AttachButton(rect.gameObject, plate, onClick);
+            FitSingleLine(label, 15, 25);
+            return AttachButton(rect.gameObject, plate, onClick, 0.95f);
         }
 
         // ---------------------------------------------------------------- refresh
@@ -866,16 +1036,27 @@ namespace Kalyeah.Game
                 }
                 else
                 {
-                    // the picture is the home kid's face, as on the plan page
                     _avatarImage.texture = KalyeahResources.Texture("portraits/faces/" + kidId);
                     _avatarImage.uvRect = new Rect(0f, 0f, 1f, 1f);
                 }
                 _avatarImage.enabled = _avatarImage.texture != null;
             }
+            string description = ReadCharacterField(kidId, "description");
+            string role = ParseRole(description);
+            string purok = ParsePurok(description);
+            if (_kidMeta != null)
+            {
+                if (!string.IsNullOrEmpty(role) && !string.IsNullOrEmpty(purok))
+                    _kidMeta.text = role + " · " + purok;
+                else if (!string.IsNullOrEmpty(role))
+                    _kidMeta.text = role;
+                else
+                    _kidMeta.text = "KID";
+            }
             if (_kidName != null)
                 _kidName.text = (ReadCharacterField(kidId, "display_name") ?? Capitalize(kidId)).ToUpperInvariant();
             if (_kidRoleIcon != null)
-                _kidRoleIcon.sprite = MenuArt.Glyph(RoleGlyph(ParseRole(ReadCharacterField(kidId, "description"))));
+                _kidRoleIcon.sprite = MenuArt.Glyph(RoleGlyph(role));
             _stage.SetKid(kidId);
             _stage.RenderNow();
             RefreshLayout(); // the kid's feet height changes with the kid
@@ -904,10 +1085,23 @@ namespace Kalyeah.Game
             return from > 0 ? description.Substring(0, from).Trim().ToUpperInvariant() : "";
         }
 
+        /// <summary>Parses the purok name after " from " up to the first period in a kid description.</summary>
+        static string ParsePurok(string description)
+        {
+            if (string.IsNullOrWhiteSpace(description)) return "";
+            int from = description.IndexOf(" from ", StringComparison.Ordinal);
+            if (from < 0) return "";
+            int start = from + 6;
+            if (start >= description.Length) return "";
+            int dot = description.IndexOf('.', start);
+            string raw = dot > start ? description.Substring(start, dot - start) : description.Substring(start);
+            return raw.Trim().ToUpperInvariant();
+        }
+
         /// <summary>
-        /// Lays out the top bar, the three hub columns (bottom bar, kid, mode) and the scene. The kid stands in the space between
-        /// the bottom bar and the mode column; the stall plate is scaled and centred on the kid's picture so both keep one
-        /// perspective, and grows only when a screen is taller or wider than the plate.
+        /// Lays out the top bar, the hub columns (left rail / bottom dock, hero zone, mode column) and the scene.
+        /// Guarantees zero overlap and &gt;= 48 dp touch targets across 1280x720 (16:9), 844x390 (notched 19.5:9),
+        /// 934x400 (21:9), and 1024x768 (4:3 tablet).
         /// </summary>
         public void RefreshLayout()
         {
@@ -921,28 +1115,37 @@ namespace Kalyeah.Game
             _hubBody.offsetMax = new Vector2(-Gutter, -(TopBarHeight + 8f));
 
             float bodyWidth = Mathf.Max(0f, width - 2f * Gutter);
-            float rightWidth = Mathf.Clamp(bodyWidth * 0.3f, 340f, 400f);
-            float navWidth = LeftWidth;
-            if (_modeColumn != null) _modeColumn.sizeDelta = new Vector2(rightWidth, 0f);
-            if (_bottomNav != null) _bottomNav.anchoredPosition = Vector2.zero;
-            float heroLeft = navWidth + ColumnGap;
+            float leftWidth = Mathf.Clamp(bodyWidth * 0.245f, 284f, 304f);
+            float rightWidth = Mathf.Clamp(bodyWidth * 0.30f, 326f, 376f);
+            float leftSpan = Mathf.Max(leftWidth, BottomNavWidth);
+
+            if (_leftColumn != null)
+                _leftColumn.sizeDelta = new Vector2(leftWidth, 3f * CardHeight + 2f * CardGap);
+            if (_bottomNav != null)
+            {
+                _bottomNav.anchoredPosition = Vector2.zero;
+                _bottomNav.sizeDelta = new Vector2(BottomNavWidth, NavHeight);
+            }
+            if (_modeColumn != null)
+                _modeColumn.sizeDelta = new Vector2(rightWidth, 0f);
+
+            float heroLeft = leftSpan + ColumnGap;
             float heroRight = bodyWidth - rightWidth - ColumnGap;
+            float zoneWidth = Mathf.Max(0f, heroRight - heroLeft);
             if (_heroZone != null)
             {
                 _heroZone.anchoredPosition = new Vector2(heroLeft, 0f);
-                _heroZone.sizeDelta = new Vector2(Mathf.Max(0f, heroRight - heroLeft), 0f);
+                _heroZone.sizeDelta = new Vector2(zoneWidth, 0f);
             }
             if (_kidPlate != null)
             {
-                _kidPlate.anchoredPosition = new Vector2(0f, NavHeight + 12f);
-                _kidPlate.sizeDelta = new Vector2(Mathf.Min(300f, Mathf.Max(200f, heroRight - heroLeft)), HitSize);
+                float plateWidth = zoneWidth > 4f ? Mathf.Min(320f, Mathf.Max(Mathf.Min(220f, zoneWidth), zoneWidth - 4f)) : 252f;
+                _kidPlate.anchoredPosition = Vector2.zero;
+                _kidPlate.sizeDelta = new Vector2(plateWidth, HitSize);
             }
 
-            // the kid: most of the height, centred on the space between the columns (shifted right of the bar), feet on the plate
-            // zoomed in like Wild Rift, Mobile Legends and CODM: thigh up, the head near the top, the feet below the screen. The kid
-            // is KidInTexture of the picture's height; the picture is sized so the visible top 60% of the kid fills 0.67 of the screen.
+            // the kid: thigh-up framing on phones (feet below the screen), grounded cleanly over the pedestal tag on 4:3 tablet
             const float KidInTexture = 0.755f, HeadTop = 0.93f, VisibleKid = 0.67f / 0.6f;
-            float zoneWidth = Mathf.Max(0f, heroRight - heroLeft);
             float heroHeight = full.height * VisibleKid / KidInTexture * Mathf.Clamp(zoneWidth / 520f, 0.72f, 1f);
             float heroWidth = heroHeight * 0.75f;
             if (_heroImageRect != null && _heroZone != null)
@@ -957,7 +1160,7 @@ namespace Kalyeah.Game
             PlaceMotes();
         }
 
-        /// <summary>The stall plate follows the kid's picture; the contact shadow sits under the feet; the side shades frame the UI.</summary>
+        /// <summary>The stall plate follows the kid's picture; the pedestal shadow sits under the feet; the side shades frame the UI.</summary>
         void PlaceScene()
         {
             if (_heroImageRect == null) return;
@@ -976,9 +1179,9 @@ namespace Kalyeah.Game
                 SetRect(_stallRect, centre, new Vector2(plateW, plateH));
             }
             if (_heroShadowRect != null)
-                SetRect(_heroShadowRect, new Vector2(pos.x, pos.y + size.y * _stage.FeetViewportY), new Vector2(size.x * 0.44f, size.x * 0.07f));
-            if (_shadeLeft != null) _shadeLeft.sizeDelta = new Vector2(_areaSize.x * 0.42f, 0f);
-            if (_shadeRight != null) _shadeRight.sizeDelta = new Vector2(_areaSize.x * 0.45f, 0f);
+                SetRect(_heroShadowRect, new Vector2(pos.x, pos.y + size.y * _stage.FeetViewportY), new Vector2(size.x * 0.48f, size.x * 0.095f));
+            if (_shadeLeft != null) _shadeLeft.sizeDelta = new Vector2(_areaSize.x * 0.40f, 0f);
+            if (_shadeRight != null) _shadeRight.sizeDelta = new Vector2(_areaSize.x * 0.44f, 0f);
         }
 
         static void SetRect(RectTransform rect, Vector2 position, Vector2 size)
@@ -1006,23 +1209,6 @@ namespace Kalyeah.Game
                 Color c = _moteImages[i].color;
                 c.a = Mathf.Sin(fall * Mathf.PI) * 0.45f;
                 _moteImages[i].color = c;
-            }
-        }
-
-        void AnimatePlay()
-        {
-            if (_playGlow != null)
-            {
-                Color g = _playGlow.color;
-                g.a = 0.22f + 0.13f * (0.5f + 0.5f * Mathf.Sin(_time * 2.2f));
-                _playGlow.color = g;
-            }
-            if (_playShine != null && _playClip != null)
-            {
-                // a sweep every 5.5 s: across in about a second, then a rest
-                float phase = Mathf.Repeat(_time, 5.5f) / 1.1f;
-                float travel = _playClip.rect.width + 240f;
-                _playShine.anchoredPosition = new Vector2(-120f + Mathf.Clamp01(phase) * travel, 0f);
             }
         }
 
@@ -1203,45 +1389,25 @@ namespace Kalyeah.Game
             Outline outline = label.GetComponent<Outline>();
             if (outline != null)
             {
-                outline.enabled = ink;
-                if (ink)
+                bool allowOutline = ink && Ui.Luminance(color) >= 0.25f;
+                outline.enabled = allowOutline;
+                if (allowOutline)
                 {
-                    outline.effectColor = new Color(Ink.r, Ink.g, Ink.b, 0.95f);
-                    outline.effectDistance = new Vector2(2.5f, -2.5f);
+                    outline.effectColor = new Color(Ink.r, Ink.g, Ink.b, 0.92f);
+                    outline.effectDistance = new Vector2(2f, -2f);
                 }
             }
             return label;
         }
 
-        /// <summary>
-        /// A tag on <paramref name="host"/>: an optional hard drop shadow (the same tag shape in dark ink, shifted down and right),
-        /// then the plate itself. Returns the plate, the graphic a Button on <paramref name="host"/> should target.
-        /// </summary>
-        static Image Tag(RectTransform host, Sprite plate, int cut, bool raycast, float shadow = 0.5f, float offset = 6f)
+        /// <summary>Constrains a single-line label strictly within its RectTransform width so glyphs never spill onto adjacent icons.</summary>
+        static void FitSingleLine(Text label, int minSize, int maxSize)
         {
-            if (shadow > 0f)
-            {
-                Image shade = Ui.MakeImage("Shade", host, new Color(0f, 0.02f, 0.03f, shadow));
-                shade.sprite = MenuArt.Solid(cut);
-                shade.type = Image.Type.Sliced;
-                Stretch(shade.rectTransform, Vector2.zero, Vector2.one);
-                shade.rectTransform.offsetMin = new Vector2(offset, -offset);
-                shade.rectTransform.offsetMax = new Vector2(offset, -offset);
-            }
-            Image image = Ui.MakeImage("Plate", host, Color.white, false, raycast);
-            image.sprite = plate;
-            image.type = Image.Type.Sliced;
-            Stretch(image.rectTransform, Vector2.zero, Vector2.one);
-            return image;
-        }
-
-        /// <summary>A white chip plate (lighter at the top) tinted <paramref name="tint"/>.</summary>
-        static Image ChipImage(string name, Transform parent, Color tint, int cut)
-        {
-            Image image = Ui.MakeImage(name, parent, tint);
-            image.sprite = MenuArt.Chip(cut);
-            image.type = Image.Type.Sliced;
-            return image;
+            label.horizontalOverflow = HorizontalWrapMode.Wrap;
+            label.verticalOverflow = VerticalWrapMode.Truncate;
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = minSize;
+            label.resizeTextMaxSize = maxSize;
         }
 
         static RawImage MakeRaw(string name, Transform parent, Texture texture)
@@ -1298,7 +1464,7 @@ namespace Kalyeah.Game
             return tex;
         }
 
-        static Button AttachButton(GameObject host, Graphic targetGraphic, Action onClick)
+        static Button AttachButton(GameObject host, Graphic targetGraphic, Action onClick, float pressedScale = 0.95f)
         {
             Button btn = host.GetComponent<Button>() ?? host.AddComponent<Button>();
             btn.targetGraphic = targetGraphic;
@@ -1308,6 +1474,7 @@ namespace Kalyeah.Game
             cb.selectedColor = Color.white;
             cb.pressedColor = PressTint;
             btn.colors = cb;
+            Ui.AddPressFeel(host, pressedScale);
             if (onClick != null)
                 btn.onClick.AddListener(() => onClick());
             return btn;
