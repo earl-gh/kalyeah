@@ -204,6 +204,7 @@ namespace Kalyeah.Game
         /// <summary>Shows <paramref name="kidId"/> (falls back to narda); a no-op when that kid is already on stage.</summary>
         public void SetKid(string kidId)
         {
+            if (_root == null) return;
             if (_model != null && string.Equals(kidId, _kidId, StringComparison.OrdinalIgnoreCase)) return;
             _kidId = kidId;
             if (_model != null) KalyeahResources.Kill(_model);

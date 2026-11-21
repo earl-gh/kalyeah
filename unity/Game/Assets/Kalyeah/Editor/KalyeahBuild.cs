@@ -723,20 +723,6 @@ public static class KalyeahBuild
             Action<HomeScreenView> offlineHub = home => home.OpenOfflineHub();
             CaptureTitleShot(dir, "title_offline_prompt.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), offlinePrompt);
             CaptureTitleShot(dir, "title_offline_hub.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), offlineHub);
-            // a sheet opens only on an interactive canvas, and the capture build disables the raycaster
-            Action<HomeScreenView> profileSheet = home =>
-            {
-                home.Root.GetComponentInParent<Canvas>().GetComponent<UnityEngine.UI.GraphicRaycaster>().enabled = true;
-                home.Sheets.OpenProfile();
-            };
-            CaptureTitleShot(dir, "menu_profile.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), profileSheet);
-            CaptureTitleShot(
-                dir,
-                $"menu_profile_{NarrowWidth}x{NarrowHeight}.png",
-                NarrowWidth,
-                NarrowHeight,
-                ScreenFitMetrics.AsymmetricCutoutSafeRect(NarrowWidth, NarrowHeight),
-                profileSheet);
             CaptureTitleShot(
                 dir,
                 $"title_offline_hub_{NarrowWidth}x{NarrowHeight}.png",
@@ -744,6 +730,53 @@ public static class KalyeahBuild
                 NarrowHeight,
                 ScreenFitMetrics.AsymmetricCutoutSafeRect(NarrowWidth, NarrowHeight),
                 offlineHub);
+
+            // Full-screen Profile hub (MLBB x Wild Rift x CODM benchmark): Overview & Identity on all four shapes, History on dual aspects
+            SetFullViewport();
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            {
+                string savedProfileSession = AppSession.Current.ToJson();
+                try
+                {
+                    AppSession.Current.LoadJson("{}");
+                    AppSession.Current.PlayerName = "Gabo";
+                    AppSession.Current.SelectedCharacter = "karding";
+                    AppSession.Current.RecordMatchResult("patintero", "tere", false, 2, 3, 1731600100L);
+                    AppSession.Current.RecordMatchResult("practice", "narda", true, 3, 1, 1731600400L);
+                    AppSession.Current.RecordMatchResult("online", "karding", true, 3, 2, 1731600700L);
+                    AppSession.Current.RecordMatchResult("online", "karding", true, 3, 0, 1731601000L);
+                    AppSession.Current.ConsumeLastOutcome();
+
+                    var profileRoot = new GameObject("ProfileShot").transform;
+                    var profileCamera = new GameObject("ProfileCamera", typeof(Camera)).GetComponent<Camera>();
+                    profileCamera.transform.SetParent(profileRoot, false);
+                    profileCamera.clearFlags = CameraClearFlags.SolidColor;
+                    profileCamera.backgroundColor = Color.black;
+                    profileCamera.orthographic = true;
+                    Canvas profileCanvas = Ui.MakeCanvas("ProfileCanvas", profileRoot, profileCamera);
+                    using var profileView = new ProfileScreenView(profileCanvas.transform, data);
+                    profileView.Show(ProfileScreenView.TabOverview);
+                    CaptureQuadAspect(profileCamera, dir, "menu_profile", () =>
+                    {
+                        profileView.Show(ProfileScreenView.TabOverview);
+                        profileView.RefreshLayout();
+                    });
+                    CaptureDualAspect(profileCamera, dir, "menu_profile_history", () =>
+                    {
+                        profileView.Show(ProfileScreenView.TabHistory);
+                        profileView.RefreshLayout();
+                    });
+                    CaptureQuadAspect(profileCamera, dir, "menu_profile_identity", () =>
+                    {
+                        profileView.Show(ProfileScreenView.TabIdentity);
+                        profileView.RefreshLayout();
+                    });
+                }
+                finally
+                {
+                    AppSession.Current.LoadJson(savedProfileSession);
+                }
+            }
 
             SetFullViewport();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -778,7 +811,7 @@ public static class KalyeahBuild
                 CaptureQuadAspect(kidsCamera, dir, "menu_kid_page", () => kidsView.OpenPage("karding"));
             }
 
-            // Settings (the Audio tab, then Donate) and the profile sheet over home
+            // Settings (the Audio tab, then Donate)
             {
                 Canvas settingsCanvas = MakeMenuShotCanvas("Settings", data, out Camera settingsCamera);
                 using var settingsView = new SettingsScreenView(settingsCanvas.transform, data, onBack: () => { });
@@ -1526,13 +1559,20 @@ public static class KalyeahBuild
         var titleCamera = new GameObject("TitleCamera", typeof(Camera)).GetComponent<Camera>();
         titleCamera.transform.SetParent(titleRoot, false);
         HomeScreenView home = null;
-        TitleScreen.Build(titleRoot, titleCamera, null, h =>
+        try
         {
-            home = h;
-            stage?.Invoke(h);
-        });
-        Capture(titleCamera, Path.Combine(dir, fileName), width, height);
-        if (home != null && fileName == "title.png") DumpHeroStage(home, dir);
+            TitleScreen.Build(titleRoot, titleCamera, null, h =>
+            {
+                home = h;
+                stage?.Invoke(h);
+            });
+            Capture(titleCamera, Path.Combine(dir, fileName), width, height);
+            if (home != null && fileName == "title.png") DumpHeroStage(home, dir);
+        }
+        finally
+        {
+            home?.Dispose();
+        }
     }
 
     /// <summary>Saves the home hero's RenderTexture on its own and logs its alpha coverage, so a blank hero is diagnosable from CI.</summary>

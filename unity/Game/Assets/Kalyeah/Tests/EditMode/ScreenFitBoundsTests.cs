@@ -879,6 +879,58 @@ namespace Kalyeah.Game
                     onReflow: history.RefreshLayout);
             }
 
+            // 5b. ProfileScreenView (full-screen MLBB x Wild Rift x CODM hub: Overview, History, Identity, incl. 12-char IGN)
+            {
+                string prevPlayerName = AppSession.Current.PlayerName;
+                AppSession.Current.PlayerName = "KALYEAHPRO99";
+                try
+                {
+                    Canvas canvas = BuildMenuCanvasRig($"Profile_{width}x{height}", profile, out Camera cam);
+                    var profileView = new ProfileScreenView(canvas.transform, data, () => { });
+                    _disposables.Add(profileView);
+
+                    RectTransform backdrop = profileView.Root.Find("Backdrop") as RectTransform;
+                    RectTransform header = profileView.SafeRoot.Find("HeaderBar") as RectTransform;
+                    RectTransform body = profileView.SafeRoot.Find("Body") as RectTransform;
+                    RectTransform navRail = body != null ? body.Find("NavRail") as RectTransform : null;
+                    RectTransform contentStage = body != null ? body.Find("ContentStage") as RectTransform : null;
+                    RectTransform heroCol = contentStage != null ? contentStage.Find("OverviewPane/HeroCol") as RectTransform : null;
+                    RectTransform careerCol = contentStage != null ? contentStage.Find("OverviewPane/CareerCol") as RectTransform : null;
+                    RectTransform historyTopBar = contentStage != null ? contentStage.Find("HistoryPane/HistoryTopBar") as RectTransform : null;
+                    RectTransform historyLogCard = contentStage != null ? contentStage.Find("HistoryPane/HistoryLogCard") as RectTransform : null;
+                    RectTransform callingCol = contentStage != null ? contentStage.Find("IdentityPane/CallingCol") as RectTransform : null;
+                    RectTransform avatarCol = contentStage != null ? contentStage.Find("IdentityPane/AvatarCol") as RectTransform : null;
+
+                    for (int tab = 0; tab < 3; tab++)
+                    {
+                        profileView.Show(tab);
+                        AuditGuiSurface(
+                            canvas,
+                            cam,
+                            profileView.Root,
+                            backdrop,
+                            profile,
+                            $"ProfileScreenView(Tab={tab})",
+                            expectSelectables: true,
+                            disjointBands: new[] { header, body },
+                            onReflow: profileView.RefreshLayout);
+
+                        Rect safePx = ScreenFitMetrics.ResolveSafeRectPx();
+                        AssertBandsDisjointAndSafe(cam, safePx, $"ProfileScreenView(Tab={tab})/NavVsStage[{profile.Label}]", navRail, contentStage);
+                        if (tab == ProfileScreenView.TabOverview)
+                            AssertBandsDisjointAndSafe(cam, safePx, $"ProfileScreenView/OverviewCols[{profile.Label}]", heroCol, careerCol);
+                        else if (tab == ProfileScreenView.TabHistory)
+                            AssertBandsDisjointAndSafe(cam, safePx, $"ProfileScreenView/HistoryBands[{profile.Label}]", historyTopBar, historyLogCard);
+                        else if (tab == ProfileScreenView.TabIdentity)
+                            AssertBandsDisjointAndSafe(cam, safePx, $"ProfileScreenView/IdentityCols[{profile.Label}]", callingCol, avatarCol);
+                    }
+                }
+                finally
+                {
+                    AppSession.Current.PlayerName = prevPlayerName;
+                }
+            }
+
             // 6. SettingsScreenView (all 3 tabs: Audio, Controls, Graphics & Accessibility)
             {
                 Canvas canvas = BuildMenuCanvasRig($"Settings_{width}x{height}", profile, out Camera cam);
