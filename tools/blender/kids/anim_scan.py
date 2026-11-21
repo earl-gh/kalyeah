@@ -277,17 +277,20 @@ def scan_clips(clips_path, limits_path, metrics_path, data_dir):
                 if ov > MAX_PENETRATION_M:
                     pen_viols.append(f"{k}@f{i}:{ov*1000:.1f}mm")
 
-            # Helper / twist consistency check (exact #21 sign lock)
+            # Helper / twist consistency check (exact #21 sign lock; ForeArmTwist1/2 about ForeArm.twistAxis!)
             ident = Quaternion((1.0, 0.0, 0.0, 0.0))
             for s in ("Left", "Right"):
                 arm_t_ax = Vector(lims[s + "Arm"]["twistAxis"]).normalized()
+                fa_t_ax = Vector(lims[s + "ForeArm"]["twistAxis"]).normalized()
                 hand_t_ax = Vector(lims[s + "Hand"]["twistAxis"]).normalized()
                 _, _, arm_tw = swing_twist_decompose(q_f[P + s + "Arm"], arm_t_ax)
+                _, _, fa_tw = swing_twist_decompose(q_f[P + s + "ForeArm"], fa_t_ax)
                 _, _, hand_tw = swing_twist_decompose(q_f[P + s + "Hand"], hand_t_ax)
+                tot_fa_tw = fa_tw + hand_tw
                 checks = [
                     (P + s + "ArmTwist", Quaternion(arm_t_ax, -0.50 * arm_tw)),
-                    (P + s + "ForeArmTwist1", Quaternion(hand_t_ax, 0.33 * hand_tw)),
-                    (P + s + "ForeArmTwist2", Quaternion(hand_t_ax, 0.66 * hand_tw)),
+                    (P + s + "ForeArmTwist1", Quaternion(fa_t_ax, 0.33 * tot_fa_tw)),
+                    (P + s + "ForeArmTwist2", Quaternion(fa_t_ax, 0.66 * tot_fa_tw)),
                     (P + s + "ForeArmHelper", ident.slerp(q_f[P + s + "ForeArm"] if q_f[P + s + "ForeArm"].w >= 0 else -q_f[P + s + "ForeArm"], 0.5)),
                     (P + s + "LegHelper", ident.slerp(q_f[P + s + "Leg"] if q_f[P + s + "Leg"].w >= 0 else -q_f[P + s + "Leg"], 0.5)),
                     (P + s + "HandHelper", ident.slerp(q_f[P + s + "Hand"] if q_f[P + s + "Hand"].w >= 0 else -q_f[P + s + "Hand"], 0.5)),

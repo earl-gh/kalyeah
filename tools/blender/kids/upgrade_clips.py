@@ -933,27 +933,31 @@ def stage_retime_and_exaggerate(clip_name, spec, n_frames, hips_deltas, q_tracks
             q_tracks[bn][f] = (q_tracks[bn][f] @ Quaternion(axis, math.radians(deg))).normalized()
 
     if clip_name in ("walk", "Run", "sprint", "Exhausted_Run"):
-        # Athletic forward lean along line of action + crisp spine counter-twist
-        lean_map = {"walk": 4.0, "Run": 10.0, "sprint": 15.0, "Exhausted_Run": 14.0}
-        twist_amp = {"walk": 3.5, "Run": 7.0, "sprint": 9.0, "Exhausted_Run": 4.0}[clip_name]
+        # Athletic forward lean along line of action + crisp spine counter-twist.
+        # Neck & Head counter-pitch 100% of total forward lean (incl. residual pelvis tilt) so kids
+        # look straight down the street instead of staring at the floor!
+        lean_map = {"walk": 3.0, "Run": 9.5, "sprint": 13.5, "Exhausted_Run": 12.0}
+        twist_amp = {"walk": 3.5, "Run": 7.5, "sprint": 9.5, "Exhausted_Run": 4.0}[clip_name]
+        pelvis_res_map = {"walk": 0.75, "Run": 1.65, "sprint": 2.10, "Exhausted_Run": 1.0}
         lean = lean_map[clip_name]
+        head_comp = lean + pelvis_res_map[clip_name]
         for f in range(n_frames + 1):
             phase = 2.0 * math.pi * (f / float(n_frames))
-            # Distribute lean smoothly across Spine/Spine1/Spine2; counter-pitch Neck/Head to look forward!
             add_rot(P + "Spine", f, Vector((1, 0, 0)), lean * 0.35)
             add_rot(P + "Spine1", f, Vector((1, 0, 0)), lean * 0.35)
             add_rot(P + "Spine2", f, Vector((1, 0, 0)), lean * 0.30)
-            add_rot(P + "Neck", f, Vector((1, 0, 0)), -lean * 0.45)
-            add_rot(P + "Head", f, Vector((1, 0, 0)), -lean * 0.35)
+            # Full eyes-up counter-pitch across Neck + Head (+10% proud chin lift on Run/sprint!)
+            comp_scale = 0.85 if clip_name == "Exhausted_Run" else 1.08
+            add_rot(P + "Neck", f, Vector((1, 0, 0)), -head_comp * 0.52 * comp_scale)
+            add_rot(P + "Head", f, Vector((1, 0, 0)), -head_comp * 0.48 * comp_scale)
             # Counter-twist torso opposite hips for crisp 64px silhouette
             tw = math.sin(phase) * twist_amp
             add_rot(P + "Spine1", f, Vector((0, 1, 0)), tw * 0.5)
             add_rot(P + "Spine2", f, Vector((0, 1, 0)), tw * 0.5)
             add_rot(P + "Neck", f, Vector((0, 1, 0)), -tw * 0.6)
             if clip_name == "Exhausted_Run":
-                # Heavy fatigue head bob & hunched shoulders
-                bob = math.sin(2.0 * phase) * 4.5
-                add_rot(P + "Head", f, Vector((1, 0, 0)), 6.0 + bob)
+                bob = math.sin(2.0 * phase) * 3.5
+                add_rot(P + "Head", f, Vector((1, 0, 0)), 3.0 + bob)
 
     elif clip_name == "Idle":
         # Playful subtle breathing & weight shift (grounded Valorant/Fortnite ready feel)
@@ -1123,12 +1127,16 @@ def stage_foot_lock_and_arm_ik(clip_name, spec, skel, n_frames, hips_deltas, q_t
         # Constant-velocity treadmill foot lock for walk / Run / sprint / Exhausted_Run / Cast_Run!
         # Calibrated symmetric stance geometry per gait (physically honest for ~0.696m leg length).
         # Note: Blender -Y is forward, +Y is backward (foot travels -Y -> +Y during ground stance!).
+        # Tall athletic Fortnite stride parameters:
+        # - walk: inverted pendulum (tall mid-stance ~8-10 deg knee, ZERO Groucho crouch!)
+        # - Run / Cast_Run / sprint: wide athletic reach + trailing push-off kick + buoyant flight lift!
+        # Note: Blender -Y is forward, +Y is backward (foot travels -Y -> +Y during ground stance!).
         gait_cfg = {
-            "walk":          dict(duty=0.52, y_front=-0.22, y_back=0.22, swing_h=0.055, lane_x=0.108, hip_drop=-0.025, hip_bob=0.015, heel_lift=0.072, pelvis_pitch=2.0),
-            "Exhausted_Run": dict(duty=0.48, y_front=-0.22, y_back=0.23, swing_h=0.055, lane_x=0.112, hip_drop=-0.048, hip_bob=0.018, heel_lift=0.072, pelvis_pitch=4.0),
-            "Run":           dict(duty=0.39, y_front=-0.27, y_back=0.25, swing_h=0.115, lane_x=0.104, hip_drop=-0.052, hip_bob=0.028, heel_lift=0.095, pelvis_pitch=5.0),
-            "Cast_Run":      dict(duty=0.39, y_front=-0.27, y_back=0.25, swing_h=0.115, lane_x=0.104, hip_drop=-0.052, hip_bob=0.028, heel_lift=0.095, pelvis_pitch=5.0),
-            "sprint":        dict(duty=0.34, y_front=-0.27, y_back=0.20, swing_h=0.115, lane_x=0.104, hip_drop=-0.066, hip_bob=0.028, heel_lift=0.105, pelvis_pitch=8.5),
+            "walk":          dict(duty=0.50, y_front=-0.27, y_back=0.28, swing_h=0.060, trail_kick=0.02, lane_x=0.106, hip_drop=-0.015, hip_bob=0.014, bob_phase=0.00, heel_lift=0.085, pelvis_pitch=5.0),
+            "Exhausted_Run": dict(duty=0.46, y_front=-0.25, y_back=0.26, swing_h=0.065, trail_kick=0.03, lane_x=0.112, hip_drop=-0.028, hip_bob=0.018, bob_phase=0.05, heel_lift=0.090, pelvis_pitch=8.0),
+            "Run":           dict(duty=0.36, y_front=-0.33, y_back=0.39, swing_h=0.165, trail_kick=0.11, lane_x=0.102, hip_drop=-0.022, hip_bob=0.036, bob_phase=0.12, heel_lift=0.115, pelvis_pitch=11.0),
+            "Cast_Run":      dict(duty=0.36, y_front=-0.33, y_back=0.39, swing_h=0.165, trail_kick=0.11, lane_x=0.102, hip_drop=-0.022, hip_bob=0.036, bob_phase=0.12, heel_lift=0.115, pelvis_pitch=11.0),
+            "sprint":        dict(duty=0.32, y_front=-0.30, y_back=0.33, swing_h=0.185, trail_kick=0.14, lane_x=0.100, hip_drop=-0.026, hip_bob=0.038, bob_phase=0.12, heel_lift=0.130, pelvis_pitch=14.0),
         }[clip_name]
 
         # Period in frames (Cast_Run runs at 18f Run cadence!)
@@ -1174,38 +1182,44 @@ def stage_foot_lock_and_arm_ik(clip_name, spec, skel, n_frames, hips_deltas, q_t
                     toe_bend = 26.0 * k_sm  # toes stay flat on street
                 return Vector((x, y, z)), True, pitch, toe_bend
             else:
-                # Swing phase: C1 Hermite arc forward with guaranteed street clearance
+                # Swing phase: expressive trailing heel-kick right after toe-off, then high knee drive forward!
                 sw = (u - duty) / (1.0 - duty)  # 0..1 across swing
-                # Match boundary Y velocity at liftoff & touchdown for silky-smooth transition (zero pop!)
                 y0 = gait_cfg["y_back"]
                 y1 = gait_cfg["y_front"]
-                m0 = step_disp * (1.0 - duty) / duty * 0.55  # gentle continuation back then whip forward
+                m0 = step_disp * (1.0 - duty) / duty * 0.65
                 m1 = step_disp * (1.0 - duty) / duty * 0.45
                 h00 = 2 * sw**3 - 3 * sw**2 + 1
                 h10 = sw**3 - 2 * sw**2 + sw
                 h01 = -2 * sw**3 + 3 * sw**2
                 h11 = sw**3 - sw**2
-                y = h00 * y0 + h10 * m0 + h01 * y1 + h11 * m1
-                # Vertical arc: starts from heel_lift, peaks mid-swing, descends cleanly to touchdown
+                # Add subtle early-swing trailing extension kick so Run/sprint silhouette shows strong rear leg drive
+                trail_bump = gait_cfg["trail_kick"] * math.sin(math.pi * min(1.0, sw / 0.42)) if sw < 0.42 else 0.0
+                y = h00 * y0 + h10 * m0 + h01 * y1 + h11 * m1 + trail_bump
+                # Vertical arc: starts from heel_lift, peaks strongly during trailing heel-kick & knee drive
                 z0 = foot_z0 + gait_cfg["heel_lift"]
                 z1 = foot_z0 + 0.012
                 z_base = z0 * (1.0 - sw) + z1 * sw
-                z = z_base + gait_cfg["swing_h"] * math.sin(math.pi * sw)
-                # Ankle smoothly transitions from push-off plantarflexion -> neutral -> dorsiflexion for strike
+                z = z_base + gait_cfg["swing_h"] * (math.sin(math.pi * sw) ** 0.85)
                 pitch = -28.0 * ((1.0 - sw) ** 2) + 12.0 * (sw ** 2)
                 toe_bend = 26.0 * ((1.0 - sw) ** 2) - 6.0 * (sw ** 2)
                 return Vector((x, y, z)), False, pitch, toe_bend
 
-        # Compute clean double-frequency hip bob + subtle athletic anterior pelvic tilt (keeps UpLeg strictly inside -20 deg extension!)
+        # Compute clean double-frequency hip bob + athletic anterior pelvic tilt (compensated 85% at Spine
+        # so UpLeg stays strictly inside -20 deg extension while torso stays tall & eyes stay level!)
         pp_rad = math.radians(gait_cfg["pelvis_pitch"])
+        b_phase = gait_cfg["bob_phase"]
         for f in range(n_frames + 1):
             u_l = ((float(f) - f_l_strike) % cycle_f) / cycle_f
-            bob = -math.cos(4.0 * math.pi * (u_l - 0.14))
+            bob = -math.cos(4.0 * math.pi * (u_l - b_phase))
             hips_deltas[f].z = gait_cfg["hip_drop"] + gait_cfg["hip_bob"] * bob
             if pp_rad > 1e-4:
                 q_tracks[hips][f] = (q_tracks[hips][f] @ Quaternion((1.0, 0.0, 0.0), pp_rad)).normalized()
-                # Counter-pitch Spine so torso line of action stays cleanly balanced
-                q_tracks[P + "Spine"][f] = (Quaternion((1.0, 0.0, 0.0), -pp_rad * 0.5) @ q_tracks[P + "Spine"][f]).normalized()
+                q_tracks[P + "Spine"][f] = (Quaternion((1.0, 0.0, 0.0), -pp_rad * 0.85) @ q_tracks[P + "Spine"][f]).normalized()
+                if clip_name == "Cast_Run":
+                    # Counter-pitch Neck/Head on Cast_Run too so kid keeps eyes on target while running
+                    rem = pp_rad * 0.15
+                    q_tracks[P + "Neck"][f] = (Quaternion((1.0, 0.0, 0.0), -rem * 0.55) @ q_tracks[P + "Neck"][f]).normalized()
+                    q_tracks[P + "Head"][f] = (Quaternion((1.0, 0.0, 0.0), -rem * 0.55) @ q_tracks[P + "Head"][f]).normalized()
 
         # Solve analytical 2-bone Leg IK for every frame
         for f in range(n_frames + 1):
@@ -1387,16 +1401,54 @@ def stage_foot_lock_and_arm_ik(clip_name, spec, skel, n_frames, hips_deltas, q_t
                     ).to_quaternion().normalized()
 
     else:
-        # slide / trip / Tripped / Airborne: fix underground clipping + enforce pure knee hinge (>= 4 deg, 0 deg sideways!)
+        # slide / trip / Tripped / Airborne: fix underground clipping without floating in mid-air,
+        # and enforce pure knee hinge (>= 5 deg, 0 deg sideways!).
         for f in range(n_frames + 1):
             q_f = {bn: q_tracks[bn][f] for bn in skel["order"]}
             wp, wr = compute_fk(skel, hips_deltas[f], q_f)
-            # Keep feet & hips above ground surface (sole >= 0.0m -> foot head >= 0.07m for slide/fall)
-            min_z = min(wp[P + "LeftFoot"].z, wp[P + "RightFoot"].z)
-            floor_z = 0.075 if mode in ("slide", "fall") else foot_z0
-            if min_z < floor_z:
-                hips_deltas[f].z += (floor_z - min_z)
-                wp, wr = compute_fk(skel, hips_deltas[f], q_f)
+            if mode == "slide":
+                # Keep Hips LOW at true ground-slide height (never jacking the kid +16cm into mid-air!).
+                # Instead, solve 2-bone Leg IK directly on ground-clamped foot targets:
+                #   - back tucked LeftFoot lifted cleanly onto z >= 0.085 (never underground!)
+                #   - front extended RightFoot skimming cleanly along street z = 0.095..0.11 (never floating!)
+                # Smooth blend factor s_w: 0 at standing f=0/n, 1 across core slide f=5..25.
+                s_w = min(1.0, min(f, n_frames - f) / 5.0)
+                # Keep Hips cleanly above floor (min 0.38m)
+                if wp[P + "Hips"].z < 0.38:
+                    hips_deltas[f].z += (0.38 - wp[P + "Hips"].z)
+                    wp, wr = compute_fk(skel, hips_deltas[f], q_f)
+                for side, sgn in (("Left", 1.0), ("Right", -1.0)):
+                    tgt = wp[P + side + "Foot"].copy()
+                    if side == "Left":
+                        # Tucked back foot: rescue from underground (-0.118m) onto street surface (+0.085m)
+                        tgt.z = max(tgt.z, 0.088)
+                    else:
+                        # Extended front sliding foot: skim low along street (+0.095m) instead of kicking mid-air
+                        tgt.z = tgt.z * (1.0 - s_w) + max(0.090, min(tgt.z, 0.115)) * s_w
+                    orig_knee = wp[P + side + "Leg"] - (wp[P + side + "UpLeg"] + wp[P + side + "Foot"]) * 0.5
+                    if orig_knee.length > 1e-4:
+                        pole = orig_knee.normalized()
+                    else:
+                        pole = (pelvis_fwd + Vector((sgn * 0.25, 0.0, 0.0))).normalized()
+                    qa, qb, wra, wrb = solve_two_bone_ik(
+                        skel, wp, wr, P + side + "UpLeg", P + side + "Leg", P + side + "Foot",
+                        tgt, pole, flex_min_deg=6.0, flex_max_deg=104.0
+                    )
+                    q_tracks[P + side + "UpLeg"][f] = qa
+                    q_tracks[P + side + "Leg"][f] = qb
+                    wr[P + side + "UpLeg"] = wra
+                    wr[P + side + "Leg"] = wrb
+                    W_foot_orig = fk_rot[f][P + side + "Foot"]
+                    q_tracks[P + side + "Foot"][f] = (
+                        skel["L_ref"][P + side + "Foot"].transposed() @ wrb.transposed() @ W_foot_orig
+                    ).to_quaternion().normalized()
+                continue
+            else:
+                min_z = min(wp[P + "LeftFoot"].z, wp[P + "RightFoot"].z)
+                floor_z = 0.055 if mode == "fall" else foot_z0
+                if min_z < floor_z:
+                    hips_deltas[f].z += (floor_z - min_z)
+                    wp, wr = compute_fk(skel, hips_deltas[f], q_f)
 
             pelvis_fwd = (wr[hips] @ Vector((0.0, 0.0, 1.0)))
             pelvis_fwd.z = 0.0
@@ -1697,8 +1749,8 @@ def compute_helper_twist_tracks(n_frames, q_tracks, lims):
     """
     Compute exact R2 helper & twist local rotations per #21 sign lock:
       - ArmTwist:      armTwist^(-0.5)   (proximal upper arm counter-twist -> 50% world twist)
-      - ForeArmTwist1: handTwist^(+0.33)
-      - ForeArmTwist2: handTwist^(+0.66)
+      - ForeArmTwist1: (faTwist + handTwist)^(+0.33) about ForeArm.twistAxis (matches ForeArm roll!)
+      - ForeArmTwist2: (faTwist + handTwist)^(+0.66) about ForeArm.twistAxis (matches ForeArm roll!)
       - ForeArmHelper: slerp(Identity, q_ForeArm, 0.5)
       - LegHelper:     slerp(Identity, q_Leg, 0.5)
       - HandHelper:    slerp(Identity, q_Hand, 0.5)
@@ -1707,15 +1759,18 @@ def compute_helper_twist_tracks(n_frames, q_tracks, lims):
     extra = {}
     for s in ("Left", "Right"):
         arm_t_ax = Vector(lims[s + "Arm"]["twistAxis"]).normalized()
+        fa_t_ax = Vector(lims[s + "ForeArm"]["twistAxis"]).normalized()
         hand_t_ax = Vector(lims[s + "Hand"]["twistAxis"]).normalized()
         at_seq, ft1_seq, ft2_seq = [], [], []
         fh_seq, lh_seq, hh_seq = [], [], []
         for f in range(n_frames + 1):
             _, _, arm_tw = swing_twist_decompose(q_tracks[P + s + "Arm"][f], arm_t_ax)
+            _, _, fa_tw = swing_twist_decompose(q_tracks[P + s + "ForeArm"][f], fa_t_ax)
             _, _, hand_tw = swing_twist_decompose(q_tracks[P + s + "Hand"][f], hand_t_ax)
+            tot_fa_tw = fa_tw + hand_tw
             at_seq.append(Quaternion(arm_t_ax, -0.50 * arm_tw))
-            ft1_seq.append(Quaternion(hand_t_ax, 0.33 * hand_tw))
-            ft2_seq.append(Quaternion(hand_t_ax, 0.66 * hand_tw))
+            ft1_seq.append(Quaternion(fa_t_ax, 0.33 * tot_fa_tw))
+            ft2_seq.append(Quaternion(fa_t_ax, 0.66 * tot_fa_tw))
 
             qf = q_tracks[P + s + "ForeArm"][f]
             if qf.w < 0.0:
@@ -2222,6 +2277,61 @@ def main():
         export_optimize_animation_keep_anim_armature=False,
     )
     print(f"[upgrade_clips] Exported upgraded clip pack -> {args.dst} ({os.path.getsize(args.dst) // 1024} KB)")
+
+    # Reload exported GLB and measure TRUE post-export / post-reduction foot slide so anim__clip_metrics.json
+    # and roster_clips_report.json reflect actual exported GLB values (identical to anim_scan.py!).
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    bpy.context.scene.render.fps = FPS
+    bpy.ops.import_scene.gltf(filepath=args.dst)
+    scn = bpy.context.scene
+    arm_check = next(o for o in bpy.data.objects if o.type == "ARMATURE")
+    if arm_check.animation_data is None:
+        arm_check.animation_data_create()
+    AM_c = arm_check.matrix_world
+    for cname, cm in clips_metrics.items():
+        act_c = bpy.data.actions.get(cname)
+        if act_c is None:
+            continue
+        arm_check.animation_data.action = act_c
+        try:
+            arm_check.animation_data.action_slot = act_c.slots[0]
+        except Exception:
+            pass
+        f0 = int(round(act_c.frame_range[0]))
+        f1 = int(round(act_c.frame_range[1]))
+        nf = max(1, f1 - f0)
+        fpos_L, fpos_R = [], []
+        for f in range(f0, f0 + nf + 1):
+            scn.frame_set(f)
+            bpy.context.view_layer.update()
+            fpos_L.append((AM_c @ arm_check.pose.bones[P + "LeftFoot"].head).copy())
+            fpos_R.append((AM_c @ arm_check.pose.bones[P + "RightFoot"].head).copy())
+        sv = float(cm["strideSpeedMps"])
+        post_slide = 0.0
+        for fpos, c_frames in ((fpos_L, cm["contactFramesL"]), (fpos_R, cm["contactFramesR"])):
+            runs = []
+            cur = []
+            for idx in c_frames:
+                if 0 <= idx < len(fpos):
+                    if not cur or idx == cur[-1] + 1:
+                        cur.append(idx)
+                    else:
+                        runs.append(cur)
+                        cur = [idx]
+            if cur:
+                runs.append(cur)
+            for r in runs:
+                if len(r) < 2:
+                    continue
+                p0_xy = Vector((fpos[r[0]].x, fpos[r[0]].y, 0.0))
+                for k, idx in enumerate(r):
+                    p = fpos[idx]
+                    exp = Vector((p0_xy.x, p0_xy.y + sv * (k / float(FPS)), 0.0)) if sv > 0.01 else p0_xy
+                    err = (Vector((p.x, p.y, 0.0)) - exp).length
+                    if err > post_slide:
+                        post_slide = err
+        cm["maxFootSlideM"] = round(post_slide, 4)
+        report_clips[cname]["maxFootSlideCm"] = round(post_slide * 100.0, 2)
 
     # Measure all 12 kids for A3 adaptation data (runs sequentially in the same Blender session!)
     ref_leg_len = skel["ref_leg_len"]
