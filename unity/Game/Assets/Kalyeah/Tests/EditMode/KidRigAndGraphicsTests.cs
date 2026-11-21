@@ -684,7 +684,16 @@ namespace Kalyeah.Game
             Vector4 actualSun = Shader.GetGlobalVector(sunDirId);
             Assert.Less(Vector3.Distance(expectedSun, new Vector3(actualSun.x, actualSun.y, actualSun.z)), 0.002f);
 
+            // RenderSettings.sun falls back to the brightest active directional light in the scene (the editor's default scene has
+            // one), so every light is switched off to reach MatchBoot's own fallback direction.
             Light prevSun = RenderSettings.sun;
+            Light[] sceneLights = UnityEngine.Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+            bool[] lightWasEnabled = new bool[sceneLights.Length];
+            for (int i = 0; i < sceneLights.Length; i++)
+            {
+                lightWasEnabled[i] = sceneLights[i].enabled;
+                sceneLights[i].enabled = false;
+            }
             try
             {
                 RenderSettings.sun = null;
@@ -697,6 +706,8 @@ namespace Kalyeah.Game
             }
             finally
             {
+                for (int i = 0; i < sceneLights.Length; i++)
+                    if (sceneLights[i] != null) sceneLights[i].enabled = lightWasEnabled[i];
                 RenderSettings.sun = prevSun;
             }
         }
@@ -729,9 +740,10 @@ namespace Kalyeah.Game
             Assert.Greater(ColorRgbDistance(red, purple), 0.55f, "Red and Purple highlights must stay distinct");
             Assert.Greater(ColorRgbDistance(yellow, purple), 0.55f, "Yellow and Purple highlights must stay distinct");
 
-            // Global _KalyeahEnemyHighlightColor tracks active highlight mode cleanly (accounting for Linear vs Gamma).
+            // Global _KalyeahEnemyHighlightColor tracks the active highlight mode. Whether Shader.SetGlobalColor converts to linear is
+            // Unity's business, so the expected value is what Unity itself stores and returns for the mode's colour.
             int globalHighlightId = Shader.PropertyToID("_KalyeahEnemyHighlightColor");
-            bool isLinear = QualitySettings.activeColorSpace == ColorSpace.Linear;
+            int calibrationId = Shader.PropertyToID("_KalyeahTestColorCalibration");
             int[] modes =
             {
                 SettingsStore.EnemyHighlightRed,
@@ -745,7 +757,8 @@ namespace Kalyeah.Game
                 SettingsStore.Current.EnemyHighlightMode = modes[i];
                 MatchBoot.ApplyDeviceQualityAndFrameRate();
                 Color expected = MatchBoot.ResolveEnemyHighlightColor(modes[i]);
-                Color expectedShader = isLinear ? expected.linear : expected;
+                Shader.SetGlobalColor(calibrationId, expected);
+                Color expectedShader = Shader.GetGlobalColor(calibrationId);
                 Color actualShader = Shader.GetGlobalColor(globalHighlightId);
                 Assert.Less(ColorRgbDistance(expectedShader, actualShader), 0.01f, $"Global enemy highlight mismatch for mode {modes[i]}");
             }
