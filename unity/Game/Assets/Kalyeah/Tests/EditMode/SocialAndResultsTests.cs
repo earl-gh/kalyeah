@@ -326,6 +326,12 @@ namespace Kalyeah.Game
             Assert.IsTrue(view.TryGetRowMvpBadgeText(6, out string redBadge));
             Assert.AreEqual("MVP", redBadge);
 
+            // RawDamage is displayed per docs/SPEC.md §8 L378 while never biasing MVP selection
+            Assert.IsTrue(view.TryGetRowKidRoleText(1, out string strikerMeta));
+            StringAssert.Contains("3.8k DMG", strikerMeta);
+            Assert.IsTrue(view.TryGetRowKidRoleText(2, out string mvpMeta));
+            StringAssert.Contains("140 DMG", mvpMeta);
+
             // Self-honor must be rejected
             Assert.IsFalse(view.TryHonorPlayer(2), "Local player cannot honor self");
             Assert.IsFalse(view.HasHonored);
@@ -378,9 +384,14 @@ namespace Kalyeah.Game
             view.Bind(BuildSamplePayload(localWon: true, isRanked: false));
             AuditResultsSurface(canvas, cam, view, profile, "MatchResultsView/Victory");
 
-            // Honor a rival and re-audit (gold HONORED dark-ink pill must keep zero outline smudge!)
+            // Honor a rival and re-audit (gold HONORED dark-ink pill must keep zero outline smudge & zero truncation!)
             Assert.IsTrue(view.TryHonorPlayer(6));
+            Assert.IsTrue(view.TryGetRowHonorButton(6, out Button honoredBtn));
+            Text honoredLabel = honoredBtn.GetComponentInChildren<Text>(includeInactive: false);
+            Assert.IsNotNull(honoredLabel);
+            Assert.AreEqual("HONORED", honoredLabel.text);
             AuditResultsSurface(canvas, cam, view, profile, "MatchResultsView/Honored");
+            AssertTextIntegrity(view.Root, $"MatchResultsView/Honored[{profile.Label}]");
 
             // Audit Ranked Defeat with losing-team MVP "MVP · STAR SAVED"
             view.Bind(BuildSamplePayload(localWon: false, isRanked: true));

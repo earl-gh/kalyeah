@@ -27,8 +27,8 @@ namespace Kalyeah.Game
         public const float HoldThresholdSeconds = 0.22f;
         public const float CooldownSeconds = 1.50f;
         public const float CancelRadiusCanvas = 36f;
-        public const float WheelRadiusCanvas = 112f;
-        public const float WheelWedgeOrbitCanvas = 74f;
+        public const float WheelRadiusCanvas = 118f;
+        public const float WheelWedgeOrbitCanvas = 76f;
         public const float DefaultBanterDuration = 3.20f;
         public const float BanterFadeInSeconds = 0.18f;
         public const float BanterFadeOutSeconds = 0.35f;
@@ -308,7 +308,7 @@ namespace Kalyeah.Game
             for (int i = 0; i < PingCount; i++)
             {
                 Vector2 pos = s_wedgeDirs[i] * WheelWedgeOrbitCanvas;
-                RectTransform wRect = Ui.Panel("Wedge_" + s_pingShortLabels[i], WheelRoot, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), pos, new Vector2(68f, 58f));
+                RectTransform wRect = Ui.Panel("Wedge_" + s_pingShortLabels[i], WheelRoot, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), pos, new Vector2(76f, 60f));
 
                 Image wPlate = Ui.MakeSliced("Plate", wRect, MenuArt.RoundSolid(14), ColWedgeIdle, raycast: false);
                 Image wRing = Ui.MakeSliced("Ring", wRect, MenuArt.RoundOutline(Color.white, 14, 2), s_pingColors[i], raycast: false);
@@ -316,10 +316,10 @@ namespace Kalyeah.Game
                 Image wIcon = Ui.MakeImage("Icon", wRect, s_pingColors[i], round: false, raycast: false);
                 wIcon.sprite = MenuArt.Glyph(s_pingGlyphs[i]);
                 wIcon.preserveAspect = true;
-                Stretch(wIcon.rectTransform, new Vector2(0.28f, 0.40f), new Vector2(0.72f, 0.88f), Vector2.zero, Vector2.zero);
+                Stretch(wIcon.rectTransform, new Vector2(0.28f, 0.44f), new Vector2(0.72f, 0.90f), Vector2.zero, Vector2.zero);
 
-                Text wLabel = MakeFittedText("Text", wRect, s_pingShortLabels[i], 12, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 9);
-                Stretch(wLabel.rectTransform, new Vector2(0.06f, 0.06f), new Vector2(0.94f, 0.40f), Vector2.zero, Vector2.zero);
+                Text wLabel = MakeFittedText("Text", wRect, s_pingShortLabels[i], 12, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 7);
+                Stretch(wLabel.rectTransform, new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.42f), Vector2.zero, Vector2.zero);
 
                 _wedges[i] = new WedgeUi
                 {
@@ -341,7 +341,7 @@ namespace Kalyeah.Game
             cancelIcon.preserveAspect = true;
             Stretch(cancelIcon.rectTransform, new Vector2(0.32f, 0.46f), new Vector2(0.68f, 0.80f), Vector2.zero, Vector2.zero);
 
-            _wheelCenterLabel = MakeFittedText("CenterLabel", cancelRt, "CANCEL", 11, MenuArt.MutedText, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 8);
+            _wheelCenterLabel = MakeFittedText("CenterLabel", cancelRt, "CANCEL", 11, MenuArt.MutedText, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 7);
             Stretch(_wheelCenterLabel.rectTransform, new Vector2(0.08f, 0.14f), new Vector2(0.92f, 0.44f), Vector2.zero, Vector2.zero);
 
             WheelRoot.gameObject.SetActive(false);

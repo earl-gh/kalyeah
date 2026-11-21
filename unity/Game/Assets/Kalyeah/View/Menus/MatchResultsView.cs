@@ -529,6 +529,27 @@ namespace Kalyeah.Game
             return false;
         }
 
+        public bool TryGetRowKidRoleText(int playerId, out string text)
+        {
+            PlayerRowUi row = FindActiveRow(playerId);
+            if (row != null && row.KidRoleText != null)
+            {
+                text = row.KidRoleText.text;
+                return true;
+            }
+            text = string.Empty;
+            return false;
+        }
+
+        public static string FormatDamage(int rawDamage)
+        {
+            if (rawDamage <= 0) return "0";
+            if (rawDamage < 1000) return rawDamage.ToString();
+            int thousands = rawDamage / 1000;
+            int tenths = (rawDamage % 1000) / 100;
+            return thousands + "." + tenths + "k";
+        }
+
         public void RefreshLayout()
         {
             if (_disposed || SafeRoot == null) return;
@@ -691,7 +712,9 @@ namespace Kalyeah.Game
 
             row.PlayerNameText.text = stats.PlayerName;
             Ui.SetTextColor(row.PlayerNameText, stats.IsLocalPlayer ? MenuArt.GoldLight : MenuArt.Cream);
-            row.KidRoleText.text = kidDisplay + " · " + roleDisplay;
+            row.KidRoleText.text = stats.RawDamage > 0
+                ? kidDisplay + " · " + roleDisplay + " · " + FormatDamage(stats.RawDamage) + " DMG"
+                : kidDisplay + " · " + roleDisplay;
 
             row.MvpBadgeRoot.gameObject.SetActive(isMvp);
             if (isMvp)
@@ -899,7 +922,7 @@ namespace Kalyeah.Game
             Text nameText = MakeFittedText("PlayerName", infoBox, "", 17, MenuArt.Cream, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont(), minSize: 10);
             Stretch(nameText.rectTransform, new Vector2(0f, 0.62f), new Vector2(1f, 0.96f), Vector2.zero, Vector2.zero);
 
-            Text kidRoleText = MakeFittedText("KidRole", infoBox, "", 12, MenuArt.MutedText, TextAnchor.MiddleLeft, KalyeahResources.UiFont(), minSize: 8);
+            Text kidRoleText = MakeFittedText("KidRole", infoBox, "", 12, MenuArt.MutedText, TextAnchor.MiddleLeft, KalyeahResources.UiFont(), minSize: 7);
             Ui.ClearOutline(kidRoleText);
             Stretch(kidRoleText.rectTransform, new Vector2(0f, 0.34f), new Vector2(1f, 0.62f), Vector2.zero, Vector2.zero);
 
@@ -938,7 +961,7 @@ namespace Kalyeah.Game
             var honorHit = honorGo.GetComponent<Image>();
             honorHit.color = new Color(0f, 0f, 0f, 0.001f);
 
-            RectTransform honorVis = Ui.Panel("Visual", honorBtnRt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(88f, 44f));
+            RectTransform honorVis = Ui.Panel("Visual", honorBtnRt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(92f, 44f));
             CanvasGroup honorCg = honorVis.gameObject.AddComponent<CanvasGroup>();
             Image honorPlate = Ui.MakeSliced("Plate", honorVis, MenuArt.CtaGhost(8), Color.white, raycast: false);
 
@@ -949,11 +972,11 @@ namespace Kalyeah.Game
             iconRt.anchorMin = new Vector2(0f, 0.5f);
             iconRt.anchorMax = new Vector2(0f, 0.5f);
             iconRt.pivot = new Vector2(0f, 0.5f);
-            iconRt.anchoredPosition = new Vector2(7f, 0f);
-            iconRt.sizeDelta = new Vector2(15f, 15f);
+            iconRt.anchoredPosition = new Vector2(5f, 0f);
+            iconRt.sizeDelta = new Vector2(14f, 14f);
 
-            Text honorLabel = MakeFittedText("Label", honorVis, "HONOR", 12, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 9);
-            Stretch(honorLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(23f, 2f), new Vector2(-5f, -2f));
+            Text honorLabel = MakeFittedText("Label", honorVis, "HONOR", 12, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 7);
+            Stretch(honorLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(20f, 2f), new Vector2(-4f, -2f));
 
             var honorBtn = honorGo.GetComponent<Button>();
             honorBtn.targetGraphic = honorPlate;
