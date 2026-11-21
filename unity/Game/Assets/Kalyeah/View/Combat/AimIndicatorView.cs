@@ -53,8 +53,22 @@ namespace Kalyeah.Game
         static readonly Color MoveDotColor = new Color(1.00f, 1.00f, 1.00f, 1.00f);
         static readonly Color MoveShadowColor = new Color(0.02f, 0.04f, 0.10f, 0.52f);
 
-        const float FillAlphaShare = 0.34f;
-        const float RangeRingAlphaShare = 0.28f;
+        const float FillAlphaShare = 0.16f;
+        const float RangeRingAlphaShare = 0.44f;
+        const int RangeRingDashCount = 18;
+        const int EnemyReachDashCount = 12;
+
+        static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
+        static readonly int PropTint = Shader.PropertyToID("_Tint");
+        static readonly int PropInkColor = Shader.PropertyToID("_InkColor");
+        static readonly int PropPhase = Shader.PropertyToID("_Phase");
+        static readonly int PropSoftFade = Shader.PropertyToID("_SoftFade");
+        static readonly int PropFresnel = Shader.PropertyToID("_FresnelSoftness");
+        static readonly int PropSunlit = Shader.PropertyToID("_SunlitLift");
+        static readonly int PropHardEdgeWidth = Shader.PropertyToID("_HardEdgeWidth");
+        static readonly int PropDashCount = Shader.PropertyToID("_DashCount");
+        static readonly int PropEdgeBoost = Shader.PropertyToID("_EdgeBoost");
+        static readonly int PropInteriorAlpha = Shader.PropertyToID("_InteriorAlpha");
 
         static readonly SVector2[] UnitCircle = BuildUnitCircle(CircleSegments);
         static readonly SVector2[] MoveUnitCircle = BuildUnitCircle(MoveRingSegments);
@@ -64,6 +78,7 @@ namespace Kalyeah.Game
         readonly MeshRenderer _aimRenderer;
         readonly Mesh _aimMesh;
         readonly Vector3[] _aimVerts = new Vector3[MaxAimVertices];
+        readonly Vector2[] _aimUvs = new Vector2[MaxAimVertices];
         readonly Color32[] _aimColors = new Color32[MaxAimVertices];
         readonly int[] _aimTris = new int[MaxAimIndices];
         int _aimVertCount;
@@ -73,6 +88,7 @@ namespace Kalyeah.Game
         readonly MeshRenderer _moveRenderer;
         readonly Mesh _moveMesh;
         readonly Vector3[] _moveVerts = new Vector3[MaxMoveVertices];
+        readonly Vector2[] _moveUvs = new Vector2[MaxMoveVertices];
         readonly Color32[] _moveColors = new Color32[MaxMoveVertices];
         readonly int[] _moveTris = new int[MaxMoveIndices];
         int _moveVertCount;
@@ -142,6 +158,26 @@ namespace Kalyeah.Game
 
         static Material CreateOverlayMaterial(out bool owns)
         {
+            Material arcane = KalyeahResources.Material("ArcaneFx", FxPool.ShaderName);
+            if (arcane != null)
+            {
+                var mat = new Material(arcane) { name = "AimIndicatorOverlay" };
+                if (mat.HasProperty(PropBaseColor)) mat.SetColor(PropBaseColor, Color.white);
+                if (mat.HasProperty(PropTint)) mat.SetColor(PropTint, Color.white);
+                if (mat.HasProperty(PropInkColor)) mat.SetColor(PropInkColor, Color.clear);
+                if (mat.HasProperty(PropPhase)) mat.SetFloat(PropPhase, 0f);
+                if (mat.HasProperty(PropSoftFade)) mat.SetFloat(PropSoftFade, 1f);
+                if (mat.HasProperty(PropFresnel)) mat.SetFloat(PropFresnel, 0f);
+                if (mat.HasProperty(PropSunlit)) mat.SetFloat(PropSunlit, 0f);
+                if (mat.HasProperty(PropHardEdgeWidth)) mat.SetFloat(PropHardEdgeWidth, 0.5f);
+                if (mat.HasProperty(PropDashCount)) mat.SetFloat(PropDashCount, 0f);
+                if (mat.HasProperty(PropEdgeBoost)) mat.SetFloat(PropEdgeBoost, 0.24f);
+                if (mat.HasProperty(PropInteriorAlpha)) mat.SetFloat(PropInteriorAlpha, 1f);
+                mat.renderQueue = (int)RenderQueue.Transparent + 12;
+                owns = true;
+                return mat;
+            }
+
             Shader shader = Shader.Find("Sprites/Default")
                 ?? Shader.Find("Universal Render Pipeline/Particles/Unlit")
                 ?? Shader.Find("Universal Render Pipeline/Unlit");
@@ -357,7 +393,7 @@ namespace Kalyeah.Game
                     y);
             }
 
-            CommitMesh(_aimMesh, _aimObject, _aimVerts, _aimColors, _aimTris, _aimVertCount, _aimTriCount);
+            CommitMesh(_aimMesh, _aimObject, _aimVerts, _aimUvs, _aimColors, _aimTris, _aimVertCount, _aimTriCount);
         }
 
         public void HideAim()
@@ -462,13 +498,14 @@ namespace Kalyeah.Game
                 case WeaponShapeKind.Field:
                 {
                     if (maxRange > 0.25f)
-                        AppendCircleRing(origin, maxRange, LineWidth * 0.72f, y, rangeRingColor);
+                        AppendDashedCircleRing(origin, maxRange, LineWidth * 0.85f, y, rangeRingColor, RangeRingDashCount);
 
                     float aoeRadius = weapon.Radius > 0.05f
                         ? weapon.Radius
                         : (weapon.TriggerRadius > 0.05f ? weapon.TriggerRadius : 1.5f);
-                    AppendDiscFill(clampedTarget, aoeRadius, y, fillColor);
-                    AppendCircleRing(clampedTarget, aoeRadius, LineWidth, y, outlineColor);
+                    // Inset clean interior fill inside the exact-radius hard-edge ring (zero coplanar overdraw).
+                    AppendDiscFill(clampedTarget, Mathf.Max(0.01f, aoeRadius - LineWidth), y, fillColor);
+                    AppendCircleRing(clampedTarget, aoeRadius, LineWidth, y + 0.002f, outlineColor);
                     break;
                 }
 
@@ -481,8 +518,8 @@ namespace Kalyeah.Game
                     for (int i = 0; i < bounces; i++)
                     {
                         SVector2 center = origin + aimDir * (reach * (i + 1) / bounces);
-                        AppendDiscFill(center, bounceR, y, fillColor);
-                        AppendCircleRing(center, bounceR, LineWidth, y, outlineColor);
+                        AppendDiscFill(center, Mathf.Max(0.01f, bounceR - LineWidth), y, fillColor);
+                        AppendCircleRing(center, bounceR, LineWidth, y + 0.002f, outlineColor);
                     }
                     break;
                 }
@@ -528,8 +565,8 @@ namespace Kalyeah.Game
                 {
                     float rangeR = maxRange > 0.25f ? maxRange : Mathf.Max(2.0f, weapon.Radius);
                     if (weapon.Shape == WeaponShapeKind.Heal && maxRange <= 0.05f && weapon.Radius > 0.05f)
-                        AppendDiscFill(origin, rangeR, y, fillColor);
-                    AppendCircleRing(origin, rangeR, LineWidth, y, outlineColor);
+                        AppendDiscFill(origin, Mathf.Max(0.01f, rangeR - LineWidth), y, fillColor);
+                    AppendCircleRing(origin, rangeR, LineWidth, y + 0.002f, outlineColor);
                     break;
                 }
 
@@ -570,7 +607,7 @@ namespace Kalyeah.Game
             AppendConvexFan(_scratchPoly, polyCount, y, fillColor);
 
             _scratchPoly[polyCount] = origin;
-            AppendClosedPolyline(_scratchPoly, polyCount + 1, LineWidth, y, outlineColor);
+            AppendClosedPolyline(_scratchPoly, polyCount + 1, LineWidth, y + 0.002f, outlineColor);
         }
 
         void AppendConeChargePips(
@@ -614,8 +651,8 @@ namespace Kalyeah.Game
             AppendConvexFan(_scratchPoly, 4, y, WithAlpha(fillColor, fillColor.a * 0.55f));
 
             _scratchPoly[4] = _scratchPoly[0];
-            AppendClosedPolyline(_scratchPoly, 5, LineWidth, y, outlineColor);
-            AppendCircleRing(end, halfWidth, LineWidth * 0.85f, y, outlineColor);
+            AppendClosedPolyline(_scratchPoly, 5, LineWidth, y + 0.002f, outlineColor);
+            AppendCircleRing(end, halfWidth, LineWidth * 0.85f, y + 0.002f, outlineColor);
         }
 
         void AppendWallBox(
@@ -639,7 +676,7 @@ namespace Kalyeah.Game
                 AppendConvexFan(_scratchPoly, 4, y, fillColor);
 
             _scratchPoly[4] = _scratchPoly[0];
-            AppendClosedPolyline(_scratchPoly, 5, LineWidth, y, outlineColor);
+            AppendClosedPolyline(_scratchPoly, 5, LineWidth, y + 0.002f, outlineColor);
         }
 
         void AppendReachRings(
@@ -757,24 +794,38 @@ namespace Kalyeah.Game
 
                 Color ringCol = isRedWarning
                     ? warningColor
-                    : (isHeal ? ReachFriendColor : ReachEnemyColor);
+                    : (isHeal ? ReachFriendColor : ResolveEnemyReachColor());
                 float pad = isHeal ? HealReachPad : ReachPad;
-                AppendCircleRing(k.Position, playerRadius + pad, ReachRingWidth, y + 0.004f, ringCol);
+                if (isHeal || isRedWarning)
+                    AppendCircleRing(k.Position, playerRadius + pad, ReachRingWidth, y + 0.004f, ringCol);
+                else
+                    AppendDashedCircleRing(k.Position, playerRadius + pad, ReachRingWidth, y + 0.004f, ringCol, EnemyReachDashCount);
             }
+        }
+
+        static Color ResolveEnemyReachColor()
+        {
+            SettingsStore settings = SettingsStore.Current;
+            if (settings != null && settings.ResolvedEnemyHighlightMode != SettingsStore.EnemyHighlightRed)
+            {
+                Color c = KalyeahResources.ResolveEnemyHighlightColor(settings.ResolvedEnemyHighlightMode);
+                return new Color(c.r, c.g, c.b, ReachEnemyColor.a);
+            }
+            return ReachEnemyColor;
         }
 
         void AppendDiscFill(SVector2 center, float radius, float y, Color color)
         {
             if (radius <= 0.01f || color.a <= 0.002f) return;
             Color32 c32 = color;
-            int centerIdx = PushAimVert(KalyeahResources.World(center, y), c32);
+            int centerIdx = PushAimVert(KalyeahResources.World(center, y), c32, isEdge: false);
             if (centerIdx < 0) return;
 
             int firstOuter = _aimVertCount;
             if (firstOuter + CircleSegments >= MaxAimVertices) return;
 
             for (int i = 0; i < CircleSegments; i++)
-                PushAimVert(KalyeahResources.World(center + UnitCircle[i] * radius, y), c32);
+                PushAimVert(KalyeahResources.World(center + UnitCircle[i] * radius, y), c32, isEdge: false);
 
             for (int i = 0; i < CircleSegments; i++)
             {
@@ -787,9 +838,37 @@ namespace Kalyeah.Game
         void AppendCircleRing(SVector2 center, float radius, float width, float y, Color color)
         {
             if (radius <= 0.01f || width <= 0.002f || color.a <= 0.002f) return;
-            float inner = Mathf.Max(0.005f, radius - width * 0.5f);
-            float outer = radius + width * 0.5f;
-            AppendAnnulus(_aimVerts, _aimColors, _aimTris, ref _aimVertCount, ref _aimTriCount, MaxAimVertices, MaxAimIndices, UnitCircle, CircleSegments, center, inner, outer, y, color);
+            // Align outer edge strictly to exact gameplay radius (no outward over-inflation).
+            float outer = radius;
+            float inner = Mathf.Max(0.005f, radius - width);
+            AppendAnnulus(_aimVerts, _aimUvs, _aimColors, _aimTris, ref _aimVertCount, ref _aimTriCount, MaxAimVertices, MaxAimIndices, UnitCircle, CircleSegments, center, inner, outer, y, color);
+        }
+
+        void AppendDashedCircleRing(SVector2 center, float radius, float width, float y, Color color, int dashCount)
+        {
+            if (radius <= 0.01f || width <= 0.002f || color.a <= 0.002f) return;
+            int dashes = Mathf.Clamp(dashCount, 4, CircleSegments);
+            float outer = radius;
+            float inner = Mathf.Max(0.005f, radius - width);
+            float step = MathF.PI * 2f / dashes;
+            float span = step * 0.58f;
+            Color32 c32 = color;
+
+            for (int i = 0; i < dashes; i++)
+            {
+                if (_aimVertCount + 4 >= MaxAimVertices || _aimTriCount + 6 >= MaxAimIndices) break;
+                float a0 = i * step;
+                float a1 = a0 + span;
+                var d0 = new SVector2(MathF.Cos(a0), MathF.Sin(a0));
+                var d1 = new SVector2(MathF.Cos(a1), MathF.Sin(a1));
+
+                int i0 = PushAimVert(KalyeahResources.World(center + d0 * inner, y), c32);
+                int o0 = PushAimVert(KalyeahResources.World(center + d0 * outer, y), c32);
+                int o1 = PushAimVert(KalyeahResources.World(center + d1 * outer, y), c32);
+                int i1 = PushAimVert(KalyeahResources.World(center + d1 * inner, y), c32);
+                PushAimTri(i0, o0, o1);
+                PushAimTri(i0, o1, i1);
+            }
         }
 
         void AppendConvexFan(SVector2[] poly, int count, float y, Color color)
@@ -799,7 +878,7 @@ namespace Kalyeah.Game
             Color32 c32 = color;
             int baseIdx = _aimVertCount;
             for (int i = 0; i < count; i++)
-                PushAimVert(KalyeahResources.World(poly[i], y), c32);
+                PushAimVert(KalyeahResources.World(poly[i], y), c32, isEdge: false);
 
             for (int i = 1; i < count - 1; i++)
                 PushAimTri(baseIdx, baseIdx + i + 1, baseIdx + i);
@@ -838,7 +917,7 @@ namespace Kalyeah.Game
 
             if (!_hasMoveTarget)
             {
-                CommitMesh(_moveMesh, _moveObject, _moveVerts, _moveColors, _moveTris, 0, 0);
+                CommitMesh(_moveMesh, _moveObject, _moveVerts, _moveUvs, _moveColors, _moveTris, 0, 0);
                 return;
             }
 
@@ -860,7 +939,7 @@ namespace Kalyeah.Game
 
                 Color shadow = WithAlpha(MoveShadowColor, MoveShadowColor.a * (1f - shut * 0.6f));
                 AppendAnnulus(
-                    _moveVerts, _moveColors, _moveTris,
+                    _moveVerts, _moveUvs, _moveColors, _moveTris,
                     ref _moveVertCount, ref _moveTriCount,
                     MaxMoveVertices, MaxMoveIndices,
                     MoveUnitCircle, MoveRingSegments,
@@ -868,14 +947,14 @@ namespace Kalyeah.Game
 
                 Color ringCol = Color.Lerp(MoveRingColor, MoveDotColor, shut);
                 AppendAnnulus(
-                    _moveVerts, _moveColors, _moveTris,
+                    _moveVerts, _moveUvs, _moveColors, _moveTris,
                     ref _moveVertCount, ref _moveTriCount,
                     MaxMoveVertices, MaxMoveIndices,
                     MoveUnitCircle, MoveRingSegments,
                     _moveTargetSim, inner, outer, y, ringCol);
             }
 
-            CommitMesh(_moveMesh, _moveObject, _moveVerts, _moveColors, _moveTris, _moveVertCount, _moveTriCount);
+            CommitMesh(_moveMesh, _moveObject, _moveVerts, _moveUvs, _moveColors, _moveTris, _moveVertCount, _moveTriCount);
         }
 
         void AppendDiscToMove(SVector2 center, float radius, float y, Color color)
@@ -886,12 +965,14 @@ namespace Kalyeah.Game
             Color32 c32 = color;
             int cIdx = _moveVertCount;
             _moveVerts[_moveVertCount] = KalyeahResources.World(center, y);
+            _moveUvs[_moveVertCount] = Vector2.up;
             _moveColors[_moveVertCount++] = c32;
 
             int first = _moveVertCount;
             for (int i = 0; i < MoveRingSegments; i++)
             {
                 _moveVerts[_moveVertCount] = KalyeahResources.World(center + MoveUnitCircle[i] * radius, y);
+                _moveUvs[_moveVertCount] = Vector2.up;
                 _moveColors[_moveVertCount++] = c32;
             }
 
@@ -905,6 +986,7 @@ namespace Kalyeah.Game
 
         static void AppendAnnulus(
             Vector3[] verts,
+            Vector2[] uvs,
             Color32[] colors,
             int[] tris,
             ref int vertCount,
@@ -926,9 +1008,12 @@ namespace Kalyeah.Game
             for (int i = 0; i < segments; i++)
             {
                 SVector2 u = unit[i];
+                float ux = i / (float)segments;
                 verts[vertCount] = KalyeahResources.World(center + u * innerRadius, y);
+                uvs[vertCount] = new Vector2(ux, 1f);
                 colors[vertCount++] = c32;
                 verts[vertCount] = KalyeahResources.World(center + u * outerRadius, y);
+                uvs[vertCount] = new Vector2(ux, 1f);
                 colors[vertCount++] = c32;
             }
 
@@ -949,7 +1034,7 @@ namespace Kalyeah.Game
             }
         }
 
-        static void CommitMesh(Mesh mesh, GameObject go, Vector3[] verts, Color32[] colors, int[] tris, int vertCount, int triCount)
+        static void CommitMesh(Mesh mesh, GameObject go, Vector3[] verts, Vector2[] uvs, Color32[] colors, int[] tris, int vertCount, int triCount)
         {
             if (mesh == null || go == null) return;
             if (vertCount <= 0 || triCount <= 0)
@@ -961,16 +1046,18 @@ namespace Kalyeah.Game
 
             mesh.Clear();
             mesh.SetVertices(verts, 0, vertCount);
+            mesh.SetUVs(0, uvs, 0, vertCount);
             mesh.SetColors(colors, 0, vertCount);
             mesh.SetTriangles(tris, 0, triCount, 0, calculateBounds: true, baseVertex: 0);
             if (!go.activeSelf) go.SetActive(true);
         }
 
-        int PushAimVert(Vector3 world, Color32 color)
+        int PushAimVert(Vector3 world, Color32 color, bool isEdge = true)
         {
             if (_aimVertCount >= MaxAimVertices) return -1;
             int idx = _aimVertCount;
             _aimVerts[_aimVertCount] = world;
+            _aimUvs[_aimVertCount] = isEdge ? Vector2.up : Vector2.zero;
             _aimColors[_aimVertCount++] = color;
             return idx;
         }

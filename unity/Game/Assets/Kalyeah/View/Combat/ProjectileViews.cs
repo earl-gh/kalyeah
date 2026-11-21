@@ -70,9 +70,26 @@ namespace Kalyeah.Game
         static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
         static readonly int PropLegacyColor = Shader.PropertyToID("_Color");
         static readonly int PropGltfBaseColor = Shader.PropertyToID("baseColorFactor");
+        static readonly int PropTint = Shader.PropertyToID("_Tint");
+        static readonly int PropInkColor = Shader.PropertyToID("_InkColor");
+        static readonly int PropPhase = Shader.PropertyToID("_Phase");
+        static readonly int PropSoftFade = Shader.PropertyToID("_SoftFade");
+        static readonly int PropFresnel = Shader.PropertyToID("_FresnelSoftness");
+        static readonly int PropSunlit = Shader.PropertyToID("_SunlitLift");
+        static readonly int PropHardEdgeWidth = Shader.PropertyToID("_HardEdgeWidth");
+        static readonly int PropDashCount = Shader.PropertyToID("_DashCount");
+        static readonly int PropEdgeBoost = Shader.PropertyToID("_EdgeBoost");
+        static readonly int PropInteriorAlpha = Shader.PropertyToID("_InteriorAlpha");
         static readonly int PropOutlineColor = Shader.PropertyToID("_OutlineColor");
         static readonly int PropOutlineWidth = Shader.PropertyToID("_OutlineWidth");
-        const float WeaponOutlineWidth = 0.011f;
+        static readonly int PropDistanceBoost = Shader.PropertyToID("_DistanceBoost");
+        static readonly int PropHitFlash = Shader.PropertyToID("_HitFlash");
+        const float WeaponAllyOutlineWidth = 0.013f;
+        const float WeaponEnemyOutlineWidth = 0.017f;
+        const float EnemyCircleDashCount = 18f;
+        const float EnemyConeDashCount = 14f;
+        const float EnemyRibbonDashCount = 10f;
+        const float EnemyTrailDashCount = 6f;
         static readonly Color WeaponInkBase = new Color(0.14f, 0.11f, 0.12f, 0.94f);
 
         static readonly Color AllyTelegraphColor = new Color(0.24f, 0.58f, 1.00f, 0.92f);
@@ -119,10 +136,13 @@ namespace Kalyeah.Game
             public MeshFilter FillFilter;
             public MeshRenderer RimRenderer;
             public MeshRenderer FillRenderer;
+            public MeshRenderer TrailRenderer;
             public Transform RimTr;
             public Transform FillTr;
+            public Transform TrailTr;
             public MaterialPropertyBlock RimBlock;
             public MaterialPropertyBlock FillBlock;
+            public MaterialPropertyBlock TrailBlock;
 
             public ModelNode PrimaryModel;
             public readonly ModelNode[] SubModels = new ModelNode[JacksClustersPerField];
@@ -171,6 +191,7 @@ namespace Kalyeah.Game
         readonly Mesh _wedgeFillMesh;
         readonly Mesh _ribbonQuadMesh;
         readonly Mesh _curvedShieldMesh;
+        readonly Mesh _trailMesh;
         Mesh _scissorBladeAMesh;
         Mesh _scissorBladeBMesh;
         Material _scissorMaterial;
@@ -251,12 +272,13 @@ namespace Kalyeah.Game
             _litMaterial = CreateLitMaterial(out _ownsLitMaterial);
             _overlayMaterial = CreateOverlayMaterial(out _ownsOverlayMaterial);
 
-            _ringMesh = BuildAnnulusMesh("TelegraphRing", 0.88f, 1.00f, GroundCircleSegments);
-            _discMesh = BuildDiscMesh("TelegraphDisc", 1.00f, GroundCircleSegments);
+            _ringMesh = BuildAnnulusMesh("TelegraphRing", 0.90f, 1.00f, GroundCircleSegments);
+            _discMesh = BuildDiscMesh("TelegraphDisc", 0.90f, GroundCircleSegments);
             _wedgeRimMesh = BuildCanonicalWedgeRimMesh("ConeWedgeRim", ConeWedgeSegments);
             _wedgeFillMesh = BuildCanonicalWedgeFillMesh("ConeWedgeFill", ConeWedgeSegments);
             _ribbonQuadMesh = BuildUnitQuadMesh("WallRibbonQuad");
             _curvedShieldMesh = BuildCurvedShieldMesh("CurvedPapelShield", CurvedShieldSegments);
+            _trailMesh = BuildProjectileTrailMesh("ProjectileEdgeTrail");
 
             BuildFallbackMeshCatalog();
             PrewarmModelPools();
@@ -477,6 +499,7 @@ namespace Kalyeah.Game
             KalyeahResources.Kill(_wedgeFillMesh);
             KalyeahResources.Kill(_ribbonQuadMesh);
             KalyeahResources.Kill(_curvedShieldMesh);
+            KalyeahResources.Kill(_trailMesh);
             KalyeahResources.Kill(_scissorBladeAMesh);
             KalyeahResources.Kill(_scissorBladeBMesh);
 
@@ -520,13 +543,18 @@ namespace Kalyeah.Game
             ReleaseSlotModels(slot);
             slot.RimRenderer.gameObject.SetActive(false);
             slot.FillRenderer.gameObject.SetActive(false);
+            slot.TrailRenderer.gameObject.SetActive(false);
             slot.RimTr.localPosition = Vector3.zero;
             slot.RimTr.localRotation = Quaternion.identity;
             slot.RimTr.localScale = Vector3.one;
             slot.FillTr.localPosition = Vector3.zero;
             slot.FillTr.localRotation = Quaternion.identity;
             slot.FillTr.localScale = Vector3.one;
+            slot.TrailTr.localPosition = Vector3.zero;
+            slot.TrailTr.localRotation = Quaternion.identity;
+            slot.TrailTr.localScale = Vector3.one;
 
+            bool isEnemy = snap.Team != LocalTeam;
             Color teamCol = TelegraphColorFor(snap.Team, snap.WeaponId);
 
             switch (snap.Kind)
@@ -536,8 +564,9 @@ namespace Kalyeah.Game
                     ModelNode m = AcquireModel(slot.BoundModelId);
                     AttachModel(slot.Tr, m);
                     slot.PrimaryModel = m;
-                    SetWeaponOutlineAccent(m, teamCol);
+                    SetWeaponOutlineAccent(m, teamCol, isEnemy, 0.58f);
                     TintModelIfFallback(m, FallbackTintFor(slot.BoundWeaponId, teamCol));
+                    SetupProjectileTrail(slot, teamCol, isEnemy);
 
                     if (slot.BoundWeaponId == "tsinelas_light" || slot.BoundWeaponId == "tsinelas_heavy")
                         m.Tilt.localRotation = Quaternion.Euler(SlipperTiltDeg, 0f, 0f);
@@ -549,7 +578,7 @@ namespace Kalyeah.Game
                         slot.RimTr.localPosition = new Vector3(0f, TelegraphHeight, 0f);
                         slot.RimTr.localRotation = Quaternion.identity;
                         slot.RimTr.localScale = new Vector3(ringR, 1f, ringR);
-                        ApplyColor(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.78f));
+                        ApplyTelegraphRim(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.88f), isEnemy, EnemyCircleDashCount);
                         slot.RimRenderer.gameObject.SetActive(true);
                     }
                     break;
@@ -557,8 +586,8 @@ namespace Kalyeah.Game
 
                 case WorldEffectKind.ExplosionZone:
                 {
-                    // Immediate <150 ms ground AoE telegraph ring + growing progress fill from frame 0.
-                    SetupGroundCircle(slot, Mathf.Max(0.45f, snap.Radius), teamCol, rimAlpha: 0.94f, fillAlpha: 0.30f);
+                    // Immediate <150 ms ground AoE hard-edge telegraph ring + clean progress fill from frame 0.
+                    SetupGroundCircle(slot, Mathf.Max(0.45f, snap.Radius), teamCol, isEnemy, rimAlpha: 0.94f, fillAlpha: 0.18f);
 
                     if (slot.BoundWeaponId == "bato_heavy" || slot.BoundWeaponId == "ult_bagsak" || slot.BoundWeaponId == "lata")
                     {
@@ -566,8 +595,9 @@ namespace Kalyeah.Game
                         ModelNode m = AcquireModel(modelKey);
                         AttachModel(slot.Tr, m);
                         slot.PrimaryModel = m;
-                        SetWeaponOutlineAccent(m, teamCol);
+                        SetWeaponOutlineAccent(m, teamCol, isEnemy, 0.65f);
                         TintModelIfFallback(m, FallbackTintFor(slot.BoundWeaponId, teamCol));
+                        SetupProjectileTrail(slot, teamCol, isEnemy);
                     }
                     break;
                 }
@@ -576,26 +606,26 @@ namespace Kalyeah.Game
                 case WorldEffectKind.TrapArmed:
                 {
                     bool armed = snap.Kind == WorldEffectKind.TrapArmed;
-                    SetupGroundCircle(slot, Mathf.Max(0.40f, snap.Radius), teamCol, rimAlpha: armed ? 0.90f : 0.72f, fillAlpha: armed ? 0.24f : 0.30f);
+                    SetupGroundCircle(slot, Mathf.Max(0.40f, snap.Radius), teamCol, isEnemy, rimAlpha: armed ? 0.92f : 0.76f, fillAlpha: armed ? 0.16f : 0.20f);
 
                     ModelNode ball = AcquireModel("crumpled_paper");
                     AttachModel(slot.Tr, ball);
                     slot.PrimaryModel = ball;
-                    SetWeaponOutlineAccent(ball, teamCol);
+                    SetWeaponOutlineAccent(ball, teamCol, isEnemy, armed ? 0.62f : 0.35f);
                     TintModelIfFallback(ball, new Color(0.95f, 0.93f, 0.87f, 1f));
                     break;
                 }
 
                 case WorldEffectKind.SlowZone:
                 {
-                    SetupGroundCircle(slot, Mathf.Max(0.50f, snap.Radius), teamCol, rimAlpha: 0.90f, fillAlpha: 0.28f);
+                    SetupGroundCircle(slot, Mathf.Max(0.50f, snap.Radius), teamCol, isEnemy, rimAlpha: 0.92f, fillAlpha: 0.18f);
                     break;
                 }
 
                 case WorldEffectKind.FieldZone:
                 {
                     float fieldR = Mathf.Max(0.60f, snap.Radius);
-                    SetupGroundCircle(slot, fieldR, teamCol, rimAlpha: 0.90f, fillAlpha: 0.22f);
+                    SetupGroundCircle(slot, fieldR, teamCol, isEnemy, rimAlpha: 0.92f, fillAlpha: 0.16f);
 
                     if (slot.BoundWeaponId == "jacks" || slot.BoundModelId == "spikes")
                     {
@@ -611,7 +641,7 @@ namespace Kalyeah.Game
                             jack.Tr.localPosition = new Vector3(Mathf.Cos(angle) * dist, spikeScale * 0.32f, Mathf.Sin(angle) * dist);
                             jack.Tr.localScale = Vector3.one * spikeScale;
                             jack.Spin.localRotation = Quaternion.Euler(0f, yaw, 0f);
-                            SetWeaponOutlineAccent(jack, teamCol);
+                            SetWeaponOutlineAccent(jack, teamCol, isEnemy, 0.55f);
                             ApplyColorToModel(jack, JacksClusterColors[c % JacksClusterColors.Length], forceTint: true);
                             slot.SubModels[slot.SubModelCount++] = jack;
                         }
@@ -625,7 +655,7 @@ namespace Kalyeah.Game
                     slot.RimFilter.sharedMesh = _ribbonQuadMesh;
                     slot.RimTr.localPosition = new Vector3(0f, TelegraphHeight, 0f);
                     slot.RimTr.localRotation = Quaternion.identity;
-                    ApplyColor(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.92f));
+                    ApplyTelegraphRim(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.94f), isEnemy, EnemyRibbonDashCount);
                     slot.RimRenderer.gameObject.SetActive(true);
 
                     if (isSoil)
@@ -633,7 +663,7 @@ namespace Kalyeah.Game
                         ModelNode soil = AcquireModel("soil_block");
                         AttachModel(slot.Tr, soil);
                         slot.PrimaryModel = soil;
-                        SetWeaponOutlineAccent(soil, teamCol);
+                        SetWeaponOutlineAccent(soil, teamCol, isEnemy, 0.55f);
                         TintModelIfFallback(soil, new Color(0.54f, 0.39f, 0.25f, 1f));
                     }
                     else
@@ -643,7 +673,7 @@ namespace Kalyeah.Game
                         slot.FillTr.localPosition = Vector3.zero;
                         slot.FillTr.localRotation = Quaternion.identity;
                         Color paperTint = Color.Lerp(new Color(0.97f, 0.95f, 0.90f, 0.95f), teamCol, 0.16f);
-                        ApplyColor(slot.FillRenderer, slot.FillBlock, paperTint);
+                        ApplyTelegraphFill(slot.FillRenderer, slot.FillBlock, paperTint);
                         slot.FillRenderer.gameObject.SetActive(true);
 
                         if (_prefabTemplates.ContainsKey("paper"))
@@ -651,7 +681,7 @@ namespace Kalyeah.Game
                             ModelNode sheet = AcquireModel("paper");
                             AttachModel(slot.Tr, sheet);
                             slot.PrimaryModel = sheet;
-                            SetWeaponOutlineAccent(sheet, teamCol);
+                            SetWeaponOutlineAccent(sheet, teamCol, isEnemy, 0.55f);
                         }
                     }
                     break;
@@ -663,8 +693,8 @@ namespace Kalyeah.Game
                     slot.FillFilter.sharedMesh = _wedgeFillMesh;
                     slot.RimTr.localPosition = new Vector3(0f, TelegraphHeight + 0.002f, 0f);
                     slot.FillTr.localPosition = new Vector3(0f, TelegraphHeight, 0f);
-                    ApplyColor(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.92f));
-                    ApplyColor(slot.FillRenderer, slot.FillBlock, WithAlpha(teamCol, 0.30f));
+                    ApplyTelegraphRim(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.94f), isEnemy, EnemyConeDashCount);
+                    ApplyTelegraphFill(slot.FillRenderer, slot.FillBlock, WithAlpha(teamCol, 0.18f));
                     slot.RimRenderer.gameObject.SetActive(true);
                     slot.FillRenderer.gameObject.SetActive(true);
 
@@ -673,7 +703,7 @@ namespace Kalyeah.Game
                         ModelNode sc = AcquireModel("scissor");
                         AttachModel(slot.Tr, sc);
                         slot.PrimaryModel = sc;
-                        SetWeaponOutlineAccent(sc, teamCol);
+                        SetWeaponOutlineAccent(sc, teamCol, isEnemy, 0.65f);
                         TintModelIfFallback(sc, new Color(0.84f, 0.88f, 0.93f, 1f));
                     }
                     break;
@@ -686,9 +716,10 @@ namespace Kalyeah.Game
             if (slot.BoundKind == WorldEffectKind.TrapArming && snap.Kind == WorldEffectKind.TrapArmed)
             {
                 slot.BoundKind = snap.Kind;
+                bool isEnemy = snap.Team != LocalTeam;
                 Color teamCol = TelegraphColorFor(snap.Team, snap.WeaponId);
-                ApplyColor(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.92f));
-                ApplyColor(slot.FillRenderer, slot.FillBlock, WithAlpha(teamCol, 0.24f));
+                ApplyTelegraphRim(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.94f), isEnemy, EnemyCircleDashCount);
+                ApplyTelegraphFill(slot.FillRenderer, slot.FillBlock, WithAlpha(teamCol, 0.16f));
                 float r = Mathf.Max(0.40f, snap.Radius);
                 slot.FillTr.localScale = new Vector3(r, 1f, r);
                 return;
@@ -768,10 +799,8 @@ namespace Kalyeah.Game
                     m.Tilt.localRotation = Quaternion.identity;
                     m.Spin.localRotation = Quaternion.identity;
                 }
-                return;
             }
-
-            if (slot.BoundWeaponId == "bola")
+            else if (slot.BoundWeaponId == "bola")
             {
                 // Bouncing glass marble: parabolic arcs across bounce segments + sound/dust on each bounce touchdown.
                 if (snap.Bounces > slot.LastBounces)
@@ -810,10 +839,8 @@ namespace Kalyeah.Game
                     slot.SpinAngleRad += dt * 16f;
                     m.Spin.localRotation = Quaternion.Euler(slot.SpinAngleRad * Mathf.Rad2Deg, 0f, 0f);
                 }
-                return;
             }
-
-            if (slot.BoundWeaponId == "tsinelas_light" || slot.BoundWeaponId == "tsinelas_heavy")
+            else if (slot.BoundWeaponId == "tsinelas_light" || slot.BoundWeaponId == "tsinelas_heavy")
             {
                 // Boomerang slipper: reverses spin direction + brief hang squash when turning back toward thrower.
                 if (snap.Returning && !slot.WasReturning)
@@ -832,10 +859,8 @@ namespace Kalyeah.Game
                     float hangScale = _clock < slot.ReactUntil ? 0.82f : 1f;
                     m.Tr.localScale = new Vector3(scaleMeters / hangScale, scaleMeters * hangScale, scaleMeters / hangScale);
                 }
-                return;
             }
-
-            if (m.Scissors != null)
+            else if (m.Scissors != null)
             {
                 // Gunting (Hati-Kalye / Gupit-Kidlat) projectile: counter-rotating twin blades snipping along aim.
                 m.Tr.localPosition = new Vector3(0f, 0.90f * ViewScale, 0f);
@@ -851,16 +876,24 @@ namespace Kalyeah.Game
                 }
                 m.Scissors.SetOpen(bladeDeg);
                 LastScissorsAngleDegrees = bladeDeg;
-                return;
+            }
+            else
+            {
+                // Default projectile (tirador_bato, bato_light, etc.): crisp flight height + rock tumble.
+                m.Tr.localPosition = new Vector3(0f, ProjectileFlightHeight * ViewScale, 0f);
+                if (!ReduceMotion)
+                {
+                    slot.SpinAngleRad += dt * Mathf.PI * 2f * RockTumbleRev;
+                    m.Spin.localRotation = Quaternion.Euler(slot.SpinAngleRad * Mathf.Rad2Deg, slot.SpinAngleRad * 32f, 0f);
+                }
             }
 
-            // Default projectile (tirador_bato, bato_light, etc.): crisp flight height + rock tumble.
-            m.Tr.localPosition = new Vector3(0f, ProjectileFlightHeight * ViewScale, 0f);
-            if (!ReduceMotion)
-            {
-                slot.SpinAngleRad += dt * Mathf.PI * 2f * RockTumbleRev;
-                m.Spin.localRotation = Quaternion.Euler(slot.SpinAngleRad * Mathf.Rad2Deg, slot.SpinAngleRad * 32f, 0f);
-            }
+            // Riot weapon/projectile clarity: crisp smoothstep highlight response + readable team-colored edge trail across all 4 tiers.
+            bool isEnemy = snap.Team != LocalTeam;
+            Color teamCol = TelegraphColorFor(snap.Team, slot.BoundWeaponId);
+            float highlightSignal = ReduceMotion ? 0.65f : (0.5f + 0.5f * Mathf.Sin(slot.SpinAngleRad * 2f));
+            SetWeaponOutlineAccent(m, teamCol, isEnemy, highlightSignal);
+            UpdateProjectileTrail(slot, snap, m.Tr.localPosition, scaleMeters, teamCol, isEnemy);
         }
 
         void UpdateExplosionZoneSlot(EffectSlot slot, WorldEffectSnapshot snap, SVector2 simPos)
@@ -876,6 +909,10 @@ namespace Kalyeah.Game
 
             ModelNode m = slot.PrimaryModel;
             if (m == null) return;
+
+            bool isEnemy = snap.Team != LocalTeam;
+            Color teamCol = TelegraphColorFor(snap.Team, slot.BoundWeaponId);
+            SetWeaponOutlineAccent(m, teamCol, isEnemy, Mathf.Lerp(0.35f, 1.0f, progress));
 
             if (slot.BoundWeaponId == "lata")
             {
@@ -899,11 +936,14 @@ namespace Kalyeah.Game
 
                 Vector3 pos = Vector3.Lerp(fromLocal, toLocal, progress);
                 pos.y += 4f * peak * progress * (1f - progress);
-                m.Tr.localPosition = pos + bowOffset;
+                Vector3 finalPos = pos + bowOffset;
+                Vector3 tangent = (toLocal - fromLocal) + new Vector3(0f, 4f * peak * (1f - 2f * progress), 0f);
+                m.Tr.localPosition = finalPos;
                 m.Tr.localScale = Vector3.one * canSize;
                 m.Spin.localRotation = ReduceMotion
                     ? Quaternion.identity
                     : Quaternion.Euler(progress * 540f, 0f, 0f);
+                UpdateArcingTrail(slot, finalPos, tangent, canSize * 0.45f, Mathf.Lerp(0.4f, 1.8f, SmoothStep01(0.05f, 0.35f, progress)), teamCol, isEnemy);
                 return;
             }
 
@@ -914,11 +954,13 @@ namespace Kalyeah.Game
             float easeIn = progress * progress;
             float remain = 1f - easeIn;
             var skyOffset = new Vector3(-1.8f * remain, dropH * remain + meteorSize * 0.5f, 1.6f * remain);
+            var dropTangent = new Vector3(1.8f, -dropH, -1.6f);
             m.Tr.localPosition = skyOffset;
             m.Tr.localScale = Vector3.one * meteorSize;
             m.Spin.localRotation = ReduceMotion
                 ? Quaternion.identity
                 : Quaternion.Euler(progress * 480f, progress * 210f, 0f);
+            UpdateArcingTrail(slot, skyOffset, dropTangent, meteorSize * 0.52f, Mathf.Lerp(0.8f, isBagsak ? 3.4f : 2.5f, progress), teamCol, isEnemy);
         }
 
         void UpdateTrapSlot(EffectSlot slot, WorldEffectSnapshot snap, SVector2 simPos)
@@ -956,9 +998,10 @@ namespace Kalyeah.Game
             slot.FillTr.localScale = new Vector3(radius, 1f, radius);
 
             float fade = snap.TimeLeft > 0f && snap.TimeLeft < 0.35f ? Mathf.Clamp01(snap.TimeLeft / 0.35f) : 1f;
+            bool isEnemy = snap.Team != LocalTeam;
             Color teamCol = TelegraphColorFor(snap.Team, snap.WeaponId);
-            ApplyColor(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.90f * fade));
-            ApplyColor(slot.FillRenderer, slot.FillBlock, WithAlpha(teamCol, 0.24f * fade));
+            ApplyTelegraphRim(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.92f * fade), isEnemy, EnemyCircleDashCount);
+            ApplyTelegraphFill(slot.FillRenderer, slot.FillBlock, WithAlpha(teamCol, 0.16f * fade));
         }
 
         void UpdateShieldWallSlot(EffectSlot slot, WorldEffectSnapshot snap, SVector2 simPos)
@@ -973,6 +1016,7 @@ namespace Kalyeah.Game
             float wallScale = Mathf.Max(ViewScale, 0.56f);
             float age = _clock - slot.SpawnTime;
             bool isSoil = snap.Look == "soil" || slot.BoundWeaponId == "langit_lupa";
+            bool isEnemy = snap.Team != LocalTeam;
             Color teamCol = TelegraphColorFor(snap.Team, snap.WeaponId);
 
             slot.RimTr.localScale = new Vector3(width, 1f, GroundRibbonWidth);
@@ -990,7 +1034,7 @@ namespace Kalyeah.Game
                     slot.PrimaryModel.Tr.localPosition = new Vector3(0f, h * 0.5f, 0f);
                     slot.PrimaryModel.Tr.localScale = new Vector3(width, h, d);
                 }
-                ApplyColor(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.92f * fall));
+                ApplyTelegraphRim(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.94f * fall), isEnemy, EnemyRibbonDashCount);
                 return;
             }
 
@@ -1003,8 +1047,8 @@ namespace Kalyeah.Game
             slot.FillTr.localScale = new Vector3(width, height, 1f);
             slot.FillTr.localRotation = Quaternion.Euler(flutterDeg, 0f, 0f);
             Color paperTint = Color.Lerp(new Color(0.97f, 0.95f, 0.90f, 1f), teamCol, 0.16f);
-            ApplyColor(slot.FillRenderer, slot.FillBlock, WithAlpha(paperTint, 0.94f * alpha));
-            ApplyColor(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.92f * alpha));
+            ApplyTelegraphFill(slot.FillRenderer, slot.FillBlock, WithAlpha(paperTint, 0.94f * alpha));
+            ApplyTelegraphRim(slot.RimRenderer, slot.RimBlock, WithAlpha(teamCol, 0.94f * alpha), isEnemy, EnemyRibbonDashCount);
 
             if (slot.PrimaryModel != null)
             {
@@ -1054,18 +1098,19 @@ namespace Kalyeah.Game
         void OnEffectRemoved(EffectSlot slot)
         {
             WorldEffectSnapshot last = slot.LastSnap;
+            bool isEnemy = last.Team != LocalTeam;
             Color teamCol = TelegraphColorFor(last.Team, slot.BoundWeaponId);
 
             if (slot.BoundKind == WorldEffectKind.ExplosionZone)
             {
                 if (slot.BoundWeaponId == "ult_bagsak")
                 {
-                    Fx?.SpawnGroundShockwave(last.Position, Mathf.Max(2.5f, last.Radius), teamCol, isBagsak: true);
+                    Fx?.SpawnGroundShockwave(last.Position, Mathf.Max(2.5f, last.Radius), teamCol, isBagsak: true, isEnemy: isEnemy);
                     Audio?.PlayWeaponImpact("ult_bagsak");
                 }
                 else if (slot.BoundWeaponId == "bato_heavy")
                 {
-                    Fx?.SpawnGroundShockwave(last.Position, Mathf.Max(1.6f, last.Radius), teamCol, isBagsak: false);
+                    Fx?.SpawnGroundShockwave(last.Position, Mathf.Max(1.6f, last.Radius), teamCol, isBagsak: false, isEnemy: isEnemy);
                     Audio?.PlayWeaponImpact("bato_heavy");
                 }
                 else if (slot.BoundWeaponId == "lata")
@@ -1150,10 +1195,11 @@ namespace Kalyeah.Game
             }
 
             bool heavy = weaponId == "gunting_heavy";
+            bool isEnemy = team != LocalTeam;
             Color teamCol = TelegraphColorFor(team, weaponId);
-            Fx?.SpawnSlashArc(origin, dir, range, angleDeg, teamCol, heavy);
+            Fx?.SpawnSlashArc(origin, dir, range, angleDeg, teamCol, heavy, isEnemy);
             Audio?.PlayWeaponImpact(weaponId);
-            SpawnConeStrikeTransient(origin, dir, range, angleDeg, teamCol, weaponId);
+            SpawnConeStrikeTransient(origin, dir, range, angleDeg, teamCol, weaponId, isEnemy);
         }
 
         void OnPlayerHealed(int playerId, int amount)
@@ -1242,7 +1288,7 @@ namespace Kalyeah.Game
             _liveTransients.Add(tv);
         }
 
-        void SpawnConeStrikeTransient(SVector2 origin, SVector2 dir, float range, float angleDeg, Color teamCol, string weaponId)
+        void SpawnConeStrikeTransient(SVector2 origin, SVector2 dir, float range, float angleDeg, Color teamCol, string weaponId, bool isEnemy)
         {
             if (_freeTransients.Count == 0) return;
             TransientVisual tv = _freeTransients.Pop();
@@ -1255,7 +1301,7 @@ namespace Kalyeah.Game
             tv.GroundFilter.sharedMesh = _wedgeFillMesh;
             tv.GroundTr.localPosition = new Vector3(0f, TelegraphHeight + 0.004f, 0f);
             tv.GroundTr.localScale = new Vector3(lateral, 1f, range);
-            ApplyColor(tv.GroundRenderer, tv.GroundBlock, WithAlpha(teamCol, 0.36f));
+            ApplyTelegraphFill(tv.GroundRenderer, tv.GroundBlock, WithAlpha(teamCol, 0.26f));
             tv.GroundRenderer.gameObject.SetActive(true);
 
             bool hasScissors = weaponId == "gunting_light" || weaponId == "gunting_heavy";
@@ -1267,7 +1313,7 @@ namespace Kalyeah.Game
                 AttachModel(tv.Tr, tv.Model);
                 tv.Model.Tr.localPosition = new Vector3(0f, (heavyScissors ? 0.86f : 0.92f) * ViewScale, Mathf.Min(range * 0.48f, 1.35f));
                 tv.Model.Tr.localScale = Vector3.one * sz;
-                SetWeaponOutlineAccent(tv.Model, teamCol);
+                SetWeaponOutlineAccent(tv.Model, teamCol, isEnemy, 0.85f);
                 TintModelIfFallback(tv.Model, new Color(0.86f, 0.90f, 0.95f, 1f));
                 float startOpen = ReduceMotion
                     ? ScissorsRig.Closed
@@ -1451,8 +1497,19 @@ namespace Kalyeah.Game
 
         Color TelegraphColorFor(int team, string weaponId)
         {
-            Color baseCol = team == LocalTeam ? AllyTelegraphColor : EnemyTelegraphColor;
+            Color baseCol = team == LocalTeam ? AllyTelegraphColor : ResolveEnemyTelegraphColor();
             return weaponId == "ult_bagsak" ? Color.Lerp(baseCol, BagsakGoldAccent, 0.55f) : baseCol;
+        }
+
+        static Color ResolveEnemyTelegraphColor()
+        {
+            SettingsStore settings = SettingsStore.Current;
+            if (settings != null && settings.ResolvedEnemyHighlightMode != SettingsStore.EnemyHighlightRed)
+            {
+                Color c = KalyeahResources.ResolveEnemyHighlightColor(settings.ResolvedEnemyHighlightMode);
+                return new Color(c.r, c.g, c.b, EnemyTelegraphColor.a);
+            }
+            return EnemyTelegraphColor;
         }
 
         static Color FallbackTintFor(string weaponId, Color teamCol)
@@ -1477,7 +1534,7 @@ namespace Kalyeah.Game
             }
         }
 
-        void SetupGroundCircle(EffectSlot slot, float radius, Color color, float rimAlpha, float fillAlpha)
+        void SetupGroundCircle(EffectSlot slot, float radius, Color color, bool isEnemy, float rimAlpha, float fillAlpha)
         {
             slot.RimFilter.sharedMesh = _ringMesh;
             slot.FillFilter.sharedMesh = _discMesh;
@@ -1487,10 +1544,50 @@ namespace Kalyeah.Game
             slot.FillTr.localRotation = Quaternion.identity;
             slot.RimTr.localScale = new Vector3(radius, 1f, radius);
             slot.FillTr.localScale = new Vector3(radius, 1f, radius);
-            ApplyColor(slot.RimRenderer, slot.RimBlock, WithAlpha(color, rimAlpha));
-            ApplyColor(slot.FillRenderer, slot.FillBlock, WithAlpha(color, fillAlpha));
+            ApplyTelegraphRim(slot.RimRenderer, slot.RimBlock, WithAlpha(color, rimAlpha), isEnemy, EnemyCircleDashCount);
+            ApplyTelegraphFill(slot.FillRenderer, slot.FillBlock, WithAlpha(color, fillAlpha));
             slot.RimRenderer.gameObject.SetActive(true);
             slot.FillRenderer.gameObject.SetActive(true);
+        }
+
+        void SetupProjectileTrail(EffectSlot slot, Color teamCol, bool isEnemy)
+        {
+            if (slot.TrailRenderer == null) return;
+            ApplyTrailStyle(slot.TrailRenderer, slot.TrailBlock, WithAlpha(teamCol, 0.92f), isEnemy);
+            slot.TrailTr.localPosition = Vector3.zero;
+            slot.TrailTr.localRotation = Quaternion.identity;
+            slot.TrailTr.localScale = new Vector3(0.22f, 0.22f, 0.35f);
+            slot.TrailRenderer.gameObject.SetActive(true);
+        }
+
+        void UpdateProjectileTrail(EffectSlot slot, WorldEffectSnapshot snap, Vector3 localModelPos, float scaleMeters, Color teamCol, bool isEnemy)
+        {
+            if (slot.TrailRenderer == null || !slot.TrailRenderer.gameObject.activeSelf) return;
+            float maxLen = (slot.BoundWeaponId == "trumpo" || slot.BoundWeaponId == "bola") ? 1.55f : 2.35f;
+            float targetLen = ReduceMotion
+                ? Mathf.Min(0.95f, Mathf.Max(0.35f, snap.Travelled))
+                : Mathf.Lerp(0.32f, maxLen, SmoothStep01(0.15f, maxLen, snap.Travelled));
+            float width = Mathf.Clamp(scaleMeters * 0.56f, 0.16f, 0.52f);
+            slot.TrailTr.localPosition = localModelPos;
+            slot.TrailTr.localRotation = Quaternion.identity;
+            slot.TrailTr.localScale = new Vector3(width, width, targetLen);
+            ApplyTrailStyle(slot.TrailRenderer, slot.TrailBlock, WithAlpha(teamCol, 0.92f), isEnemy);
+        }
+
+        void UpdateArcingTrail(EffectSlot slot, Vector3 localModelPos, Vector3 localTangent, float width, float length, Color teamCol, bool isEnemy)
+        {
+            if (slot.TrailRenderer == null || !slot.TrailRenderer.gameObject.activeSelf) return;
+            float clampedW = Mathf.Clamp(width, 0.18f, 0.72f);
+            float clampedL = ReduceMotion ? Mathf.Min(length, 1.0f) : Mathf.Max(0.30f, length);
+            slot.TrailTr.localPosition = localModelPos;
+            if (localTangent.sqrMagnitude > 1e-5f)
+            {
+                Vector3 fwd = localTangent.normalized;
+                Vector3 up = Mathf.Abs(fwd.y) > 0.96f ? Vector3.forward : Vector3.up;
+                slot.TrailTr.localRotation = Quaternion.LookRotation(fwd, up);
+            }
+            slot.TrailTr.localScale = new Vector3(clampedW, clampedW, clampedL);
+            ApplyTrailStyle(slot.TrailRenderer, slot.TrailBlock, WithAlpha(teamCol, 0.90f), isEnemy);
         }
 
         EffectSlot CreateEffectSlot(int index)
@@ -1501,6 +1598,7 @@ namespace Kalyeah.Game
 
             MeshRenderer rim = CreateGroundSubRenderer(tr, "Rim", _ringMesh, out MeshFilter rimFilter);
             MeshRenderer fill = CreateGroundSubRenderer(tr, "Fill", _discMesh, out MeshFilter fillFilter);
+            MeshRenderer trail = CreateGroundSubRenderer(tr, "Trail", _trailMesh, out _);
             go.SetActive(false);
 
             return new EffectSlot
@@ -1511,10 +1609,13 @@ namespace Kalyeah.Game
                 FillFilter = fillFilter,
                 RimRenderer = rim,
                 FillRenderer = fill,
+                TrailRenderer = trail,
                 RimTr = rim.transform,
                 FillTr = fill.transform,
+                TrailTr = trail.transform,
                 RimBlock = new MaterialPropertyBlock(),
                 FillBlock = new MaterialPropertyBlock(),
+                TrailBlock = new MaterialPropertyBlock(),
             };
         }
 
@@ -1560,12 +1661,16 @@ namespace Kalyeah.Game
             ReleaseSlotModels(slot);
             slot.RimRenderer.gameObject.SetActive(false);
             slot.FillRenderer.gameObject.SetActive(false);
+            slot.TrailRenderer.gameObject.SetActive(false);
             slot.RimTr.localPosition = Vector3.zero;
             slot.RimTr.localRotation = Quaternion.identity;
             slot.RimTr.localScale = Vector3.one;
             slot.FillTr.localPosition = Vector3.zero;
             slot.FillTr.localRotation = Quaternion.identity;
             slot.FillTr.localScale = Vector3.one;
+            slot.TrailTr.localPosition = Vector3.zero;
+            slot.TrailTr.localRotation = Quaternion.identity;
+            slot.TrailTr.localScale = Vector3.one;
             slot.Root.SetActive(false);
             _freeSlots.Push(slot);
         }
@@ -1781,7 +1886,7 @@ namespace Kalyeah.Game
             if (outlineRenderers.Length > 0)
             {
                 outlineBlock.SetColor(PropOutlineColor, WeaponInkBase);
-                outlineBlock.SetFloat(PropOutlineWidth, WeaponOutlineWidth);
+                outlineBlock.SetFloat(PropOutlineWidth, WeaponAllyOutlineWidth);
                 for (int i = 0; i < outlineRenderers.Length; i++)
                     outlineRenderers[i].SetPropertyBlock(outlineBlock);
             }
@@ -1803,14 +1908,21 @@ namespace Kalyeah.Game
             };
         }
 
-        static void SetWeaponOutlineAccent(ModelNode node, Color accent)
+        /// <summary>
+        /// Applies Riot VALORANT smoothstep weapon highlight response on thrown objects so fast-moving projectiles
+        /// (<c>Bato</c>, <c>Tsinelas</c>, <c>Lata</c>, <c>Trumpo</c>, etc.) pop cleanly across all 4 quality tiers with zero GC.
+        /// </summary>
+        static void SetWeaponOutlineAccent(ModelNode node, Color accent, bool isEnemy = false, float highlightSignal01 = 0.55f)
         {
             if (node == null || node.OutlineRenderers == null || node.OutlineRenderers.Length == 0) return;
-            Color rim = Color.Lerp(accent, WeaponInkBase, 0.35f);
-            rim.a = 0.94f;
+            float hi = SmoothStep01(0.15f, 0.85f, highlightSignal01);
+            Color rim = Color.Lerp(accent, Color.white, hi * (isEnemy ? 0.34f : 0.24f));
+            rim.a = 0.96f;
             node.OutlineBlock.Clear();
             node.OutlineBlock.SetColor(PropOutlineColor, rim);
-            node.OutlineBlock.SetFloat(PropOutlineWidth, WeaponOutlineWidth);
+            node.OutlineBlock.SetFloat(PropOutlineWidth, isEnemy ? WeaponEnemyOutlineWidth : WeaponAllyOutlineWidth);
+            node.OutlineBlock.SetFloat(PropDistanceBoost, isEnemy ? 0.55f : 0.30f);
+            node.OutlineBlock.SetFloat(PropHitFlash, hi * 0.22f);
             for (int i = 0; i < node.OutlineRenderers.Length; i++)
                 if (node.OutlineRenderers[i] != null) node.OutlineRenderers[i].SetPropertyBlock(node.OutlineBlock);
         }
@@ -1832,11 +1944,57 @@ namespace Kalyeah.Game
                 if (node.Renderers[i] != null) node.Renderers[i].SetPropertyBlock(node.Block);
         }
 
-        static void ApplyColor(MeshRenderer renderer, MaterialPropertyBlock block, Color color)
+        static void ApplyTelegraphRim(MeshRenderer renderer, MaterialPropertyBlock block, Color color, bool isEnemy, float dashCount)
         {
             if (renderer == null || block == null) return;
             block.SetColor(PropBaseColor, color);
             block.SetColor(PropLegacyColor, color);
+            block.SetColor(PropTint, Color.white);
+            block.SetColor(PropInkColor, Color.clear);
+            block.SetFloat(PropPhase, 0f);
+            block.SetFloat(PropSoftFade, 1f);
+            block.SetFloat(PropFresnel, 0f);
+            block.SetFloat(PropSunlit, 0f);
+            block.SetFloat(PropHardEdgeWidth, 1f);
+            block.SetFloat(PropDashCount, isEnemy ? dashCount : 0f);
+            block.SetFloat(PropEdgeBoost, 0.30f);
+            block.SetFloat(PropInteriorAlpha, 1f);
+            renderer.SetPropertyBlock(block);
+        }
+
+        static void ApplyTelegraphFill(MeshRenderer renderer, MaterialPropertyBlock block, Color color)
+        {
+            if (renderer == null || block == null) return;
+            block.SetColor(PropBaseColor, color);
+            block.SetColor(PropLegacyColor, color);
+            block.SetColor(PropTint, Color.white);
+            block.SetColor(PropInkColor, Color.clear);
+            block.SetFloat(PropPhase, 0f);
+            block.SetFloat(PropSoftFade, 1f);
+            block.SetFloat(PropFresnel, 0f);
+            block.SetFloat(PropSunlit, 0f);
+            block.SetFloat(PropHardEdgeWidth, 0f);
+            block.SetFloat(PropDashCount, 0f);
+            block.SetFloat(PropEdgeBoost, 0f);
+            block.SetFloat(PropInteriorAlpha, 1f);
+            renderer.SetPropertyBlock(block);
+        }
+
+        static void ApplyTrailStyle(MeshRenderer renderer, MaterialPropertyBlock block, Color color, bool isEnemy)
+        {
+            if (renderer == null || block == null) return;
+            block.SetColor(PropBaseColor, color);
+            block.SetColor(PropLegacyColor, color);
+            block.SetColor(PropTint, Color.white);
+            block.SetColor(PropInkColor, Color.clear);
+            block.SetFloat(PropPhase, 0f);
+            block.SetFloat(PropSoftFade, 1f);
+            block.SetFloat(PropFresnel, 0f);
+            block.SetFloat(PropSunlit, 0f);
+            block.SetFloat(PropHardEdgeWidth, 0.36f);
+            block.SetFloat(PropDashCount, isEnemy ? EnemyTrailDashCount : 0f);
+            block.SetFloat(PropEdgeBoost, 0.42f);
+            block.SetFloat(PropInteriorAlpha, 0.32f);
             renderer.SetPropertyBlock(block);
         }
 
@@ -1861,6 +2019,26 @@ namespace Kalyeah.Game
 
         static Material CreateOverlayMaterial(out bool owns)
         {
+            Material arcane = KalyeahResources.Material("ArcaneFx", FxPool.ShaderName);
+            if (arcane != null)
+            {
+                var mat = new Material(arcane) { name = "CombatTelegraphOverlay", enableInstancing = true };
+                if (mat.HasProperty(PropBaseColor)) mat.SetColor(PropBaseColor, Color.white);
+                if (mat.HasProperty(PropTint)) mat.SetColor(PropTint, Color.white);
+                if (mat.HasProperty(PropInkColor)) mat.SetColor(PropInkColor, Color.clear);
+                if (mat.HasProperty(PropPhase)) mat.SetFloat(PropPhase, 0f);
+                if (mat.HasProperty(PropSoftFade)) mat.SetFloat(PropSoftFade, 1f);
+                if (mat.HasProperty(PropFresnel)) mat.SetFloat(PropFresnel, 0f);
+                if (mat.HasProperty(PropSunlit)) mat.SetFloat(PropSunlit, 0f);
+                if (mat.HasProperty(PropHardEdgeWidth)) mat.SetFloat(PropHardEdgeWidth, 1f);
+                if (mat.HasProperty(PropDashCount)) mat.SetFloat(PropDashCount, 0f);
+                if (mat.HasProperty(PropEdgeBoost)) mat.SetFloat(PropEdgeBoost, 0.30f);
+                if (mat.HasProperty(PropInteriorAlpha)) mat.SetFloat(PropInteriorAlpha, 1f);
+                mat.renderQueue = (int)RenderQueue.Transparent + 6;
+                owns = true;
+                return mat;
+            }
+
             Shader s = Shader.Find("Sprites/Default")
                 ?? Shader.Find("Universal Render Pipeline/Particles/Unlit")
                 ?? Shader.Find("Universal Render Pipeline/Unlit");
@@ -1900,29 +2078,35 @@ namespace Kalyeah.Game
 
         static Mesh BuildAnnulusMesh(string name, float innerR, float outerR, int segments)
         {
-            var verts = new Vector3[segments * 2];
-            var normals = new Vector3[segments * 2];
-            var colors = new Color32[segments * 2];
+            // (segments + 1) ring gives seamless 0..1 perimeter uv.x for ArcaneFx solid/dashed hard edges.
+            int vertCount = (segments + 1) * 2;
+            var verts = new Vector3[vertCount];
+            var normals = new Vector3[vertCount];
+            var uvs = new Vector2[vertCount];
+            var colors = new Color32[vertCount];
             var tris = new int[segments * 6];
             var white = new Color32(255, 255, 255, 255);
 
-            for (int i = 0; i < segments; i++)
+            for (int i = 0; i <= segments; i++)
             {
-                float a = (Mathf.PI * 2f * i) / segments;
+                float u = i / (float)segments;
+                float a = u * Mathf.PI * 2f;
                 float c = Mathf.Cos(a);
                 float s = Mathf.Sin(a);
-                verts[i * 2] = new Vector3(c * innerR, 0f, s * innerR);
-                verts[i * 2 + 1] = new Vector3(c * outerR, 0f, s * outerR);
-                normals[i * 2] = Vector3.up;
-                normals[i * 2 + 1] = Vector3.up;
-                colors[i * 2] = white;
-                colors[i * 2 + 1] = white;
+                int b = i * 2;
+                verts[b] = new Vector3(c * innerR, 0f, s * innerR);
+                verts[b + 1] = new Vector3(c * outerR, 0f, s * outerR);
+                normals[b] = Vector3.up;
+                normals[b + 1] = Vector3.up;
+                uvs[b] = new Vector2(u, 1f);
+                uvs[b + 1] = new Vector2(u, 1f);
+                colors[b] = white;
+                colors[b + 1] = white;
             }
 
             for (int i = 0; i < segments; i++)
             {
-                int next = (i + 1) % segments;
-                int i0 = i * 2, o0 = i0 + 1, i1 = next * 2, o1 = i1 + 1;
+                int i0 = i * 2, o0 = i0 + 1, i1 = i0 + 2, o1 = i0 + 3;
                 int t = i * 6;
                 tris[t] = i0; tris[t + 1] = o0; tris[t + 2] = o1;
                 tris[t + 3] = i0; tris[t + 4] = o1; tris[t + 5] = i1;
@@ -1931,6 +2115,7 @@ namespace Kalyeah.Game
             var mesh = new Mesh { name = name };
             mesh.vertices = verts;
             mesh.normals = normals;
+            mesh.uv = uvs;
             mesh.colors32 = colors;
             mesh.triangles = tris;
             mesh.RecalculateBounds();
@@ -1941,12 +2126,14 @@ namespace Kalyeah.Game
         {
             var verts = new Vector3[segments + 1];
             var normals = new Vector3[segments + 1];
+            var uvs = new Vector2[segments + 1];
             var colors = new Color32[segments + 1];
             var tris = new int[segments * 3];
             var white = new Color32(255, 255, 255, 255);
 
             verts[0] = Vector3.zero;
             normals[0] = Vector3.up;
+            uvs[0] = Vector2.zero;
             colors[0] = white;
 
             for (int i = 0; i < segments; i++)
@@ -1954,6 +2141,7 @@ namespace Kalyeah.Game
                 float a = (Mathf.PI * 2f * i) / segments;
                 verts[i + 1] = new Vector3(Mathf.Cos(a) * radius, 0f, Mathf.Sin(a) * radius);
                 normals[i + 1] = Vector3.up;
+                uvs[i + 1] = new Vector2(i / (float)segments, 0f);
                 colors[i + 1] = white;
 
                 int next = (i + 1) % segments;
@@ -1965,6 +2153,7 @@ namespace Kalyeah.Game
             var mesh = new Mesh { name = name };
             mesh.vertices = verts;
             mesh.normals = normals;
+            mesh.uv = uvs;
             mesh.colors32 = colors;
             mesh.triangles = tris;
             mesh.RecalculateBounds();
@@ -1977,12 +2166,14 @@ namespace Kalyeah.Game
             const float halfRad = 30f * Mathf.Deg2Rad;
             var verts = new Vector3[arcSteps + 2];
             var normals = new Vector3[verts.Length];
+            var uvs = new Vector2[verts.Length];
             var colors = new Color32[verts.Length];
             var tris = new int[arcSteps * 3];
             var white = new Color32(255, 255, 255, 255);
 
             verts[0] = Vector3.zero;
             normals[0] = Vector3.up;
+            uvs[0] = Vector2.zero;
             colors[0] = white;
 
             for (int i = 0; i <= arcSteps; i++)
@@ -1990,6 +2181,7 @@ namespace Kalyeah.Game
                 float a = -halfRad + (2f * halfRad * i) / arcSteps;
                 verts[i + 1] = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a));
                 normals[i + 1] = Vector3.up;
+                uvs[i + 1] = new Vector2(i / (float)arcSteps, 0f);
                 colors[i + 1] = white;
             }
 
@@ -2003,6 +2195,7 @@ namespace Kalyeah.Game
             var mesh = new Mesh { name = name };
             mesh.vertices = verts;
             mesh.normals = normals;
+            mesh.uv = uvs;
             mesh.colors32 = colors;
             mesh.triangles = tris;
             mesh.RecalculateBounds();
@@ -2013,37 +2206,51 @@ namespace Kalyeah.Game
         {
             const float halfRad = 30f * Mathf.Deg2Rad;
             const float rim = 0.04f;
-            var verts = new List<Vector3>((arcSteps + 3) * 4);
-            var tris = new List<int>((arcSteps + 3) * 6);
-
-            Vector3 prev = Vector3.zero;
+            var pts = new List<Vector3>(arcSteps + 3) { Vector3.zero };
             for (int i = 0; i <= arcSteps; i++)
             {
                 float a = -halfRad + (2f * halfRad * i) / arcSteps;
-                var cur = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a));
-                AddFlatQuadRibbon(verts, tris, prev, cur, rim);
-                prev = cur;
+                pts.Add(new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)));
             }
-            AddFlatQuadRibbon(verts, tris, prev, Vector3.zero, rim);
+            pts.Add(Vector3.zero);
 
-            return FinalizeWhiteGroundMesh(name, verts, tris);
+            float totalLen = 0f;
+            for (int i = 0; i < pts.Count - 1; i++)
+                totalLen += Vector3.Distance(pts[i], pts[i + 1]);
+            float invTotal = totalLen > 0.001f ? (1f / totalLen) : 1f;
+
+            var verts = new List<Vector3>((arcSteps + 3) * 4);
+            var uvs = new List<Vector2>((arcSteps + 3) * 4);
+            var tris = new List<int>((arcSteps + 3) * 6);
+
+            float accum = 0f;
+            for (int i = 0; i < pts.Count - 1; i++)
+            {
+                float segLen = Vector3.Distance(pts[i], pts[i + 1]);
+                float u0 = accum * invTotal;
+                accum += segLen;
+                float u1 = accum * invTotal;
+                AddFlatQuadRibbon(verts, uvs, tris, pts[i], pts[i + 1], rim, u0, u1);
+            }
+
+            return FinalizeWhiteGroundMesh(name, verts, uvs, tris);
         }
 
-        static void AddFlatQuadRibbon(List<Vector3> verts, List<int> tris, Vector3 a, Vector3 b, float width)
+        static void AddFlatQuadRibbon(List<Vector3> verts, List<Vector2> uvs, List<int> tris, Vector3 a, Vector3 b, float width, float u0, float u1)
         {
             Vector3 d = b - a;
             if (d.sqrMagnitude < 1e-6f) return;
             Vector3 side = Vector3.Cross(Vector3.up, d.normalized) * (width * 0.5f);
             int v0 = verts.Count;
-            verts.Add(a - side);
-            verts.Add(a + side);
-            verts.Add(b + side);
-            verts.Add(b - side);
+            verts.Add(a - side); uvs.Add(new Vector2(u0, 1f));
+            verts.Add(a + side); uvs.Add(new Vector2(u0, 1f));
+            verts.Add(b + side); uvs.Add(new Vector2(u1, 1f));
+            verts.Add(b - side); uvs.Add(new Vector2(u1, 1f));
             tris.Add(v0); tris.Add(v0 + 2); tris.Add(v0 + 1);
             tris.Add(v0); tris.Add(v0 + 3); tris.Add(v0 + 2);
         }
 
-        static Mesh FinalizeWhiteGroundMesh(string name, List<Vector3> verts, List<int> tris)
+        static Mesh FinalizeWhiteGroundMesh(string name, List<Vector3> verts, List<Vector2> uvs, List<int> tris)
         {
             var normals = new Vector3[verts.Count];
             var colors = new Color32[verts.Count];
@@ -2056,6 +2263,7 @@ namespace Kalyeah.Game
             var mesh = new Mesh { name = name };
             mesh.SetVertices(verts);
             mesh.normals = normals;
+            mesh.SetUVs(0, uvs);
             mesh.colors32 = colors;
             mesh.SetTriangles(tris, 0);
             mesh.RecalculateBounds();
@@ -2072,12 +2280,20 @@ namespace Kalyeah.Game
                 new Vector3( 0.5f, 0f, -0.5f),
             };
             var normals = new[] { Vector3.up, Vector3.up, Vector3.up, Vector3.up };
+            var uvs = new[]
+            {
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(1f, 1f),
+            };
             var white = new Color32(255, 255, 255, 255);
             var colors = new[] { white, white, white, white };
             var tris = new[] { 0, 1, 2, 0, 2, 3 };
             var mesh = new Mesh { name = name };
             mesh.vertices = verts;
             mesh.normals = normals;
+            mesh.uv = uvs;
             mesh.colors32 = colors;
             mesh.triangles = tris;
             mesh.RecalculateBounds();
@@ -2088,6 +2304,7 @@ namespace Kalyeah.Game
         {
             // Unit width [-0.5..0.5], unit height [0..1], bowing gently toward +Z (ShieldCurveBow).
             var verts = new Vector3[(segments + 1) * 2];
+            var uvs = new Vector2[verts.Length];
             var colors = new Color32[verts.Length];
             var tris = new int[segments * 6];
             var white = new Color32(255, 255, 255, 255);
@@ -2100,6 +2317,8 @@ namespace Kalyeah.Game
                 float z = Mathf.Sin(t * Mathf.PI) * ShieldCurveBow;
                 verts[i * 2] = new Vector3(x, 0f, z);
                 verts[i * 2 + 1] = new Vector3(x, 1f, z);
+                uvs[i * 2] = new Vector2(t, 0f);
+                uvs[i * 2 + 1] = new Vector2(t, 1f);
                 colors[i * 2] = white;
                 colors[i * 2 + 1] = topTint;
             }
@@ -2114,11 +2333,97 @@ namespace Kalyeah.Game
 
             var mesh = new Mesh { name = name };
             mesh.vertices = verts;
+            mesh.uv = uvs;
             mesh.colors32 = colors;
             mesh.triangles = tris;
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
             return mesh;
+        }
+
+        /// <summary>
+        /// Crossed dual-plane tapered projectile trail (z = 0 head -> z = -1 tail) with <c>uv.y = 1</c> outer rails and
+        /// <c>uv.y = 0</c> bright core so <c>Kalyeah/ArcaneFx</c> renders razor-sharp team-colored edge trails on all 4 tiers.
+        /// </summary>
+        static Mesh BuildProjectileTrailMesh(string name)
+        {
+            const int segs = 6;
+            const int slices = segs + 1;
+            const int vertsPerPlane = slices * 3;
+            var verts = new Vector3[vertsPerPlane * 2];
+            var normals = new Vector3[verts.Length];
+            var uvs = new Vector2[verts.Length];
+            var colors = new Color32[verts.Length];
+            var tris = new int[segs * 12 * 2];
+
+            int triCursor = 0;
+            for (int plane = 0; plane < 2; plane++)
+            {
+                int baseV = plane * vertsPerPlane;
+                Vector3 nrm = plane == 0 ? Vector3.up : Vector3.right;
+                for (int i = 0; i < slices; i++)
+                {
+                    float t = i / (float)segs; // 0 = tail (-Z), 1 = head (0)
+                    float z = -(1f - t);
+                    float halfW = Mathf.Lerp(0.10f, 0.50f, t);
+                    float fade = SmoothStep01(0f, 0.35f, t);
+                    byte edgeA = (byte)Mathf.RoundToInt(fade * 255f);
+                    byte coreA = (byte)Mathf.RoundToInt(fade * 215f);
+                    var edgeCol = new Color32(255, 255, 255, edgeA);
+                    var coreCol = new Color32(255, 252, 244, coreA);
+
+                    int row = baseV + i * 3;
+                    if (plane == 0)
+                    {
+                        verts[row] = new Vector3(-halfW, 0f, z);
+                        verts[row + 1] = new Vector3(0f, 0f, z);
+                        verts[row + 2] = new Vector3(halfW, 0f, z);
+                    }
+                    else
+                    {
+                        verts[row] = new Vector3(0f, -halfW, z);
+                        verts[row + 1] = new Vector3(0f, 0f, z);
+                        verts[row + 2] = new Vector3(0f, halfW, z);
+                    }
+
+                    normals[row] = nrm;
+                    normals[row + 1] = nrm;
+                    normals[row + 2] = nrm;
+
+                    uvs[row] = new Vector2(t, 1f);
+                    uvs[row + 1] = new Vector2(t, 0f);
+                    uvs[row + 2] = new Vector2(t, 1f);
+
+                    colors[row] = edgeCol;
+                    colors[row + 1] = coreCol;
+                    colors[row + 2] = edgeCol;
+                }
+
+                for (int i = 0; i < segs; i++)
+                {
+                    int r0 = baseV + i * 3;
+                    int r1 = r0 + 3;
+                    tris[triCursor++] = r0; tris[triCursor++] = r1; tris[triCursor++] = r1 + 1;
+                    tris[triCursor++] = r0; tris[triCursor++] = r1 + 1; tris[triCursor++] = r0 + 1;
+                    tris[triCursor++] = r0 + 1; tris[triCursor++] = r1 + 1; tris[triCursor++] = r1 + 2;
+                    tris[triCursor++] = r0 + 1; tris[triCursor++] = r1 + 2; tris[triCursor++] = r0 + 2;
+                }
+            }
+
+            var mesh = new Mesh { name = name };
+            mesh.vertices = verts;
+            mesh.normals = normals;
+            mesh.uv = uvs;
+            mesh.colors32 = colors;
+            mesh.triangles = tris;
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        static float SmoothStep01(float edge0, float edge1, float x)
+        {
+            float t = Mathf.Clamp01((x - edge0) / Mathf.Max(0.0001f, edge1 - edge0));
+            return t * t * (3f - 2f * t);
         }
 
         static Mesh BuildBoxMesh(string name, float sx, float sy, float sz)

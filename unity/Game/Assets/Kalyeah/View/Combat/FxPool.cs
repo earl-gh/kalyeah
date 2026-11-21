@@ -31,6 +31,10 @@ namespace Kalyeah.Game
         static readonly int PropFresnel = Shader.PropertyToID("_FresnelSoftness");
         static readonly int PropSunlit = Shader.PropertyToID("_SunlitLift");
         static readonly int PropScroll = Shader.PropertyToID("_ScrollSpeed");
+        static readonly int PropHardEdgeWidth = Shader.PropertyToID("_HardEdgeWidth");
+        static readonly int PropDashCount = Shader.PropertyToID("_DashCount");
+        static readonly int PropEdgeBoost = Shader.PropertyToID("_EdgeBoost");
+        static readonly int PropInteriorAlpha = Shader.PropertyToID("_InteriorAlpha");
 
         // Sunlit 90s province komiks palette (matching scripts/view/fx_hero_actions.gd & fx_heals.gd).
         static readonly Color InkEspresso = new Color(0.20f, 0.15f, 0.14f, 0.94f);
@@ -69,6 +73,10 @@ namespace Kalyeah.Game
             public float SunlitLift;
             public float ScrollSpeed;
             public float FresnelSoftness;
+            public float HardEdgeWidth;
+            public float DashCount;
+            public float EdgeBoost;
+            public float InteriorAlpha;
             public bool Billboard;
             public float SpinSpeedDeg;
             public float BaseRollDeg;
@@ -81,6 +89,7 @@ namespace Kalyeah.Game
         readonly FxNode[] _active;
         int _activeCount;
         int _spawnSerial;
+        int _cosmeticSpawnSerial;
 
         readonly Material _sharedMaterial;
         readonly bool _ownsMaterial;
@@ -99,6 +108,9 @@ namespace Kalyeah.Game
         public int Capacity => _maxActive;
         public int ActiveCount => _activeCount;
         public int FreeCount => _freePool.Count;
+        public float ActiveParticleBudgetScale => SettingsStore.Current.GraphicsProfile.ParticleBudgetScale;
+        public int EffectiveDecorativeCap => ComputeDecorativeCap(SettingsStore.Current.GraphicsProfile);
+        public int EffectiveOverdrawCap => SettingsStore.Current.GraphicsProfile.QualityIndex == SettingsStore.GraphicsLow ? 2 : MaxOverdrawLayers;
         public bool ReduceMotion { get; set; }
         public Camera ViewCamera { get; set; }
 
@@ -231,7 +243,7 @@ namespace Kalyeah.Game
             => SpawnMuzzleSnap(KalyeahResources.World(groundOrigin, 0.95f), KalyeahResources.World(groundDir, 0f), teamColor);
 
         /// <summary>Hollow radial street shockwave ring for <c>Bagsak ng Kalye</c> and <c>Bato (Heavy)</c> (&lt; 150 ms).</summary>
-        public void SpawnGroundShockwave(Vector3 center, float radius = 2.4f, Color? teamColor = null, bool isBagsak = false)
+        public void SpawnGroundShockwave(Vector3 center, float radius = 2.4f, Color? teamColor = null, bool isBagsak = false, bool isEnemy = false)
         {
             float clampedRadius = Mathf.Max(0.45f, radius);
             Color baseCol = teamColor ?? BatoTeamDefault;
@@ -252,15 +264,19 @@ namespace Kalyeah.Game
                 tint: col,
                 sunlitLift: isBagsak ? 0.20f : 0.12f,
                 scrollSpeed: 1.5f,
-                fresnel: 0.12f,
+                fresnel: 0f,
                 billboard: false,
                 baseRollDeg: 0f,
                 spinSpeedDeg: 0f,
-                priority: PriorityCombat);
+                priority: PriorityCombat,
+                hardEdgeWidth: 0.30f,
+                dashCount: isEnemy ? 16f : 0f,
+                edgeBoost: 0.32f,
+                interiorAlpha: 0.22f);
         }
 
-        public void SpawnGroundShockwave(SVector2 groundCenter, float radius = 2.4f, Color? teamColor = null, bool isBagsak = false)
-            => SpawnGroundShockwave(KalyeahResources.World(groundCenter, 0f), radius, teamColor, isBagsak);
+        public void SpawnGroundShockwave(SVector2 groundCenter, float radius = 2.4f, Color? teamColor = null, bool isBagsak = false, bool isEnemy = false)
+            => SpawnGroundShockwave(KalyeahResources.World(groundCenter, 0f), radius, teamColor, isBagsak, isEnemy);
 
         /// <summary>Expanding friendly emerald heal ring + rising komiks heal cross (&lt; 150 ms).</summary>
         public void SpawnHealRing(Vector3 center, float radius = 1.6f)
@@ -279,11 +295,15 @@ namespace Kalyeah.Game
                 tint: HealEmerald,
                 sunlitLift: 0.16f,
                 scrollSpeed: 1.1f,
-                fresnel: 0.10f,
+                fresnel: 0f,
                 billboard: false,
                 baseRollDeg: 0f,
                 spinSpeedDeg: 0f,
-                priority: PriorityCombat);
+                priority: PriorityCombat,
+                hardEdgeWidth: 0.30f,
+                dashCount: 0f,
+                edgeBoost: 0.28f,
+                interiorAlpha: 0.20f);
 
             Vector3 crossPos = new Vector3(center.x, center.y + (ReduceMotion ? 1.55f : 1.25f), center.z);
             Vector3 crossVel = ReduceMotion ? Vector3.zero : new Vector3(0f, 2.4f, 0f);
@@ -310,7 +330,7 @@ namespace Kalyeah.Game
             => SpawnHealRing(KalyeahResources.World(groundCenter, 0f), radius);
 
         /// <summary>Curved komiks scissor-snip crescent sweep for <c>Gunting</c> light &amp; heavy (&lt; 150 ms).</summary>
-        public void SpawnSlashArc(Vector3 origin, Vector3 direction, float range = 3.2f, float angleDeg = 55f, Color? teamColor = null, bool heavy = false)
+        public void SpawnSlashArc(Vector3 origin, Vector3 direction, float range = 3.2f, float angleDeg = 55f, Color? teamColor = null, bool heavy = false, bool isEnemy = false)
         {
             float reach = Mathf.Max(0.8f, range);
             float halfRad = Mathf.Clamp(angleDeg, 20f, 130f) * 0.5f * Mathf.Deg2Rad;
@@ -335,15 +355,19 @@ namespace Kalyeah.Game
                 tint: col,
                 sunlitLift: heavy ? 0.20f : 0.14f,
                 scrollSpeed: 2.4f,
-                fresnel: 0.08f,
+                fresnel: 0f,
                 billboard: false,
                 baseRollDeg: 0f,
                 spinSpeedDeg: 0f,
-                priority: PriorityCombat);
+                priority: PriorityCombat,
+                hardEdgeWidth: 0.28f,
+                dashCount: isEnemy ? 8f : 0f,
+                edgeBoost: 0.30f,
+                interiorAlpha: 0.26f);
         }
 
-        public void SpawnSlashArc(SVector2 groundOrigin, SVector2 groundDir, float range = 3.2f, float angleDeg = 55f, Color? teamColor = null, bool heavy = false)
-            => SpawnSlashArc(KalyeahResources.World(groundOrigin, 0.90f), KalyeahResources.World(groundDir, 0f), range, angleDeg, teamColor, heavy);
+        public void SpawnSlashArc(SVector2 groundOrigin, SVector2 groundDir, float range = 3.2f, float angleDeg = 55f, Color? teamColor = null, bool heavy = false, bool isEnemy = false)
+            => SpawnSlashArc(KalyeahResources.World(groundOrigin, 0.90f), KalyeahResources.World(groundDir, 0f), range, angleDeg, teamColor, heavy, isEnemy);
 
         /// <summary>Warm provincial street dust puff (&lt; 140 ms; skipped under ReduceMotion or local overdraw saturation).</summary>
         public void SpawnDustPuff(Vector3 feetPos, float scale = 0.9f)
@@ -506,12 +530,22 @@ namespace Kalyeah.Game
             bool billboard,
             float baseRollDeg,
             float spinSpeedDeg,
-            byte priority)
+            byte priority,
+            float hardEdgeWidth = 0f,
+            float dashCount = 0f,
+            float edgeBoost = 0.12f,
+            float interiorAlpha = 0.16f)
         {
             if (_disposed || mesh == null) return;
 
+            // Riot VFX minspec fairness rule: halve purely cosmetic secondary/decorative spawns on Low
+            // while keeping EVERY gameplay-impacting combat burst (PriorityCombat) 100% identical in size, shape & timing.
+            GraphicsTierProfile profile = SettingsStore.Current.GraphicsProfile;
+            if (ShouldThrottleCosmetic(priority, profile))
+                return;
+
             Vector2 planar = new Vector2(pos.x, pos.z);
-            if (!EnforceOverdrawCap(planar, planarRadius, priority))
+            if (!EnforceOverdrawCap(planar, planarRadius, priority, profile))
                 return;
 
             if (_freePool.Count == 0)
@@ -534,6 +568,10 @@ namespace Kalyeah.Game
             node.SunlitLift = sunlitLift;
             node.ScrollSpeed = scrollSpeed;
             node.FresnelSoftness = fresnel;
+            node.HardEdgeWidth = hardEdgeWidth;
+            node.DashCount = dashCount;
+            node.EdgeBoost = edgeBoost;
+            node.InteriorAlpha = interiorAlpha;
             node.Billboard = billboard;
             node.BaseRollDeg = baseRollDeg;
             node.SpinSpeedDeg = spinSpeedDeg;
@@ -547,8 +585,36 @@ namespace Kalyeah.Game
             ApplyVisualState(node, ResolveBillboardRotation());
         }
 
-        /// <summary>Ensures at most <see cref="MaxOverdrawLayers"/> (3) FX overlap any local street cell.</summary>
-        bool EnforceOverdrawCap(Vector2 planar, float radius, byte incomingPriority)
+        bool ShouldThrottleCosmetic(byte priority, in GraphicsTierProfile profile)
+        {
+            if (priority >= PriorityCombat) return false;
+            if (profile.QualityIndex == SettingsStore.GraphicsLow || profile.ParticleBudgetScale <= 0.55f)
+            {
+                _cosmeticSpawnSerial = (_cosmeticSpawnSerial + 1) & 0x7FFF;
+                if ((_cosmeticSpawnSerial & 1) == 0)
+                    return true;
+            }
+            return CountCosmeticActive() >= ComputeDecorativeCap(profile);
+        }
+
+        int CountCosmeticActive()
+        {
+            int count = 0;
+            for (int i = 0; i < _activeCount; i++)
+            {
+                if (_active[i].Priority < PriorityCombat) count++;
+            }
+            return count;
+        }
+
+        int ComputeDecorativeCap(in GraphicsTierProfile profile)
+        {
+            float scale = Mathf.Clamp(profile.ParticleBudgetScale, 0.25f, 1f);
+            return Mathf.Max(4, Mathf.RoundToInt(_maxActive * 0.40f * scale));
+        }
+
+        /// <summary>Ensures at most <see cref="MaxOverdrawLayers"/> (3, or 2 for cosmetic FX on Low) overlap any street cell.</summary>
+        bool EnforceOverdrawCap(Vector2 planar, float radius, byte incomingPriority, in GraphicsTierProfile profile)
         {
             int overlaps = 0;
             int victimIndex = -1;
@@ -572,10 +638,13 @@ namespace Kalyeah.Game
                 }
             }
 
-            if (overlaps < MaxOverdrawLayers)
+            int cap = (incomingPriority < PriorityCombat && profile.QualityIndex == SettingsStore.GraphicsLow)
+                ? 2
+                : MaxOverdrawLayers;
+            if (overlaps < cap)
                 return true;
 
-            if (incomingPriority == PriorityDecorative && victimPriority > PriorityDecorative)
+            if (incomingPriority < PriorityCombat && victimPriority > incomingPriority)
                 return false;
 
             if (victimIndex >= 0)
@@ -645,13 +714,17 @@ namespace Kalyeah.Game
 
             MaterialPropertyBlock block = node.Block;
             block.SetColor(PropBaseColor, tint);
-            block.SetColor(PropTint, tint);
+            block.SetColor(PropTint, Color.white);
             block.SetColor(PropInkColor, InkEspresso);
             block.SetFloat(PropPhase, phase);
             block.SetFloat(PropSoftFade, softFade);
             block.SetFloat(PropFresnel, node.FresnelSoftness);
             block.SetFloat(PropSunlit, node.SunlitLift);
             block.SetFloat(PropScroll, node.ScrollSpeed);
+            block.SetFloat(PropHardEdgeWidth, node.HardEdgeWidth);
+            block.SetFloat(PropDashCount, node.DashCount);
+            block.SetFloat(PropEdgeBoost, node.EdgeBoost);
+            block.SetFloat(PropInteriorAlpha, node.InteriorAlpha);
             node.Renderer.SetPropertyBlock(block);
         }
 
@@ -698,15 +771,18 @@ namespace Kalyeah.Game
             const float rMid = 0.90f;
             const float rOuter = 1.00f;
 
-            var verts = new Vector3[segs * 3];
-            var norms = new Vector3[segs * 3];
-            var cols = new Color32[segs * 3];
-            var uvs = new Vector2[segs * 3];
+            // (segs + 1) seam vertex reaches uv.x = 1.0 so ArcaneFx dashed enemy shockwaves never smear across the closing wedge.
+            int vertCount = (segs + 1) * 3;
+            var verts = new Vector3[vertCount];
+            var norms = new Vector3[vertCount];
+            var cols = new Color32[vertCount];
+            var uvs = new Vector2[vertCount];
             var tris = new int[segs * 12];
 
-            for (int i = 0; i < segs; i++)
+            for (int i = 0; i <= segs; i++)
             {
-                float a = (i / (float)segs) * Mathf.PI * 2f;
+                float u = i / (float)segs;
+                float a = u * Mathf.PI * 2f;
                 float c = Mathf.Cos(a);
                 float s = Mathf.Sin(a);
 
@@ -721,9 +797,8 @@ namespace Kalyeah.Game
 
                 cols[b] = VertexSoftInner;
                 cols[b + 1] = VertexHotCore;
-                cols[b + 2] = VertexInkEdge;
+                cols[b + 2] = VertexHotCore;
 
-                float u = i / (float)segs;
                 uvs[b] = new Vector2(u, 0f);
                 uvs[b + 1] = new Vector2(u, 0.7f);
                 uvs[b + 2] = new Vector2(u, 1f);
@@ -732,11 +807,10 @@ namespace Kalyeah.Game
             int t = 0;
             for (int i = 0; i < segs; i++)
             {
-                int next = (i + 1) % segs;
                 int b0 = i * 3;
-                int b1 = next * 3;
+                int b1 = (i + 1) * 3;
 
-                // Inner feather -> sunlit gouache core band (+Y clockwise winding)
+                // Inner feather -> sunlit core band (+Y clockwise winding)
                 tris[t++] = b0;
                 tris[t++] = b1 + 1;
                 tris[t++] = b0 + 1;
@@ -744,7 +818,7 @@ namespace Kalyeah.Game
                 tris[t++] = b1;
                 tris[t++] = b1 + 1;
 
-                // Gouache core band -> espresso ink rim
+                // Core band -> hard-edge outer gameplay perimeter
                 tris[t++] = b0 + 1;
                 tris[t++] = b1 + 2;
                 tris[t++] = b0 + 2;
@@ -851,7 +925,7 @@ namespace Kalyeah.Game
 
                 cols[b] = VertexSoftInner;
                 cols[b + 1] = VertexHotCore;
-                cols[b + 2] = VertexInkEdge;
+                cols[b + 2] = VertexHotCore;
 
                 uvs[b] = new Vector2(u, 0f);
                 uvs[b + 1] = new Vector2(u, 0.7f);

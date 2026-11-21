@@ -10,6 +10,10 @@ Shader "Kalyeah/BarangayGround"
         _Wear ("Wear", Range(0.0, 1.0)) = 1.0
         _AlbedoScale ("Albedo Scale", Range(0.5, 1.5)) = 1.0
         _ShadowFloor ("Shadow Luminance Floor", Range(0.15, 0.55)) = 0.34
+        _AmbientMin ("Ambient Clamp Min", Range(0.05, 0.50)) = 0.24
+        _AmbientMax ("Ambient Clamp Max", Range(0.50, 1.40)) = 0.92
+        _DetailStrength ("Surface Detail Strength", Range(0.0, 1.0)) = 0.72
+        _SpecStrength ("Road Specular Strength", Range(0.0, 0.35)) = 0.12
         _CarveCreekSlot ("Carve Creek Slot", Float) = 0.0
         _IsCreekBed ("Is Creek Bed", Float) = 0.0
         _ParcelCount ("Parcel Count", Float) = 0.0
@@ -36,6 +40,10 @@ Shader "Kalyeah/BarangayGround"
             float _Wear;
             float _AlbedoScale;
             float _ShadowFloor;
+            float _AmbientMin;
+            float _AmbientMax;
+            float _DetailStrength;
+            float _SpecStrength;
             float _CarveCreekSlot;
             float _IsCreekBed;
             float _ParcelCount;
@@ -139,12 +147,17 @@ Shader "Kalyeah/BarangayGround"
             #pragma target 3.0
             #pragma vertex GroundVert
             #pragma fragment GroundFrag
+            #pragma multi_compile _ KALYEAH_QUALITY_LOW
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
             #pragma multi_compile_fog
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+
+            // Optional MatchBoot global ambient clamps (outside UnityPerMaterial to preserve SRP Batcher).
+            float _KalyeahAmbientMin;
+            float _KalyeahAmbientMax;
 
             struct Attributes
             {
@@ -161,6 +174,18 @@ Shader "Kalyeah/BarangayGround"
                 float  fogFactor  : TEXCOORD3;
             };
 
+            float3 SrgbToLinear3(float3 c)
+            {
+                return pow(max(c, 1e-5), 2.2);
+            }
+
+            float BoxSdf(float2 p, float2 halfExt, float radius)
+            {
+                float2 q = abs(p) - halfExt + radius;
+                return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - radius;
+            }
+
+            #ifndef KALYEAH_QUALITY_LOW
             float GlslMod(float x, float y)
             {
                 return x - y * floor(x / y);
@@ -169,11 +194,6 @@ Shader "Kalyeah/BarangayGround"
             float2 Rot2(float2 v, float c, float s)
             {
                 return float2(c * v.x - s * v.y, s * v.x + c * v.y);
-            }
-
-            float3 SrgbToLinear3(float3 c)
-            {
-                return pow(max(c, 0.0), 2.2);
             }
 
             float Hash12(float2 p)
@@ -209,16 +229,11 @@ Shader "Kalyeah/BarangayGround"
                 return v;
             }
 
-            float BoxSdf(float2 p, float2 halfExt, float radius)
-            {
-                float2 q = abs(p) - halfExt + radius;
-                return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - radius;
-            }
-
             float SafeAtan2(float y, float x)
             {
                 return atan2(y, abs(x) < 1e-5 ? (x >= 0.0 ? 1e-5 : -1e-5) : x);
             }
+            #endif
 
             Varyings GroundVert(Attributes input)
             {
@@ -241,9 +256,11 @@ Shader "Kalyeah/BarangayGround"
             half4 GroundFrag(Varyings input) : SV_TARGET
             {
                 float2 xz = input.simXZ;
+                #ifndef KALYEAH_QUALITY_LOW
                 // Compute derivatives before non-uniform clip() for Vulkan/GLES3/D3D11 safety.
                 float pxFw = min(length(ddx(xz)), length(ddy(xz)));
-                float detailVis = 1.0 - smoothstep(0.055, 0.20, pxFw);
+                float detailVis = (1.0 - smoothstep(0.055, 0.20, pxFw)) * _DetailStrength;
+                #endif
 
                 float cz = CanalZ(xz.x);
                 if (_CarveCreekSlot > 0.5 && abs(xz.x) < _ArenaRadius + 3.0 && abs(xz.y - cz) < 4.55)
@@ -257,28 +274,7 @@ Shader "Kalyeah/BarangayGround"
 
                 float rDist = length(xz);
 
-                float2 warp = float2(
-                    FbmOrganic(xz * 0.042 + float2(3.1, 7.4)),
-                    FbmOrganic(xz * 0.042 + float2(18.6, -9.2))
-                ) - 0.5;
-                float macroVar = FbmOrganic(xz * 0.052 + warp * 1.8);
-                float midVar = FbmOrganic(xz * 0.23 + warp * 0.9);
-                float grit = VNoise(xz * 2.35 + warp * 2.2);
-                float gravelChip = VNoise(xz * 6.80 + warp * 1.5);
-                float finePebble = VNoise(xz * 15.60 - warp * 1.1);
-
-                // ---- Band 1 Ground Discipline (0.22-0.38 warm mid-dark, low micro-grit) ----
-                // 1. Base provincial laterite earth & muted tropical berm grass
-                float3 earthWarm = float3(0.28, 0.24, 0.19);
-                float3 earthDust = float3(0.35, 0.30, 0.24);
-                float3 cloverPatch = float3(0.23, 0.30, 0.19);
-                float3 col = lerp(earthWarm, earthDust, smoothstep(0.26, 0.76, macroVar));
-                col += (midVar - 0.5) * 0.026 + (grit - 0.5) * 0.018 + (gravelChip - 0.5) * 0.014 * detailVis;
-                float grassM = smoothstep(0.56, 0.75, FbmOrganic(xz * 0.14 + float2(11.2, -5.7))) * smoothstep(18.0, 48.0, rDist);
-                col = lerp(col, cloverPatch, grassM * 0.52);
-                float rough = 0.93;
-
-                // 2. Curved street carriageways & signed distance to curb
+                // ---- Curved street carriageways & signed distance to curb (identical across all 4 tiers) ----
                 float xc = LaneCenterX(xz.y);
                 float xw = LaneWestX(xz.y);
                 float xe = LaneEastX(xz.y);
@@ -314,22 +310,179 @@ Shader "Kalyeah/BarangayGround"
                 float hFillet = max(cornerK - abs(dNs - dEw), 0.0) / cornerK;
                 float dRoad = min(dNs, dEw) - hFillet * hFillet * cornerK * 0.25;
 
-                // 3. Calm poured-concrete sidewalks (0.31-0.37)
+                float2 jSw = float2(LaneWestX(28.0), EskinitaSouthZ(-31.0));
+                float2 jSc = float2(LaneCenterX(28.0), EskinitaSouthZ(4.0));
+                float2 jSe = float2(LaneEastX(28.0), EskinitaSouthZ(36.0));
+                float2 jNw = -jSe;
+                float2 jNc = -jSc;
+                float2 jNe = -jSw;
+                float dJunc = min(
+                    min(length(xz - jSw), min(length(xz - jSc), length(xz - jSe))),
+                    min(length(xz - jNw), min(length(xz - jNc), length(xz - jNe)))
+                );
+
                 float swMask = (1.0 - smoothstep(2.45, 2.95, dRoad)) * smoothstep(-0.12, 0.08, dRoad);
+                float roadMask = 1.0 - smoothstep(-0.08, 0.08, dRoad);
+
+                #ifdef KALYEAH_QUALITY_LOW
+                // VALORANT aggressive Low environment scaling: strip all multi-octave noise, speckles, cracks,
+                // bitumen patches, and specular — keep ultra-fast clean warm matte diffuse + crisp lane/landmark reads.
+                float3 col = lerp(float3(0.31, 0.27, 0.21), float3(0.25, 0.30, 0.20), smoothstep(28.0, 62.0, rDist) * 0.40);
+                col = lerp(col, float3(0.34, 0.32, 0.29), swMask);
+
+                float3 asph = float3(0.25, 0.24, 0.23);
+                float cobbleApron = (1.0 - smoothstep(4.8, 7.6, dJunc)) * roadMask;
+                asph = lerp(asph, float3(0.31, 0.25, 0.21), cobbleApron * 0.72);
+
+                // Crisp warm-ochre dashed lane centerlines
+                float clearJunc = smoothstep(7.2, 9.8, dJunc) * smoothstep(8.2, 10.5, abs(xz.y - cz));
+                float dashPat = smoothstep(0.34, 0.40, frac(xz.y * 0.14)) * (1.0 - smoothstep(0.76, 0.82, frac(xz.y * 0.14)));
+                float centerStripe =
+                    (1.0 - smoothstep(0.09, 0.17, abs(xz.x - xc))) * (1.0 - smoothstep(45.5, 48.0, abs(xz.y))) +
+                    (1.0 - smoothstep(0.08, 0.16, abs(xz.x - xw))) * (1.0 - smoothstep(64.0, 70.0, abs(xz.y))) +
+                    (1.0 - smoothstep(0.08, 0.16, abs(xz.x - xe))) * (1.0 - smoothstep(64.0, 70.0, abs(xz.y)));
+                asph = lerp(asph, float3(0.45, 0.36, 0.20), saturate(centerStripe) * dashPat * clearJunc * 0.68);
+
+                // Calm cream zebra crosswalks (exact same lane callouts as High)
+                float dXwalkEskS = abs(abs(xz.y - zs) - 6.35);
+                float dXwalkEskN = abs(abs(xz.y - zn) - 6.35);
+                float dXwalkFord = abs(abs(xz.y - cz) - 7.35);
+                float dXwalkPlaza = abs(abs(xz.y) - 48.6);
+                float dNsXwalk = min(min(dXwalkEskS, dXwalkEskN), min(dXwalkFord, dXwalkPlaza));
+                float xwalkBandNs = 1.0 - smoothstep(1.08, 1.26, dNsXwalk);
+                float onNsCarriageway = 1.0 - smoothstep(-0.72, -0.28, dNs);
+                float localLaneU = xz.x - xc;
+                if (abs(xz.x - xw) < abs(localLaneU)) localLaneU = xz.x - xw;
+                if (abs(xz.x - xe) < abs(localLaneU)) localLaneU = xz.x - xe;
+                float zebraU = frac(localLaneU * 0.92 + 0.25);
+                float zebraBarNs = smoothstep(0.20, 0.26, zebraU) * (1.0 - smoothstep(0.74, 0.80, zebraU));
+                asph = lerp(asph, float3(0.45, 0.43, 0.38), saturate(xwalkBandNs * zebraBarNs * onNsCarriageway) * 0.68);
+
+                col = lerp(col, asph, roadMask);
+
+                // Clean curb lip
+                float curbLip = smoothstep(-0.03, 0.05, dRoad) * (1.0 - smoothstep(0.20, 0.34, dRoad));
+                col = lerp(col, float3(0.39, 0.37, 0.33), curbLip * 0.68);
+
+                // Sub-0.5s South warm terracotta vs North cool sage-cream plaza orientation
+                float2 ownBase = _OwnBaseCenter.xy;
+                float ownD = length(xz - ownBase);
+                float ownPlazaMask = 1.0 - smoothstep(12.6, 14.8, ownD);
+                if (ownPlazaMask > 0.004)
+                {
+                    float2 lo = xz - ownBase;
+                    float3 ownStone = lerp(float3(0.37, 0.32, 0.26), float3(0.34, 0.26, 0.21), step(6.2, ownD) * step(ownD, 9.4));
+                    float insideBase = 1.0 - smoothstep(9.4, 11.0, ownD);
+                    float lineO = max(
+                        (1.0 - smoothstep(0.05, 0.12, abs(lo.y))) * step(abs(lo.x), 8.2),
+                        1.0 - smoothstep(0.05, 0.12, abs(ownD - 2.3))
+                    ) * insideBase;
+                    ownStone = lerp(ownStone, float3(0.45, 0.42, 0.37), saturate(lineO) * 0.56);
+                    col = lerp(col, ownStone, ownPlazaMask);
+                }
+
+                float2 enemyBase = _EnemyBaseCenter.xy;
+                float hallD = length(xz - enemyBase);
+                float hallMask = 1.0 - smoothstep(12.6, 14.8, hallD);
+                if (hallMask > 0.004)
+                {
+                    float3 plazaStone = lerp(float3(0.33, 0.36, 0.35), float3(0.26, 0.33, 0.32), step(6.2, hallD) * step(hallD, 9.4));
+                    col = lerp(col, plazaStone, hallMask);
+                }
+
+                // Clean Estero bank silt / ford tint
+                int parcelCount = min((int)(_ParcelCount + 0.5), 32);
+                bool creekActive = (_IsCreekBed > 0.5) || (_CarveCreekSlot > 0.5) || (parcelCount > 0);
+                if (creekActive)
+                {
+                    float canalAbs = abs(xz.y - cz);
+                    float bankZone = 1.0 - smoothstep(3.4, 6.6, canalAbs);
+                    float insideWall = (_ArenaRadius > 1.0) ? (1.0 - smoothstep(_ArenaRadius - 0.5, _ArenaRadius + 2.8, rDist)) : 1.0;
+                    if (bankZone * insideWall > 0.004)
+                    {
+                        float fordProx = FordProximity(xz.x);
+                        float3 bedCol = lerp(float3(0.25, 0.25, 0.20), float3(0.31, 0.30, 0.27), max(fordProx * 0.85, 1.0 - smoothstep(2.4, 3.8, canalAbs)));
+                        col = lerp(col, bedCol, bankZone * insideWall * 0.90);
+                    }
+                }
+
+                // Soft building contact AO (no moss noise)
+                if (parcelCount > 0)
+                {
+                    float minBldgD = 999.0;
+                    [loop]
+                    for (int i = 0; i < 32; i++)
+                    {
+                        if (i >= parcelCount) break;
+                        float4 pose = _ParcelPose[i];
+                        float2 halfE = _ParcelHalf[i].xy;
+                        float2 rel = xz - pose.xy;
+                        float2 localP = float2(rel.x * pose.z - rel.y * pose.w, rel.x * pose.w + rel.y * pose.z);
+                        float2 q = abs(localP) - halfE;
+                        float dObb = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+                        minBldgD = min(minBldgD, dObb);
+                    }
+                    col *= lerp(0.64, 1.0, smoothstep(-0.05, 1.35, minBldgD));
+                }
+
+                if (_ArenaRadius > 1.0)
+                {
+                    float rimDelta = rDist - _ArenaRadius;
+                    float coping = 1.0 - smoothstep(0.32, 0.82, abs(rimDelta));
+                    col = lerp(col, float3(0.37, 0.34, 0.30), coping * 0.55);
+                }
+
+                col = clamp(col, 0.18, 0.46);
+
+                // Diffuse-only matte lighting on Low (Riot rule: drop specular on matte Low environments)
+                float3 normalWS = normalize(input.normalWS);
+                Light mainLight = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
+                float ndotl = saturate(dot(normalWS, mainLight.direction));
+                float shadowAtten = lerp(_ShadowFloor, 1.0, mainLight.shadowAttenuation * mainLight.distanceAttenuation);
+                float ambMin = (_KalyeahAmbientMin > 0.001) ? _KalyeahAmbientMin : _AmbientMin;
+                float ambMax = max((_KalyeahAmbientMax > 0.001) ? _KalyeahAmbientMax : _AmbientMax, ambMin + 0.01);
+                float3 ambient = clamp(SampleSH(normalWS), ambMin, ambMax);
+                float3 diffuseLight = mainLight.color * (ndotl * shadowAtten) + ambient;
+
+                float3 baseLinear = SrgbToLinear3(col) * _BaseColor.rgb * _AlbedoScale;
+                float3 litColor = MixFog(baseLinear * diffuseLight, input.fogFactor);
+                return half4(litColor, 1.0);
+                #else
+                float2 warp = float2(
+                    FbmOrganic(xz * 0.042 + float2(3.1, 7.4)),
+                    FbmOrganic(xz * 0.042 + float2(18.6, -9.2))
+                ) - 0.5;
+                float macroVar = FbmOrganic(xz * 0.052 + warp * 1.8);
+                float midVar = FbmOrganic(xz * 0.23 + warp * 0.9);
+                float grit = VNoise(xz * 2.35 + warp * 2.2);
+                float gravelChip = VNoise(xz * 6.80 + warp * 1.5);
+                float finePebble = VNoise(xz * 15.60 - warp * 1.1);
+
+                // ---- Band 1 Ground Discipline (0.22-0.38 warm mid-dark, calm Valorant low-noise paint) ----
+                // 1. Base provincial laterite earth & muted tropical berm grass
+                float3 earthWarm = float3(0.28, 0.24, 0.19);
+                float3 earthDust = float3(0.35, 0.30, 0.24);
+                float3 cloverPatch = float3(0.23, 0.30, 0.19);
+                float3 col = lerp(earthWarm, earthDust, smoothstep(0.26, 0.76, macroVar));
+                col += ((midVar - 0.5) * 0.022 + (grit - 0.5) * 0.012) * _DetailStrength + (gravelChip - 0.5) * 0.010 * detailVis;
+                float grassM = smoothstep(0.56, 0.75, FbmOrganic(xz * 0.14 + float2(11.2, -5.7))) * smoothstep(18.0, 48.0, rDist);
+                col = lerp(col, cloverPatch, grassM * 0.52);
+                float rough = 0.93;
+
+                // 3. Calm poured-concrete sidewalks (0.31-0.37)
                 float3 swBase = lerp(float3(0.32, 0.30, 0.27), float3(0.37, 0.35, 0.31), smoothstep(0.22, 0.78, macroVar));
-                swBase += (midVar - 0.5) * 0.022 + (grit - 0.5) * 0.016 * detailVis;
+                swBase += (midVar - 0.5) * 0.018 * _DetailStrength + (grit - 0.5) * 0.012 * detailVis;
                 float jointAlong = abs(frac((xz.x * 0.19 + xz.y * 0.23) + warp.x * 0.42) - 0.5);
                 float jointSeam = 1.0 - smoothstep(0.008, 0.024, jointAlong);
-                swBase = lerp(swBase, float3(0.23, 0.22, 0.20), jointSeam * 0.45);
+                swBase = lerp(swBase, float3(0.23, 0.22, 0.20), jointSeam * 0.40);
                 col = lerp(col, swBase, swMask);
-                rough = lerp(rough, 0.87, swMask);
+                rough = lerp(rough, 0.88, swMask);
 
-                // 4. Calm painted barangay asphalt carriageways (0.22-0.29, minimal micro-grit)
-                float roadMask = 1.0 - smoothstep(-0.08, 0.08, dRoad);
+                // 4. Calm painted barangay asphalt carriageways (0.22-0.29, minimal micro-grit so kids/VFX pop)
                 float3 asphDark = float3(0.22, 0.22, 0.23);
                 float3 asphWarm = float3(0.28, 0.26, 0.24);
                 float3 asph = lerp(asphDark, asphWarm, smoothstep(0.18, 0.82, macroVar));
-                float aggStipple = (grit - 0.5) * 0.022 + ((gravelChip - 0.5) * 0.024 + (finePebble - 0.5) * 0.018) * detailVis;
+                float aggStipple = (grit - 0.5) * 0.014 * _DetailStrength + ((gravelChip - 0.5) * 0.014 + (finePebble - 0.5) * 0.010) * detailVis;
                 asph += aggStipple;
 
                 // DPWH bitumen utility-trench patches
@@ -344,8 +497,8 @@ Shader "Kalyeah/BarangayGround"
                     float pSdf = BoxSdf(patchLocal - patchOff, patchSz, 0.16);
                     float pFill = 1.0 - smoothstep(-0.04, 0.05, pSdf);
                     float pTarRim = 1.0 - smoothstep(0.012, 0.042, abs(pSdf));
-                    asph = lerp(asph, float3(0.20, 0.20, 0.21), pFill * 0.55 * _Wear);
-                    asph = lerp(asph, float3(0.14, 0.14, 0.15), pTarRim * 0.65 * _Wear);
+                    asph = lerp(asph, float3(0.20, 0.20, 0.21), pFill * 0.48 * _Wear * _DetailStrength);
+                    asph = lerp(asph, float3(0.15, 0.15, 0.16), pTarRim * 0.55 * _Wear * _DetailStrength);
                 }
 
                 // Dual tire-wear ruts & subtle center crown
@@ -357,8 +510,8 @@ Shader "Kalyeah/BarangayGround"
                 float minWheel = min(min(offC, min(offW, offE)), min(offEs, offEn));
                 float tireTrack = (1.0 - smoothstep(0.28, 1.08, minWheel)) * _Wear;
                 float laneCrown = (1.0 - smoothstep(0.25, 0.95, min(abs(xz.x - xc), min(abs(xz.x - xw), abs(xz.x - xe))))) * _Wear;
-                asph = lerp(asph, float3(0.19, 0.19, 0.20), tireTrack * 0.36);
-                asph += float3(0.016, 0.015, 0.013) * laneCrown;
+                asph = lerp(asph, float3(0.19, 0.19, 0.20), tireTrack * 0.30 * _DetailStrength);
+                asph += float3(0.014, 0.013, 0.011) * laneCrown * _DetailStrength;
 
                 // Subtle thin tar repair cracks
                 float2 crackUvA = xz * 0.58 + warp * 0.65;
@@ -367,20 +520,9 @@ Shader "Kalyeah/BarangayGround"
                 float crackGrad = abs(FbmOrganic(crackUvA + float2(0.09, 0.06)) - crackF0);
                 float antiBlob = smoothstep(0.010, 0.028, crackGrad);
                 float tarPrimary = (1.0 - smoothstep(0.0020, 0.0075, crackA)) * antiBlob * smoothstep(0.34, 0.66, macroVar);
-                asph = lerp(asph, float3(0.14, 0.14, 0.15), saturate(tarPrimary) * 0.65 * _Wear);
+                asph = lerp(asph, float3(0.15, 0.15, 0.16), saturate(tarPrimary) * 0.52 * _Wear * _DetailStrength);
 
                 // 5. Terracotta/ochre brick-cobble intersection aprons, manholes & calm zebra crosswalks
-                float2 jSw = float2(LaneWestX(28.0), EskinitaSouthZ(-31.0));
-                float2 jSc = float2(LaneCenterX(28.0), EskinitaSouthZ(4.0));
-                float2 jSe = float2(LaneEastX(28.0), EskinitaSouthZ(36.0));
-                float2 jNw = -jSe;
-                float2 jNc = -jSc;
-                float2 jNe = -jSw;
-
-                float dJunc = min(
-                    min(length(xz - jSw), min(length(xz - jSc), length(xz - jSe))),
-                    min(length(xz - jNw), min(length(xz - jNc), length(xz - jNe)))
-                );
                 float cobbleApron = (1.0 - smoothstep(4.8, 7.6, dJunc)) * roadMask;
                 if (cobbleApron > 0.005)
                 {
@@ -392,7 +534,7 @@ Shader "Kalyeah/BarangayGround"
                     float cMortar = max(1.0 - smoothstep(0.05, 0.15, cf.x), 1.0 - smoothstep(0.07, 0.19, cf.y));
                     float cTone = Hash12(cid);
                     float3 brickCol = lerp(float3(0.28, 0.22, 0.19), float3(0.36, 0.29, 0.23), cTone);
-                    brickCol = lerp(brickCol, float3(0.18, 0.17, 0.16), cMortar * 0.58);
+                    brickCol = lerp(brickCol, float3(0.18, 0.17, 0.16), cMortar * 0.48 * _DetailStrength);
                     asph = lerp(asph, brickCol, cobbleApron * 0.85);
                 }
 
@@ -403,7 +545,7 @@ Shader "Kalyeah/BarangayGround"
                     (1.0 - smoothstep(0.09, 0.17, abs(xz.x - xc))) * (1.0 - smoothstep(45.5, 48.0, abs(xz.y))) +
                     (1.0 - smoothstep(0.08, 0.16, abs(xz.x - xw))) * (1.0 - smoothstep(64.0, 70.0, abs(xz.y))) +
                     (1.0 - smoothstep(0.08, 0.16, abs(xz.x - xe))) * (1.0 - smoothstep(64.0, 70.0, abs(xz.y)));
-                float chipPaint = clamp(0.68 + (grit - 0.4) * 0.35, 0.40, 0.92);
+                float chipPaint = clamp(0.68 + (grit - 0.4) * 0.30 * _DetailStrength, 0.46, 0.92);
                 asph = lerp(asph, float3(0.45, 0.36, 0.20), saturate(centerStripe) * dashPat * clearJunc * chipPaint * 0.78);
 
                 // Worn-cream zebra crosswalks (capped so white Rescue timers & AoE rims pop!)
@@ -433,13 +575,13 @@ Shader "Kalyeah/BarangayGround"
                 float zebraBarEw = smoothstep(0.20, 0.26, zebraV) * (1.0 - smoothstep(0.74, 0.80, zebraV));
                 float xwalkBandEw = (1.0 - smoothstep(1.02, 1.20, dEwXwalk)) * onEwEskinita;
 
-                float zebraWear = clamp(0.76 + (grit - 0.42) * 0.30 - tireTrack * 0.22, 0.46, 0.92);
+                float zebraWear = clamp(0.76 + (grit - 0.42) * 0.25 * _DetailStrength - tireTrack * 0.18, 0.50, 0.92);
                 float xwalkPaint = max(
                     max(xwalkBandNs * zebraBarNs, stopBarNs * 0.80) * onNsCarriageway,
                     xwalkBandEw * zebraBarEw
                 ) * zebraWear;
                 float3 xwalkCol = float3(0.46, 0.44, 0.39);
-                asph = lerp(asph, xwalkCol, saturate(xwalkPaint) * 0.82);
+                asph = lerp(asph, xwalkCol, saturate(xwalkPaint) * 0.80);
 
                 // Cast-iron DPWH storm-manhole lids
                 float2 mhRel = xz - (jSc + float2(-1.35, 1.45));
@@ -466,26 +608,26 @@ Shader "Kalyeah/BarangayGround"
                     float lidM = 1.0 - smoothstep(0.45, 0.48, dMh);
                     float rings = smoothstep(-0.2, 0.65, cos(dMh * 44.0));
                     float ribs = smoothstep(-0.1, 0.70, cos(SafeAtan2(mhRel.y, mhRel.x) * 8.0)) * step(0.11, dMh);
-                    float3 ironLid = lerp(float3(0.18, 0.17, 0.17), float3(0.29, 0.26, 0.23), max(rings, ribs) * 0.80);
+                    float3 ironLid = lerp(float3(0.18, 0.17, 0.17), float3(0.29, 0.26, 0.23), max(rings, ribs) * 0.75);
                     asph = lerp(asph, float3(0.31, 0.29, 0.26), collarM * 0.80);
                     asph = lerp(asph, ironLid, lidM * 0.90);
                     mhMask = lidM;
                 }
 
                 float gutterBand = smoothstep(-0.54, -0.16, dRoad) * (1.0 - smoothstep(-0.01, 0.07, dRoad));
-                asph = lerp(asph, float3(0.16, 0.16, 0.17), gutterBand * 0.65);
+                asph = lerp(asph, float3(0.17, 0.17, 0.18), gutterBand * 0.58);
 
                 col = lerp(col, asph, roadMask);
-                float roadRough = lerp(0.88, 0.74, saturate(tireTrack * 0.45 + gutterBand * 0.35 + mhMask * 0.55));
+                float roadRough = lerp(0.89, 0.74, saturate(tireTrack * 0.40 + gutterBand * 0.35 + mhMask * 0.55));
                 rough = lerp(rough, roadRough, roadMask);
 
                 // Beveled concrete curb lip
                 float curbLip = smoothstep(-0.03, 0.05, dRoad) * (1.0 - smoothstep(0.20, 0.34, dRoad));
                 float curbAo = smoothstep(-0.18, -0.01, dRoad) * (1.0 - smoothstep(0.0, 0.09, dRoad));
                 col = lerp(col, float3(0.39, 0.37, 0.33), curbLip * 0.72);
-                col *= 1.0 - curbAo * 0.22;
+                col *= 1.0 - curbAo * 0.20;
 
-                // 6. South Covered Court Plaza (warm ochre/terracotta) vs North Barangay Hall Plaza (cool teal/cream)
+                // 6. South Covered Court Plaza (warm ochre/terracotta) vs North Barangay Hall Plaza (cool sage/cream)
                 float2 ownBase = _OwnBaseCenter.xy;
                 float ownD = length(xz - ownBase);
                 float ownPlazaMask = 1.0 - smoothstep(12.6, 14.8, ownD);
@@ -496,20 +638,20 @@ Shader "Kalyeah/BarangayGround"
                     float spokeO = abs(frac(SafeAtan2(lo.y, lo.x) * 3.8197) - 0.5);
                     float jointO = max(1.0 - smoothstep(0.03, 0.08, radRingO), 1.0 - smoothstep(0.02, 0.06, spokeO));
                     float3 ownStone = lerp(float3(0.37, 0.32, 0.26), float3(0.34, 0.26, 0.21), step(6.2, ownD) * step(ownD, 9.4));
-                    ownStone = lerp(ownStone, float3(0.22, 0.20, 0.18), jointO * 0.42);
+                    ownStone = lerp(ownStone, float3(0.22, 0.20, 0.18), jointO * 0.38);
                     float insideBase = 1.0 - smoothstep(9.4, 11.0, ownD);
                     float keyO = 1.0 - smoothstep(-0.08, 0.08, min(
                         BoxSdf(lo - float2(0.0, 7.2), float2(2.4, 2.8), 0.15),
                         BoxSdf(lo - float2(0.0, -7.2), float2(2.4, 2.8), 0.15)
                     ));
-                    ownStone = lerp(ownStone, float3(0.38, 0.24, 0.19), keyO * insideBase * 0.45 * chipPaint);
+                    ownStone = lerp(ownStone, float3(0.38, 0.26, 0.20), keyO * insideBase * 0.42 * chipPaint);
                     float lineO = max(
                         (1.0 - smoothstep(0.05, 0.12, abs(lo.y))) * step(abs(lo.x), 8.2),
                         1.0 - smoothstep(0.05, 0.12, abs(ownD - 2.3))
                     ) * insideBase;
                     ownStone = lerp(ownStone, float3(0.46, 0.43, 0.38), saturate(lineO) * chipPaint * 0.62);
                     col = lerp(col, ownStone, ownPlazaMask);
-                    rough = lerp(rough, 0.85, ownPlazaMask);
+                    rough = lerp(rough, 0.86, ownPlazaMask);
                 }
 
                 float lmMask = 0.0;
@@ -535,11 +677,11 @@ Shader "Kalyeah/BarangayGround"
                     float radRing = abs(frac(hallD * 0.42 + warp.x * 0.12) - 0.5);
                     float spoke = abs(frac(SafeAtan2(lh.y, lh.x) * 3.8197) - 0.5);
                     float pJoint = max(1.0 - smoothstep(0.03, 0.08, radRing), 1.0 - smoothstep(0.02, 0.06, spoke));
-                    // Cool teal-slate / cream civic stone temperature for < 0.5 s North orientation
-                    float3 plazaStone = lerp(float3(0.33, 0.36, 0.35), float3(0.25, 0.32, 0.32), step(6.2, hallD) * step(hallD, 9.4));
-                    plazaStone = lerp(plazaStone, float3(0.20, 0.22, 0.22), pJoint * 0.42);
+                    // Cool sage-slate / cream civic stone temperature for < 0.5 s North orientation (no team blue)
+                    float3 plazaStone = lerp(float3(0.33, 0.36, 0.35), float3(0.26, 0.33, 0.32), step(6.2, hallD) * step(hallD, 9.4));
+                    plazaStone = lerp(plazaStone, float3(0.20, 0.22, 0.22), pJoint * 0.38);
                     col = lerp(col, plazaStone, hallMask);
-                    rough = lerp(rough, 0.84, hallMask);
+                    rough = lerp(rough, 0.85, hallMask);
                 }
 
                 // 7. Sunken Estero riverbank silt & cobble fords
@@ -560,9 +702,9 @@ Shader "Kalyeah/BarangayGround"
                             float3 riverCobble = lerp(float3(0.27, 0.26, 0.24), float3(0.35, 0.33, 0.29), finePebble);
                             float3 bedCol = lerp(bankSilt, riverCobble, max(fordProx * 0.88, 1.0 - smoothstep(2.4, 3.8, canalAbs)));
                             float wetDark = 1.0 - smoothstep(2.8, 4.4, canalAbs);
-                            bedCol *= lerp(1.0, 0.80, wetDark);
+                            bedCol *= lerp(1.0, 0.82, wetDark);
                             col = lerp(col, bedCol, bankZone * insideWall * 0.92);
-                            rough = lerp(rough, lerp(0.88, 0.38, wetDark), bankZone * insideWall);
+                            rough = lerp(rough, lerp(0.88, 0.42, wetDark), bankZone * insideWall);
                         }
                         if (outerSwale > 0.004)
                         {
@@ -600,9 +742,9 @@ Shader "Kalyeah/BarangayGround"
                     float3 skirtCol = lerp(float3(0.34, 0.32, 0.29), float3(0.37, 0.35, 0.31), frontApron);
                     col = lerp(col, skirtCol, max(skirtM * 0.74, frontApron * 0.80));
 
-                    float wallAo = lerp(0.58, 1.0, smoothstep(-0.05, 1.45, minBldgD));
+                    float wallAo = lerp(0.62, 1.0, smoothstep(-0.05, 1.45, minBldgD));
                     float mossSkirt = (1.0 - smoothstep(0.0, 0.42, abs(minBldgD))) * smoothstep(0.45, 0.78, midVar);
-                    col = lerp(col, float3(0.22, 0.27, 0.19), mossSkirt * 0.34);
+                    col = lerp(col, float3(0.22, 0.27, 0.19), mossSkirt * 0.30 * _DetailStrength);
                     col *= wallAo;
                 }
 
@@ -616,21 +758,24 @@ Shader "Kalyeah/BarangayGround"
                     float hallForecourt = (1.0 - smoothstep(8.2, 10.6, abs(xz.x))) * (1.0 - smoothstep(92.0, 95.5, -xz.y)) * step(xz.y, -80.0);
                     float keepForecourt = max(lmMask * 0.85, hallForecourt);
                     float3 outerSoil = lerp(float3(0.29, 0.26, 0.21), float3(0.23, 0.30, 0.19), smoothstep(0.35, 0.75, macroVar));
-                    outerSoil += (midVar - 0.5) * 0.022;
+                    outerSoil += (midVar - 0.5) * 0.018 * _DetailStrength;
                     col = lerp(col, outerSoil, outside * (1.0 - keepForecourt) * 0.88);
                 }
 
                 col = clamp(col, 0.16, 0.48);
-                rough = clamp(rough, 0.38, 0.95);
+                rough = clamp(rough, 0.40, 0.95);
 
-                // URP lighting with tropical sky-fill shadow floor (zero crushed blacks, zero white glare)
+                // URP lighting with clamped ambient bounce (zero pitch-black shadow pits, calm matte streets)
                 float3 normalWS = normalize(input.normalWS);
                 float3 viewDirWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
                 Light mainLight = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
 
                 float ndotl = saturate(dot(normalWS, mainLight.direction));
                 float shadowAtten = lerp(_ShadowFloor, 1.0, mainLight.shadowAttenuation * mainLight.distanceAttenuation);
-                float3 diffuseLight = mainLight.color * (ndotl * shadowAtten) + SampleSH(normalWS);
+                float ambMin = (_KalyeahAmbientMin > 0.001) ? _KalyeahAmbientMin : _AmbientMin;
+                float ambMax = max((_KalyeahAmbientMax > 0.001) ? _KalyeahAmbientMax : _AmbientMax, ambMin + 0.01);
+                float3 ambient = clamp(SampleSH(normalWS), ambMin, ambMax);
+                float3 diffuseLight = mainLight.color * (ndotl * shadowAtten) + ambient;
 
                 #ifdef _ADDITIONAL_LIGHTS
                 uint lightCount = GetAdditionalLightsCount();
@@ -642,13 +787,14 @@ Shader "Kalyeah/BarangayGround"
                 #endif
 
                 float3 halfDir = SafeNormalize(mainLight.direction + viewDirWS);
-                float specPow = exp2(lerp(8.5, 2.2, rough));
-                float specTerm = pow(saturate(dot(normalWS, halfDir)), specPow) * (1.0 - rough) * 0.16 * ndotl * mainLight.shadowAttenuation;
+                float specPow = exp2(lerp(8.0, 2.2, rough));
+                float specTerm = pow(max(saturate(dot(normalWS, halfDir)), 1e-4), specPow) * (1.0 - rough) * _SpecStrength * ndotl * mainLight.shadowAttenuation;
 
                 float3 baseLinear = SrgbToLinear3(col) * _BaseColor.rgb * _AlbedoScale;
                 float3 litColor = baseLinear * diffuseLight + mainLight.color * specTerm;
                 litColor = MixFog(litColor, input.fogFactor);
                 return half4(litColor, 1.0);
+                #endif
             }
             ENDHLSL
         }
