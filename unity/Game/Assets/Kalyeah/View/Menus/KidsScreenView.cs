@@ -292,10 +292,10 @@ namespace Kalyeah.Game
 
             // the kid stands between the left column and the content, partly behind the glass like the Wild Rift page
             RectTransform stageArea = Ui.Fill("StageArea", _pagePanel);
-            stageArea.anchorMin = new Vector2(0.24f, 0f);
-            stageArea.anchorMax = new Vector2(0.52f, 1f);
+            stageArea.anchorMin = new Vector2(0.2f, 0f);
+            stageArea.anchorMax = new Vector2(0.56f, 1f);
             stageArea.offsetMin = Vector2.zero;
-            stageArea.offsetMax = new Vector2(0f, -HeaderHeight * 0.5f);
+            stageArea.offsetMax = new Vector2(0f, -HeaderHeight * 0.3f);
             _pageHero = MakeRaw("Hero", stageArea, _stage.Texture);
             _pageHero.rectTransform.pivot = new Vector2(0.5f, 0f);
             var fit = _pageHero.gameObject.AddComponent<AspectRatioFitter>();
@@ -342,8 +342,8 @@ namespace Kalyeah.Game
 
             // right: the four tabs in a row, then the tab's content on dark glass
             RectTransform tabs = Ui.Panel("Tabs", _pagePanel, new Vector2(0.52f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, HitSize));
-            tabs.offsetMin = new Vector2(Gutter, -(HeaderHeight + HitSize));
-            tabs.offsetMax = new Vector2(-Gutter, -HeaderHeight);
+            tabs.offsetMin = new Vector2(Gutter, -HeaderHeight); // the tabs share the header's band with Back, which frees the height for the rows
+            tabs.offsetMax = new Vector2(-Gutter, -(HeaderHeight - HitSize));
             for (int i = 0; i < TabNames.Length; i++)
             {
                 int index = i;
@@ -364,7 +364,7 @@ namespace Kalyeah.Game
 
             RectTransform panel = Ui.Panel("ContentPanel", _pagePanel, new Vector2(0.52f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             panel.offsetMin = new Vector2(Gutter, Gutter);
-            panel.offsetMax = new Vector2(-Gutter, -(HeaderHeight + HitSize + 8f));
+            panel.offsetMax = new Vector2(-Gutter, -(HeaderHeight + 4f));
             Image glass = Ui.MakeImage("Glass", panel, Color.white);
             glass.sprite = MenuArt.RoundGlass(26);
             glass.type = Image.Type.Sliced;
@@ -478,7 +478,7 @@ namespace Kalyeah.Game
             head.rectTransform.pivot = new Vector2(0f, 1f);
             head.horizontalOverflow = HorizontalWrapMode.Wrap;
             Text text = Label("Body", row, body, 22, Muted, TextAnchor.UpperLeft);
-            Place(text.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(left, -50f), new Vector2(-(left + 14f), 90f));
+            Place(text.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(left, -50f), new Vector2(-(left + 14f), 116f));
             text.rectTransform.pivot = new Vector2(0f, 1f);
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Overflow;
@@ -486,7 +486,7 @@ namespace Kalyeah.Game
 
         void AddSkill(SkillData skill)
         {
-            RectTransform row = NewRow("Skill_" + skill.slot, 146f);
+            RectTransform row = NewRow("Skill_" + skill.slot, 176f); // three rows fill the panel; the longest text runs three lines
             AddBadge(row, skill.slot, skill.slot == "ULT");
             AddText(row, skill.name, skill.cost, skill.what);
         }

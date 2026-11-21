@@ -711,7 +711,12 @@ public static class KalyeahBuild
             Action<HomeScreenView> offlineHub = home => home.OpenOfflineHub();
             CaptureTitleShot(dir, "title_offline_prompt.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), offlinePrompt);
             CaptureTitleShot(dir, "title_offline_hub.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), offlineHub);
-            Action<HomeScreenView> profileSheet = home => home.Sheets.OpenProfile();
+            // a sheet opens only on an interactive canvas, and the capture build disables the raycaster
+            Action<HomeScreenView> profileSheet = home =>
+            {
+                home.Root.GetComponentInParent<Canvas>().GetComponent<UnityEngine.UI.GraphicRaycaster>().enabled = true;
+                home.Sheets.OpenProfile();
+            };
             CaptureTitleShot(dir, "menu_profile.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), profileSheet);
             CaptureTitleShot(
                 dir,
