@@ -62,6 +62,21 @@ namespace Kalyeah.Game
         static readonly HashSet<string> MissingBgm = new HashSet<string>(StringComparer.Ordinal);
         static readonly Dictionary<string, AudioClip> SfxCache = new Dictionary<string, AudioClip>(40, StringComparer.Ordinal);
         static readonly HashSet<string> MissingSfx = new HashSet<string>(StringComparer.Ordinal);
+        static readonly Dictionary<string, AudioClip> SynthCache = new Dictionary<string, AudioClip>(12, StringComparer.Ordinal);
+
+        const int SynthSampleRate = 22050;
+
+        static readonly string[] SynthCueIds =
+        {
+            "body_hit",
+            "headshot_ding",
+            "taya_confirm",
+            "reload_clack",
+            "water_empty",
+            "trap_snap",
+            "wall_break",
+            "reveal_chime",
+        };
 
         public GameObject Root { get; private set; }
         public AudioSource BgmSource => _bgmSource;
@@ -126,11 +141,12 @@ namespace Kalyeah.Game
             source.priority = priority;
         }
 
-        /// <summary>Loads and caches bgm.mp3 and all 32 sfx/*.mp3 clips upfront so mid-round playback allocates 0 B.</summary>
+        /// <summary>Loads and caches bgm.mp3, all 32 sfx/*.mp3 clips, and synthesized combat feedback cues upfront so mid-round playback allocates 0 B.</summary>
         public void Prewarm()
         {
             LoadBgmClip("bgm");
             for (int i = 0; i < KnownSfxIds.Length; i++) LoadSfxClip(KnownSfxIds[i]);
+            for (int i = 0; i < SynthCueIds.Length; i++) GetOrBuildSynthClip(SynthCueIds[i]);
         }
 
         /// <summary>Reads bgm_volume and sfx_level from rules__game_rules when DataSource is available.</summary>
@@ -265,6 +281,58 @@ namespace Kalyeah.Game
             return PlaySfx(clipId, pitchScale);
         }
 
+        /// <summary>Plays distinct tactile Valorant/CODM synthesized hit confirmation: crisp body tick, metallic headshot ding, or bold TAYA! tag sting.</summary>
+        public bool PlayHitConfirm(bool isHeadshot, bool isTag)
+        {
+            if (isTag)
+            {
+                bool ding = isHeadshot && PlaySynthCue("headshot_ding", pitchScale: 1.04f, volumeScale: 0.78f, applyJitter: false);
+                bool taya = PlaySynthCue("taya_confirm", pitchScale: 1f, volumeScale: 1f, applyJitter: false);
+                return taya || ding;
+            }
+            if (isHeadshot)
+                return PlaySynthCue("headshot_ding", pitchScale: 1f, volumeScale: 0.96f, applyJitter: true);
+            return PlaySynthCue("body_hit", pitchScale: 1f, volumeScale: 0.84f, applyJitter: true);
+        }
+
+        /// <summary>Plays crisp two-stage slingshot pouch reload clack.</summary>
+        public bool PlayReloadClack() => PlaySynthCue("reload_clack", pitchScale: 1f, volumeScale: 0.82f, applyJitter: true);
+
+        /// <summary>Plays hollow dry tick when a skill cannot cast due to insufficient Water.</summary>
+        public bool PlayWaterEmpty() => PlaySynthCue("water_empty", pitchScale: 1f, volumeScale: 0.76f, applyJitter: false);
+
+        /// <summary>Plays sharp teks-card / wire snap when a hidden trap triggers or breaks.</summary>
+        public bool PlayTrapSnap() => PlaySynthCue("trap_snap", pitchScale: 1f, volumeScale: 0.90f, applyJitter: true);
+
+        /// <summary>Plays chunky box/wood shatter when a destructible wall breaks.</summary>
+        public bool PlayWallBreak() => PlaySynthCue("wall_break", pitchScale: 1f, volumeScale: 0.94f, applyJitter: true);
+
+        /// <summary>Plays crisp sonar glass chime when a reveal triggers on or by the local player.</summary>
+        public bool PlayRevealChime() => PlaySynthCue("reveal_chime", pitchScale: 1f, volumeScale: 0.86f, applyJitter: false);
+
+        /// <summary>Plays a cached procedurally-synthesized combat feedback cue with zero per-frame heap allocation.</summary>
+        public bool PlaySynthCue(string cueId, float pitchScale = 1f, float volumeScale = 1f, bool applyJitter = true)
+        {
+            if (!SfxEnabled || string.IsNullOrEmpty(cueId)) return false;
+            float effectiveVol = EffectiveSfxVolume * Mathf.Clamp01(volumeScale);
+            if (effectiveVol <= 0.0001f) return false;
+
+            AudioClip clip = GetOrBuildSynthClip(cueId);
+            if (clip == null) return false;
+
+            AudioSource voice = AcquireVoice();
+            if (voice == null) return false;
+
+            float jitter = applyJitter ? SamplePitchJitter() : 1f;
+            voice.Stop();
+            voice.clip = clip;
+            voice.mute = false;
+            voice.volume = effectiveVol;
+            voice.pitch = Mathf.Clamp(pitchScale * jitter, 0.5f, 2.5f);
+            voice.Play();
+            return true;
+        }
+
         /// <summary>Plays crisp UI card/button tap or cancel feedback on the SFX pool.</summary>
         public bool PlayUiTap(bool isCancel = false)
         {
@@ -393,6 +461,16 @@ namespace Kalyeah.Game
                 case "lata":
                     PlaySfx("lata_hit");
                     break;
+                case "root":
+                case "rooted":
+                    PlaySfx("soil_block");
+                    break;
+                case "slip":
+                case "slipping":
+                case "blur":
+                case "blurred":
+                    PlaySfx("slowed_sting");
+                    break;
             }
         }
 
@@ -459,6 +537,109 @@ namespace Kalyeah.Game
                 case "tsinelas_light":
                 case "tirador_bato":
                     return "tsinelas_throw_light";
+                case "tirador":
+                    pitchScale = 1.18f;
+                    return "tsinelas_throw_light";
+
+                // Chunk 2 — 36 Spec Kit Skills (docs/KITS.md)
+                case "luksong_tinik":
+                    pitchScale = 1.35f;
+                    return "tsinelas_throw_light";
+                case "tira_holens":
+                    pitchScale = 1.25f;
+                    return "bola_throw";
+                case "tsinelas_bagsik":
+                    return "tsinelas_throw_heavy";
+                case "syato":
+                    pitchScale = 1.25f;
+                    return "tsinelas_throw_light";
+                case "trumpo_ikot":
+                    return "trumpo";
+                case "pukpok_palayok":
+                    return "bato_meteor_fall";
+                case "sipa":
+                    pitchScale = 1.15f;
+                    return "bola_throw";
+                case "tiyakad":
+                    pitchScale = 1.20f;
+                    return "soil_rise";
+                case "bato_execute":
+                    return "bato_meteor_fall";
+                case "bahay_bahayan":
+                    pitchScale = 0.85f;
+                    return "paper_shield";
+                case "pabitin_heal":
+                    return "heal";
+                case "palosebo":
+                    return "soil_rise";
+                case "chinese_garter":
+                    pitchScale = 1.25f;
+                    return "paper_shield";
+                case "sungka":
+                    pitchScale = 0.90f;
+                    return "jacks_scatter";
+                case "langit":
+                    pitchScale = 1.15f;
+                    return "heal";
+                case "sack_race":
+                    pitchScale = 1.20f;
+                    return "fall_thud";
+                case "luksong_baka":
+                    pitchScale = 0.90f;
+                    return "card_ready";
+                case "tinik_wall":
+                    pitchScale = 0.90f;
+                    return "soil_rise";
+                case "teks_tripwire":
+                    return "trap_place";
+                case "tago":
+                    pitchScale = 1.20f;
+                    return "lata_poof";
+                case "saranggola":
+                    pitchScale = 1.35f;
+                    return "paper_shield";
+                case "yoyo":
+                    pitchScale = 0.95f;
+                    return "bola_throw";
+                case "piko":
+                    return "soil_expand";
+                case "pogs_slam":
+                    pitchScale = 1.10f;
+                    return "bato_heavy_boom";
+                case "sili_tubig":
+                    pitchScale = 1.30f;
+                    return "gunting_light";
+                case "trumpo_bantay":
+                    pitchScale = 1.15f;
+                    return "trumpo";
+                case "taya":
+                    pitchScale = 0.85f;
+                    return "card_ready";
+                case "jackstone":
+                    return "jacks_scatter";
+                case "luksong_lubid":
+                    pitchScale = 0.95f;
+                    return "trap_place";
+                case "garter_net":
+                    pitchScale = 0.90f;
+                    return "trap_spring";
+                case "holens_spill":
+                    pitchScale = 1.20f;
+                    return "jacks_scatter";
+                case "lata_morph":
+                    return "lata_toss";
+                case "patintero_lines":
+                    pitchScale = 1.15f;
+                    return "soil_expand";
+                case "pabitin_snare":
+                    pitchScale = 1.25f;
+                    return "bato_meteor_fall";
+                case "sako_trap":
+                    pitchScale = 0.85f;
+                    return "trap_place";
+                case "lupa_quake":
+                    pitchScale = 0.80f;
+                    return "soil_rise";
                 default:
                     return null;
             }
@@ -476,12 +657,28 @@ namespace Kalyeah.Game
                         pitchScale = 0.75f; // SfxView.HIT_SPEED: deeper rock thud
                         return "tsinelas_hit";
                     case "tsinelas_heavy":
+                    case "tsinelas_bagsik":
+                    case "sack_race":
                         return "tsinelas_hit_heavy";
                     case "bato_heavy":
                     case "ult_bagsak":
+                    case "pukpok_palayok":
+                    case "bato_execute":
+                    case "pogs_slam":
+                    case "lupa_quake":
                         return "bato_heavy_boom";
                     case "lata":
+                    case "lata_morph":
+                    case "syato":
                         return "lata_hit";
+                    case "tira_holens":
+                    case "sipa":
+                        return "bola_bounce";
+                    case "sili_tubig":
+                        return "slowed_sting";
+                    case "pabitin_snare":
+                    case "garter_net":
+                        return "trap_spring";
                 }
             }
             return "tsinelas_hit";
@@ -584,6 +781,158 @@ namespace Kalyeah.Game
             if (loaded != null) SfxCache[sfxId] = loaded;
             else MissingSfx.Add(sfxId);
             return loaded;
+        }
+
+        static AudioClip GetOrBuildSynthClip(string cueId)
+        {
+            if (string.IsNullOrEmpty(cueId)) return null;
+            if (SynthCache.TryGetValue(cueId, out AudioClip cached))
+            {
+                if (cached != null) return cached;
+                SynthCache.Remove(cueId);
+            }
+
+            AudioClip built = BuildSynthClip(cueId);
+            if (built != null)
+                SynthCache[cueId] = built;
+            return built;
+        }
+
+        static AudioClip BuildSynthClip(string cueId)
+        {
+            float duration;
+            switch (cueId)
+            {
+                case "body_hit": duration = 0.055f; break;
+                case "headshot_ding": duration = 0.210f; break;
+                case "taya_confirm": duration = 0.280f; break;
+                case "reload_clack": duration = 0.145f; break;
+                case "water_empty": duration = 0.075f; break;
+                case "trap_snap": duration = 0.115f; break;
+                case "wall_break": duration = 0.220f; break;
+                case "reveal_chime": duration = 0.230f; break;
+                default: return null;
+            }
+
+            int samples = Mathf.Max(64, Mathf.RoundToInt(duration * SynthSampleRate));
+            float[] pcm = new float[samples];
+            uint noise = 0x51A7F31Bu ^ (uint)cueId.Length * 0x9E3779B9u;
+            const float twoPi = Mathf.PI * 2f;
+
+            for (int i = 0; i < samples; i++)
+            {
+                float t = i / (float)SynthSampleRate;
+                float u = i / (float)(samples - 1);
+                float n = NextSynthNoise(ref noise);
+                float attack = Mathf.Clamp01(t / 0.003f);
+                float tail = Mathf.Clamp01((duration - t) / 0.008f);
+                float v = 0f;
+
+                switch (cueId)
+                {
+                    case "body_hit":
+                    {
+                        float env = Mathf.Exp(-t * 58f);
+                        float punch = Mathf.Sin(twoPi * (720f - 280f * u) * t) * 0.65f;
+                        float tick = Mathf.Sin(twoPi * 1680f * t) * Mathf.Exp(-t * 140f) * 0.45f;
+                        v = (punch + tick + n * 0.22f * Mathf.Exp(-t * 110f)) * env;
+                        break;
+                    }
+                    case "headshot_ding":
+                    {
+                        float bellEnv = Mathf.Exp(-t * 15f);
+                        float click = (Mathf.Sin(twoPi * 2900f * t) + n * 0.4f) * Mathf.Exp(-t * 170f) * 0.55f;
+                        float f1 = Mathf.Sin(twoPi * 1760f * t) * 0.52f;
+                        float f2 = Mathf.Sin(twoPi * 2637f * t) * 0.34f * Mathf.Exp(-t * 7f);
+                        float f3 = Mathf.Sin(twoPi * 3520f * t) * 0.20f * Mathf.Exp(-t * 12f);
+                        v = (f1 + f2 + f3) * bellEnv + click;
+                        break;
+                    }
+                    case "taya_confirm":
+                    {
+                        float thump = Mathf.Sin(twoPi * (165f - 90f * Mathf.Clamp01(t / 0.09f)) * t) * Mathf.Exp(-t * 28f) * 0.52f;
+                        float note1 = t < 0.11f
+                            ? Mathf.Sin(twoPi * 659.25f * t) * Mathf.Exp(-t * 22f) * 0.45f
+                            : 0f;
+                        float t2 = Mathf.Max(0f, t - 0.065f);
+                        float note2 = t >= 0.065f
+                            ? (Mathf.Sin(twoPi * 987.77f * t2) * 0.50f + Mathf.Sin(twoPi * 1479.98f * t2) * 0.26f) * Mathf.Exp(-t2 * 13f) * Mathf.Clamp01(t2 / 0.004f)
+                            : 0f;
+                        v = thump + note1 + note2;
+                        break;
+                    }
+                    case "reload_clack":
+                    {
+                        float p1 = (Mathf.Sin(twoPi * 960f * t) * 0.45f + n * 0.50f) * Mathf.Exp(-t * 95f);
+                        float t2 = t - 0.072f;
+                        float p2 = t2 >= 0f
+                            ? (Mathf.Sin(twoPi * 1420f * t2) * 0.58f + Mathf.Sin(twoPi * 2180f * t2) * 0.28f + n * 0.25f) * Mathf.Exp(-t2 * 72f) * Mathf.Clamp01(t2 / 0.002f)
+                            : 0f;
+                        v = p1 * 0.72f + p2 * 0.90f;
+                        break;
+                    }
+                    case "water_empty":
+                    {
+                        float knock1 = Mathf.Sin(twoPi * (410f - 130f * u) * t) * Mathf.Exp(-t * 68f) * 0.55f;
+                        float t2 = t - 0.032f;
+                        float knock2 = t2 >= 0f
+                            ? Mathf.Sin(twoPi * 290f * t2) * Mathf.Exp(-t2 * 75f) * 0.48f * Mathf.Clamp01(t2 / 0.002f)
+                            : 0f;
+                        v = knock1 + knock2;
+                        break;
+                    }
+                    case "trap_snap":
+                    {
+                        float whip = n * Mathf.Exp(-t * 115f) * 0.62f;
+                        float twang = Mathf.Sin(twoPi * (2250f - 1350f * u) * t) * Mathf.Exp(-t * 36f) * 0.58f;
+                        v = whip + twang;
+                        break;
+                    }
+                    case "wall_break":
+                    {
+                        float boom = Mathf.Sin(twoPi * (128f - 72f * u) * t) * Mathf.Exp(-t * 16f) * 0.60f;
+                        float crack1 = n * Mathf.Exp(-t * 19f) * 0.48f;
+                        float t2 = t - 0.055f;
+                        float crack2 = t2 >= 0f ? (n * 0.42f + Mathf.Sin(twoPi * 540f * t2) * 0.24f) * Mathf.Exp(-t2 * 24f) : 0f;
+                        v = boom + crack1 + crack2;
+                        break;
+                    }
+                    case "reveal_chime":
+                    {
+                        float ping1 = Mathf.Sin(twoPi * 1046.5f * t) * Mathf.Exp(-t * 14f) * 0.42f;
+                        float t2 = Mathf.Max(0f, t - 0.045f);
+                        float ping2 = t >= 0.045f
+                            ? (Mathf.Sin(twoPi * 1567.98f * t2) * 0.46f + Mathf.Sin(twoPi * 2093f * t2) * 0.22f) * Mathf.Exp(-t2 * 11f) * Mathf.Clamp01(t2 / 0.006f)
+                            : 0f;
+                        v = ping1 + ping2;
+                        break;
+                    }
+                }
+
+                pcm[i] = Mathf.Clamp(v * attack * tail * 0.85f, -0.98f, 0.98f);
+            }
+
+            try
+            {
+                AudioClip clip = AudioClip.Create("KalyeahSynth_" + cueId, samples, 1, SynthSampleRate, false);
+                if (clip != null)
+                    clip.SetData(pcm, 0);
+                return clip;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        static float NextSynthNoise(ref uint state)
+        {
+            uint x = state;
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            state = x;
+            return ((x & 0x00FFFFFFu) * (2f / 16777215f)) - 1f;
         }
 
         public void Dispose()
