@@ -218,8 +218,38 @@ namespace Kalyeah.Game
                 ScreenFitMetrics.SimulatedViewportChanged += RefreshLayout;
                 if (_safeArea != null) _safeArea.Changed += OnSafeAreaChanged;
             }
+            _entry = 0f;
             Refresh();
             RefreshLayout();
+        }
+
+        // entry: the four groups fade and grow in one after another over about a second, then the stall drifts behind the kid
+        float _entry;
+        CanvasGroup[] _groups;
+        Vector2 _stallBase;
+
+        CanvasGroup Group(RectTransform rect)
+        {
+            if (rect == null) return null;
+            CanvasGroup g = rect.GetComponent<CanvasGroup>() ?? rect.gameObject.AddComponent<CanvasGroup>();
+            return g;
+        }
+
+        void AnimateEntry(float dt)
+        {
+            if (_groups == null) _groups = new[] { Group(_topBar), Group(_leftColumn), Group(_bottomNav), Group(_modeColumn), Group(_kidPlate) };
+            bool still = SettingsStore.Current.ReduceMotion;
+            _entry = still ? 10f : _entry + dt;
+            for (int i = 0; i < _groups.Length; i++)
+            {
+                if (_groups[i] == null) continue;
+                float t = Mathf.Clamp01((_entry - 0.15f - 0.12f * i) / 0.45f);
+                float eased = 1f - (1f - t) * (1f - t) * (1f - t);
+                _groups[i].alpha = eased;
+                _groups[i].transform.localScale = Vector3.one * (0.94f + 0.06f * eased);
+            }
+            if (!still && _stallRect != null)
+                _stallRect.anchoredPosition = _stallBase + new Vector2(Mathf.Sin(_time * 0.2f) * 14f, Mathf.Sin(_time * 0.13f) * 6f);
         }
 
         void OnDisabled()
@@ -241,6 +271,7 @@ namespace Kalyeah.Game
             _stage?.Tick(dt);
             _time += dt;
             if (_toast != null && _toast.gameObject.activeSelf && Time.unscaledTime > _toastUntil) _toast.gameObject.SetActive(false);
+            AnimateEntry(dt);
             if (SettingsStore.Current.ReduceMotion) return;
             PlaceMotes();
             AnimatePlay();
@@ -426,7 +457,7 @@ namespace Kalyeah.Game
             plateHit.color = Clear;
             RectTransform pill = Ui.Panel("Pill", _kidPlate, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 64f));
             Image pillPlate = Ui.MakeImage("Plate", pill, Color.white);
-            pillPlate.sprite = MenuArt.Round(new Color(Shade.r, Shade.g, Shade.b, 0.55f), new Color(Shade.r, Shade.g, Shade.b, 0.55f), new Color(1f, 1f, 1f, 0.12f), 32, 2, 0f);
+            pillPlate.sprite = MenuArt.Round(new Color(Shade.r, Shade.g, Shade.b, 0.82f), new Color(Shade.r, Shade.g, Shade.b, 0.82f), new Color(1f, 1f, 1f, 0.16f), 32, 2, 0f);
             pillPlate.type = Image.Type.Sliced;
             Stretch(pillPlate.rectTransform, Vector2.zero, Vector2.one);
             Image roleDisc = Ui.MakeImage("RoleDisc", pill, Gold, round: true);
@@ -650,7 +681,7 @@ namespace Kalyeah.Game
             scrim.raycastTarget = true;
 
             RectTransform card = Ui.Panel("Card", _offlinePrompt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(640f, 310f));
-            Tag(card, MenuArt.Glass(24), 24, false, 0.6f, 8f);
+            RoundPlate(card, MenuArt.RoundGlass(28)).raycastTarget = false;
 
             Text title = Label("Title", card, "YOU'RE OFFLINE", 48, Cream, TextAnchor.UpperLeft, display: true, ink: true);
             Stretch(title.rectTransform, new Vector2(0f, 1f), Vector2.one);
@@ -693,7 +724,7 @@ namespace Kalyeah.Game
             _offlineHub = Ui.Fill("OfflineHub", SafeRoot);
             RectTransform header = Ui.Panel("Header", _offlineHub, new Vector2(0f, 1f), Vector2.one, new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, TopBarHeight));
             RectTransform back = Ui.Panel("Back", header, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(Gutter, 0f), new Vector2(140f, HitSize));
-            Image backPlate = Tag(back, MenuArt.Glass(18), 18, true);
+            Image backPlate = RoundPlate(back, MenuArt.RoundGlass(40));
             Text backLabel = Label("Label", back, "BACK", 24, Cream, TextAnchor.MiddleCenter, display: true, ink: true);
             Stretch(backLabel.rectTransform, Vector2.zero, Vector2.one);
             AttachButton(back.gameObject, backPlate, CloseOfflineHub);
@@ -732,7 +763,7 @@ namespace Kalyeah.Game
             RectTransform card = Ui.Panel(name, cards, new Vector2(index * share, 0f), new Vector2((index + 1) * share, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             card.offsetMin = new Vector2(index == 0 ? 0f : gap * 0.5f, 8f);
             card.offsetMax = new Vector2(index == OfflineCardCount - 1 ? -8f : -gap * 0.5f, 0f);
-            Tag(card, MenuArt.Glass(22), 22, false, 0.55f, 7f);
+            RoundPlate(card, MenuArt.RoundGlass(26)).raycastTarget = false;
 
             // the art: the card's colour with the weave and a drawn glyph (no pictures)
             RectTransform art = Ui.Panel("Art", card, new Vector2(0f, 0.42f), Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
@@ -800,10 +831,7 @@ namespace Kalyeah.Game
         Button MakeActionButton(RectTransform row, string name, string title, bool primary, Vector2 anchorMin, Vector2 anchorMax, Action onClick)
         {
             RectTransform rect = Ui.Panel(name, row, anchorMin, anchorMax, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            Sprite sprite = primary
-                ? MenuArt.Plate(MenuArt.GoldLight, MenuArt.GoldDeep, Ink, 14, 3, 0.5f)
-                : MenuArt.Plate(MenuArt.GlassTop, MenuArt.GlassBottom, new Color(Cream.r, Cream.g, Cream.b, 0.7f), 14, 2, 0.2f);
-            Image plate = Tag(rect, sprite, 14, true, primary ? 0.55f : 0.4f, 5f);
+            Image plate = RoundPlate(rect, primary ? MenuArt.RoundGold(20) : MenuArt.RoundGlass(20));
             Text label = Label("Label", rect, title, 26, primary ? Ink : Cream, TextAnchor.MiddleCenter, display: true);
             Stretch(label.rectTransform, Vector2.zero, Vector2.one);
             label.rectTransform.offsetMin = new Vector2(8f, 0f);
@@ -827,15 +855,23 @@ namespace Kalyeah.Game
             if (_playerName != null)
                 _playerName.text = string.IsNullOrWhiteSpace(session.PlayerName) ? "PLAYER" : session.PlayerName.Trim().ToUpperInvariant();
 
+            string kidId = string.IsNullOrWhiteSpace(session.SelectedCharacter) ? AppSession.DefaultCharacter : session.SelectedCharacter;
             if (_avatarImage != null && Sheets != null)
             {
                 Sheets.SyncFromSession();
-                _avatarImage.texture = Sheets.CurrentIdTexture;
-                _avatarImage.uvRect = Sheets.CurrentIdUvRect;
-                _avatarImage.enabled = Sheets.CurrentIdTexture != null;
+                if (Sheets.HasCustomIdPhoto)
+                {
+                    _avatarImage.texture = Sheets.CurrentIdTexture;
+                    _avatarImage.uvRect = Sheets.CurrentIdUvRect;
+                }
+                else
+                {
+                    // the picture is the home kid's face, as on the plan page
+                    _avatarImage.texture = KalyeahResources.Texture("portraits/faces/" + kidId);
+                    _avatarImage.uvRect = new Rect(0f, 0f, 1f, 1f);
+                }
+                _avatarImage.enabled = _avatarImage.texture != null;
             }
-
-            string kidId = string.IsNullOrWhiteSpace(session.SelectedCharacter) ? AppSession.DefaultCharacter : session.SelectedCharacter;
             if (_kidName != null)
                 _kidName.text = (ReadCharacterField(kidId, "display_name") ?? Capitalize(kidId)).ToUpperInvariant();
             if (_kidRoleIcon != null)
@@ -906,7 +942,8 @@ namespace Kalyeah.Game
             // zoomed in like Wild Rift, Mobile Legends and CODM: thigh up, the head near the top, the feet below the screen. The kid
             // is KidInTexture of the picture's height; the picture is sized so the visible top 60% of the kid fills 0.67 of the screen.
             const float KidInTexture = 0.755f, HeadTop = 0.93f, VisibleKid = 0.67f / 0.6f;
-            float heroHeight = full.height * VisibleKid / KidInTexture;
+            float zoneWidth = Mathf.Max(0f, heroRight - heroLeft);
+            float heroHeight = full.height * VisibleKid / KidInTexture * Mathf.Clamp(zoneWidth / 520f, 0.72f, 1f);
             float heroWidth = heroHeight * 0.75f;
             if (_heroImageRect != null && _heroZone != null)
             {
@@ -935,6 +972,7 @@ namespace Kalyeah.Game
                 float plateW = plateH * PlateAspect;
                 float needW = 2f * Mathf.Max(centre.x, _areaSize.x - centre.x);
                 if (plateW < needW) { plateW = needW; plateH = plateW / PlateAspect; }
+                _stallBase = centre;
                 SetRect(_stallRect, centre, new Vector2(plateW, plateH));
             }
             if (_heroShadowRect != null)
