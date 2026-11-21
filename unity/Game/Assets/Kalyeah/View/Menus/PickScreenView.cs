@@ -27,24 +27,24 @@ namespace Kalyeah.Game
         };
 
         // Street-komiks palette
-        static readonly Color ColBackdropBottom = new Color(0.07f, 0.08f, 0.17f, 0.98f);
-        static readonly Color ColBackdropTop = new Color(0.20f, 0.12f, 0.28f, 0.96f);
-        static readonly Color ColSunGlow = new Color(0.98f, 0.58f, 0.20f, 0.16f);
-        static readonly Color ColPanelDark = new Color(0.09f, 0.12f, 0.24f, 0.92f);
-        static readonly Color ColPanelInset = new Color(0.05f, 0.08f, 0.16f, 0.94f);
-        static readonly Color ColCardIdle = new Color(0.14f, 0.18f, 0.33f, 0.95f);
-        static readonly Color ColCardSelected = new Color(0.32f, 0.25f, 0.12f, 0.98f);
+        static readonly Color ColBackdropBottom = new Color(0.02f, 0.035f, 0.07f, 1f);
+        static readonly Color ColBackdropTop = new Color(0.02f, 0.035f, 0.07f, 0.55f);
+        static readonly Color ColSunGlow = new Color(0.96f, 0.725f, 0.227f, 0.05f);
+        static readonly Color ColPanelDark = new Color(0.06f, 0.10f, 0.19f, 0.86f);
+        static readonly Color ColPanelInset = new Color(0.03f, 0.06f, 0.12f, 0.80f);
+        static readonly Color ColCardIdle = new Color(1f, 1f, 1f, 0.08f);
+        static readonly Color ColCardSelected = new Color(0.961f, 0.725f, 0.227f, 0.22f);
         static readonly Color ColCardTaken = new Color(0.10f, 0.11f, 0.16f, 0.88f);
-        static readonly Color ColGold = new Color(1.00f, 0.78f, 0.22f, 1.00f);
+        static readonly Color ColGold = new Color(0.961f, 0.725f, 0.227f, 1f);
         static readonly Color ColAmber = new Color(0.96f, 0.60f, 0.16f, 1.00f);
-        static readonly Color ColReady = new Color(0.98f, 0.54f, 0.14f, 1.00f);
+        static readonly Color ColReady = new Color(0.961f, 0.725f, 0.227f, 1f);
         static readonly Color ColDisabledBtn = new Color(0.28f, 0.32f, 0.42f, 0.92f);
-        static readonly Color ColBlueBtn = new Color(0.18f, 0.42f, 0.78f, 0.96f);
-        static readonly Color ColTealBtn = new Color(0.14f, 0.56f, 0.52f, 0.96f);
+        static readonly Color ColBlueBtn = new Color(1f, 1f, 1f, 0.14f);
+        static readonly Color ColTealBtn = new Color(1f, 1f, 1f, 0.14f);
         static readonly Color ColMutedText = new Color(0.76f, 0.84f, 0.96f, 1.00f);
         static readonly Color ColSoftLabel = new Color(0.86f, 0.92f, 1.00f, 1.00f);
-        static readonly Color ColCosmeticPill = new Color(0.10f, 0.32f, 0.26f, 0.96f);
-        static readonly Color ColCosmeticText = new Color(0.72f, 1.00f, 0.86f, 1.00f);
+        static readonly Color ColCosmeticPill = new Color(0.961f, 0.725f, 0.227f, 0.18f);
+        static readonly Color ColCosmeticText = new Color(1f, 0.886f, 0.627f, 1f);
         static readonly Color ColTakenBadge = new Color(0.76f, 0.20f, 0.22f, 0.96f);
         static readonly Color ColBarTrack = new Color(0.04f, 0.07f, 0.16f, 0.96f);
         static readonly Color ColBarDamage = new Color(1.00f, 0.78f, 0.24f, 1.00f);
@@ -2070,7 +2070,7 @@ namespace Kalyeah.Game
             Image bottom = Ui.MakeImage("DuskBase", backdrop, ColBackdropBottom, raycast: true);
             Stretch(bottom.rectTransform, 0f, 0f, 0f, 0f);
 
-            Texture2D mainBg = KalyeahResources.Texture("ui/main_bg");
+            Texture2D mainBg = KalyeahResources.Texture("ui/home/stall") ?? KalyeahResources.Texture("ui/main_bg");
             if (mainBg != null)
             {
                 var bgGo = new GameObject("KeyArtBackdrop", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
@@ -2079,7 +2079,7 @@ namespace Kalyeah.Game
                 bgArt.raycastTarget = false;
                 Stretch(bgArt.rectTransform, 0f, 0f, 0f, 0f);
                 bgArt.texture = mainBg;
-                bgArt.color = new Color(0.24f, 0.22f, 0.34f, 0.32f);
+                bgArt.color = new Color(1f, 1f, 1f, 0.32f);
 
                 var fitter = bgGo.GetComponent<AspectRatioFitter>();
                 fitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;

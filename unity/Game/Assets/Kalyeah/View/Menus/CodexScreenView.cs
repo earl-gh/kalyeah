@@ -16,15 +16,15 @@ namespace Kalyeah.Game
         public const int TabWeapons = 1;
         public const int TabLarongKalye = 2;
 
-        static readonly Color BackdropSolid = new Color(0.06f, 0.10f, 0.20f, 1f);
-        static readonly Color BackdropWash = new Color(0.05f, 0.08f, 0.18f, 0.84f);
-        static readonly Color HeaderBg = new Color(0.06f, 0.10f, 0.22f, 0.96f);
-        static readonly Color CardBg = new Color(0.10f, 0.15f, 0.28f, 0.95f);
-        static readonly Color CardSelectedBg = new Color(0.20f, 0.32f, 0.56f, 0.98f);
-        static readonly Color InspectorBg = new Color(0.08f, 0.12f, 0.24f, 0.97f);
-        static readonly Color Gold = new Color(0.99f, 0.79f, 0.20f, 1f);
-        static readonly Color Coral = new Color(0.96f, 0.38f, 0.26f, 1f);
-        static readonly Color Teal = new Color(0.24f, 0.80f, 0.72f, 1f);
+        static readonly Color BackdropSolid = new Color(0.02f, 0.035f, 0.07f, 1f);
+        static readonly Color BackdropWash = new Color(0.02f, 0.035f, 0.07f, 0.72f);
+        static readonly Color HeaderBg = new Color(0f, 0f, 0f, 0f);
+        static readonly Color CardBg = new Color(1f, 1f, 1f, 0.08f);
+        static readonly Color CardSelectedBg = new Color(0.961f, 0.725f, 0.227f, 0.22f);
+        static readonly Color InspectorBg = new Color(0.06f, 0.10f, 0.19f, 0.86f);
+        static readonly Color Gold = new Color(0.961f, 0.725f, 0.227f, 1f);
+        static readonly Color Coral = new Color(1f, 1f, 1f, 0.14f);
+        static readonly Color Teal = new Color(0.961f, 0.725f, 0.227f, 1f);
         static readonly Color Muted = new Color(0.76f, 0.83f, 0.94f, 1f);
         static readonly Color Ink = new Color(0.08f, 0.10f, 0.16f, 1f);
 
@@ -389,7 +389,7 @@ namespace Kalyeah.Game
             Stretch(baseFill.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             baseFill.gameObject.AddComponent<RectMask2D>();
 
-            Texture2D mainBg = KalyeahResources.Texture("ui/main_bg") ?? KalyeahResources.Texture("ui/boot/boot_bg");
+            Texture2D mainBg = KalyeahResources.Texture("ui/home/stall") ?? KalyeahResources.Texture("ui/main_bg") ?? KalyeahResources.Texture("ui/boot/boot_bg");
             if (mainBg != null)
             {
                 var rawGo = new GameObject("ArtBackdrop", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));

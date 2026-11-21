@@ -18,10 +18,10 @@ namespace Kalyeah.Game
         public const string DefaultModeTitle = "AGAWANG BASE \u00B7 5V5";
         public const string HomeModeTitle = "BARANGAY HOME";
 
-        static readonly Color FallbackBackdropColor = new Color(0.06f, 0.09f, 0.18f, 1f);
-        static readonly Color BackdropTintColor = new Color(0.92f, 0.90f, 0.96f, 1f);
-        static readonly Color ScrimTintColor = new Color(0.04f, 0.07f, 0.15f, 0.74f);
-        static readonly Color HorizonGlowColor = new Color(0.96f, 0.54f, 0.14f, 0.12f);
+        static readonly Color FallbackBackdropColor = new Color(0.02f, 0.035f, 0.07f, 1f);
+        static readonly Color BackdropTintColor = Color.white;
+        static readonly Color ScrimTintColor = new Color(0.02f, 0.035f, 0.07f, 0.68f);
+        static readonly Color HorizonGlowColor = new Color(0.961f, 0.725f, 0.227f, 0.08f);
         static readonly Color ModeBadgeFill = new Color(0.10f, 0.15f, 0.30f, 0.96f);
         static readonly Color CardFill = new Color(0.08f, 0.12f, 0.24f, 0.95f);
         static readonly Color IconWellFill = new Color(0.16f, 0.22f, 0.42f, 1f);
@@ -458,7 +458,7 @@ namespace Kalyeah.Game
             FillFullBleed(BackdropRect);
             BackdropRect.gameObject.AddComponent<RectMask2D>();
 
-            Texture2D bgTex = KalyeahResources.Texture("ui/main_bg") ?? KalyeahResources.Texture("ui/boot/boot_bg");
+            Texture2D bgTex = KalyeahResources.Texture("ui/home/stall") ?? KalyeahResources.Texture("ui/main_bg") ?? KalyeahResources.Texture("ui/boot/boot_bg");
             if (bgTex != null)
             {
                 var bgArtGo = new GameObject("BackdropArt", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
