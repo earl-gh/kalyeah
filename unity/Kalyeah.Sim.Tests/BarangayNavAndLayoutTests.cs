@@ -210,7 +210,7 @@ namespace Kalyeah.Sim.Tests
 
             Assert.AreEqual(0, Layout.WaterObstacles.Count);
             Assert.AreEqual(0, Layout.WaterRects().Count);
-            Assert.AreEqual(obs.Count, Layout.WalkObstacleRects().Count);
+            Assert.AreEqual(obs.Count + Layout.LowCoverRects().Count, Layout.WalkObstacleRects().Count, "buildings and low covers stop walking");
             Assert.AreNotEqual(0.0, MapLayout.LaneCenterX(20.0));
             Assert.AreEqual(-MapLayout.CanalZ(24.0), MapLayout.CanalZ(-24.0), 1e-4);
             Assert.AreEqual(-MapLayout.LaneEastX(-18.0), MapLayout.LaneWestX(18.0), 1e-4);

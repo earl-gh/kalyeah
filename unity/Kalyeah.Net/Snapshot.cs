@@ -68,6 +68,13 @@ namespace Kalyeah.Net
                     entry["sld"] = SnapVec(p.SlideDir);
                 }
                 if (p.SlideCd > 0.0) entry["scd"] = Snap(p.SlideCd);
+                if (p.VaultLeft > 0.0)
+                {
+                    entry["vl"] = Snap(p.VaultLeft);
+                    entry["vf"] = SnapVec(p.VaultFrom);
+                    entry["vt"] = SnapVec(p.VaultTo);
+                    entry["vh"] = Snap(p.VaultHeight);
+                }
                 if (p.BuffType != 0) entry["bt"] = (long)p.BuffType;
                 if (p.BuffLeft > 0.0) entry["bl"] = Snap(p.BuffLeft);
                 players.Add(entry);
@@ -223,6 +230,11 @@ namespace Kalyeah.Net
                 p.SlideLeft = slideLeft;
                 p.SlideCd = e.GetFloat("scd");
                 p.SlideDir = slideLeft > 0.0 ? e.GetVec2("sld", Vec2.Zero) : Vec2.Zero;
+                double vaultLeft = e.GetFloat("vl");
+                p.VaultLeft = vaultLeft;
+                p.VaultFrom = vaultLeft > 0.0 ? e.GetVec2("vf", Vec2.Zero) : Vec2.Zero;
+                p.VaultTo = vaultLeft > 0.0 ? e.GetVec2("vt", Vec2.Zero) : Vec2.Zero;
+                p.VaultHeight = vaultLeft > 0.0 ? e.GetFloat("vh") : 0.0;
                 p.BuffType = e.GetInt("bt");
                 p.BuffLeft = e.GetFloat("bl");
                 RestoreEffects(p.Effects, e.GetDict("fx"));
