@@ -68,10 +68,10 @@ namespace Kalyeah.Game
         static readonly Color SunlitPaper = new Color(0.10f, 0.15f, 0.27f, 1f); // plates on the card
         static readonly Color Espresso = new Color(0.98f, 0.93f, 0.80f, 1f); // text on the card: cream
         static readonly Color DarkOchre = new Color(0.961f, 0.725f, 0.227f, 1f); // headings: gold
-        static readonly Color MangoGold = new Color(0.91f, 0.56f, 0.10f, 1f);
-        static readonly Color FiestaOrange = new Color(0.93f, 0.45f, 0.18f, 1f);
-        static readonly Color BarrioBlue = new Color(0.19f, 0.48f, 0.88f, 1f);
-        static readonly Color JadeGreen = new Color(0.14f, 0.64f, 0.54f, 1f);
+        static readonly Color MangoGold = new Color(0.13f, 0.19f, 0.32f, 1f); // the header band: a lighter navy than the card
+        static readonly Color FiestaOrange = new Color(0.961f, 0.725f, 0.227f, 1f); // the main action: the one gold, with dark text
+        static readonly Color BarrioBlue = new Color(0.17f, 0.25f, 0.42f, 1f);
+        static readonly Color JadeGreen = new Color(0.12f, 0.27f, 0.30f, 1f);
         static readonly Color SlateBtn = new Color(0.24f, 0.29f, 0.42f, 1f);
         static readonly Color HeartRed = new Color(0.84f, 0.19f, 0.17f, 1f);
         static readonly Color ErrorRed = new Color(1f, 0.48f, 0.44f, 1f);
@@ -1049,7 +1049,7 @@ namespace Kalyeah.Game
             rightCol.offsetMin = Vector2.zero;
             rightCol.offsetMax = Vector2.zero;
 
-            Text gridTitle = Ui.MakeText("GridHeading", rightCol, "CHOOSE KID AVATAR (10) OR SELFIE (ON-DEVICE ONLY)", 18, DarkOchre, TextAnchor.MiddleLeft);
+            Text gridTitle = Ui.MakeText("GridHeading", rightCol, "CHOOSE KID AVATAR (12) OR SELFIE (ON-DEVICE ONLY)", 18, DarkOchre, TextAnchor.MiddleLeft);
             gridTitle.fontStyle = FontStyle.Bold;
             gridTitle.GetComponent<Outline>().enabled = false;
             gridTitle.resizeTextForBestFit = true;
@@ -1161,7 +1161,7 @@ namespace Kalyeah.Game
 
             RectTransform checkBadge = Ui.Panel("SelectedDot", ringGo.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-4f, -4f), new Vector2(26f, 26f));
             Ui.MakeImage("DotBorder", checkBadge, KomiksInk, round: true).rectTransform.sizeDelta = new Vector2(26f, 26f);
-            Ui.MakeImage("DotBg", checkBadge, MangoGold, round: true).rectTransform.sizeDelta = new Vector2(20f, 20f);
+            Ui.MakeImage("DotBg", checkBadge, DarkOchre, round: true).rectTransform.sizeDelta = new Vector2(20f, 20f);
 
             return new AvatarTileUi
             {
@@ -2107,6 +2107,7 @@ namespace Kalyeah.Game
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
             rect = go.GetComponent<RectTransform>();
+            if (fill == FiestaOrange) textColor = new Color(0.08f, 0.10f, 0.16f, 1f); // dark text on the gold main action
 
             var borderImg = go.GetComponent<Image>();
             borderImg.sprite = MenuStack.RoundedSprite();

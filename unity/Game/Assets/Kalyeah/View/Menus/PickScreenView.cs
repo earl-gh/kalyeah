@@ -31,7 +31,7 @@ namespace Kalyeah.Game
         const float RowGap = 10f;
         const float RowLabelWidth = 116f;
         const float CardGap = 10f;
-        const float SkillRowHeight = 122f;
+        const float NamePlateHeight = 84f;
         const float SkillGap = 8f;
         const float BadgeSize = 72f;
         const float SlotSize = 80f;
@@ -132,12 +132,14 @@ namespace Kalyeah.Game
             RectTransform heroArea = Ui.Fill("HeroArea", body);
             heroArea.anchorMin = new Vector2(0.31f, 0f);
             heroArea.anchorMax = new Vector2(0.64f, 1f);
+            heroArea.offsetMin = new Vector2(0f, NamePlateHeight - 6f); // the kid stands on the name plate
             RawImage hero = KidsScreenView.MakeRaw("Hero", heroArea, _stage.Texture);
             hero.rectTransform.pivot = new Vector2(0.5f, 0f);
             var fit = hero.gameObject.AddComponent<AspectRatioFitter>();
             fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             fit.aspectRatio = 0.75f;
 
+            BuildNamePlate(body);
             BuildRoster(body);
             BuildDetail(body);
             BuildTeamBar();
@@ -270,29 +272,43 @@ namespace Kalyeah.Game
             return new Card { Frame = frame, TakenTag = dim.gameObject };
         }
 
+        /// <summary>The chosen kid's role, purok and name on a glass plate under their feet, like the home screen's name plate.</summary>
+        void BuildNamePlate(RectTransform body)
+        {
+            RectTransform plate = Ui.Panel("NamePlate", body, new Vector2(0.325f, 0f), new Vector2(0.625f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, NamePlateHeight));
+            Image glass = Ui.MakeImage("Glass", plate, Color.white);
+            glass.sprite = MenuArt.RoundGlass(22);
+            glass.type = Image.Type.Sliced;
+            KidsScreenView.Stretch(glass.rectTransform, Vector2.zero, Vector2.one);
+
+            Image disc = Ui.MakeImage("RoleDisc", plate, Gold, round: true);
+            KidsScreenView.Place(disc.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(16f, 0f), new Vector2(44f, 44f));
+            disc.rectTransform.pivot = new Vector2(0f, 0.5f);
+            _roleIcon = Ui.MakeImage("Icon", disc.rectTransform, Ink);
+            KidsScreenView.Place(_roleIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(28f, 28f));
+            _roleLabel = KidsScreenView.Label("Role", plate, "", 22, Gold, TextAnchor.UpperLeft, display: true);
+            KidsScreenView.Stretch(_roleLabel.rectTransform, Vector2.zero, Vector2.one);
+            _roleLabel.rectTransform.offsetMin = new Vector2(72f, 0f);
+            _roleLabel.rectTransform.offsetMax = new Vector2(-12f, -6f);
+            _nameLabel = KidsScreenView.Label("Name", plate, "", 48, Cream, TextAnchor.LowerLeft, display: true, ink: true);
+            KidsScreenView.Stretch(_nameLabel.rectTransform, Vector2.zero, Vector2.one);
+            _nameLabel.rectTransform.offsetMin = new Vector2(72f, 2f);
+            _nameLabel.rectTransform.offsetMax = new Vector2(-12f, -26f);
+            _nameLabel.resizeTextForBestFit = true;
+            _nameLabel.resizeTextMinSize = 30;
+            _nameLabel.resizeTextMaxSize = 48;
+        }
+
+        /// <summary>The three skills fill the right column, one third of its height each.</summary>
         void BuildDetail(RectTransform body)
         {
             RectTransform panel = Ui.Panel("DetailPanel", body, new Vector2(DetailShare, 0f), Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-
-            Image disc = Ui.MakeImage("RoleDisc", panel, Gold, round: true);
-            KidsScreenView.Place(disc.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, -2f), new Vector2(40f, 40f));
-            disc.rectTransform.pivot = new Vector2(0f, 1f);
-            _roleIcon = Ui.MakeImage("Icon", disc.rectTransform, Ink);
-            KidsScreenView.Place(_roleIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(26f, 26f));
-            _roleLabel = KidsScreenView.Label("Role", panel, "", 22, Gold, TextAnchor.MiddleLeft, display: true);
-            KidsScreenView.Place(_roleLabel.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(50f, -2f), new Vector2(-50f, 40f));
-            _roleLabel.rectTransform.pivot = new Vector2(0f, 1f);
-            _nameLabel = KidsScreenView.Label("Name", panel, "", 72, Cream, TextAnchor.UpperLeft, display: true, ink: true);
-            KidsScreenView.Place(_nameLabel.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -40f), new Vector2(0f, 80f));
-            _nameLabel.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _nameLabel.resizeTextForBestFit = true;
-            _nameLabel.resizeTextMinSize = 40;
-            _nameLabel.resizeTextMaxSize = 72;
-
-            RectTransform skills = Ui.Panel("Skills", panel, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, 3f * SkillRowHeight + 2f * SkillGap));
+            RectTransform skills = Ui.Fill("Skills", panel);
             for (int i = 0; i < 3; i++)
             {
-                RectTransform row = Ui.Panel("Skill_" + i, skills, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -i * (SkillRowHeight + SkillGap)), new Vector2(0f, SkillRowHeight));
+                RectTransform row = Ui.Panel("Skill_" + i, skills, new Vector2(0f, 1f - (i + 1f) / 3f), new Vector2(1f, 1f - i / 3f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+                row.offsetMin = new Vector2(0f, SkillGap * 0.5f);
+                row.offsetMax = new Vector2(0f, -SkillGap * 0.5f);
                 Image glass = Ui.MakeImage("Glass", row, Color.white);
                 glass.sprite = MenuArt.RoundGlass(20);
                 glass.type = Image.Type.Sliced;
@@ -316,7 +332,7 @@ namespace Kalyeah.Game
                 cost.rectTransform.pivot = new Vector2(1f, 1f);
                 cost.horizontalOverflow = HorizontalWrapMode.Overflow;
                 Text text = KidsScreenView.Label("Body", row, "", 22, Muted, TextAnchor.UpperLeft);
-                KidsScreenView.Place(text.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(left, -44f), new Vector2(-(left + 14f), 76f));
+                KidsScreenView.Place(text.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(left, -44f), new Vector2(-(left + 14f), 104f));
                 text.rectTransform.pivot = new Vector2(0f, 1f);
                 text.horizontalOverflow = HorizontalWrapMode.Wrap;
                 text.verticalOverflow = VerticalWrapMode.Overflow;

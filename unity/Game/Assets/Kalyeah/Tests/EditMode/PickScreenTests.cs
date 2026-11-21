@@ -80,7 +80,7 @@ namespace Kalyeah.Game
             Assert.AreEqual("jopay", chosen);
             Assert.AreEqual("jopay", _pick.SelectedCharacterId);
 
-            string detail = Texts(_pick.SafeRoot.Find("Body/DetailPanel"));
+            string detail = Texts(_pick.SafeRoot.Find("Body/NamePlate"));
             StringAssert.Contains("JOPAY", detail);
             StringAssert.Contains("DEFENDER", detail);
             Transform skills = _pick.SafeRoot.Find("Body/DetailPanel/Skills");

@@ -23,10 +23,10 @@ namespace Kalyeah.Game
         static readonly Color BackdropWash = new Color(0.02f, 0.035f, 0.07f, 0.72f);
         static readonly Color HeaderBg = new Color(0f, 0f, 0f, 0f);
         static readonly Color PanelBg = new Color(0.06f, 0.10f, 0.19f, 0.86f);
-        static readonly Color RowBg = new Color(1f, 1f, 1f, 0.08f);
+        static readonly Color RowBg = new Color(0.10f, 0.15f, 0.25f, 0.92f); // opaque navy: white at low alpha blends too bright in linear colour space
         static readonly Color ChoiceIdleBg = new Color(0.02f, 0.04f, 0.09f, 0.7f);
         static readonly Color Gold = new Color(0.961f, 0.725f, 0.227f, 1f);
-        static readonly Color Coral = new Color(1f, 1f, 1f, 0.14f); // the back button: a light glass chip, not a red slab
+        static readonly Color Coral = new Color(0.16f, 0.22f, 0.36f, 1f); // the back button: a light navy chip, not a red slab
         static readonly Color Teal = new Color(0.961f, 0.725f, 0.227f, 1f); // ON toggles and fills are gold, as on the plan page
         static readonly Color Ink = new Color(0.08f, 0.10f, 0.16f, 1f);
 

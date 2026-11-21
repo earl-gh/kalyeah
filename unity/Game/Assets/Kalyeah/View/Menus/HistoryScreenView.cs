@@ -16,11 +16,12 @@ namespace Kalyeah.Game
         static readonly Color BackdropWash = new Color(0.02f, 0.035f, 0.07f, 0.72f);
         static readonly Color HeaderBg = new Color(0f, 0f, 0f, 0f);
         static readonly Color PanelBg = new Color(0.06f, 0.10f, 0.19f, 0.86f);
-        static readonly Color CardBg = new Color(1f, 1f, 1f, 0.08f);
+        static readonly Color CardBg = new Color(0.10f, 0.14f, 0.22f, 0.92f);
         static readonly Color WinRowBg = new Color(0.20f, 0.62f, 0.42f, 0.22f);
         static readonly Color LossRowBg = new Color(0.80f, 0.30f, 0.34f, 0.20f);
         static readonly Color Gold = new Color(0.961f, 0.725f, 0.227f, 1f);
-        static readonly Color Coral = new Color(1f, 1f, 1f, 0.14f);
+        static readonly Color Coral = new Color(0.96f, 0.38f, 0.26f, 1f);
+        static readonly Color BackChip = new Color(0.16f, 0.22f, 0.36f, 1f); // the back button: a light navy chip (white at low alpha blends too bright in linear space)
         static readonly Color WinGreen = new Color(0.32f, 0.92f, 0.56f, 1f);
         static readonly Color Muted = new Color(0.76f, 0.83f, 0.94f, 1f);
         static readonly Color Ink = new Color(0.08f, 0.10f, 0.16f, 1f);
@@ -297,7 +298,7 @@ namespace Kalyeah.Game
             Image backImg = _backBtnRect.gameObject.AddComponent<Image>();
             backImg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
             backImg.type = Image.Type.Sliced;
-            backImg.color = Coral;
+            backImg.color = BackChip;
             Button backBtn = _backBtnRect.gameObject.AddComponent<Button>();
             backBtn.targetGraphic = backImg;
             backBtn.onClick.AddListener(() => _onBack?.Invoke());
