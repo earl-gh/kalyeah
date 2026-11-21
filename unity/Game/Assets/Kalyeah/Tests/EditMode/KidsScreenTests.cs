@@ -73,7 +73,7 @@ namespace Kalyeah.Game
         }
 
         [Test]
-        public void KidPage_ShowsRolePurokAndStory_AndBackReturnsToTheGrid()
+        public void KidPage_ShowsRolePurokAndTabs_AndBackReturnsToTheGrid()
         {
             _kids.Show();
             _kids.OpenPage("karding");
@@ -81,11 +81,54 @@ namespace Kalyeah.Game
             Assert.AreEqual("KARDING", info.Find("Name").GetComponent<Text>().text);
             StringAssert.Contains("SEEKER", info.Find("Role").GetComponent<Text>().text);
             StringAssert.Contains("PALENGKE", info.Find("Role").GetComponent<Text>().text);
-            StringAssert.Contains("chalk maps", info.Find("Story").GetComponent<Text>().text);
+            StringAssert.Contains("chalk maps", info.Find("Personality").GetComponent<Text>().text);
+            Assert.AreEqual(KidsScreenView.TabSkills, _kids.ActiveTab, "a kid page opens on Skills");
 
             Assert.IsTrue(_kids.HandleBack(), "Back from a page opened on the grid returns to the grid");
             Assert.IsNull(_kids.OpenKid);
             Assert.IsFalse(_kids.HandleBack(), "Back on the grid leaves the screen");
+        }
+
+        [Test]
+        public void KidPage_SkillsTab_ShowsOneKitSkillAtATime_FromAThreeSkillSelector()
+        {
+            _kids.Show();
+            _kids.OpenPage("karding");
+            Transform content = _kids.SafeRoot.Find("PagePanel/ContentPanel/Content");
+            Assert.AreEqual(3, content.Cast<Transform>().Count(t => t.name.StartsWith("Skill_")), "S1, S2 and the ultimate");
+
+            string first = string.Join(" ", content.Find("SkillCard").GetComponentsInChildren<Text>(true).Select(t => t.text));
+            StringAssert.Contains("Yoyo", first);
+            StringAssert.Contains("25 water, 10s cooldown", first);
+
+            content.Find("Skill_S2").GetComponent<Button>().onClick.Invoke();
+            Assert.AreEqual(1, _kids.SelectedSkill);
+            string second = string.Join(" ", _kids.SafeRoot.Find("PagePanel/ContentPanel/Content/SkillCard").GetComponentsInChildren<Text>(true).Select(t => t.text));
+            StringAssert.Contains("Piko", second);
+            StringAssert.Contains("30 water, 14s cooldown", second);
+
+            _kids.SelectSkill(2);
+            string ultimate = string.Join(" ", _kids.SafeRoot.Find("PagePanel/ContentPanel/Content/SkillCard").GetComponentsInChildren<Text>(true).Select(t => t.text));
+            StringAssert.Contains("Pogs Slam", ultimate);
+            StringAssert.Contains("Ultimate, 85s cooldown", ultimate);
+
+            _kids.OpenPage("narda");
+            Assert.AreEqual(0, _kids.SelectedSkill, "a new kid page opens on the first skill");
+        }
+
+        [Test]
+        public void KidPage_StoryTab_ShowsHomeFriendsAndRival_AndMasteryIsHonest()
+        {
+            _kids.Show();
+            _kids.OpenPage("karding");
+            _kids.SelectTab(KidsScreenView.TabStory);
+            string story = string.Join(" ", _kids.SafeRoot.Find("PagePanel/ContentPanel/Content").GetComponentsInChildren<Text>(true).Select(t => t.text));
+            foreach (string expected in new[] { "Lolo", "Engineer", "Inggo", "Pamela", "Kikay" })
+                StringAssert.Contains(expected, story);
+
+            _kids.SelectTab(KidsScreenView.TabMastery);
+            string mastery = string.Join(" ", _kids.SafeRoot.Find("PagePanel/ContentPanel/Content").GetComponentsInChildren<Text>(true).Select(t => t.text));
+            StringAssert.Contains("0 of 7", mastery, "no mastery exists yet: the tab says so instead of showing a made-up level");
         }
 
         [Test]

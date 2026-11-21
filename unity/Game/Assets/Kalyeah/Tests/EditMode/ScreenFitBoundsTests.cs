@@ -811,10 +811,9 @@ namespace Kalyeah.Game
                 pick.RefreshFromSession();
 
                 RectTransform backdrop = pick.Root.Find("Backdrop") as RectTransform;
-                Transform workspace = pick.SafeRoot.Find("Workspace");
-                RectTransform headerBar = workspace != null ? workspace.Find("HeaderBar") as RectTransform : null;
-                RectTransform rosterPanel = workspace != null ? workspace.Find("RosterPanel") as RectTransform : null;
-                RectTransform rightPanel = workspace != null && workspace.childCount >= 3 ? workspace.GetChild(2) as RectTransform : null;
+                RectTransform headerBar = pick.SafeRoot.Find("HeaderBar") as RectTransform;
+                RectTransform rosterPanel = pick.SafeRoot.Find("Body/RosterPanel") as RectTransform;
+                RectTransform detailPanel = pick.SafeRoot.Find("Body/DetailPanel") as RectTransform;
 
                 AuditGuiSurface(
                     canvas,
@@ -824,8 +823,7 @@ namespace Kalyeah.Game
                     profile,
                     "PickScreenView",
                     expectSelectables: true,
-                    disjointBands: new[] { headerBar, rosterPanel, rightPanel },
-                    onReflow: pick.RefreshResponsiveLayout);
+                    disjointBands: new[] { headerBar, rosterPanel, detailPanel });
             }
 
             // 4. CodexScreenView (all 3 tabs: Kids, Weapons & Kit, Larong Kalye)

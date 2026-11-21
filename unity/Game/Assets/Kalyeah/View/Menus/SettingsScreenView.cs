@@ -18,15 +18,16 @@ namespace Kalyeah.Game
         /// <summary>Donate lives in Settings, not on home (docs/SPEC.md §8).</summary>
         public const int TabDonate = 3;
 
-        static readonly Color BackdropSolid = new Color(0.06f, 0.10f, 0.20f, 1f);
-        static readonly Color BackdropWash = new Color(0.05f, 0.08f, 0.17f, 0.84f);
-        static readonly Color HeaderBg = new Color(0.06f, 0.10f, 0.22f, 0.96f);
-        static readonly Color PanelBg = new Color(0.08f, 0.12f, 0.24f, 0.96f);
-        static readonly Color RowBg = new Color(0.11f, 0.16f, 0.30f, 0.94f);
-        static readonly Color ChoiceIdleBg = new Color(0.06f, 0.10f, 0.20f, 0.96f);
-        static readonly Color Gold = new Color(0.99f, 0.79f, 0.20f, 1f);
-        static readonly Color Coral = new Color(0.96f, 0.38f, 0.26f, 1f);
-        static readonly Color Teal = new Color(0.22f, 0.78f, 0.68f, 1f);
+        // the home's palette: deep navy, dark glass panels and one gold (docs/SPEC.md §10, the plan page v10)
+        static readonly Color BackdropSolid = new Color(0.02f, 0.035f, 0.07f, 1f);
+        static readonly Color BackdropWash = new Color(0.02f, 0.035f, 0.07f, 0.72f);
+        static readonly Color HeaderBg = new Color(0f, 0f, 0f, 0f);
+        static readonly Color PanelBg = new Color(0.06f, 0.10f, 0.19f, 0.86f);
+        static readonly Color RowBg = new Color(0.10f, 0.15f, 0.25f, 0.92f); // opaque navy: white at low alpha blends too bright in linear colour space
+        static readonly Color ChoiceIdleBg = new Color(0.02f, 0.04f, 0.09f, 0.7f);
+        static readonly Color Gold = new Color(0.961f, 0.725f, 0.227f, 1f);
+        static readonly Color Coral = new Color(0.16f, 0.22f, 0.36f, 1f); // the back button: a light navy chip, not a red slab
+        static readonly Color Teal = new Color(0.961f, 0.725f, 0.227f, 1f); // ON toggles and fills are gold, as on the plan page
         static readonly Color Ink = new Color(0.08f, 0.10f, 0.16f, 1f);
 
         [ExecuteAlways]
@@ -122,6 +123,7 @@ namespace Kalyeah.Game
         readonly RectTransform[] _tabPanes = new RectTransform[4];
         readonly Image[] _tabPillBgs = new Image[4];
         readonly Text[] _tabPillLabels = new Text[4];
+        readonly Image[] _tabBars = new Image[4];
         readonly LayoutElement[] _tabPillLayouts = new LayoutElement[4];
         readonly List<Action> _syncCallbacks = new List<Action>(20);
         readonly List<ToggleRowRefs> _toggleRows = new List<ToggleRowRefs>(8);
@@ -245,12 +247,13 @@ namespace Kalyeah.Game
             {
                 bool active = i == _activeTab;
                 if (_tabPanes[i] != null) _tabPanes[i].gameObject.SetActive(active);
-                if (_tabPillBgs[i] != null) _tabPillBgs[i].color = active ? Gold : RowBg;
+                // underlined tabs, as on the kid page: the active one is cream over a gold bar
+                if (_tabBars[i] != null) _tabBars[i].color = active ? Gold : new Color(1f, 1f, 1f, 0.18f);
                 if (_tabPillLabels[i] != null)
                 {
-                    _tabPillLabels[i].color = active ? Ink : Ui.Cream;
+                    _tabPillLabels[i].color = active ? Ui.Cream : new Color(0.72f, 0.77f, 0.88f, 1f);
                     Outline outline = _tabPillLabels[i].GetComponent<Outline>();
-                    if (outline != null) outline.enabled = !active;
+                    if (outline != null) outline.enabled = false;
                 }
             }
             UpdateScrollIndicators();
@@ -270,7 +273,7 @@ namespace Kalyeah.Game
             {
                 bool fil = SettingsStore.Current.Language == "fil";
                 if (_headerTitle != null) _headerTitle.text = fil ? "MGA SETTING" : "SETTINGS";
-                if (_backLabel != null) _backLabel.text = fil ? "<- BALIK" : "<- BACK";
+                if (_backLabel != null) _backLabel.text = fil ? "BALIK" : "BACK";
                 if (_resetLabel != null) _resetLabel.text = fil ? "IBALIK SA DATI" : "RESET DEFAULTS";
                 if (_tabPillLabels[0] != null) _tabPillLabels[0].text = fil ? "TUNOG" : "AUDIO";
                 if (_tabPillLabels[1] != null) _tabPillLabels[1].text = fil ? "KONTROL" : "CONTROLS";
@@ -538,14 +541,14 @@ namespace Kalyeah.Game
             Stretch(baseFill.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             baseFill.gameObject.AddComponent<RectMask2D>();
 
-            Texture2D mainBg = KalyeahResources.Texture("ui/main_bg") ?? KalyeahResources.Texture("ui/boot/boot_bg");
+            Texture2D mainBg = KalyeahResources.Texture("ui/home/stall") ?? KalyeahResources.Texture("ui/main_bg") ?? KalyeahResources.Texture("ui/boot/boot_bg");
             if (mainBg != null)
             {
                 var rawGo = new GameObject("ArtBackdrop", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
                 rawGo.transform.SetParent(baseFill.transform, false);
                 var raw = rawGo.GetComponent<RawImage>();
                 raw.texture = mainBg;
-                raw.color = new Color(0.90f, 0.88f, 0.96f, 0.24f);
+                raw.color = new Color(1f, 1f, 1f, 0.32f);
                 raw.raycastTarget = false;
                 Stretch(raw.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
@@ -572,14 +575,15 @@ namespace Kalyeah.Game
             {
                 SavePersistedSettings();
                 _onBack?.Invoke();
-            }, out _backLabel, "<- BACK");
+            }, out _backLabel, "BACK");
 
             _headerTitle = MakeFittedText("Title", _headerRect, "SETTINGS", 28, Gold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
             _headerTitleRect = _headerTitle.rectTransform;
             Stretch(_headerTitleRect, Vector2.zero, Vector2.one, new Vector2(166f, 8f), new Vector2(-230f, -8f));
 
             Vector2 resetSize = ScreenFitMetrics.ClampTouchSize(new Vector2(204f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
-            _resetBtnRect = MakeHeaderButton("ResetDefaultsButton", _headerRect, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-10f, 0f), resetSize, new Color(0.58f, 0.22f, 0.24f, 1f), ResetDefaults, out _resetLabel, "RESET DEFAULTS");
+            _resetBtnRect = MakeHeaderButton("ResetDefaultsButton", _headerRect, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-10f, 0f), resetSize, Coral, ResetDefaults, out _resetLabel, "RESET DEFAULTS");
+            _resetLabel.color = new Color(1f, 0.66f, 0.62f, 1f); // a quiet glass chip with a warm label, not a red slab
         }
 
         void BuildTabBar(RectTransform parent)
@@ -604,9 +608,13 @@ namespace Kalyeah.Game
                 var go = new GameObject($"SettingsTab_{i}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
                 go.transform.SetParent(_tabBarRect, false);
                 var img = go.GetComponent<Image>();
-                img.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+                img.sprite = MenuArt.RoundSolid(22);
                 img.type = Image.Type.Sliced;
-                img.color = RowBg;
+                img.color = Color.clear; // the tab is only its label and a bar; the clear image keeps the whole tab tappable
+
+                Image bar = Ui.MakeImage("Bar", go.transform, new Color(1f, 1f, 1f, 0.18f));
+                Stretch(bar.rectTransform, new Vector2(0.06f, 0f), new Vector2(0.94f, 0f), new Vector2(0f, 6f), new Vector2(0f, 11f));
+                _tabBars[i] = bar;
 
                 var le = go.GetComponent<LayoutElement>();
                 le.minWidth = minTouch;
@@ -808,7 +816,7 @@ namespace Kalyeah.Game
             paneRoot.offsetMin = new Vector2(0f, 6f);
             paneRoot.offsetMax = new Vector2(0f, -228f);
 
-            Image bg = KomiksUi.MakeSlicedFill("PaneBg", paneRoot, PanelBg, KomiksUi.RadiusM);
+            Image bg = KomiksUi.MakeSlicedFill("PaneBg", paneRoot, PanelBg, KomiksUi.RadiusXL);
             Stretch(bg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             var scrollGo = new GameObject("Scroll", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
@@ -873,7 +881,7 @@ namespace Kalyeah.Game
             Vector2 btnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(184f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
             RectTransform buttonRt = Ui.Panel("DonateBtn", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-14f, 0f), btnSize);
             Image buttonBg = buttonRt.gameObject.AddComponent<Image>();
-            buttonBg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+            buttonBg.sprite = MenuArt.RoundSolid(22);
             buttonBg.type = Image.Type.Sliced;
             buttonBg.color = Gold;
             DonateButton = buttonRt.gameObject.AddComponent<Button>();
@@ -902,7 +910,7 @@ namespace Kalyeah.Game
             Vector2 btnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(184f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
             RectTransform toggleRt = Ui.Panel("ToggleBtn", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-14f, 0f), btnSize);
             Image toggleBg = toggleRt.gameObject.AddComponent<Image>();
-            toggleBg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+            toggleBg.sprite = MenuArt.RoundSolid(22);
             toggleBg.type = Image.Type.Sliced;
             Button btn = toggleRt.gameObject.AddComponent<Button>();
             btn.targetGraphic = toggleBg;
@@ -945,7 +953,7 @@ namespace Kalyeah.Game
             // Minus button
             RectTransform minusRt = Ui.Panel("MinusBtn", row, new Vector2(0.36f, 0.5f), new Vector2(0.36f, 0.5f), new Vector2(0f, 0.5f), new Vector2(8f, 0f), new Vector2(btnSide, btnSide));
             Image minusImg = minusRt.gameObject.AddComponent<Image>();
-            minusImg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+            minusImg.sprite = MenuArt.RoundSolid(22);
             minusImg.type = Image.Type.Sliced;
             minusImg.color = ChoiceIdleBg;
             Button minusBtn = minusRt.gameObject.AddComponent<Button>();
@@ -973,14 +981,15 @@ namespace Kalyeah.Game
             handleSlide.offsetMin = new Vector2(halfKnob, -halfKnob);
             handleSlide.offsetMax = new Vector2(-halfKnob, halfKnob);
 
-            Image handle = Ui.MakeImage("Handle", handleSlide, Ink, round: true, raycast: true);
+            // the handle keeps the full 48 dp touch area but is invisible; the knob drawn on it is a slim cream disc with a gold pip
+            Image handle = Ui.MakeImage("Handle", handleSlide, Color.clear, round: true, raycast: true);
             handle.rectTransform.sizeDelta = new Vector2(knobPx, 0f);
 
             Image handleFace = Ui.MakeImage("KnobFace", handle.transform, Ui.Cream, round: true, raycast: false);
-            Stretch(handleFace.rectTransform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+            Stretch(handleFace.rectTransform, Vector2.zero, Vector2.one, new Vector2(24f, 24f), new Vector2(-24f, -24f));
 
             Image handlePip = Ui.MakeImage("KnobPip", handleFace.transform, Gold, round: true, raycast: false);
-            Stretch(handlePip.rectTransform, new Vector2(0.32f, 0.32f), new Vector2(0.68f, 0.68f), Vector2.zero, Vector2.zero);
+            Stretch(handlePip.rectTransform, new Vector2(0.3f, 0.3f), new Vector2(0.7f, 0.7f), Vector2.zero, Vector2.zero);
 
             var slider = sliderGo.GetComponent<Slider>();
             slider.minValue = 0f;
@@ -993,7 +1002,7 @@ namespace Kalyeah.Game
             // Plus button
             RectTransform plusRt = Ui.Panel("PlusBtn", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-104f, 0f), new Vector2(btnSide, btnSide));
             Image plusImg = plusRt.gameObject.AddComponent<Image>();
-            plusImg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+            plusImg.sprite = MenuArt.RoundSolid(22);
             plusImg.type = Image.Type.Sliced;
             plusImg.color = ChoiceIdleBg;
             Button plusBtn = plusRt.gameObject.AddComponent<Button>();
@@ -1068,7 +1077,7 @@ namespace Kalyeah.Game
                 var optGo = new GameObject($"Choice_{i}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
                 optGo.transform.SetParent(group, false);
                 var img = optGo.GetComponent<Image>();
-                img.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+                img.sprite = MenuArt.RoundSolid(22);
                 img.type = Image.Type.Sliced;
                 img.color = ChoiceIdleBg;
 
@@ -1121,7 +1130,7 @@ namespace Kalyeah.Game
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(LayoutElement));
             go.transform.SetParent(parent, false);
             var img = go.GetComponent<Image>();
-            img.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+            img.sprite = MenuArt.RoundSolid(22);
             img.type = Image.Type.Sliced;
             img.color = RowBg;
 
@@ -1149,7 +1158,7 @@ namespace Kalyeah.Game
         {
             RectTransform rt = Ui.Panel(name, parent, anchor, anchor, pivot, pos, size);
             Image img = rt.gameObject.AddComponent<Image>();
-            img.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
+            img.sprite = MenuArt.RoundSolid(22);
             img.type = Image.Type.Sliced;
             img.color = color;
             Button btn = rt.gameObject.AddComponent<Button>();

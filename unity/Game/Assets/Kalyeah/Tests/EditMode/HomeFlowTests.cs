@@ -115,6 +115,23 @@ namespace Kalyeah.Game
         }
 
         [Test]
+        public void LeftColumnAndNav_ShowSampleContent_AndTapsSayTheSystemIsNotBuilt()
+        {
+            Assert.AreEqual("karding", AppSession.DefaultCharacter, "Karding is the default home kid");
+            foreach (string card in new[] { "Pass", "Event", "Daily" })
+            {
+                Transform t = _home.SafeRoot.Find("HubBody/LeftColumn/Card_" + card);
+                Assert.IsNotNull(t, card + " card");
+                t.GetComponent<Button>().onClick.Invoke();
+                Assert.IsNotEmpty(_home.ToastText, card + " tap says its system comes later");
+            }
+            _home.SafeRoot.Find("HubBody/BottomNav/Nav_Store").GetComponent<Button>().onClick.Invoke();
+            StringAssert.Contains("store", _home.ToastText);
+            _home.SafeRoot.Find("HubBody/BottomNav/Nav_Kids").GetComponent<Button>().onClick.Invoke();
+            Assert.AreEqual(MenuStack.KidsId, _navigated);
+        }
+
+        [Test]
         public void Profile_OnHome_ShowsNoRank()
         {
             Transform profile = _home.SafeRoot.Find("TopBar/Profile");

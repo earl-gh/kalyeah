@@ -1,0 +1,393 @@
+{
+ "source": "docs/KITS.md and docs/LORE.md",
+ "class": "KidPages",
+ "data": {
+  "$class": "KidPages",
+  "kids": [
+   {
+    "id": "narda",
+    "skills": [
+     {
+      "slot": "S1",
+      "name": "Luksong Tinik",
+      "what": "Vault-dash 6 m, over waist-high cover; 2 charges; the next Tirador shot within 2 s deals +50%",
+      "cost": "25 WATER · 8 S PER CHARGE"
+     },
+     {
+      "slot": "S2",
+      "name": "Tira Holens",
+      "what": "A fast marble that ricochets once off a wall; a ricochet hit deals double",
+      "cost": "30 water, 9s cooldown"
+     },
+     {
+      "slot": "ULT",
+      "name": "Tsinelas Bagsik",
+      "what": "3 boomerang slippers over 2 s, each out and back; tagging an enemy hit by one refunds half the cooldown",
+      "cost": "Ultimate, 80s cooldown"
+     }
+    ],
+    "home": "Lives above the family's bakery by the plaza",
+    "job": "Track athlete",
+    "friends": [
+     "Jopay",
+     "Kikay"
+    ],
+    "rival": "Jumong",
+    "idle": "Bounces on toes, spins a slipper on one finger",
+    "victory": "Flips a slipper and catches it on a foot"
+   },
+   {
+    "id": "inggo",
+    "skills": [
+     {
+      "slot": "S1",
+      "name": "Sipa",
+      "what": "Kick a rattan sipa that bounces between up to 3 enemies",
+      "cost": "25 water, 8s cooldown"
+     },
+     {
+      "slot": "S2",
+      "name": "Tiyakad",
+      "what": "On stilts for 4 s: sees over cover, +40% Tirador range, moves 20% slower",
+      "cost": "35 water, 14s cooldown"
+     },
+     {
+      "slot": "ULT",
+      "name": "Bato!",
+      "what": "One long-range stone, 1 s wind-up: damage grows with the target's missing HP; tagging with it heals Inggo 30",
+      "cost": "Ultimate, 85s cooldown"
+     }
+    ],
+    "home": "Helps at the family's vegetable stall",
+    "job": "National sepak takraw player",
+    "friends": [
+     "Karding",
+     "Pamela"
+    ],
+    "rival": "Manoy",
+    "idle": "Juggles a sipa with one foot",
+    "victory": "Kicks the sipa high and catches it on the head"
+   },
+   {
+    "id": "jumong",
+    "skills": [
+     {
+      "slot": "S1",
+      "name": "Syato",
+      "what": "Flick a stick: the first enemy hit pops up 0.5 s; recast within 2 s to dash to them and whack",
+      "cost": "30 water, 10s cooldown"
+     },
+     {
+      "slot": "S2",
+      "name": "Trumpo Ikot",
+      "what": "Spin as a top for 2 s: damage around Jumong, immune to slows",
+      "cost": "30 water, 11s cooldown"
+     },
+     {
+      "slot": "ULT",
+      "name": "Pukpok Palayok",
+      "what": "Leap up to 10 m and smash a pot: area damage, and enemies hit are \"blindfolded\" (screen blurred) 2 s",
+      "cost": "Ultimate, 90s cooldown"
+     }
+    ],
+    "home": "A fishing family at the pier",
+    "job": "Boat captain",
+    "friends": [
+     "Oriang",
+     "Domeng"
+    ],
+    "rival": "Narda",
+    "idle": "Spins a top on a palm",
+    "victory": "Smashes a palayok and candy rains down"
+   },
+   {
+    "id": "jopay",
+    "skills": [
+     {
+      "slot": "S1",
+      "name": "Bahay-Bahayan",
+      "what": "Appliance-box wall, 6 m wide, 80 HP (about 4 stones), lasts 8 s, blocks shots and movement",
+      "cost": "35 water, 16s cooldown"
+     },
+     {
+      "slot": "S2",
+      "name": "Pabitin",
+      "what": "Hang a treat rack: allies under it heal over 4 s",
+      "cost": "35 water, 14s cooldown"
+     },
+     {
+      "slot": "ULT",
+      "name": "Palosebo",
+      "what": "A greased pole in your base for 8 s: enemies can't advance a capture, and slip (slowed) near it",
+      "cost": "Ultimate, 90s cooldown"
+     }
+    ],
+    "home": "Parent works at the barangay hall",
+    "job": "Architect",
+    "friends": [
+     "Narda",
+     "Kikay"
+    ],
+    "rival": "Paeng",
+    "idle": "Tapes the corner of a box",
+    "victory": "Waves from the top of a box fort"
+   },
+   {
+    "id": "oriang",
+    "skills": [
+     {
+      "slot": "S1",
+      "name": "Chinese Garter",
+      "what": "Tether an ally up to 12 m: 30% of the damage they take goes to Oriang; stretching it too far snaps it and speeds both",
+      "cost": "25 water, 10s cooldown"
+     },
+     {
+      "slot": "S2",
+      "name": "Sungka",
+      "what": "For 3 s Oriang stores damage taken as shells, then releases them as a shield shared by nearby allies",
+      "cost": "30 water, 12s cooldown"
+     },
+     {
+      "slot": "ULT",
+      "name": "Langit!",
+      "what": "Allies in 8 m can't drop below 1 HP (can't be tagged) for 3 s; stuns still interrupt their rescues and captures",
+      "cost": "Ultimate, 100s cooldown"
+     }
+    ],
+    "home": "Big sister to three; parent runs the ferry canteen",
+    "job": "Nurse",
+    "friends": [
+     "Jumong",
+     "Domeng"
+    ],
+    "rival": "Pamela",
+    "idle": "Stretches a garter between two hands",
+    "victory": "Holds the garter overhead like a ribbon"
+   },
+   {
+    "id": "paeng",
+    "skills": [
+     {
+      "slot": "S1",
+      "name": "Sack Race",
+      "what": "Hop in a sack 3 s: 40% less damage; bumping an enemy knocks them back",
+      "cost": "30 water, 12s cooldown"
+     },
+     {
+      "slot": "S2",
+      "name": "Luksong Baka",
+      "what": "Crouch as the \"baka\" for 4 s: an ally who vaults off Paeng leaps 10 m (rescue runs, escapes)",
+      "cost": "20 water, 14s cooldown"
+     },
+     {
+      "slot": "ULT",
+      "name": "Tinik Wall",
+      "what": "A row of \"tinik\" hands across a path for 4 s blocks both teams; enemies on it when it rises are knocked up",
+      "cost": "Ultimate, 85s cooldown"
+     }
+    ],
+    "home": "Helps a Lolo carry sacks at the farm",
+    "job": "Agriculturist",
+    "friends": [
+     "Manoy",
+     "Tere"
+    ],
+    "rival": "Jopay",
+    "idle": "Shifts a sack on one shoulder",
+    "victory": "Flexes beside the sack"
+   },
+   {
+    "id": "kikay",
+    "skills": [
+     {
+      "slot": "S1",
+      "name": "Teks Tripwire",
+      "what": "Drop a teks card; the next enemy who crosses it is revealed 6 s and slowed 20%",
+      "cost": "20 water, 10s cooldown"
+     },
+     {
+      "slot": "S2",
+      "name": "Tago!",
+      "what": "Invisible for 4 s (breaks on attack); the first shot after deals +40%",
+      "cost": "35 water, 16s cooldown"
+     },
+     {
+      "slot": "ULT",
+      "name": "Saranggola",
+      "what": "Fly a kite over an area she aims: reveals enemies and traps in a 15 m circle for 6 s",
+      "cost": "Ultimate, 80s cooldown"
+     }
+    ],
+    "home": "Lives by the plaza; flies kites there every afternoon",
+    "job": "Photographer",
+    "friends": [
+     "Narda",
+     "Jopay"
+    ],
+    "rival": "Karding",
+    "idle": "Shuffles teks cards",
+    "victory": "A kite rises behind as Kikay points up"
+   },
+   {
+    "id": "karding",
+    "skills": [
+     {
+      "slot": "S1",
+      "name": "Yoyo",
+      "what": "Yoyo shot: marks the enemy hit (revealed 5 s) and tugs them 2 m",
+      "cost": "25 water, 10s cooldown"
+     },
+     {
+      "slot": "S2",
+      "name": "Piko",
+      "what": "Draw a chalk grid: enemy traps inside are revealed and disarmed; enemies inside are visible to the team",
+      "cost": "30 water, 14s cooldown"
+     },
+     {
+      "slot": "ULT",
+      "name": "Pogs Slam",
+      "what": "Slam a giant pog: destroys enemy traps and walls in 6 m, reveals enemies in 14 m for 4 s",
+      "cost": "Ultimate, 85s cooldown"
+     }
+    ],
+    "home": "Fixes radios with a Lolo at the market",
+    "job": "Engineer",
+    "friends": [
+     "Inggo",
+     "Pamela"
+    ],
+    "rival": "Kikay",
+    "idle": "\"Walk the dog\" with a yoyo",
+    "victory": "An \"around the world\" yoyo trick"
+   },
+   {
+    "id": "manoy",
+    "skills": [
+     {
+      "slot": "S1",
+      "name": "Sili-Tubig",
+      "what": "Chili-water spray cone: enemies hit are revealed 4 s and their screen blurs 1.5 s",
+      "cost": "30 water, 11s cooldown"
+     },
+     {
+      "slot": "S2",
+      "name": "Trumpo Bantay",
+      "what": "A spinning top sentry for 20 s: pings enemies within 8 m",
+      "cost": "20 water, 15s cooldown"
+     },
+     {
+      "slot": "ULT",
+      "name": "Taya!",
+      "what": "Counts to 3 out loud, then shows where every enemy is, hidden or invisible ones too, as a one-time snapshot",
+      "cost": "Ultimate, 100s cooldown"
+     }
+    ],
+    "home": "Family grows sili by the cane fields",
+    "job": "Forest ranger",
+    "friends": [
+     "Paeng",
+     "Tere"
+    ],
+    "rival": "Inggo",
+    "idle": "Shades eyes and scans the horizon",
+    "victory": "Counts \"isa, dalawa, tatlo!\" and points"
+   },
+   {
+    "id": "pamela",
+    "skills": [
+     {
+      "slot": "S1",
+      "name": "Holens Spill",
+      "what": "Spill marbles in a cone for 3 s: enemies slip (no jump, no sprint, slowed)",
+      "cost": "25 water, 10s cooldown"
+     },
+     {
+      "slot": "S2",
+      "name": "Lata!",
+      "what": "Throw a can: the first enemy hit becomes a can for 1.5 s (can't attack or use skills; can only wobble slowly)",
+      "cost": "35 water, 15s cooldown"
+     },
+     {
+      "slot": "ULT",
+      "name": "Patintero!",
+      "what": "Draw 3 chalk lines for 5 s: an enemy crossing a line is stunned 0.8 s (once per line)",
+      "cost": "Ultimate, 90s cooldown"
+     }
+    ],
+    "home": "The eldest at home; minds the family's rice stall",
+    "job": "Teacher",
+    "friends": [
+     "Inggo",
+     "Karding"
+    ],
+    "rival": "Oriang",
+    "idle": "Rolls marbles in a palm",
+    "victory": "Kicks a can over and holds a pose"
+   },
+   {
+    "id": "domeng",
+    "skills": [
+     {
+      "slot": "S1",
+      "name": "Pabitin Snare",
+      "what": "After 0.5 s a rack drops on an area: enemies under it are rooted 1.2 s",
+      "cost": "30 water, 11s cooldown"
+     },
+     {
+      "slot": "S2",
+      "name": "Sako Trap",
+      "what": "Hidden sack trap: the enemy who steps in can only hop (50% slower) for 3 s",
+      "cost": "20 water, 12s cooldown"
+     },
+     {
+      "slot": "ULT",
+      "name": "Lupa!",
+      "what": "After 0.6 s, every enemy on the ground within 8 m is knocked up and stunned 1 s; enemies on raised spots are safe",
+      "cost": "Ultimate, 95s cooldown"
+     }
+    ],
+    "home": "Family hangs the fiesta pabitin every year",
+    "job": "Barangay captain",
+    "friends": [
+     "Jumong",
+     "Oriang"
+    ],
+    "rival": "Tere",
+    "idle": "Counts on fingers",
+    "victory": "Stomps once and grins as dust rises"
+   },
+   {
+    "id": "tere",
+    "skills": [
+     {
+      "slot": "S1",
+      "name": "Jackstone",
+      "what": "Scatter jacks in a circle for 5 s: slow + light damage",
+      "cost": "25 water, 10s cooldown"
+     },
+     {
+      "slot": "S2",
+      "name": "Luksong Lubid",
+      "what": "Stretch a rope between two points: the first enemy across is tripped (knocked down 1 s)",
+      "cost": "30 water, 13s cooldown"
+     },
+     {
+      "slot": "ULT",
+      "name": "Garter Net",
+      "what": "A 6 m net: enemies inside are rooted 1.25 s, then slowed 2 s",
+      "cost": "Ultimate, 90s cooldown"
+     }
+    ],
+    "home": "Lives by the paddies with a grandmother",
+    "job": "Scientist",
+    "friends": [
+     "Paeng",
+     "Manoy"
+    ],
+    "rival": "Domeng",
+    "idle": "Tosses and catches jacks",
+    "victory": "Sweeps up every jack in one catch"
+   }
+  ]
+ }
+}

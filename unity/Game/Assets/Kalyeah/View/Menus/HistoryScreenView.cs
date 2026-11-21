@@ -12,15 +12,16 @@ namespace Kalyeah.Game
     /// </summary>
     public sealed class HistoryScreenView : IDisposable
     {
-        static readonly Color BackdropSolid = new Color(0.06f, 0.10f, 0.20f, 1f);
-        static readonly Color BackdropWash = new Color(0.05f, 0.08f, 0.17f, 0.84f);
-        static readonly Color HeaderBg = new Color(0.06f, 0.10f, 0.22f, 0.96f);
-        static readonly Color PanelBg = new Color(0.08f, 0.12f, 0.24f, 0.96f);
-        static readonly Color CardBg = new Color(0.11f, 0.16f, 0.30f, 0.94f);
-        static readonly Color WinRowBg = new Color(0.10f, 0.28f, 0.22f, 0.95f);
-        static readonly Color LossRowBg = new Color(0.28f, 0.12f, 0.16f, 0.95f);
-        static readonly Color Gold = new Color(0.99f, 0.79f, 0.20f, 1f);
+        static readonly Color BackdropSolid = new Color(0.02f, 0.035f, 0.07f, 1f);
+        static readonly Color BackdropWash = new Color(0.02f, 0.035f, 0.07f, 0.72f);
+        static readonly Color HeaderBg = new Color(0f, 0f, 0f, 0f);
+        static readonly Color PanelBg = new Color(0.06f, 0.10f, 0.19f, 0.86f);
+        static readonly Color CardBg = new Color(0.10f, 0.14f, 0.22f, 0.92f);
+        static readonly Color WinRowBg = new Color(0.20f, 0.62f, 0.42f, 0.22f);
+        static readonly Color LossRowBg = new Color(0.80f, 0.30f, 0.34f, 0.20f);
+        static readonly Color Gold = new Color(0.961f, 0.725f, 0.227f, 1f);
         static readonly Color Coral = new Color(0.96f, 0.38f, 0.26f, 1f);
+        static readonly Color BackChip = new Color(0.16f, 0.22f, 0.36f, 1f); // the back button: a light navy chip (white at low alpha blends too bright in linear space)
         static readonly Color WinGreen = new Color(0.32f, 0.92f, 0.56f, 1f);
         static readonly Color Muted = new Color(0.76f, 0.83f, 0.94f, 1f);
         static readonly Color Ink = new Color(0.08f, 0.10f, 0.16f, 1f);
@@ -263,7 +264,7 @@ namespace Kalyeah.Game
             Stretch(baseFill.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             baseFill.gameObject.AddComponent<RectMask2D>();
 
-            Texture2D mainBg = KalyeahResources.Texture("ui/main_bg") ?? KalyeahResources.Texture("ui/boot/boot_bg");
+            Texture2D mainBg = KalyeahResources.Texture("ui/home/stall") ?? KalyeahResources.Texture("ui/main_bg") ?? KalyeahResources.Texture("ui/boot/boot_bg");
             if (mainBg != null)
             {
                 var rawGo = new GameObject("ArtBackdrop", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
@@ -297,7 +298,7 @@ namespace Kalyeah.Game
             Image backImg = _backBtnRect.gameObject.AddComponent<Image>();
             backImg.sprite = KomiksUi.RoundedSprite(KomiksUi.RadiusS);
             backImg.type = Image.Type.Sliced;
-            backImg.color = Coral;
+            backImg.color = BackChip;
             Button backBtn = _backBtnRect.gameObject.AddComponent<Button>();
             backBtn.targetGraphic = backImg;
             backBtn.onClick.AddListener(() => _onBack?.Invoke());
@@ -560,7 +561,7 @@ namespace Kalyeah.Game
                 }
                 if (_tierBadgeLabels[i] != null)
                 {
-                    string marker = isCurrent ? "★ " : "";
+                    string marker = isCurrent ? "» " : ""; // Barlow Condensed has no star
                     _tierBadgeLabels[i].text = $"{marker}{t.Name}\n{t.MinLp}+ LP";
                     _tierBadgeLabels[i].color = isCurrent ? Gold : unlocked ? Ui.Cream : new Color(0.55f, 0.62f, 0.74f, 0.85f);
                 }

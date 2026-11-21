@@ -28,6 +28,10 @@ namespace Kalyeah.Game
         const float HitSize = 96f;
         const float CardGap = 14f;
         const int Columns = 6;
+        const int Rows = 2;
+        const float AllShare = 0.12f;
+        const float RoleShare = 0.22f; // 0.12 + 4 x 0.22 fills the row
+        const float ChipGap = 10f;
 
         /// <summary>The filter row: everyone, then the four roles in roster order.</summary>
         public static readonly string[] Filters = { "", "STRIKER", "DEFENDER", "SEEKER", "CONTROLLER" };
@@ -66,7 +70,6 @@ namespace Kalyeah.Game
         Text _pageRole;
         Image _pageRoleIcon;
         Text _pageName;
-        Text _pageStory;
         Text _homeLabel;
         Button _homeButton;
         Image _homePlate;
@@ -117,16 +120,17 @@ namespace Kalyeah.Game
             count.rectTransform.pivot = new Vector2(0f, 0.5f);
 
             _filterRow = Ui.Panel("Filters", _gridPanel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 1f), new Vector2(Gutter, -HeaderHeight), new Vector2(-2f * Gutter, FilterHeight));
-            float x = 0f;
             for (int i = 0; i < Filters.Length; i++)
             {
                 string role = Filters[i];
-                float w = i == 0 ? 120f : 200f;
-                RectTransform chip = Ui.Panel("Filter_" + (role.Length == 0 ? "ALL" : role), _filterRow, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(x, 0f), new Vector2(w, 0f));
+                float from = i == 0 ? 0f : AllShare + (i - 1) * RoleShare, to = i == 0 ? AllShare : from + RoleShare;
+                RectTransform chip = Ui.Panel("Filter_" + (role.Length == 0 ? "ALL" : role), _filterRow, new Vector2(from, 0f), new Vector2(to, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+                chip.offsetMin = new Vector2(i == 0 ? 0f : ChipGap * 0.5f, 0f);
+                chip.offsetMax = new Vector2(i == Filters.Length - 1 ? 0f : -ChipGap * 0.5f, 0f);
                 Image hit = chip.gameObject.AddComponent<Image>();
                 hit.color = Clear;
                 Image plate = Ui.MakeImage("Plate", chip, Color.white);
-                plate.sprite = MenuArt.Solid(12);
+                plate.sprite = MenuArt.RoundSolid(30);
                 plate.type = Image.Type.Sliced;
                 Stretch(plate.rectTransform, Vector2.zero, Vector2.one);
                 plate.rectTransform.offsetMin = new Vector2(0f, 14f);
@@ -139,7 +143,8 @@ namespace Kalyeah.Game
                     icon.sprite = MenuArt.Glyph(HomeScreenView.RoleGlyph(role));
                     Place(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(18f, 0f), new Vector2(28f, 28f));
                     icon.rectTransform.pivot = new Vector2(0f, 0.5f);
-                    label.rectTransform.offsetMin = new Vector2(44f, 0f);
+                    label.rectTransform.offsetMin = new Vector2(52f, 0f);
+                    label.rectTransform.offsetMax = new Vector2(-8f, 0f);
                     _filterIcons.Add(icon);
                 }
                 else _filterIcons.Add(null);
@@ -148,10 +153,11 @@ namespace Kalyeah.Game
                 b.onClick.AddListener(() => SetFilter(role));
                 _filterPlates.Add(plate);
                 _filterLabels.Add(label);
-                x += w + 10f;
             }
 
             _grid = Ui.Fill("Grid", _gridPanel);
+            _grid.offsetMin = new Vector2(Gutter - CardGap * 0.5f, Gutter - CardGap * 0.5f);
+            _grid.offsetMax = new Vector2(-(Gutter - CardGap * 0.5f), -(HeaderHeight + FilterHeight + 16f - CardGap * 0.5f));
             foreach (string id in AppSession.DefaultRoster)
                 _cards.Add(BuildCard(id));
         }
@@ -161,11 +167,11 @@ namespace Kalyeah.Game
             string role = HomeScreenView.ParseRole(Field(id, "description"));
             RectTransform rect = Ui.Panel("Kid_" + id, _grid, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(180f, 240f));
             Image frame = Ui.MakeImage("Frame", rect, Gold, false, true);
-            frame.sprite = MenuArt.Solid(16);
+            frame.sprite = MenuArt.RoundSolid(18);
             frame.type = Image.Type.Sliced;
             Stretch(frame.rectTransform, Vector2.zero, Vector2.one);
             Image fill = Ui.MakeImage("Fill", rect, CardBg);
-            fill.sprite = MenuArt.Solid(14);
+            fill.sprite = MenuArt.RoundSolid(16);
             fill.type = Image.Type.Sliced;
             Stretch(fill.rectTransform, Vector2.zero, Vector2.one);
             fill.rectTransform.offsetMin = new Vector2(3f, 3f);
@@ -174,6 +180,10 @@ namespace Kalyeah.Game
 
             RawImage bust = MakeRaw("Bust", fill.rectTransform, KalyeahResources.Texture("portraits/busts/" + id));
             bust.enabled = bust.texture != null;
+            bust.rectTransform.pivot = new Vector2(0.5f, 1f); // the bust covers the card and is cropped from the bottom, so the head stays
+            var cover = bust.gameObject.AddComponent<AspectRatioFitter>();
+            cover.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            cover.aspectRatio = 0.75f;
             RawImage fade = MakeRaw("Fade", fill.rectTransform, Ramp());
             fade.color = new Color(Shade.r, Shade.g, Shade.b, 0.95f); // Ramp's first row is its bottom: dark at the card's foot
             Stretch(fade.rectTransform, Vector2.zero, new Vector2(1f, 0.45f));
@@ -243,61 +253,139 @@ namespace Kalyeah.Game
 
         // ---------------------------------------------------------------- kid page
 
+        public const int TabSkills = 0;
+        public const int TabSkins = 1;
+        public const int TabStory = 2;
+        public const int TabMastery = 3;
+        static readonly string[] TabNames = { "SKILLS", "SKINS", "STORY", "MASTERY" };
+
+        [Serializable] public sealed class SkillData { public string slot, name, what, cost; }
+        [Serializable] public sealed class KidPageData { public string id, home, job, rival, idle, victory; public string[] friends; public SkillData[] skills; }
+        [Serializable] sealed class KidPagesRoot { public KidPagesBody data; }
+        [Serializable] sealed class KidPagesBody { public KidPageData[] kids; }
+
+        readonly List<Text> _tabLabels = new List<Text>();
+        readonly List<Image> _tabBars = new List<Image>();
+        RectTransform _content;
+        Text _pagePersonality;
+        static KidPageData[] s_pages;
+
+        /// <summary>The tab showing on the kid page (Skills, Skins, Story or Mastery).</summary>
+        public int ActiveTab { get; private set; }
+
+        /// <summary>A kid's skills and story text (display text only, not sim data: assets/ui/kid_pages.json, from docs/KITS.md and docs/LORE.md).</summary>
+        internal static KidPageData PageFor(string id)
+        {
+            if (s_pages == null)
+            {
+                try { s_pages = JsonUtility.FromJson<KidPagesRoot>(Resources.Load<TextAsset>("ui/kid_pages").text).data.kids; }
+                catch { s_pages = new KidPageData[0]; }
+            }
+            foreach (KidPageData p in s_pages) if (p.id == id) return p;
+            return null;
+        }
+
         void BuildPage()
         {
             _pagePanel = Ui.Fill("PagePanel", SafeRoot);
             Header(_pagePanel, "", () => Back());
 
-            _pageHero = MakeRaw("Hero", _pagePanel, _stage.Texture);
-            _pageHero.rectTransform.anchorMin = _pageHero.rectTransform.anchorMax = new Vector2(0.5f, 0f);
+            // the kid stands between the left column and the content, partly behind the glass like the Wild Rift page
+            RectTransform stageArea = Ui.Fill("StageArea", _pagePanel);
+            stageArea.anchorMin = new Vector2(0.27f, 0f);
+            stageArea.anchorMax = new Vector2(0.55f, 1f);
+            stageArea.offsetMin = Vector2.zero;
+            stageArea.offsetMax = new Vector2(0f, -HeaderHeight * 0.3f);
+            _pageHero = MakeRaw("Hero", stageArea, _stage.Texture);
             _pageHero.rectTransform.pivot = new Vector2(0.5f, 0f);
+            var fit = _pageHero.gameObject.AddComponent<AspectRatioFitter>();
+            fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            fit.aspectRatio = 0.75f;
 
-            RectTransform info = Ui.Panel("Info", _pagePanel, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), new Vector2(Gutter, 0f), new Vector2(460f, 0f));
+            // left column: role, name, one line about them, and SHOW ON HOME at the foot
+            RectTransform info = Ui.Panel("Info", _pagePanel, new Vector2(0f, 0f), new Vector2(0.3f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
             info.offsetMin = new Vector2(Gutter, Gutter);
-            info.offsetMax = new Vector2(Gutter + 460f, -HeaderHeight);
+            info.offsetMax = new Vector2(0f, -HeaderHeight);
 
             Image disc = Ui.MakeImage("RoleDisc", info, Gold, round: true);
-            Place(disc.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, -8f), new Vector2(40f, 40f));
+            Place(disc.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, -4f), new Vector2(44f, 44f));
             disc.rectTransform.pivot = new Vector2(0f, 1f);
             _pageRoleIcon = Ui.MakeImage("Icon", disc.rectTransform, Ink);
-            Place(_pageRoleIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(26f, 26f));
+            Place(_pageRoleIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(28f, 28f));
             _pageRole = Label("Role", info, "", 22, Gold, TextAnchor.MiddleLeft, display: true);
-            Place(_pageRole.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(26f, -8f), new Vector2(-52f, 40f));
+            Place(_pageRole.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(56f, -4f), new Vector2(-56f, 44f));
             _pageRole.rectTransform.pivot = new Vector2(0f, 1f);
 
-            _pageName = Label("Name", info, "", 96, Cream, TextAnchor.UpperLeft, display: true, ink: true);
-            Place(_pageName.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -56f), new Vector2(0f, 110f));
+            _pageName = Label("Name", info, "", 104, Cream, TextAnchor.UpperLeft, display: true, ink: true);
+            Place(_pageName.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -52f), new Vector2(0f, 116f));
             _pageName.rectTransform.pivot = new Vector2(0.5f, 1f);
             _pageName.resizeTextForBestFit = true;
             _pageName.resizeTextMinSize = 48;
-            _pageName.resizeTextMaxSize = 96;
+            _pageName.resizeTextMaxSize = 104;
 
-            Text storyHead = Label("StoryHead", info, "STORY", 22, Gold, TextAnchor.UpperLeft, display: true);
-            Place(storyHead.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -186f), new Vector2(0f, 30f));
-            storyHead.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _pageStory = Label("Story", info, "", 24, Muted, TextAnchor.UpperLeft);
-            Place(_pageStory.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -222f), new Vector2(0f, 150f));
-            _pageStory.rectTransform.pivot = new Vector2(0.5f, 1f);
-            _pageStory.horizontalOverflow = HorizontalWrapMode.Wrap;
-            _pageStory.verticalOverflow = VerticalWrapMode.Overflow;
-            _pageStory.lineSpacing = 1.15f;
+            _pagePersonality = Label("Personality", info, "", 24, Muted, TextAnchor.UpperLeft);
+            Place(_pagePersonality.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -176f), new Vector2(0f, 130f));
+            _pagePersonality.rectTransform.pivot = new Vector2(0.5f, 1f);
+            _pagePersonality.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _pagePersonality.verticalOverflow = VerticalWrapMode.Overflow;
 
             RectTransform home = Ui.Panel("ShowOnHome", info, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, HitSize));
             _homePlate = Ui.MakeImage("Plate", home, Color.white, false, true);
-            _homePlate.sprite = MenuArt.Plate(MenuArt.GoldLight, MenuArt.GoldDeep, Ink, 20, 3, 0.5f);
+            _homePlate.sprite = MenuArt.RoundGold(22);
             _homePlate.type = Image.Type.Sliced;
             Stretch(_homePlate.rectTransform, Vector2.zero, Vector2.one);
-            _homeLabel = Label("Label", home, "SHOW ON HOME", 28, Ink, TextAnchor.MiddleCenter, display: true);
+            _homeLabel = Label("Label", home, "SHOW ON HOME", 30, Ink, TextAnchor.MiddleCenter, display: true);
             Stretch(_homeLabel.rectTransform, Vector2.zero, Vector2.one);
+            _homeLabel.rectTransform.offsetMin = new Vector2(10f, 0f);
+            _homeLabel.rectTransform.offsetMax = new Vector2(-10f, 0f);
+            _homeLabel.horizontalOverflow = HorizontalWrapMode.Wrap; // shrinks to fit the button instead of spilling out of it
+            _homeLabel.verticalOverflow = VerticalWrapMode.Truncate;
+            _homeLabel.resizeTextForBestFit = true;
+            _homeLabel.resizeTextMinSize = 22;
+            _homeLabel.resizeTextMaxSize = 30;
             _homeButton = home.gameObject.AddComponent<Button>();
             _homeButton.targetGraphic = _homePlate;
             _homeButton.onClick.AddListener(ShowOnHome);
 
+            // right: the four tabs in a row, then the tab's content on dark glass
+            RectTransform tabs = Ui.Panel("Tabs", _pagePanel, new Vector2(0.52f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, HitSize));
+            tabs.offsetMin = new Vector2(Gutter, -HeaderHeight); // the tabs share the header's band with Back, which frees the height for the rows
+            tabs.offsetMax = new Vector2(-Gutter, -(HeaderHeight - HitSize));
+            for (int i = 0; i < TabNames.Length; i++)
+            {
+                int index = i;
+                RectTransform tab = Ui.Panel("Tab_" + TabNames[i], tabs, new Vector2(i / (float)TabNames.Length, 0f), new Vector2((i + 1) / (float)TabNames.Length, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+                Image hit = tab.gameObject.AddComponent<Image>();
+                hit.color = Clear;
+                Text label = Label("Label", tab, TabNames[i], 28, Muted, TextAnchor.MiddleCenter, display: true);
+                Stretch(label.rectTransform, Vector2.zero, Vector2.one);
+                label.rectTransform.offsetMax = new Vector2(0f, -6f);
+                Image bar = Ui.MakeImage("Bar", tab, new Color(1f, 1f, 1f, 0.18f));
+                Place(bar.rectTransform, new Vector2(0.1f, 0f), new Vector2(0.9f, 0f), new Vector2(0f, 14f), new Vector2(0f, 5f));
+                Button b = tab.gameObject.AddComponent<Button>();
+                b.targetGraphic = hit;
+                b.onClick.AddListener(() => SelectTab(index));
+                _tabLabels.Add(label);
+                _tabBars.Add(bar);
+            }
+
+            RectTransform panel = Ui.Panel("ContentPanel", _pagePanel, new Vector2(0.52f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            panel.offsetMin = new Vector2(Gutter, Gutter);
+            panel.offsetMax = new Vector2(-Gutter, -(HeaderHeight + 4f));
+            Image glass = Ui.MakeImage("Glass", panel, Color.white);
+            glass.sprite = MenuArt.RoundGlass(26);
+            glass.type = Image.Type.Sliced;
+            Stretch(glass.rectTransform, Vector2.zero, Vector2.one);
+            _content = Ui.Fill("Content", panel);
+            _content.offsetMin = new Vector2(12f, 12f);
+            _content.offsetMax = new Vector2(-12f, -12f);
+            _content.gameObject.AddComponent<RectMask2D>();
         }
 
         public void OpenPage(string id)
         {
             OpenKid = id;
+            _skillIndex = 0;
             _openedDirect = false;
             Haptics.LightTap();
             _gridPanel.gameObject.SetActive(false);
@@ -307,11 +395,193 @@ namespace Kalyeah.Game
             _pageRoleIcon.sprite = MenuArt.Glyph(HomeScreenView.RoleGlyph(role));
             _pageRole.text = role + "  ·  " + Purok(description).ToUpperInvariant();
             _pageName.text = (Field(id, "display_name") ?? id).ToUpperInvariant();
-            _pageStory.text = Story(description);
+            _pagePersonality.text = Story(description);
             _stage.SetKid(id);
             _stage.RenderNow();
+            SelectTab(TabSkills);
             RefreshPage();
             RefreshLayout();
+        }
+
+        /// <summary>Shows one tab's content for the open kid: skills from docs/KITS.md, skins, story from docs/LORE.md, or mastery.</summary>
+        public void SelectTab(int tab)
+        {
+            ActiveTab = Mathf.Clamp(tab, 0, TabNames.Length - 1);
+            for (int i = 0; i < _tabLabels.Count; i++)
+            {
+                bool on = i == ActiveTab;
+                _tabLabels[i].color = on ? Cream : Muted;
+                _tabBars[i].color = on ? Gold : new Color(1f, 1f, 1f, 0.18f);
+            }
+            for (int i = _content.childCount - 1; i >= 0; i--) KalyeahResources.Kill(_content.GetChild(i).gameObject);
+            _rowTop = 0f;
+            KidPageData page = OpenKid != null ? PageFor(OpenKid) : null;
+            if (page == null) return;
+            switch (ActiveTab)
+            {
+                case TabSkills:
+                    AddSkills(page);
+                    break;
+                case TabSkins:
+                    AddRow("DEFAULT", "Equipped. New looks come from the pass and events, once they exist.", "SKIN", 120f);
+                    AddRow("Victory pose", page.victory, "WIN", 120f);
+                    AddRow("Idle", page.idle, "IDLE", 120f);
+                    break;
+                case TabStory:
+                    AddFact("HOME", page.home);
+                    AddFact("DREAM JOB", page.job);
+                    AddFact("PUROK", Purok(Field(OpenKid, "description") ?? "") + ", plays at home on the " + HomeMapName(OpenKid));
+                    AddFact("FRIENDS", string.Join(", ", page.friends));
+                    AddFact("RIVAL", page.rival);
+                    break;
+                default:
+                    AddRow("Mastery 0 of 7", "Play matches with " + (Field(OpenKid, "display_name") ?? OpenKid) + " to earn mastery. Level 3 gives a badge, 5 an emote and 7 a title: never power. Mastery comes with accounts.", "0", 190f);
+                    break;
+            }
+        }
+
+        static string HomeMapName(string id)
+        {
+            switch (id)
+            {
+                case "narda": case "jopay": case "kikay": return "Barangay";
+                case "inggo": case "karding": case "pamela": return "Palengke";
+                case "jumong": case "oriang": case "domeng": return "Pier";
+                default: return "Hacienda";
+            }
+        }
+
+        // rows are placed by hand (top to bottom) so they are right in a single frame, with no layout pass to wait for
+        float _rowTop;
+        const float RowGap = 10f;
+        const float BadgeSize = 84f;
+
+        RectTransform NewRow(string name, float height)
+        {
+            RectTransform row = Ui.Panel(name, _content, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -_rowTop), new Vector2(0f, height));
+            Image bg = Ui.MakeImage("Bg", row, CardBg); // opaque navy: white at low alpha blends to a mid grey in linear colour space
+            bg.sprite = MenuArt.RoundSolid(16);
+            bg.type = Image.Type.Sliced;
+            Stretch(bg.rectTransform, Vector2.zero, Vector2.one);
+            _rowTop += height + RowGap;
+            return row;
+        }
+
+        void AddBadge(RectTransform row, string text, bool gold)
+        {
+            Image badge = Ui.MakeImage("Badge", row, gold ? Gold : new Color(0.2f, 0.27f, 0.4f, 1f));
+            badge.sprite = MenuArt.RoundSolid(18);
+            badge.type = Image.Type.Sliced;
+            Place(badge.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -14f), new Vector2(BadgeSize, BadgeSize));
+            badge.rectTransform.pivot = new Vector2(0f, 1f);
+            Text t = Label("Text", badge.rectTransform, text, text.Length > 3 ? 24 : 28, gold ? Ink : Gold, TextAnchor.MiddleCenter, display: true);
+            Stretch(t.rectTransform, Vector2.zero, Vector2.one);
+        }
+
+        void AddText(RectTransform row, string title, string meta, string body)
+        {
+            const float left = 14f + BadgeSize + 16f;
+            Text head = Label("Title", row, meta == null ? title : title + "   " + meta, 30, Cream, TextAnchor.UpperLeft, display: true);
+            Place(head.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(left, -10f), new Vector2(-(left + 14f), 38f));
+            head.rectTransform.pivot = new Vector2(0f, 1f);
+            head.horizontalOverflow = HorizontalWrapMode.Wrap;
+            Text text = Label("Body", row, body, 22, Muted, TextAnchor.UpperLeft);
+            Place(text.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(left, -50f), new Vector2(-(left + 14f), 116f));
+            text.rectTransform.pivot = new Vector2(0f, 1f);
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+        }
+
+        int _skillIndex;
+        const float SkillTileHeight = 112f;
+        static readonly Color SkillBadgeColor = new Color(0.2f, 0.27f, 0.4f, 1f);
+
+        /// <summary>The skill whose description shows on the Skills tab: 0 and 1 are the two skills, 2 the ultimate.</summary>
+        public int SelectedSkill => _skillIndex;
+
+        /// <summary>Shows one of the open kid's three skills on the Skills tab.</summary>
+        public void SelectSkill(int index)
+        {
+            _skillIndex = Mathf.Clamp(index, 0, 2);
+            if (OpenKid != null && ActiveTab == TabSkills) SelectTab(TabSkills);
+        }
+
+        /// <summary>
+        /// The Skills tab: a selector of the three skills (S1, S2, ultimate) and one card with the chosen skill's name, cost and
+        /// description. One card has room for the longest text on any screen shape, where three stacked rows ran out of height.
+        /// </summary>
+        void AddSkills(KidPageData page)
+        {
+            int count = Mathf.Min(3, page.skills.Length);
+            _skillIndex = Mathf.Clamp(_skillIndex, 0, Mathf.Max(0, count - 1));
+            for (int i = 0; i < count; i++)
+            {
+                int index = i;
+                SkillData skill = page.skills[i];
+                bool on = i == _skillIndex, ultimate = skill.slot == "ULT";
+                RectTransform tile = Ui.Panel("Skill_" + skill.slot, _content, new Vector2(i / (float)count, 1f), new Vector2((i + 1f) / count, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, SkillTileHeight));
+                tile.offsetMin = new Vector2(i == 0 ? 0f : RowGap * 0.5f, tile.offsetMin.y);
+                tile.offsetMax = new Vector2(i == count - 1 ? 0f : -RowGap * 0.5f, tile.offsetMax.y);
+                Image frame = Ui.MakeImage("Frame", tile, on ? Gold : new Color(1f, 1f, 1f, 0.12f), false, true);
+                frame.sprite = MenuArt.RoundSolid(20);
+                frame.type = Image.Type.Sliced;
+                Stretch(frame.rectTransform, Vector2.zero, Vector2.one);
+                Image fill = Ui.MakeImage("Fill", tile, CardBg);
+                fill.sprite = MenuArt.RoundSolid(18);
+                fill.type = Image.Type.Sliced;
+                Stretch(fill.rectTransform, Vector2.zero, Vector2.one);
+                fill.rectTransform.offsetMin = new Vector2(3f, 3f);
+                fill.rectTransform.offsetMax = new Vector2(-3f, -3f);
+                Image badge = Ui.MakeImage("Badge", tile, ultimate ? Gold : SkillBadgeColor, round: true);
+                Place(badge.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(64f, 64f));
+                Text badgeText = Label("Text", badge.rectTransform, skill.slot, 28, ultimate ? Ink : Gold, TextAnchor.MiddleCenter, display: true);
+                Stretch(badgeText.rectTransform, Vector2.zero, Vector2.one);
+                Button b = tile.gameObject.AddComponent<Button>();
+                b.targetGraphic = frame;
+                b.onClick.AddListener(() => SelectSkill(index));
+            }
+
+            SkillData shown = page.skills[_skillIndex];
+            RectTransform card = Ui.Panel("SkillCard", _content, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            card.offsetMax = new Vector2(0f, -(SkillTileHeight + RowGap + 2f));
+            Image cardBg = Ui.MakeImage("Bg", card, CardBg);
+            cardBg.sprite = MenuArt.RoundSolid(20);
+            cardBg.type = Image.Type.Sliced;
+            Stretch(cardBg.rectTransform, Vector2.zero, Vector2.one);
+            Text title = Label("Title", card, shown.name, 40, Cream, TextAnchor.UpperLeft, display: true);
+            Place(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -16f), new Vector2(-40f, 48f));
+            title.rectTransform.pivot = new Vector2(0.5f, 1f);
+            title.horizontalOverflow = HorizontalWrapMode.Overflow;
+            Text cost = Label("Cost", card, shown.cost, 24, Gold, TextAnchor.UpperLeft, display: true);
+            Place(cost.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -64f), new Vector2(-40f, 34f));
+            cost.rectTransform.pivot = new Vector2(0.5f, 1f);
+            cost.horizontalOverflow = HorizontalWrapMode.Overflow;
+            Text body = Label("Body", card, shown.what, 24, Cream, TextAnchor.UpperLeft);
+            Stretch(body.rectTransform, Vector2.zero, Vector2.one);
+            body.rectTransform.offsetMin = new Vector2(20f, 14f);
+            body.rectTransform.offsetMax = new Vector2(-20f, -104f);
+            body.horizontalOverflow = HorizontalWrapMode.Wrap;
+            body.verticalOverflow = VerticalWrapMode.Truncate;
+        }
+
+        void AddRow(string title, string body, string badgeText, float height)
+        {
+            RectTransform row = NewRow("Row_" + title, height);
+            AddBadge(row, badgeText, false);
+            AddText(row, title, null, body);
+        }
+
+        void AddFact(string head, string body)
+        {
+            RectTransform row = NewRow("Fact_" + head, 78f);
+            Text label = Label("Head", row, head, 22, Gold, TextAnchor.MiddleLeft, display: true);
+            Place(label.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(14f, 0f), new Vector2(150f, 0f));
+            label.rectTransform.pivot = new Vector2(0f, 0.5f);
+            Text value = Label("Value", row, body, 24, Cream, TextAnchor.MiddleLeft);
+            Stretch(value.rectTransform, Vector2.zero, Vector2.one);
+            value.rectTransform.offsetMin = new Vector2(170f, 4f);
+            value.rectTransform.offsetMax = new Vector2(-14f, -4f);
+            value.horizontalOverflow = HorizontalWrapMode.Wrap;
         }
 
         void ShowOnHome()
@@ -328,9 +598,7 @@ namespace Kalyeah.Game
             bool onHome = OpenKid == HomeKid();
             _homeLabel.text = onHome ? "ON YOUR HOME SCREEN" : "SHOW ON HOME";
             _homeButton.interactable = !onHome;
-            _homePlate.sprite = onHome
-                ? MenuArt.Plate(MenuArt.GlassTop, MenuArt.GlassBottom, MenuArt.Rim, 20, 2, 0.2f)
-                : MenuArt.Plate(MenuArt.GoldLight, MenuArt.GoldDeep, Ink, 20, 3, 0.5f);
+            _homePlate.sprite = onHome ? MenuArt.RoundGlass(22) : MenuArt.RoundGold(22);
             _homeLabel.color = onHome ? Cream : Ink;
         }
 
@@ -380,49 +648,23 @@ namespace Kalyeah.Game
 
         // ---------------------------------------------------------------- layout
 
-        /// <summary>Six cards across and two rows on every shape: the cards grow with whichever side is short, never wrap.</summary>
+        /// <summary>
+        /// Six cards across and two rows on every shape, never wrapped: each visible card is anchored to its sixth and half of the
+        /// grid area, so the canvas sizes them on every screen with no pixel maths (and no stale rect at build time).
+        /// </summary>
         public void RefreshLayout()
         {
-            if (_disposed || SafeRoot == null) return;
-            Rect safe = SafeRoot.rect;
-            float top = HeaderHeight + FilterHeight + 16f;
-            float gw = safe.width - 2f * Gutter;
-            float gh = safe.height - top - Gutter;
-            float cw = Mathf.Floor(Mathf.Min((gw - CardGap * (Columns - 1)) / Columns, (gh - CardGap) * 0.5f * 0.75f));
-
-            // the filter chips share the row: ALL is narrow, the four roles split the rest, at most 200 each
-            if (_filterRow != null)
-            {
-                const float allW = 120f, gap = 10f;
-                float roleW = Mathf.Min(200f, (gw - allW - gap * (Filters.Length - 1)) / (Filters.Length - 1));
-                float x = 0f;
-                for (int f = 0; f < _filterRow.childCount; f++)
-                {
-                    var chip = (RectTransform)_filterRow.GetChild(f);
-                    float w = f == 0 ? allW : roleW;
-                    chip.anchoredPosition = new Vector2(x, 0f);
-                    chip.sizeDelta = new Vector2(w, 0f);
-                    x += w + gap;
-                }
-            }
-            float ch = Mathf.Round(cw * 4f / 3f);
+            if (_disposed) return;
             int i = 0;
             foreach (Card c in _cards)
             {
                 if (!c.Rect.gameObject.activeSelf) continue;
                 int col = i % Columns, row = i / Columns;
-                c.Rect.anchoredPosition = new Vector2(Gutter + col * (cw + CardGap), -(top + row * (ch + CardGap)));
-                c.Rect.sizeDelta = new Vector2(cw, ch);
+                c.Rect.anchorMin = new Vector2((float)col / Columns, 1f - (row + 1f) / Rows);
+                c.Rect.anchorMax = new Vector2((col + 1f) / Columns, 1f - (float)row / Rows);
+                c.Rect.offsetMin = new Vector2(CardGap * 0.5f, CardGap * 0.5f);
+                c.Rect.offsetMax = new Vector2(-CardGap * 0.5f, -CardGap * 0.5f);
                 i++;
-            }
-
-            if (_pageHero != null)
-            {
-                float h = Mathf.Min(safe.height - HeaderHeight + 40f, 640f);
-                RectTransform r = _pageHero.rectTransform;
-                r.sizeDelta = new Vector2(h * 0.75f, h);
-                float infoRight = Gutter + 460f;
-                r.anchoredPosition = new Vector2((infoRight + safe.width) * 0.5f - safe.width * 0.5f, 0f);
             }
         }
 
@@ -496,7 +738,7 @@ namespace Kalyeah.Game
             return header;
         }
 
-        static Text Label(string name, Transform parent, string text, int size, Color color, TextAnchor align, bool display = false, bool ink = false)
+        internal static Text Label(string name, Transform parent, string text, int size, Color color, TextAnchor align, bool display = false, bool ink = false)
         {
             Text label = Ui.MakeText(name, parent, text, size, color, align, display ? KalyeahResources.DisplayFont() : null);
             Outline outline = label.GetComponent<Outline>();
@@ -512,7 +754,7 @@ namespace Kalyeah.Game
             return label;
         }
 
-        static RawImage MakeRaw(string name, Transform parent, Texture texture)
+        internal static RawImage MakeRaw(string name, Transform parent, Texture texture)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(RawImage));
             go.transform.SetParent(parent, false);
@@ -523,7 +765,7 @@ namespace Kalyeah.Game
             return raw;
         }
 
-        static void Stretch(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
+        internal static void Stretch(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
         {
             rect.anchorMin = anchorMin;
             rect.anchorMax = anchorMax;
@@ -531,7 +773,7 @@ namespace Kalyeah.Game
             rect.offsetMax = Vector2.zero;
         }
 
-        static void Place(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax, Vector2 position, Vector2 size)
+        internal static void Place(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax, Vector2 position, Vector2 size)
         {
             rect.anchorMin = anchorMin;
             rect.anchorMax = anchorMax;
@@ -542,7 +784,7 @@ namespace Kalyeah.Game
         static Texture2D s_ramp;
 
         /// <summary>A vertical alpha ramp: 1 at the bottom row to 0 at the top.</summary>
-        static Texture2D Ramp()
+        internal static Texture2D Ramp()
         {
             if (s_ramp != null) return s_ramp;
             const int n = 64;

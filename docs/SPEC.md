@@ -330,6 +330,8 @@ and, in Ranked, loses a star.
   in Practice or Hotspot.
 - **Only real content:** a screen, tab or button exists only when the game has the thing behind it; no filler
   components copied from other games.
+  **Owner exception (2026-11-20):** home shows the prototype's pass, event, daily gift, currency, Store and Friends panels with sample
+  numbers before those systems exist; tapping one says its system comes later. Each is replaced by the real thing as it is built.
 - **English only** for text; kid voice lines are short **Taglish** barks on skills, tags, rescues and wins.
 - **Home kid:** the player's **favourite kid** (pinned in the collection) stands in 3D on the home screen.
 - **Accessibility:** colour-blind enemy highlight, visual markers for footsteps and skill sounds, reduce motion and flashes,
@@ -543,7 +545,8 @@ free Pasko emote).
 ## 12. Built today vs this spec
 **Done toward this spec:** the 12 kids from the owner's Meshy models, made game-ready by script (about 16k to 20k
 triangles each, baked textures, the shared rig and its 20 clips; `tools/blender/kids/README.md`) with rendered portraits
-and cards; Home in the owner's layout with real content only (the kid in 3D before a rendered Palengke stall, profile without rank, a Blitz / Quick mode card that says how each feels, PLAY, a bottom bar to Kids and the Codex; the launch connection check opens the offline prompt; match history opens from the profile; Donate is a Settings tab); Kids as a 6 by 2 grid of rendered busts with a role filter and role icons, and a kid page with the kid in 3D, role, purok, story and SHOW ON HOME (skills, skins and mastery join when the kits and mastery are built);
+and cards; Home in the owner's layout with real content only (the kid in 3D before a rendered Palengke stall, profile without rank, a Blitz / Quick mode card that says how each feels, PLAY, a bottom bar to Kids and the Codex; the launch connection check opens the offline prompt; match history opens from the profile; Donate is a Settings tab); the pass, event, daily gift, currencies, Store and Friends as sample-data panels that say so when tapped (owner exception to "only real content"), a zoomed thigh-up home kid with Karding as the default, Barlow Condensed type and rounded glass panels; Kids as a 6 by 2 grid of rendered busts with a role filter and role icons, and a kid page with the kid in 3D and tabs: Skills (the three skills from `docs/KITS.md` as text), Skins (the default look, victory pose and idle), Story (from `docs/LORE.md`) and Mastery (0 of 7 until mastery exists), plus SHOW ON HOME (skill clips, more skins and real mastery join as they are built);
+Kid select after the queue as the 12 kids in four role rows, the chosen kid in 3D on a name plate, a three-skill selector with the chosen skill's cost and description, a team bar (your kid, kids teammates took greyed, the roles still open) and LOCK IN, replacing the old kid-and-superpower loadout screen (the 30 s timer, hovers, hidden enemy picks and skill clips join with matchmaking and the clips);
 the match HUD's HP chip at the bottom centre and the minimap on in the top-left corner; the script-made Barangay
 models retired for grey-box blocks, with the first licence-checked CC0 props (`assets/CREDITS.md`). The §5 Agawang Base rules in the sim, bots and match view (enemy jail, defuse-style rescue with its checkpoint, revenge release, contested capture with drain, the round-start barrier, no round clock).
 

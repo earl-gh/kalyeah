@@ -711,6 +711,20 @@ public static class KalyeahBuild
             Action<HomeScreenView> offlineHub = home => home.OpenOfflineHub();
             CaptureTitleShot(dir, "title_offline_prompt.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), offlinePrompt);
             CaptureTitleShot(dir, "title_offline_hub.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), offlineHub);
+            // a sheet opens only on an interactive canvas, and the capture build disables the raycaster
+            Action<HomeScreenView> profileSheet = home =>
+            {
+                home.Root.GetComponentInParent<Canvas>().GetComponent<UnityEngine.UI.GraphicRaycaster>().enabled = true;
+                home.Sheets.OpenProfile();
+            };
+            CaptureTitleShot(dir, "menu_profile.png", ShotWidth, ShotHeight, new Rect(0f, 0f, ShotWidth, ShotHeight), profileSheet);
+            CaptureTitleShot(
+                dir,
+                $"menu_profile_{NarrowWidth}x{NarrowHeight}.png",
+                NarrowWidth,
+                NarrowHeight,
+                ScreenFitMetrics.AsymmetricCutoutSafeRect(NarrowWidth, NarrowHeight),
+                profileSheet);
             CaptureTitleShot(
                 dir,
                 $"title_offline_hub_{NarrowWidth}x{NarrowHeight}.png",
@@ -732,7 +746,7 @@ public static class KalyeahBuild
                 using var pickView = new PickScreenView(pickCanvas.transform, data, null);
                 if (pickView.SafeRoot.GetComponent<SafeArea>() == null)
                     pickView.SafeRoot.gameObject.AddComponent<SafeArea>().ForceApply();
-                CaptureQuadAspect(pickCamera, dir, "menu_pick", pickView.RefreshResponsiveLayout);
+                CaptureQuadAspect(pickCamera, dir, "menu_pick");
             }
 
             // Kids: the grid and Karding's kid page, on all four shapes
@@ -752,6 +766,15 @@ public static class KalyeahBuild
                 CaptureQuadAspect(kidsCamera, dir, "menu_kid_page", () => kidsView.OpenPage("karding"));
             }
 
+            // Settings (the Audio tab, then Donate) and the profile sheet over home
+            {
+                Canvas settingsCanvas = MakeMenuShotCanvas("Settings", data, out Camera settingsCamera);
+                using var settingsView = new SettingsScreenView(settingsCanvas.transform, data, onBack: () => { });
+                settingsView.Show();
+                CaptureQuadAspect(settingsCamera, dir, "menu_settings", settingsView.Show);
+                settingsView.SetActiveTab(SettingsScreenView.TabDonate);
+                CaptureDualAspect(settingsCamera, dir, "menu_settings_donate", settingsView.Show);
+            }
             SetFullViewport();
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var root = new GameObject("MatchShot").transform;
@@ -934,8 +957,7 @@ public static class KalyeahBuild
                 Canvas pickCanvas = MakeMenuShotCanvas("Pick", data, out Camera pickCam);
                 using var pick = new PickScreenView(pickCanvas.transform, data, onBack: () => { }, onConfirmed: () => { });
                 pick.RefreshFromSession();
-                pick.RefreshResponsiveLayout();
-                CaptureDualAspect(pickCam, dir, "gui_pick", pick.RefreshResponsiveLayout);
+                CaptureDualAspect(pickCam, dir, "gui_pick");
             }
 
             {

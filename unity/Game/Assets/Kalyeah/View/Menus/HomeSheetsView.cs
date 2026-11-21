@@ -61,19 +61,20 @@ namespace Kalyeah.Game
 
         static readonly Regex DisallowedNameChars = new Regex(@"[^\p{L}\p{N} '._-]", RegexOptions.Compiled);
 
-        static readonly Color ScrimColor = new Color(0.03f, 0.05f, 0.12f, 0.84f);
-        static readonly Color KomiksInk = new Color(0.09f, 0.07f, 0.14f, 0.98f);
-        static readonly Color SunlitCream = new Color(0.98f, 0.95f, 0.89f, 1f);
-        static readonly Color SunlitPaper = new Color(0.95f, 0.91f, 0.82f, 1f);
-        static readonly Color Espresso = new Color(0.13f, 0.10f, 0.08f, 1f);
-        static readonly Color DarkOchre = new Color(0.45f, 0.22f, 0.04f, 1f);
-        static readonly Color MangoGold = new Color(0.91f, 0.56f, 0.10f, 1f);
-        static readonly Color FiestaOrange = new Color(0.93f, 0.45f, 0.18f, 1f);
-        static readonly Color BarrioBlue = new Color(0.19f, 0.48f, 0.88f, 1f);
-        static readonly Color JadeGreen = new Color(0.14f, 0.64f, 0.54f, 1f);
+        static readonly Color ScrimColor = new Color(0.01f, 0.02f, 0.05f, 0.86f);
+        // the sheets use the home's dark-glass look: navy card, light rim, cream text, gold headings (plan page v10)
+        static readonly Color KomiksInk = new Color(1f, 1f, 1f, 0.16f); // rims and frames
+        static readonly Color SunlitCream = new Color(0.06f, 0.10f, 0.19f, 0.97f); // the card
+        static readonly Color SunlitPaper = new Color(0.10f, 0.15f, 0.27f, 1f); // plates on the card
+        static readonly Color Espresso = new Color(0.98f, 0.93f, 0.80f, 1f); // text on the card: cream
+        static readonly Color DarkOchre = new Color(0.961f, 0.725f, 0.227f, 1f); // headings: gold
+        static readonly Color MangoGold = new Color(0.13f, 0.19f, 0.32f, 1f); // the header band: a lighter navy than the card
+        static readonly Color FiestaOrange = new Color(0.961f, 0.725f, 0.227f, 1f); // the main action: the one gold, with dark text
+        static readonly Color BarrioBlue = new Color(0.17f, 0.25f, 0.42f, 1f);
+        static readonly Color JadeGreen = new Color(0.12f, 0.27f, 0.30f, 1f);
         static readonly Color SlateBtn = new Color(0.24f, 0.29f, 0.42f, 1f);
         static readonly Color HeartRed = new Color(0.84f, 0.19f, 0.17f, 1f);
-        static readonly Color ErrorRed = new Color(0.74f, 0.15f, 0.13f, 1f);
+        static readonly Color ErrorRed = new Color(1f, 0.48f, 0.44f, 1f);
 
         /// <summary>Browser opener used by <c>DonateSheet</c> after grown-up confirmation; replaceable in tests.</summary>
         public static Action<string> OpenUrlHandler { get; set; } = Application.OpenURL;
@@ -1001,7 +1002,7 @@ namespace Kalyeah.Game
             ph.GetComponent<Outline>().enabled = false;
             Stretch(ph.rectTransform, 10f, 4f, -10f, -4f);
 
-            Text txt = Ui.MakeText("Text", inputFill, AppSession.Current.PlayerName, 26, Espresso, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Text txt = Ui.MakeText("Text", inputFill, AppSession.Current.PlayerName, 26, new Color(0.08f, 0.10f, 0.16f, 1f), TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             txt.GetComponent<Outline>().enabled = false;
             txt.supportRichText = false;
             txt.resizeTextForBestFit = true;
@@ -1048,7 +1049,7 @@ namespace Kalyeah.Game
             rightCol.offsetMin = Vector2.zero;
             rightCol.offsetMax = Vector2.zero;
 
-            Text gridTitle = Ui.MakeText("GridHeading", rightCol, "CHOOSE KID AVATAR (10) OR SELFIE (ON-DEVICE ONLY)", 18, DarkOchre, TextAnchor.MiddleLeft);
+            Text gridTitle = Ui.MakeText("GridHeading", rightCol, "CHOOSE KID AVATAR (12) OR SELFIE (ON-DEVICE ONLY)", 18, DarkOchre, TextAnchor.MiddleLeft);
             gridTitle.fontStyle = FontStyle.Bold;
             gridTitle.GetComponent<Outline>().enabled = false;
             gridTitle.resizeTextForBestFit = true;
@@ -1160,7 +1161,7 @@ namespace Kalyeah.Game
 
             RectTransform checkBadge = Ui.Panel("SelectedDot", ringGo.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-4f, -4f), new Vector2(26f, 26f));
             Ui.MakeImage("DotBorder", checkBadge, KomiksInk, round: true).rectTransform.sizeDelta = new Vector2(26f, 26f);
-            Ui.MakeImage("DotBg", checkBadge, MangoGold, round: true).rectTransform.sizeDelta = new Vector2(20f, 20f);
+            Ui.MakeImage("DotBg", checkBadge, DarkOchre, round: true).rectTransform.sizeDelta = new Vector2(20f, 20f);
 
             return new AvatarTileUi
             {
@@ -1332,7 +1333,7 @@ namespace Kalyeah.Game
             string[] rowNames = { "YouNeed", "SetUp", "Play", "Win", "StaySafe" };
             for (int i = 0; i < 5; i++)
             {
-                Text p = Ui.MakeText(rowNames[i], _monthScrollContentRect, "", 20, KomiksInk, TextAnchor.UpperLeft);
+                Text p = Ui.MakeText(rowNames[i], _monthScrollContentRect, "", 20, Espresso, TextAnchor.UpperLeft);
                 p.fontStyle = FontStyle.Bold;
                 p.GetComponent<Outline>().enabled = false;
                 p.supportRichText = true;
@@ -2106,6 +2107,7 @@ namespace Kalyeah.Game
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
             rect = go.GetComponent<RectTransform>();
+            if (fill == FiestaOrange) textColor = new Color(0.08f, 0.10f, 0.16f, 1f); // dark text on the gold main action
 
             var borderImg = go.GetComponent<Image>();
             borderImg.sprite = MenuStack.RoundedSprite();
@@ -2136,6 +2138,11 @@ namespace Kalyeah.Game
             txt.resizeTextMinSize = 18;
             txt.resizeTextMaxSize = fontSize;
             Stretch(txt.rectTransform, 10f, 4f, -10f, -4f);
+            if (fill == FiestaOrange)
+            {
+                Outline ink = txt.GetComponent<Outline>(); // dark text on gold takes no dark outline (it smudges)
+                if (ink != null) ink.enabled = false;
+            }
             return btn;
         }
 
