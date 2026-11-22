@@ -52,7 +52,7 @@ namespace Kalyeah.Game
             Assert.AreEqual(0, low.QualityIndex);
             Assert.AreEqual("Low", low.Name);
             Assert.AreEqual(30, low.MaxFpsCap);
-            Assert.AreEqual(0.70f, low.RenderScale, 0.0001f);
+            Assert.AreEqual(0.85f, low.RenderScale, 0.0001f);
             Assert.AreEqual(1, low.MsaaSamples);
             Assert.IsTrue(low.BlobShadowsOnly);
             Assert.IsFalse(low.RealTimeShadows);
@@ -76,10 +76,10 @@ namespace Kalyeah.Game
             Assert.AreEqual(1, med.QualityIndex);
             Assert.AreEqual("Medium", med.Name);
             Assert.AreEqual(60, med.MaxFpsCap);
-            Assert.AreEqual(0.85f, med.RenderScale, 0.0001f);
+            Assert.AreEqual(0.95f, med.RenderScale, 0.0001f);
             Assert.AreEqual(1, med.MsaaSamples);
             Assert.IsTrue(med.RealTimeShadows);
-            Assert.IsFalse(med.SoftShadows);
+            Assert.IsTrue(med.SoftShadows);
             Assert.AreEqual(0, med.TextureMipmapLimit);
             Assert.AreEqual(4, med.SkinWeightsCount);
             Assert.AreEqual(15f, med.Lod1Distance, 0.001f);
@@ -89,7 +89,7 @@ namespace Kalyeah.Game
             Assert.IsFalse(med.ShouldRunFootIk(4f, isLocal: false));
             Assert.IsTrue(med.ShouldRunCorrectives(4f, isLocal: true));
             Assert.IsFalse(med.ShouldRunCorrectives(4f, isLocal: false));
-            Assert.IsFalse(med.PostProcessingEnabled);
+            Assert.IsTrue(med.PostProcessingEnabled);
             Assert.IsTrue(med.UseNormalAndOrmMaps);
             Assert.AreEqual(0, med.ResolveCharacterLod(10f, isLocal: false));
             Assert.AreEqual(1, med.ResolveCharacterLod(20f, isLocal: false));
@@ -100,7 +100,7 @@ namespace Kalyeah.Game
             Assert.AreEqual("High", high.Name);
             Assert.AreEqual(60, high.MaxFpsCap);
             Assert.AreEqual(1.00f, high.RenderScale, 0.0001f);
-            Assert.AreEqual(1, high.MsaaSamples);
+            Assert.AreEqual(2, high.MsaaSamples);
             Assert.IsTrue(high.RealTimeShadows);
             Assert.IsTrue(high.SoftShadows);
             Assert.AreEqual(0, high.TextureMipmapLimit);

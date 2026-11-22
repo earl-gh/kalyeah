@@ -65,6 +65,23 @@ public static class KalyeahBuild
         "Packages/com.unity.cloud.gltfast/Runtime/Shader/glTF-unlit.shadergraph",
     };
 
+    static readonly string[] AlwaysIncludedKalyeahShaders =
+    {
+        "Kalyeah/BarangayGround",
+        "Kalyeah/EsteroWater",
+        "Kalyeah/TropicalSky",
+        "Kalyeah/TeamOutline",
+        "Kalyeah/Kid",
+        "Kalyeah/ArcaneFx",
+        "Kalyeah/BarangayBuilding",
+        "Kalyeah/Atmosphere",
+        "Kalyeah/UI_TacticalGlass",
+        "Kalyeah/UI_MetallicSheen",
+        "Kalyeah/UI_LiquidGauge",
+        "Kalyeah/UI_RadialSkillDisc",
+        "Kalyeah/UI_SoftGlow",
+    };
+
     static string ProjectRoot => Directory.GetParent(Application.dataPath).FullName;
 
     // ---- Setup ------------------------------------------------------------------------------------------------------------------
@@ -91,14 +108,18 @@ public static class KalyeahBuild
         EnsureFolder(MaterialsDir);
         EnsureFolder(ScenesDir);
         EnsureFolder(RenderingDir);
+        EditorSettings.spritePackerMode = SpritePackerMode.SpriteAtlasV2;
+        if (EditorSettings.spritePackerMode == SpritePackerMode.Disabled)
+            Debug.LogWarning("KalyeahBuild: EditorSettings.spritePackerMode remained Disabled after enabling SpriteAtlasV2.");
         ApplyPlayerSettings();
         EnsurePipeline();
         PrepareGltfForUrp();
         EnsureMaterials();
+        EnsureAlwaysIncludedShaders();
         FixModelImports();
         EnsureScenes();
         AssetDatabase.SaveAssets();
-        Debug.Log("KalyeahBuild: setup done");
+        Debug.Log($"KalyeahBuild: setup done (spritePackerMode={EditorSettings.spritePackerMode})");
     }
 
     static void ApplyPlayerSettings()
@@ -318,23 +339,74 @@ public static class KalyeahBuild
         return AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
     }
 
-    /// <summary>A URP asset and its renderer, made once and set as the project's pipeline for every quality level.</summary>
+    /// <summary>A URP asset and its renderer, made once, kept up to date on every Setup, and set for every quality level.</summary>
     static void EnsurePipeline()
     {
+        var renderer = AssetDatabase.LoadAssetAtPath<UniversalRendererData>(RendererPath);
+        if (renderer == null)
+        {
+            renderer = ScriptableObject.CreateInstance<UniversalRendererData>();
+            AssetDatabase.CreateAsset(renderer, RendererPath);
+        }
+
+        if (renderer.postProcessData == null)
+        {
+            var post = AssetDatabase.LoadAssetAtPath<PostProcessData>(PostProcessPath);
+            if (post != null)
+            {
+                renderer.postProcessData = post;
+                EditorUtility.SetDirty(renderer);
+            }
+        }
+
         var pipeline = AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(PipelinePath);
         if (pipeline == null)
         {
-            var renderer = ScriptableObject.CreateInstance<UniversalRendererData>();
-            var post = AssetDatabase.LoadAssetAtPath<PostProcessData>(PostProcessPath);
-            if (post != null) renderer.postProcessData = post;
-            AssetDatabase.CreateAsset(renderer, RendererPath);
             pipeline = UniversalRenderPipelineAsset.Create(renderer);
-            pipeline.supportsHDR = false;     // phones: LDR, 2x MSAA, shadows over the street's length
-            pipeline.msaaSampleCount = 2;
-            pipeline.renderScale = 1f;
-            pipeline.shadowDistance = 90f;
             AssetDatabase.CreateAsset(pipeline, PipelinePath);
         }
+
+        // Option A1 10:30 AM sunlit Manila mobile URP 17.3 baseline: 32-bit R11G11B10F HDR, 2-cascade soft shadows, depth texture.
+        pipeline.supportsHDR = true;
+        pipeline.hdrColorBufferPrecision = HDRColorBufferPrecision._32Bits;
+        pipeline.supportsCameraDepthTexture = true;
+        pipeline.msaaSampleCount = 1;
+        pipeline.renderScale = 0.95f;
+        pipeline.shadowDistance = 48f;
+
+        // Shadow cascades, resolution, and soft-shadow support expose read-only getters on URP assets; set via SerializedObject.
+        var serializedPipeline = new SerializedObject(pipeline);
+        bool pipelinePropDirty = false;
+        SerializedProperty cascadeCountProp = serializedPipeline.FindProperty("m_ShadowCascadeCount");
+        if (cascadeCountProp != null && cascadeCountProp.intValue != 2)
+        {
+            cascadeCountProp.intValue = 2;
+            pipelinePropDirty = true;
+        }
+        SerializedProperty cascade2SplitProp = serializedPipeline.FindProperty("m_Cascade2Split");
+        if (cascade2SplitProp != null && Mathf.Abs(cascade2SplitProp.floatValue - 0.36f) > 0.0001f)
+        {
+            cascade2SplitProp.floatValue = 0.36f;
+            pipelinePropDirty = true;
+        }
+        SerializedProperty shadowResProp = serializedPipeline.FindProperty("m_MainLightShadowmapResolution");
+        if (shadowResProp != null && shadowResProp.intValue != 2048)
+        {
+            shadowResProp.intValue = 2048;
+            pipelinePropDirty = true;
+        }
+        SerializedProperty softShadowsProp = serializedPipeline.FindProperty("m_SoftShadowsSupported");
+        if (softShadowsProp != null && !softShadowsProp.boolValue)
+        {
+            softShadowsProp.boolValue = true;
+            pipelinePropDirty = true;
+        }
+        if (pipelinePropDirty)
+            serializedPipeline.ApplyModifiedPropertiesWithoutUndo();
+        EditorUtility.SetDirty(pipeline);
+
+        EnsureAtmosphereFeature(renderer);
+
         GraphicsSettings.defaultRenderPipeline = pipeline;
         int current = QualitySettings.GetQualityLevel();
         for (int level = 0; level < QualitySettings.names.Length; level++)
@@ -343,6 +415,76 @@ public static class KalyeahBuild
             QualitySettings.renderPipeline = pipeline;
         }
         QualitySettings.SetQualityLevel(current, false);
+    }
+
+    static void EnsureAtmosphereFeature(UniversalRendererData renderer)
+    {
+        if (renderer == null) return;
+
+        KalyeahAtmosphereFeature feature = null;
+        if (renderer.rendererFeatures != null)
+        {
+            for (int i = 0; i < renderer.rendererFeatures.Count; i++)
+            {
+                if (renderer.rendererFeatures[i] is KalyeahAtmosphereFeature existing)
+                {
+                    feature = existing;
+                    break;
+                }
+            }
+        }
+
+        bool added = false;
+        if (feature == null)
+        {
+            feature = ScriptableObject.CreateInstance<KalyeahAtmosphereFeature>();
+            feature.name = nameof(KalyeahAtmosphereFeature);
+            if (EditorUtility.IsPersistent(renderer))
+            {
+                AssetDatabase.AddObjectToAsset(feature, renderer);
+                AssetDatabase.SaveAssets();
+            }
+
+            var serializedRenderer = new SerializedObject(renderer);
+            SerializedProperty featuresProp = serializedRenderer.FindProperty("m_RendererFeatures");
+            if (featuresProp != null && featuresProp.isArray)
+            {
+                int idx = featuresProp.arraySize;
+                featuresProp.InsertArrayElementAtIndex(idx);
+                featuresProp.GetArrayElementAtIndex(idx).objectReferenceValue = feature;
+
+                SerializedProperty featureMapProp = serializedRenderer.FindProperty("m_RendererFeatureMap");
+                if (featureMapProp != null && featureMapProp.isArray)
+                {
+                    AssetDatabase.TryGetGUIDAndLocalFileIdentifier(feature, out string _, out long localId);
+                    int mapIdx = featureMapProp.arraySize;
+                    featureMapProp.InsertArrayElementAtIndex(mapIdx);
+                    featureMapProp.GetArrayElementAtIndex(mapIdx).longValue = localId;
+                }
+
+                serializedRenderer.ApplyModifiedPropertiesWithoutUndo();
+            }
+            added = true;
+        }
+
+        Shader atmosphereShader = Shader.Find(KalyeahAtmosphereFeature.ShaderName);
+        if (atmosphereShader != null)
+        {
+            var featureSo = new SerializedObject(feature);
+            SerializedProperty shaderProp = featureSo.FindProperty("atmosphereShader");
+            if (shaderProp != null && shaderProp.objectReferenceValue != atmosphereShader)
+            {
+                shaderProp.objectReferenceValue = atmosphereShader;
+                featureSo.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(feature);
+            }
+        }
+
+        if (added)
+        {
+            renderer.SetDirty();
+            EditorUtility.SetDirty(renderer);
+        }
     }
 
     /// <summary>
@@ -441,6 +583,13 @@ public static class KalyeahBuild
         });
         EnsureMaterial("Kid", "Kalyeah/Kid");
         EnsureMaterial("ArcaneFx", "Kalyeah/ArcaneFx", m => m.enableInstancing = true);
+        EnsureMaterial("Atmosphere", KalyeahAtmosphereFeature.ShaderName);
+        EnsureMaterial("BarangayBuilding", "Kalyeah/BarangayBuilding", optional: true);
+        EnsureMaterial("UI_TacticalGlass", "Kalyeah/UI_TacticalGlass", optional: true);
+        EnsureMaterial("UI_MetallicSheen", "Kalyeah/UI_MetallicSheen", optional: true);
+        EnsureMaterial("UI_LiquidGauge", "Kalyeah/UI_LiquidGauge", optional: true);
+        EnsureMaterial("UI_RadialSkillDisc", "Kalyeah/UI_RadialSkillDisc", optional: true);
+        EnsureMaterial("UI_SoftGlow", "Kalyeah/UI_SoftGlow", optional: true);
         EnsureMaterial("TransparentUnlit", "Universal Render Pipeline/Unlit", m =>
         {
             m.SetColor("_BaseColor", Color.white);
@@ -453,6 +602,48 @@ public static class KalyeahBuild
             m.renderQueue = (int)RenderQueue.Transparent;
         });
         EnsureMaterial("GltfPbr", "Shader Graphs/glTF-pbrMetallicRoughness", _ => { }, optional: true);
+    }
+
+    /// <summary>Pins all Kalyeah world, atmosphere, and UI shaders in GraphicsSettings.m_AlwaysIncludedShaders so Android IL2CPP builds never strip them.</summary>
+    static void EnsureAlwaysIncludedShaders()
+    {
+        Object graphicsSettings = GraphicsSettings.GetGraphicsSettings();
+        if (graphicsSettings == null)
+            graphicsSettings = AssetDatabase.LoadAssetAtPath<Object>("ProjectSettings/GraphicsSettings.asset");
+        if (graphicsSettings == null) return;
+
+        var serialized = new SerializedObject(graphicsSettings);
+        SerializedProperty shadersProp = serialized.FindProperty("m_AlwaysIncludedShaders");
+        if (shadersProp == null || !shadersProp.isArray) return;
+
+        bool changed = false;
+        for (int s = 0; s < AlwaysIncludedKalyeahShaders.Length; s++)
+        {
+            Shader shader = Shader.Find(AlwaysIncludedKalyeahShaders[s]);
+            if (shader == null) continue;
+
+            bool exists = false;
+            for (int i = 0; i < shadersProp.arraySize; i++)
+            {
+                if (shadersProp.GetArrayElementAtIndex(i).objectReferenceValue == shader)
+                {
+                    exists = true;
+                    break;
+                }
+            }
+            if (exists) continue;
+
+            int idx = shadersProp.arraySize;
+            shadersProp.InsertArrayElementAtIndex(idx);
+            shadersProp.GetArrayElementAtIndex(idx).objectReferenceValue = shader;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(graphicsSettings);
+        }
     }
 
     static void EnsureMaterial(string name, string shaderName, Action<Material> configure = null, bool optional = false)
