@@ -16,11 +16,11 @@ Shader "Kalyeah/Kid"
         [NoScaleOffset] _EmissionMap ("Emission Map", 2D) = "black" {}
         [HDR] _EmissionColor ("Emission Color", Color) = (0.0, 0.0, 0.0, 1.0)
 
-        // 1. VALORANT Gradient Lambert (single sun light, stylized 3-zone falloff)
-        _DiffShadowColor ("Diffuse Core Shadow Color", Color) = (0.64, 0.50, 0.46, 1.0)
+        // 1. VALORANT Wrapped Half-Lambert + 2-Tone Painterly Diffuse Ramp
+        _DiffShadowColor ("Diffuse Core Shadow Color", Color) = (0.66, 0.53, 0.49, 1.0)
         _DiffMidPos ("Diffuse Mid-Tone Stop", Range(0.15, 0.65)) = 0.44
         _DiffHighPos ("Diffuse Highlight Stop", Range(0.50, 0.95)) = 0.78
-        _DiffShadowLift ("Diffuse Core Shadow Lift", Range(0.15, 0.65)) = 0.38
+        _DiffShadowLift ("Diffuse Core Shadow Lift", Range(0.15, 0.65)) = 0.44
 
         // 2. Fake Skin SSS (warm red core shadow shift + shadow-side ZBrush wax underglow)
         _SkinWarmShift ("Skin Shadow Warm Shift", Range(0.0, 1.0)) = 0.32
@@ -34,11 +34,21 @@ Shader "Kalyeah/Kid"
         _SpecSunBoost ("Panoramic Sun Hotspot Boost", Range(0.0, 3.0)) = 1.35
         _SpecIndirectShadow ("Specular Shadow Attenuation", Range(0.0, 1.0)) = 0.22
 
-        // 4. Clamped Ambient Min/Max (fallback when global _KalyeahAmbientMin/_Max are unset)
-        _AmbientMin ("Ambient Clamp Min", Range(0.05, 0.65)) = 0.28
-        _AmbientMax ("Ambient Clamp Max", Range(0.40, 1.50)) = 0.82
+        // 4. Clamped Ambient Min/Max + Sky-Hemisphere & Warm Earth Bounce Floor
+        _AmbientMin ("Ambient Clamp Min", Range(0.05, 0.65)) = 0.32
+        _AmbientMax ("Ambient Clamp Max", Range(0.40, 1.50)) = 0.85
+        _SkyBounceColor ("Sky Hemisphere Bounce Color", Color) = (0.72, 0.84, 1.00, 1.0)
+        _GroundBounceColor ("Warm Earth Bounce Color", Color) = (0.74, 0.58, 0.44, 1.0)
 
-        // 5. Up-Facing & Upper-Body Modulated Friend-or-Foe Fresnel
+        // 5. Crisp Sun Fresnel Rim, Team Highlight Fresnel & Painterly Vertical Focal Gradient
+        _SunRimColor ("Sun Fresnel Rim Color", Color) = (1.00, 0.94, 0.80, 1.0)
+        _SunRimStrength ("Sun Fresnel Rim Strength", Range(0.0, 1.5)) = 0.36
+        _SunRimPower ("Sun Fresnel Rim Power", Range(1.2, 6.0)) = 2.80
+        _TeamRimColor ("Team Highlight Rim Color", Color) = (0.42, 0.78, 1.00, 1.0)
+        _TeamRimStrength ("Team Highlight Rim Strength", Range(0.0, 1.5)) = 0.0
+        _VertGradMin ("Vertical Gradient Min Y", Float) = -0.55
+        _VertGradMax ("Vertical Gradient Max Y", Float) = 0.85
+        _VertGradStrength ("Vertical Gradient Strength", Range(0.0, 1.0)) = 0.24
         _FresnelUpWeight ("Fresnel Up-Facing Weight", Range(0.0, 1.0)) = 0.65
         _FresnelHeightMin ("Fresnel Height Ramp Min", Float) = -0.35
         _FresnelHeightMax ("Fresnel Height Ramp Max", Float) = 0.55
@@ -54,8 +64,14 @@ Shader "Kalyeah/Kid"
         _DepthBrightenMax ("Depth Brighten Max", Range(0.0, 0.6)) = 0.26
         _DepthFresnelBoost ("Depth Fresnel Boost", Range(0.0, 1.5)) = 0.72
 
-        // Gameplay status feedback & culling
+        // 7. Gameplay State Material Hooks (SRP Batcher CBUFFER + MaterialPropertyBlock driven)
         _HitFlash ("Hit Flash", Range(0.0, 1.0)) = 0.0
+        _DecayTint ("Decay / Slow Status Tint", Color) = (0.0, 0.0, 0.0, 0.0)
+        _BlindDesat ("Blind Desaturation", Range(0.0, 1.0)) = 0.0
+        _StealthAlpha ("Stealth Shimmer Amount", Range(0.0, 1.0)) = 0.0
+        _StealthRim ("Stealth Holographic Rim", Range(0.0, 1.0)) = 0.0
+        _UltGlow ("Ultimate Aura Glow", Range(0.0, 1.0)) = 0.0
+        _RevealPulse ("Reveal Pulse Highlight", Range(0.0, 1.0)) = 0.0
         _AuraColor ("Merienda Aura Color", Color) = (0.0, 0.0, 0.0, 0.0)
         _TaggedDim ("Tagged Fade", Range(0.0, 1.0)) = 0.0
         _Cull ("Cull Mode", Float) = 2.0
@@ -91,8 +107,13 @@ Shader "Kalyeah/Kid"
             half4 _SkinUnderglowColor;
             half4 _SpecSkyColor;
             half4 _SpecGroundColor;
+            half4 _SkyBounceColor;
+            half4 _GroundBounceColor;
+            half4 _SunRimColor;
+            half4 _TeamRimColor;
             half4 _EnemyHighlightColor;
             half4 _AllyFresnelColor;
+            half4 _DecayTint;
             half4 _AuraColor;
             half _BumpScale;
             half _HasNormalMap;
@@ -111,6 +132,12 @@ Shader "Kalyeah/Kid"
             half _SpecIndirectShadow;
             half _AmbientMin;
             half _AmbientMax;
+            half _SunRimStrength;
+            half _SunRimPower;
+            half _TeamRimStrength;
+            float _VertGradMin;
+            float _VertGradMax;
+            half _VertGradStrength;
             half _FresnelUpWeight;
             float _FresnelHeightMin;
             float _FresnelHeightMax;
@@ -122,6 +149,11 @@ Shader "Kalyeah/Kid"
             half _DepthBrightenMax;
             half _DepthFresnelBoost;
             half _HitFlash;
+            half _BlindDesat;
+            half _StealthAlpha;
+            half _StealthRim;
+            half _UltGlow;
+            half _RevealPulse;
             half _TaggedDim;
             float _Cull;
         CBUFFER_END
@@ -141,12 +173,22 @@ Shader "Kalyeah/Kid"
             Cull [_Cull]
             ZWrite On
 
+            // Stamp character silhouette into Stencil Ref 4 so Kalyeah/TeamOutline (Comp NotEqual) never bleeds onto facial features or ears.
+            Stencil
+            {
+                Ref 4
+                Comp Always
+                Pass Replace
+                ZFail Keep
+            }
+
             HLSLPROGRAM
             #pragma target 3.0
             #pragma vertex KidVert
             #pragma fragment KidFrag
             #pragma multi_compile _ KALYEAH_QUALITY_LOW
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+            #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
             #pragma multi_compile_fog
             #pragma multi_compile_instancing
@@ -261,26 +303,29 @@ Shader "Kalyeah/Kid"
                 float3 viewDirWS = toCam / camDist;
                 half ndotv = saturate((half)dot(normalWS, viewDirWS));
 
-                // Single primary sun light only (zero multi-light Blinn-Phong loops).
+                // Primary directional sun light (MainLight).
                 float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);
                 Light mainLight = GetMainLight(shadowCoord);
                 half rawNdotL = (half)dot(normalWS, mainLight.direction);
                 half shadowAtten = (half)(mainLight.shadowAttenuation * mainLight.distanceAttenuation);
 
-                // 1. Gradient Lambert 3-zone diffuse (remapped NdotL * 0.5 + 0.5 -> core shadow / mid-tone / highlight).
+                // 1. Wrapped Half-Lambert + subtle 2-tone painterly diffuse ramp (core shadow / mid-tone / highlight).
                 half ndotl01 = saturate(rawNdotL * 0.5h + 0.5h);
-                half lightCoord = ndotl01 * lerp(0.42h, 1.0h, shadowAtten);
-                half midLo = max(0.0h, _DiffMidPos - 0.14h);
-                half midHi = min(1.0h, _DiffMidPos + 0.10h);
+                half lightCoord = ndotl01 * lerp(0.50h, 1.0h, shadowAtten);
+                half midLo = max(0.0h, _DiffMidPos - 0.11h);
+                half midHi = min(1.0h, _DiffMidPos + 0.09h);
                 half tMid = smoothstep(midLo, max(midHi, midLo + 0.02h), lightCoord);
                 half highPos = max(_DiffHighPos, _DiffMidPos + 0.06h);
                 half highLo = max(0.0h, highPos - 0.14h);
                 half highHi = min(1.0h, highPos + 0.10h);
                 half tHigh = smoothstep(highLo, max(highHi, highLo + 0.02h), lightCoord);
 
-                half gradLum = lerp(_DiffShadowLift, 0.78h, tMid);
-                gradLum = lerp(gradLum, 1.04h, tHigh);
-                half3 gradDiffuse = lerp(_DiffShadowColor.rgb, half3(1.0h, 1.0h, 1.0h), tMid) * gradLum;
+                half gradLum = lerp(_DiffShadowLift, 0.82h, tMid);
+                gradLum = lerp(gradLum, 1.06h, tHigh);
+                // Blend softly with wrapped half-Lambert so form curvature stays painterly without harsh banding.
+                half wrappedLum = lerp(_DiffShadowLift, 1.02h, ndotl01 * lerp(0.55h, 1.0h, shadowAtten));
+                half finalDiffuseLum = lerp(gradLum, wrappedLum, 0.28h);
+                half3 gradDiffuse = lerp(_DiffShadowColor.rgb, half3(1.0h, 1.0h, 1.0h), tMid) * finalDiffuseLum;
 
                 // 2. Fake Skin SSS: zero-extra-texture skin mask (vertex color R when authored, warm-albedo heuristic fallback).
                 // Unbound COLOR on Android GLES3/Vulkan defaults to (0,0,0,1) or (1,1,1,1); test RGB only so both fall back cleanly.
@@ -310,20 +355,41 @@ Shader "Kalyeah/Kid"
                 half waxFactor = (1.0h - ndotlSat) * (invNdotV * invNdotV) * skinMask * _SkinUnderglowStrength;
                 half3 skinUnderglow = albedo * _SkinUnderglowColor.rgb * waxFactor;
 
-                // 4. Clamped Ambient Min/Max (characters never vanish in dark corners or blow out in bright sun).
+                // 4. Sky-Hemisphere & Warm Earth Bounce Floor + Clamped SH Probe Fallback (prevents dark slate backlit collapse).
                 half ambMin = (_KalyeahAmbientMin > 0.001) ? (half)_KalyeahAmbientMin : _AmbientMin;
                 half ambMax = (_KalyeahAmbientMax > 0.001) ? (half)_KalyeahAmbientMax : _AmbientMax;
                 ambMax = max(ambMax, ambMin + 0.05h);
 
+                half hemiT = saturate((half)normalWS.y * 0.5h + 0.5h);
+                half3 hemiBounce = lerp(_GroundBounceColor.rgb, _SkyBounceColor.rgb, hemiT) * max(ambMin, 0.34h) * 1.15h;
+
                 half3 rawSH = max((half3)SampleSH(normalWS), half3(0.0h, 0.0h, 0.0h));
-                half shLum = max(dot(rawSH, half3(0.299h, 0.587h, 0.114h)), 0.001h);
-                half clampedShLum = clamp(shLum, ambMin, ambMax);
-                half3 shColor = (shLum > 0.02h)
-                    ? (rawSH * (clampedShLum / shLum))
-                    : (half3(0.95h, 0.96h, 1.00h) * ambMin);
-                half3 diffuseAmbient = clamp(shColor, half3(ambMin * 0.85h, ambMin * 0.85h, ambMin * 0.85h), half3(ambMax * 1.15h, ambMax * 1.15h, ambMax * 1.15h));
+                half shLum = dot(rawSH, half3(0.299h, 0.587h, 0.114h));
+                half shValid = smoothstep(0.015h, 0.09h, shLum);
+                half safeShLum = max(shLum, 0.001h);
+                half clampedShLum = clamp(safeShLum, ambMin, ambMax);
+                half3 shColor = rawSH * (clampedShLum / safeShLum);
+                half3 diffuseAmbient = lerp(hemiBounce, max(shColor, hemiBounce * 0.88h), shValid);
+                diffuseAmbient = clamp(diffuseAmbient, half3(ambMin * 0.85h, ambMin * 0.85h, ambMin * 0.85h), half3(ambMax * 1.15h, ambMax * 1.15h, ambMax * 1.15h));
                 // Split diffuse vs specular indirect attenuation: diffuse AO stays gentle.
-                diffuseAmbient *= lerp(0.82h, 1.0h, ao);
+                diffuseAmbient *= lerp(0.84h, 1.0h, ao);
+
+                // Additional punctual/fill lights (HeroStage cool Spot Rim + warm Point Fill; MatchView sky Fill).
+                half3 additionalDiffuse = half3(0.0h, 0.0h, 0.0h);
+                half3 additionalRim = half3(0.0h, 0.0h, 0.0h);
+                #ifdef _ADDITIONAL_LIGHTS
+                uint addLightCount = GetAdditionalLightsCount();
+                for (uint li = 0u; li < addLightCount; ++li)
+                {
+                    Light addLight = GetAdditionalLight(li, input.positionWS);
+                    half addAtten = (half)(addLight.distanceAttenuation * addLight.shadowAttenuation);
+                    half addRawNdotL = (half)dot(normalWS, addLight.direction);
+                    half addWrapped = saturate(addRawNdotL * 0.5h + 0.5h);
+                    additionalDiffuse += (half3)addLight.color * (addWrapped * addAtten * 0.65h);
+                    half addRimTerm = pow(max(invNdotV, 0.0001h), 2.4h) * saturate(addRawNdotL * 0.65h + 0.35h);
+                    additionalRim += (half3)addLight.color * (addRimTerm * addAtten * 0.42h);
+                }
+                #endif
 
                 // 3. Panoramic Sun-Hotspot & Hemisphere Specular (Med/High/Ultra ONLY; dropped on KALYEAH_QUALITY_LOW).
                 half3 specular = half3(0.0h, 0.0h, 0.0h);
@@ -356,7 +422,14 @@ Shader "Kalyeah/Kid"
                 }
                 #endif
 
-                half3 lit = albedo * (1.0h - metallic * 0.45h) * (directDiffuse + diffuseAmbient) + skinUnderglow + specular;
+                half3 lit = albedo * (1.0h - metallic * 0.45h) * (directDiffuse + diffuseAmbient + additionalDiffuse)
+                    + skinUnderglow + specular + additionalRim;
+
+                // Top-to-bottom painterly vertical focal gradient (grounds shoes/legs and lifts head/shoulders).
+                float vgSpan = max(_VertGradMax - _VertGradMin, 0.05);
+                half vgT = saturate((half)((input.localY - _VertGradMin) / vgSpan));
+                half vertGradMult = lerp(1.0h, lerp(0.84h, 1.10h, vgT), _VertGradStrength);
+                lit *= vertGradMult;
 
                 // 6. Clamped Depth Brightening (12m..45m) so distant kids never dissolve into background clutter.
                 float depthSpan = max(_DepthEnd - _DepthStart, 1.0);
@@ -364,11 +437,21 @@ Shader "Kalyeah/Kid"
                 half depthBrighten = clamp(depthT * _DepthBrightenMax, 0.0h, _DepthBrightenMax);
                 lit += (albedo * 0.45h + half3(0.18h, 0.19h, 0.21h)) * depthBrighten;
 
-                // 5. Up-Facing (N.y) & Upper-Body Height Modulated Friend-or-Foe Fresnel + Distance Enlargement.
+                // 5. Up-Facing (N.y) & Upper-Body Height Modulated Sun Rim + Team/Friend-or-Foe Fresnel + Distance Enlargement.
                 float heightMax = max(_FresnelHeightMax, _FresnelHeightMin + 0.05);
                 half heightBias = lerp(0.30h, 1.0h, (half)smoothstep(_FresnelHeightMin, heightMax, input.localY));
                 half upBias = lerp(1.0h, saturate((half)normalWS.y * 0.5h + 0.5h), _FresnelUpWeight);
                 half fresnelMod = upBias * heightBias;
+
+                // View-dependent sun Fresnel rim (catches both sun-side edges and backlit corona for silhouette separation).
+                if (_SunRimStrength > 0.001h)
+                {
+                    half sunFresnel = pow(max(invNdotV, 0.0001h), _SunRimPower);
+                    half backWrap = saturate((half)(-dot(viewDirWS, mainLight.direction)) * 0.5h + 0.5h);
+                    half sunEdgeWeight = max(ndotl01 * lerp(0.40h, 1.0h, shadowAtten), backWrap * 0.72h);
+                    half sunRimMask = saturate(sunFresnel * fresnelMod * sunEdgeWeight * _SunRimStrength);
+                    lit += _SunRimColor.rgb * (half3)mainLight.color * sunRimMask;
+                }
 
                 // Subtle neutral-blue Ally Fresnel (calm separation without competing against enemies).
                 if (_AllyFresnelStrength > 0.001h)
@@ -376,6 +459,16 @@ Shader "Kalyeah/Kid"
                     half allyFresnel = pow(max(invNdotV, 0.0001h), _FresnelPower + 0.55h);
                     half allyMask = saturate(allyFresnel * fresnelMod * _AllyFresnelStrength * (1.0h + depthT * 0.25h));
                     lit += _AllyFresnelColor.rgb * allyMask;
+                }
+
+                // Optional Team Highlight Fresnel (10m/30m/50m silhouette pop against dark or bright Barangay walls).
+                if (_TeamRimStrength > 0.001h)
+                {
+                    half teamPow = lerp(_FresnelPower, max(1.15h, _FresnelPower * 0.60h), depthT);
+                    half teamFresnel = pow(max(invNdotV, 0.0001h), teamPow);
+                    half teamDistBoost = 1.0h + depthT * _DepthFresnelBoost * 0.75h;
+                    half teamMask = saturate(teamFresnel * fresnelMod * _TeamRimStrength * teamDistBoost);
+                    lit += _TeamRimColor.rgb * teamMask;
                 }
 
                 // Optional emissive map (skip texture fetch when _EmissionColor is black).
@@ -403,7 +496,60 @@ Shader "Kalyeah/Kid"
                     emission += enemyCol * enemyMask;
                 }
 
-                // Merienda buff aura, tagged dim, and crisp hit confirm flash.
+                // 7. Gameplay State Material Hooks (zero allocations, zero Early-Z-breaking clip/discard).
+                // Decay / Slow / Weakened overlay
+                if (_DecayTint.a > 0.001h)
+                {
+                    half decayAmt = saturate(_DecayTint.a);
+                    half decayLum = dot(lit, half3(0.299h, 0.587h, 0.114h));
+                    half3 decayed = lerp(lit, half3(decayLum, decayLum, decayLum) * 0.72h + _DecayTint.rgb * 0.52h, decayAmt * 0.75h);
+                    half decayRim = pow(max(invNdotV, 0.0001h), 2.2h) * decayAmt;
+                    lit = decayed;
+                    emission += _DecayTint.rgb * (decayRim * 0.35h);
+                }
+
+                // Flashbang / Blind desaturation wash
+                if (_BlindDesat > 0.001h)
+                {
+                    half blindAmt = saturate(_BlindDesat);
+                    half blindLum = dot(lit, half3(0.299h, 0.587h, 0.114h));
+                    half3 washed = half3(blindLum, blindLum, blindLum) * half3(0.96h, 0.98h, 1.04h) + half3(0.14h, 0.15h, 0.18h);
+                    lit = lerp(lit, washed, blindAmt * 0.85h);
+                }
+
+                // Tago! Ally invisibility shimmer + holographic Fresnel edge
+                if (_StealthAlpha > 0.001h || _StealthRim > 0.001h)
+                {
+                    half stealthAmt = saturate(_StealthAlpha);
+                    half scanWave = (half)(sin(input.positionWS.y * 26.0 - _Time.y * 6.0) * 0.5 + 0.5);
+                    half3 spectralCore = half3(0.28h, 0.54h, 0.82h) * (0.48h + 0.24h * scanWave);
+                    lit = lerp(lit, spectralCore, stealthAmt * 0.72h);
+                    half holoRim = pow(max(invNdotV, 0.0001h), 1.9h) * max(_StealthRim, stealthAmt * 0.85h);
+                    emission += half3(0.45h, 0.92h, 1.00h) * (holoRim * (0.75h + 0.25h * scanWave));
+                }
+
+                // Pulsing golden Ultimate ready / channel rim aura
+                if (_UltGlow > 0.001h)
+                {
+                    half ultAmt = saturate(_UltGlow);
+                    half ultPulse = (half)(0.78 + 0.22 * sin(_Time.y * 6.5 + input.localY * 4.0));
+                    half ultRim = pow(max(invNdotV, 0.0001h), 2.0h) * (0.35h + 0.65h * heightBias);
+                    half3 goldCol = half3(1.00h, 0.82h, 0.26h);
+                    lit += goldCol * (ultAmt * 0.14h * ultPulse);
+                    emission += goldCol * (ultRim * ultAmt * 0.95h * ultPulse);
+                }
+
+                // Seeker / Taya! / Yoyo high-contrast pulsing reveal highlight
+                if (_RevealPulse > 0.001h)
+                {
+                    half revAmt = saturate(_RevealPulse);
+                    half revWave = (half)(0.65 + 0.35 * sin(_Time.y * 8.0 - input.localY * 5.0));
+                    half revRim = pow(max(invNdotV, 0.0001h), 1.65h);
+                    half3 revCol = half3(1.00h, 0.42h, 0.18h);
+                    emission += revCol * (revAmt * revWave * (0.18h + 0.92h * revRim));
+                }
+
+                // Merienda buff aura, tagged dim, and crisp white-gold impact flash.
                 if (_AuraColor.a > 0.001h)
                 {
                     half auraRim = (0.28h + 0.72h * (invNdotV * invNdotV)) * _AuraColor.a;
@@ -417,8 +563,8 @@ Shader "Kalyeah/Kid"
                 }
                 if (_HitFlash > 0.001h)
                 {
-                    lit = lerp(lit, half3(1.0h, 0.96h, 0.86h), saturate(_HitFlash * 0.65h));
-                    emission += half3(0.85h, 0.80h, 0.68h) * (_HitFlash * 0.55h);
+                    lit = lerp(lit, half3(1.0h, 0.96h, 0.84h), saturate(_HitFlash * 0.68h));
+                    emission += half3(0.90h, 0.84h, 0.66h) * (_HitFlash * 0.58h);
                 }
 
                 half3 finalRgb = MixFog(lit + emission, input.fogFactor);

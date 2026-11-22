@@ -66,6 +66,10 @@ namespace Kalyeah.Game
         GameObject _model;
         GameObject _animRoot;
         AnimationClip _idle;
+        FaceBlendShapeBinding _faceShapes = FaceBlendShapeBinding.Empty;
+        float _blinkTimer = 2.8f;
+        float _blinkPhase;
+        int _blinkCycle;
         string _kidId;
         float _time;
         Quaternion _baseRotation = Quaternion.identity;
@@ -74,6 +78,12 @@ namespace Kalyeah.Game
         bool _isDragging;
 
         public Texture Texture => _texture;
+
+        /// <summary>Root transform of this hero showcase stage (read-only).</summary>
+        public Transform StageRoot => _root != null ? _root.transform : null;
+
+        /// <summary>True when the current showcase kid mesh exposes supported glTF facial morph targets.</summary>
+        public bool HasFaceBlendShapes => _faceShapes.HasAnyShape;
 
         /// <summary>Viewport height (0..1) of the kid's feet in the texture, so the UI can align a floor shadow or nameplate under them.</summary>
         public float FeetViewportY { get; private set; } = 0.05f;
@@ -117,16 +127,21 @@ namespace Kalyeah.Game
             _camera.transform.localPosition = new Vector3(0f, 1.0f, 4.3f);
             _camera.transform.LookAt(_root.transform.position + new Vector3(0f, 0.8f, 0f));
 
-            // Valorant-style 3-point hero showcase lighting:
-            // warm golden afternoon key + crisp cool teal-slate back-rim separation + balanced cool slate shadow fill
-            AddLight("Key", new Color(1.00f, 0.90f, 0.72f), 1.45f, Quaternion.Euler(26f, 152f, 0f));
-            AddLight("Rim", new Color(0.32f, 0.86f, 0.96f), 1.45f, Quaternion.Euler(18f, -26f, 0f));
-            AddLight("Fill", new Color(0.52f, 0.68f, 0.84f), 0.50f, Quaternion.Euler(8f, 222f, 0f));
+            // URP-valid 3-point studio showcase rig (single Directional Key + cool Spot Rim + warm Point Fill + fresh Trilight SH):
+            AddDirectionalKey("Key", new Color(1.00f, 0.90f, 0.72f), 1.35f, Quaternion.Euler(34f, 154f, 0f));
+            AddSpotRim("Rim", new Color(0.36f, 0.88f, 1.00f), 14.0f, new Vector3(-1.35f, 1.95f, -1.75f), new Vector3(0f, 1.05f, 0f), range: 8.0f, spotAngle: 58f);
+            AddPointFill("Fill", new Color(1.00f, 0.84f, 0.68f), 4.8f, new Vector3(1.85f, 0.95f, 1.85f), range: 8.0f);
+
+            RenderSettings.ambientMode = AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.68f, 0.80f, 0.96f);
+            RenderSettings.ambientEquatorColor = new Color(0.76f, 0.72f, 0.66f);
+            RenderSettings.ambientGroundColor = new Color(0.58f, 0.48f, 0.38f);
+            DynamicGI.UpdateEnvironment();
 
             _pedestalGo = BuildPedestal(_root.transform, out _pedestalMesh, out _pedestalMat);
         }
 
-        void AddLight(string name, Color color, float intensity, Quaternion rotation)
+        void AddDirectionalKey(string name, Color color, float intensity, Quaternion rotation)
         {
             var go = new GameObject(name, typeof(Light));
             go.transform.SetParent(_root.transform, false);
@@ -135,6 +150,35 @@ namespace Kalyeah.Game
             light.type = LightType.Directional;
             light.color = color;
             light.intensity = intensity;
+            light.shadows = LightShadows.None;
+        }
+
+        void AddSpotRim(string name, Color color, float intensity, Vector3 localPos, Vector3 localTarget, float range, float spotAngle)
+        {
+            var go = new GameObject(name, typeof(Light));
+            go.transform.SetParent(_root.transform, false);
+            go.transform.localPosition = localPos;
+            go.transform.localRotation = Quaternion.LookRotation((localTarget - localPos).normalized, Vector3.up);
+            Light light = go.GetComponent<Light>();
+            light.type = LightType.Spot;
+            light.color = color;
+            light.intensity = intensity;
+            light.range = range;
+            light.spotAngle = spotAngle;
+            light.innerSpotAngle = spotAngle * 0.48f;
+            light.shadows = LightShadows.None;
+        }
+
+        void AddPointFill(string name, Color color, float intensity, Vector3 localPos, float range)
+        {
+            var go = new GameObject(name, typeof(Light));
+            go.transform.SetParent(_root.transform, false);
+            go.transform.localPosition = localPos;
+            Light light = go.GetComponent<Light>();
+            light.type = LightType.Point;
+            light.color = color;
+            light.intensity = intensity;
+            light.range = range;
             light.shadows = LightShadows.None;
         }
 
@@ -210,16 +254,27 @@ namespace Kalyeah.Game
             _model = null;
             _animRoot = null;
             _idle = null;
+            _faceShapes = FaceBlendShapeBinding.Empty;
+            _blinkTimer = 2.8f;
+            _blinkPhase = 0f;
+            _blinkCycle = 0;
             _orbitYaw = 0f;
             _orbitVelocity = 0f;
             _isDragging = false;
 
-            GameObject prefab = KalyeahResources.Model("characters", kidId) ?? KalyeahResources.Model("characters", "narda");
+            string resolvedKidId = string.IsNullOrWhiteSpace(kidId) ? "narda" : kidId.Trim().ToLowerInvariant();
+            GameObject prefab = KalyeahResources.Model("characters", resolvedKidId);
+            if (prefab == null)
+            {
+                resolvedKidId = "narda";
+                prefab = KalyeahResources.Model("characters", resolvedKidId);
+            }
             if (prefab == null) return;
 
             _model = UnityEngine.Object.Instantiate(prefab, _root.transform, false);
             _model.name = "Kid";
-            KalyeahResources.SanitizeModelMaterials(_model);
+            KalyeahResources.UpgradeKidMaterials(_model, resolvedKidId, KalyeahResources.CharacterRig(resolvedKidId));
+            KidView.TryFindFaceBlendShapes(_model, out _faceShapes);
 
             Animation animation = _model.GetComponentInChildren<Animation>(true);
             if (animation != null)
@@ -230,6 +285,7 @@ namespace Kalyeah.Game
                     _idle = animation.GetClip(IdleNames[i]);
             }
             Sample();
+            TickFaceExpressions(0f);
 
             float natural = Mathf.Max(KalyeahResources.RenderBounds(_model).size.y, 0.1f);
             _model.transform.localScale = Vector3.one * (KidHeight / natural);
@@ -331,12 +387,13 @@ namespace Kalyeah.Game
             _idle.SampleAnimation(_animRoot, _time % length);
         }
 
-        /// <summary>Advances the idle loop and smooth Play-mode orbit inertia (snaps to front pose in EditMode).</summary>
+        /// <summary>Advances the idle loop, lobby facial expressions, and smooth Play-mode orbit inertia (snaps to front pose in EditMode).</summary>
         public void Tick(float dt)
         {
             float clampedDt = Mathf.Max(0f, dt);
             _time += clampedDt;
             Sample();
+            TickFaceExpressions(clampedDt);
 
             if (!Application.isPlaying)
             {
@@ -351,6 +408,50 @@ namespace Kalyeah.Game
                 if (Mathf.Abs(_orbitVelocity) <= 0.1f) _orbitVelocity = 0f;
                 ApplyModelRotation();
             }
+        }
+
+        void TickFaceExpressions(float dt)
+        {
+            if (!_faceShapes.HasAnyShape) return;
+
+            bool staticMode = !Application.isPlaying || SettingsStore.Current.ReduceMotion;
+            float blinkW = 0f;
+            if (!staticMode && dt > 0f && _faceShapes.HasBlink)
+            {
+                if (_blinkPhase > 0f)
+                {
+                    _blinkPhase += dt / 0.14f;
+                    if (_blinkPhase >= 1f)
+                    {
+                        _blinkPhase = 0f;
+                        _blinkCycle++;
+                        _blinkTimer = 3.1f + ((_blinkCycle * 7) % 5) * 0.42f;
+                    }
+                    else
+                    {
+                        blinkW = Mathf.Sin(_blinkPhase * Mathf.PI) * 100f;
+                    }
+                }
+                else
+                {
+                    _blinkTimer -= dt;
+                    if (_blinkTimer <= 0f) _blinkPhase = 0.001f;
+                }
+            }
+            else
+            {
+                _blinkPhase = 0f;
+            }
+
+            float smileW = staticMode ? 18f : 18f + 10f * Mathf.Sin(_time * 0.85f);
+            float determinedW = staticMode ? 8f : 8f + 6f * Mathf.Cos(_time * 0.55f);
+
+            KidView.SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.Blink, blinkW);
+            KidView.SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.BlinkL, blinkW);
+            KidView.SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.BlinkR, blinkW);
+            KidView.SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.Smile, smileW);
+            KidView.SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.Determined, determinedW);
+            KidView.SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.TalkOpen, 0f);
         }
 
         /// <summary>Renders one frame now (edit-mode screenshots, and the first frame after the kid changes).</summary>

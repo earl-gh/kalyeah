@@ -33,17 +33,118 @@ namespace Kalyeah.Game
         }
     }
 
+    /// <summary>Competitive anatomical hitbox zones mapped onto canonical <c>mixamorig</c> skeleton bones.</summary>
+    public enum HitboxZone
+    {
+        Head = 0,
+        Chest = 1,
+        Stomach = 2,
+        Limb = 3,
+    }
+
+    /// <summary>
+    /// Lightweight zero-Physics hitbox capsule bound to a canonical bone transform (or body pivot fallback).
+    /// Queries evaluate world-space segments on demand with zero runtime Collider overhead.
+    /// </summary>
+    public readonly struct HitboxCapsuleEntry
+    {
+        public readonly HitboxZone Zone;
+        public readonly string Name;
+        public readonly string BoneName;
+        public readonly Transform Bone;
+        public readonly Vector3 LocalA;
+        public readonly Vector3 LocalB;
+        public readonly float Radius;
+        public readonly float DamageMultiplier;
+
+        public bool IsValid => Bone != null && Radius > 0.001f;
+
+        public HitboxCapsuleEntry(
+            HitboxZone zone,
+            string name,
+            string boneName,
+            Transform bone,
+            Vector3 localA,
+            Vector3 localB,
+            float radius,
+            float damageMultiplier)
+        {
+            Zone = zone;
+            Name = name ?? "";
+            BoneName = boneName ?? "";
+            Bone = bone;
+            LocalA = localA;
+            LocalB = localB;
+            Radius = Mathf.Max(0f, radius);
+            DamageMultiplier = damageMultiplier > 0f ? damageMultiplier : 1f;
+        }
+
+        public bool TryGetWorldSegment(out Vector3 worldA, out Vector3 worldB)
+        {
+            if (Bone == null)
+            {
+                worldA = Vector3.zero;
+                worldB = Vector3.zero;
+                return false;
+            }
+            worldA = Bone.TransformPoint(LocalA);
+            worldB = Bone.TransformPoint(LocalB);
+            return true;
+        }
+    }
+
+    /// <summary>Cached facial morph-target indices resolved safely from a glTF <see cref="SkinnedMeshRenderer"/>.</summary>
+    public struct FaceBlendShapeBinding
+    {
+        public SkinnedMeshRenderer Renderer;
+        public Mesh SourceMesh;
+        public int Blink;
+        public int BlinkL;
+        public int BlinkR;
+        public int Smile;
+        public int Determined;
+        public int TalkOpen;
+        public int Angry;
+        public int Surprised;
+        public int Hurt;
+
+        public bool HasAnyShape =>
+            Renderer != null && SourceMesh != null &&
+            (Blink >= 0 || BlinkL >= 0 || BlinkR >= 0 || Smile >= 0 || Determined >= 0 || TalkOpen >= 0 || Angry >= 0 || Surprised >= 0 || Hurt >= 0);
+
+        public bool HasBlink => Renderer != null && SourceMesh != null && (Blink >= 0 || BlinkL >= 0 || BlinkR >= 0);
+
+        public static FaceBlendShapeBinding Empty => new FaceBlendShapeBinding
+        {
+            Blink = -1,
+            BlinkL = -1,
+            BlinkR = -1,
+            Smile = -1,
+            Determined = -1,
+            TalkOpen = -1,
+            Angry = -1,
+            Surprised = -1,
+            Hurt = -1,
+        };
+    }
+
     /// <summary>
     /// Read-only visual puppet for one kid in the street: skinned GLB (<c>assets/models/characters/&lt;id&gt;.glb</c> plus optional
     /// <c>_lod1.glb</c> / <c>_lod2.glb</c> sharing one skeleton), Valorant soft-painted shading + enemy highlight, speed-matched
     /// A4/A6 legacy <see cref="Animation"/> playback with 8-way blending &amp; upper-body <c>Spine1</c> mask, deterministic A6 LateUpdate
     /// (aim offset, 2-bone Foot IK, swing-twist limit clamping, capsule push-out, helper/twist re-eval, High/Ultra Verlet springs,
-    /// pose-space correctives, face blink/expressions), update-rate LOD, Low/jump blob shadow, and live 4-tier graphics switching.
+    /// pose-space correctives, face blink/expressions), update-rate LOD, grounded contact shadow, competitive hitbox registry, and live 4-tier graphics switching.
     /// </summary>
     public sealed class KidView
     {
         /// <summary>kid_model.gd KID_HEIGHT: standing height before camera kid_view_scale (0.82 -> ~1.52 m).</summary>
         public const float KidHeight = 1.85f;
+        public const float ContactShadowAlphaRt = 0.26f;
+        public const float ContactShadowAlphaBlob = 0.42f;
+        public const float HitboxMultHead = 1.5f;
+        public const float HitboxMultChest = 1.0f;
+        public const float HitboxMultStomach = 1.0f;
+        public const float HitboxMultLimb = 0.85f;
 
         const float PolymorphCanHeight = 1.30f;
         const string FallbackSet = "narda";
@@ -110,6 +211,14 @@ namespace Kalyeah.Game
         static readonly int OutlineColorId = Shader.PropertyToID("_OutlineColor");
         static readonly int OutlineWidthId = Shader.PropertyToID("_OutlineWidth");
         static readonly int HitFlashId = Shader.PropertyToID("_HitFlash");
+        static readonly int DecayTintId = Shader.PropertyToID("_DecayTint");
+        static readonly int BlindDesatId = Shader.PropertyToID("_BlindDesat");
+        static readonly int StealthAlphaId = Shader.PropertyToID("_StealthAlpha");
+        static readonly int StealthRimId = Shader.PropertyToID("_StealthRim");
+        static readonly int UltGlowId = Shader.PropertyToID("_UltGlow");
+        static readonly int RevealPulseId = Shader.PropertyToID("_RevealPulse");
+        static readonly int TeamRimColorId = Shader.PropertyToID("_TeamRimColor");
+        static readonly int TeamRimStrengthId = Shader.PropertyToID("_TeamRimStrength");
         static readonly int AuraColorId = Shader.PropertyToID("_AuraColor");
         static readonly int EnemyHighlightId = Shader.PropertyToID("_EnemyHighlight");
         static readonly int EnemyHighlightColorId = Shader.PropertyToID("_EnemyHighlightColor");
@@ -128,6 +237,22 @@ namespace Kalyeah.Game
 
         static Material s_outlineMaterial;
         static Camera s_activeCamera;
+        static HitboxCapsuleSpec[] s_hitboxJsonSpecs;
+        static bool s_hitboxJsonLoaded;
+
+        internal struct HitboxCapsuleSpec
+        {
+            public string Name;
+            public HitboxZone Zone;
+            public string Bone;
+            public string EndBone;
+            public Vector3 A;
+            public Vector3 B;
+            public bool HasExplicitEndpoints;
+            public bool IsModelSpace;
+            public float Radius;
+            public float Multiplier;
+        }
 
         struct CachedClip
         {
@@ -229,6 +354,11 @@ namespace Kalyeah.Game
         public int ActiveAnimUpdateInterval { get; private set; } = 1;
         public GraphicsTierProfile ActiveGraphicsProfile => _graphicsProfile;
         public bool IsLocalKid { get; set; }
+        public bool IsContactShadowVisible => _blobShadowRenderer != null && _blobShadowRenderer.enabled;
+        public float ActiveContactShadowAlpha { get; private set; }
+        public FaceBlendShapeBinding FaceShapes => _faceShapes;
+        public IReadOnlyList<HitboxCapsuleEntry> HitboxCapsules => _hitboxCapsules;
+        public int MaterialBlockApplyCount { get; private set; }
 
         readonly float _viewScale;
         readonly float _modelUniformScale = 1f;
@@ -245,6 +375,7 @@ namespace Kalyeah.Game
         readonly List<LodBinding> _lodBindings = new List<LodBinding>(2);
         readonly MaterialPropertyBlock _outlineBlock = new MaterialPropertyBlock();
         readonly MaterialPropertyBlock _surfaceBlock = new MaterialPropertyBlock();
+        readonly MaterialPropertyBlock _shadowBlock = new MaterialPropertyBlock();
 
         readonly CharacterRigData _rigData;
         readonly RigJointLimitsData _jointLimits;
@@ -273,15 +404,14 @@ namespace Kalyeah.Game
         readonly CorrectiveBinding[] _correctives;
         readonly RuntimeSpringChain[] _springChains;
         readonly RuntimeCapsule[] _capsules;
+        readonly HitboxCapsuleEntry[] _hitboxCapsules;
         readonly int _torsoCapsuleIdx = -1;
         readonly int _lArmCapsuleIdx = -1, _rArmCapsuleIdx = -1;
         readonly int _lForeArmCapsuleIdx = -1, _rForeArmCapsuleIdx = -1;
         readonly int _lUpLegCapsuleIdx = -1, _rUpLegCapsuleIdx = -1;
 
-        // Cached face blendshape indices (R6, bound to LOD0 mesh).
-        readonly SkinnedMeshRenderer _faceMesh;
-        readonly Mesh _faceSourceMesh;
-        readonly int _bsBlinkL = -1, _bsBlinkR = -1, _bsSmile = -1, _bsOpen = -1, _bsAngry = -1, _bsSurprised = -1, _bsHurt = -1;
+        // Cached face blendshape indices (R6 + Phase 5 glTF morph targets).
+        readonly FaceBlendShapeBinding _faceShapes;
 
         readonly float _legLengthRatio = 1f;
         readonly float _girthArmAbductDeg;
@@ -359,9 +489,23 @@ namespace Kalyeah.Game
         float _blinkPhase;
         uint _viewRngState;
 
+        // Cached combat visual state hooks (zero-GC dirty-tracked MPB updates).
+        float _combatHitFlash;
+        float _blindAmount;
+        float _stealthAmount;
+        float _ultGlow;
+        float _revealPulse;
+        Color _decayTint;
+        float _appliedContactShadowAlpha = -1f;
+
         bool _materialStateDirty = true;
         int _appliedFlashStep = -1;
         int _appliedAuraStep = -1;
+        int _appliedBlindStep = -1;
+        int _appliedStealthStep = -1;
+        int _appliedUltStep = -1;
+        int _appliedRevealStep = -1;
+        Color _appliedDecayTint = new Color(-1f, -1f, -1f, -1f);
         string _appliedBuffId = "";
         bool _appliedTaggedDim;
         int _appliedHighlightMode = -1;
@@ -375,7 +519,7 @@ namespace Kalyeah.Game
 
         /// <summary>
         /// Builds the kid puppet. Note: <paramref name="disc"/> is kept strictly for signature compatibility with existing callers;
-        /// no team ring is created under any kid's feet (only a soft neutral drop shadow on Low preset or mid-jump per SPEC §10).
+        /// no team ring is created under any kid's feet (only a subtle neutral grounded contact shadow per SPEC §10).
         /// </summary>
         public KidView(Transform parent, KidSnapshot kid, float viewScale, Color team, Material disc)
         {
@@ -499,7 +643,7 @@ namespace Kalyeah.Game
             // Pre-instantiate Lata polymorph tin-can visual at load time (zero mid-round Instantiate/Destroy).
             _canPivot = BuildPolymorphCan();
 
-            // Soft neutral drop-shadow quad (active on Low preset blob shadows OR mid-jump height cue).
+            // Subtle neutral grounded contact shadow quad (active on ALL quality tiers so feet never float).
             BuildBlobShadow(out _blobShadowTransform, out _blobShadowRenderer);
 
             Material outlineMat = ResolveOutlineMaterial();
@@ -510,15 +654,16 @@ namespace Kalyeah.Game
             // Bind optional LOD1 & LOD2 meshes directly onto LOD0's live skeleton (zero duplicate skeletons/animations).
             BuildLodBindings(resolvedModelId);
 
-            // Build zero-GC runtime tables for capsules, springs, correctives, and face shapes.
+            // Build zero-GC runtime tables for capsules, competitive hitboxes, springs, correctives, and face shapes.
             _capsules = BuildRuntimeCapsules(
                 out _torsoCapsuleIdx,
                 out _lArmCapsuleIdx, out _rArmCapsuleIdx,
                 out _lForeArmCapsuleIdx, out _rForeArmCapsuleIdx,
                 out _lUpLegCapsuleIdx, out _rUpLegCapsuleIdx);
+            _hitboxCapsules = BuildHitboxCapsules();
             _springChains = BuildSpringChains();
             _correctives = BuildCorrectiveBindings();
-            ResolveFaceShapes(out _faceMesh, out _faceSourceMesh, out _bsBlinkL, out _bsBlinkR, out _bsSmile, out _bsOpen, out _bsAngry, out _bsSurprised, out _bsHurt);
+            _faceShapes = ResolveFaceShapes();
 
             SetRendererGroupEnabled(_canBaseRenderers, false);
             SetRendererGroupEnabled(_canOutlineRenderers, false);
@@ -1089,42 +1234,442 @@ namespace Kalyeah.Game
             return bindings.Count > 0 ? bindings.ToArray() : Array.Empty<CorrectiveBinding>();
         }
 
-        void ResolveFaceShapes(
-            out SkinnedMeshRenderer faceSmr,
-            out Mesh sourceMesh,
-            out int blinkL, out int blinkR, out int smile, out int open, out int angry, out int surprised, out int hurt)
-        {
-            faceSmr = null;
-            sourceMesh = null;
-            blinkL = blinkR = smile = open = angry = surprised = hurt = -1;
-            if (_lodBindings.Count == 0) return;
+        // ---- Competitive Hitbox Capsule Registry (Zero Runtime Physics Overhead) ------------------------------------------------
 
-            for (int i = 0; i < _lodBindings.Count; i++)
+        /// <summary>Returns the canonical damage multiplier for a hitbox zone (1.5x Head, 1.0x Chest/Stomach, 0.85x Limb).</summary>
+        public static float GetHitboxZoneMultiplier(HitboxZone zone)
+        {
+            switch (zone)
             {
-                SkinnedMeshRenderer smr = _lodBindings[i].Target;
-                if (smr == null || smr.sharedMesh == null || smr.sharedMesh.blendShapeCount == 0) continue;
-                Mesh m = smr.sharedMesh;
-                int bl = m.GetBlendShapeIndex("blink_L");
-                int br = m.GetBlendShapeIndex("blink_R");
-                int sm = m.GetBlendShapeIndex("smile");
-                int op = m.GetBlendShapeIndex("open");
-                int an = m.GetBlendShapeIndex("angry");
-                int su = m.GetBlendShapeIndex("surprised");
-                int hu = m.GetBlendShapeIndex("hurt");
-                if (bl >= 0 || br >= 0 || sm >= 0 || op >= 0 || an >= 0 || su >= 0 || hu >= 0)
+                case HitboxZone.Head: return HitboxMultHead;
+                case HitboxZone.Chest: return HitboxMultChest;
+                case HitboxZone.Stomach: return HitboxMultStomach;
+                default: return HitboxMultLimb;
+            }
+        }
+
+        static HitboxZone ParseHitboxZone(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return HitboxZone.Limb;
+            if (raw.IndexOf("head", StringComparison.OrdinalIgnoreCase) >= 0) return HitboxZone.Head;
+            if (raw.IndexOf("chest", StringComparison.OrdinalIgnoreCase) >= 0 || raw.IndexOf("upper", StringComparison.OrdinalIgnoreCase) >= 0) return HitboxZone.Chest;
+            if (raw.IndexOf("stomach", StringComparison.OrdinalIgnoreCase) >= 0 || raw.IndexOf("abdomen", StringComparison.OrdinalIgnoreCase) >= 0 || raw.IndexOf("pelvis", StringComparison.OrdinalIgnoreCase) >= 0) return HitboxZone.Stomach;
+            return HitboxZone.Limb;
+        }
+
+        static HitboxCapsuleSpec[] LoadCachedHitboxJsonSpecs()
+        {
+            if (s_hitboxJsonLoaded) return s_hitboxJsonSpecs;
+            s_hitboxJsonLoaded = true;
+            TextAsset asset = Resources.Load<TextAsset>("Data/rig__hitbox_capsules");
+            s_hitboxJsonSpecs = asset != null ? ParseHitboxSpecsJson(asset.text) : Array.Empty<HitboxCapsuleSpec>();
+            return s_hitboxJsonSpecs;
+        }
+
+        /// <summary>
+        /// Parses optional <c>unity/Data/rig__hitbox_capsules.json</c> payloads (array or keyed object, wrapped or unwrapped)
+        /// into normalized specs. Returns an empty array safely when JSON is absent or invalid.
+        /// </summary>
+        internal static HitboxCapsuleSpec[] ParseHitboxSpecsJson(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return Array.Empty<HitboxCapsuleSpec>();
+            Dictionary<string, object> root = null;
+            try { root = MiniJson.Parse(json) as Dictionary<string, object>; }
+            catch { return Array.Empty<HitboxCapsuleSpec>(); }
+            if (root == null) return Array.Empty<HitboxCapsuleSpec>();
+
+            Dictionary<string, object> data = JsonRead.Obj(root, "data") ?? root;
+            bool isGltfYup = string.Equals(JsonRead.Str(data, "coordSpace", ""), "gltf_yup", StringComparison.OrdinalIgnoreCase);
+
+            float headMult = HitboxMultHead;
+            float chestMult = HitboxMultChest;
+            float stomachMult = HitboxMultStomach;
+            float limbMult = HitboxMultLimb;
+            Dictionary<string, object> mults = JsonRead.Obj(data, "multipliers");
+            if (mults != null)
+            {
+                headMult = JsonRead.Float(mults, "Head", JsonRead.Float(mults, "head", headMult));
+                chestMult = JsonRead.Float(mults, "Chest", JsonRead.Float(mults, "chest", chestMult));
+                stomachMult = JsonRead.Float(mults, "Stomach", JsonRead.Float(mults, "stomach", stomachMult));
+                limbMult = JsonRead.Float(mults, "Limb", JsonRead.Float(mults, "limb", limbMult));
+            }
+
+            var specs = new List<HitboxCapsuleSpec>(14);
+            List<object> capArr = JsonRead.Arr(data, "capsules");
+            if (capArr != null)
+            {
+                for (int i = 0; i < capArr.Count; i++)
                 {
-                    faceSmr = smr;
-                    sourceMesh = m;
-                    blinkL = bl;
-                    blinkR = br;
-                    smile = sm;
-                    open = op;
-                    angry = an;
-                    surprised = su;
-                    hurt = hu;
-                    return;
+                    if (capArr[i] is Dictionary<string, object> item)
+                        TryAppendHitboxSpec(specs, JsonRead.Str(item, "name", ""), item, isGltfYup, headMult, chestMult, stomachMult, limbMult);
                 }
             }
+            else
+            {
+                Dictionary<string, object> capObj = JsonRead.Obj(data, "capsules");
+                if (capObj != null)
+                {
+                    foreach (var kv in capObj)
+                    {
+                        if (kv.Value is Dictionary<string, object> item)
+                            TryAppendHitboxSpec(specs, kv.Key, item, isGltfYup, headMult, chestMult, stomachMult, limbMult);
+                    }
+                }
+            }
+
+            return specs.Count > 0 ? specs.ToArray() : Array.Empty<HitboxCapsuleSpec>();
+        }
+
+        static void TryAppendHitboxSpec(
+            List<HitboxCapsuleSpec> list,
+            string fallbackName,
+            Dictionary<string, object> item,
+            bool isGltfYup,
+            float headMult,
+            float chestMult,
+            float stomachMult,
+            float limbMult)
+        {
+            string name = JsonRead.Str(item, "name", fallbackName);
+            string bone = RigJointLimitsData.StripMixamoPrefix(JsonRead.Str(item, "bone", ""));
+            if (string.IsNullOrEmpty(bone)) return;
+
+            HitboxZone zone = ParseHitboxZone(JsonRead.Str(item, "zone", name));
+            float defaultMult = zone == HitboxZone.Head ? headMult
+                : (zone == HitboxZone.Chest ? chestMult
+                : (zone == HitboxZone.Stomach ? stomachMult : limbMult));
+            float mult = JsonRead.Float(item, "multiplier", JsonRead.Float(item, "damageMultiplier", defaultMult));
+            float radius = JsonRead.Float(item, "radius", 0.08f);
+            if (radius <= 0.001f) return;
+
+            bool hasA = JsonRead.TryVec3(item, "a", out Vector3 vecA);
+            bool hasB = JsonRead.TryVec3(item, "b", out Vector3 vecB);
+            bool explicitPts = hasA && hasB;
+            if (explicitPts)
+            {
+                vecA = RigSpaceConvert.PositionOrDirection(vecA, isGltfYup);
+                vecB = RigSpaceConvert.PositionOrDirection(vecB, isGltfYup);
+            }
+
+            string space = JsonRead.Str(item, "space", isGltfYup ? "model" : "bone");
+            bool isModelSpace = string.Equals(space, "model", StringComparison.OrdinalIgnoreCase);
+
+            list.Add(new HitboxCapsuleSpec
+            {
+                Name = string.IsNullOrEmpty(name) ? bone : name,
+                Zone = zone,
+                Bone = bone,
+                EndBone = RigJointLimitsData.StripMixamoPrefix(JsonRead.Str(item, "endBone", "")),
+                A = vecA,
+                B = vecB,
+                HasExplicitEndpoints = explicitPts,
+                IsModelSpace = isModelSpace,
+                Radius = radius,
+                Multiplier = mult > 0f ? mult : defaultMult,
+            });
+        }
+
+        /// <summary>Builds a hitbox capsule table from an optional JSON payload against <paramref name="modelRoot"/> (or deterministic defaults).</summary>
+        public static HitboxCapsuleEntry[] BuildHitboxCapsulesFromJson(
+            Transform modelRoot,
+            Transform fallbackPivot,
+            string json,
+            float modelUniformScale = 1f,
+            float viewScale = 1f)
+        {
+            HitboxCapsuleSpec[] specs = ParseHitboxSpecsJson(json);
+            var boneMap = new Dictionary<string, Transform>(96, StringComparer.OrdinalIgnoreCase);
+            if (modelRoot != null)
+            {
+                Transform[] all = modelRoot.GetComponentsInChildren<Transform>(true);
+                for (int i = 0; i < all.Length; i++)
+                {
+                    Transform t = all[i];
+                    if (t == null) continue;
+                    string key = RigJointLimitsData.StripMixamoPrefix(t.name);
+                    if (!boneMap.ContainsKey(key)) boneMap[key] = t;
+                }
+            }
+            return BuildHitboxCapsulesInternal(modelRoot, fallbackPivot, boneMap, specs, modelUniformScale, viewScale);
+        }
+
+        HitboxCapsuleEntry[] BuildHitboxCapsules()
+        {
+            HitboxCapsuleSpec[] jsonSpecs = LoadCachedHitboxJsonSpecs();
+            var boneMap = BuildBoneLookup();
+            return BuildHitboxCapsulesInternal(_model != null ? _model.transform : null, _bodyPivot, boneMap, jsonSpecs, _modelUniformScale, _viewScale);
+        }
+
+        static HitboxCapsuleEntry[] BuildHitboxCapsulesInternal(
+            Transform modelRoot,
+            Transform fallbackPivot,
+            Dictionary<string, Transform> boneMap,
+            HitboxCapsuleSpec[] jsonSpecs,
+            float modelUniformScale,
+            float viewScale)
+        {
+            var list = new List<HitboxCapsuleEntry>(12);
+            float scale = Mathf.Max(0.1f, modelUniformScale);
+
+            if (modelRoot != null && jsonSpecs != null && jsonSpecs.Length > 0 && boneMap != null && boneMap.Count > 0)
+            {
+                for (int i = 0; i < jsonSpecs.Length; i++)
+                {
+                    HitboxCapsuleSpec spec = jsonSpecs[i];
+                    if (!boneMap.TryGetValue(spec.Bone, out Transform bone) || bone == null) continue;
+                    Vector3 localA = Vector3.zero;
+                    Vector3 localB = Vector3.up * 0.16f;
+                    if (spec.HasExplicitEndpoints)
+                    {
+                        if (spec.IsModelSpace)
+                            ConvertModelCapsuleToBoneLocal(modelRoot, bone, spec.A, spec.B, out localA, out localB);
+                        else
+                        {
+                            localA = spec.A;
+                            localB = spec.B;
+                        }
+                    }
+                    else if (!string.IsNullOrEmpty(spec.EndBone) && boneMap.TryGetValue(spec.EndBone, out Transform endTr) && endTr != null)
+                    {
+                        localB = bone.InverseTransformPoint(endTr.position);
+                    }
+                    list.Add(new HitboxCapsuleEntry(spec.Zone, spec.Name, spec.Bone, bone, localA, localB, spec.Radius * scale, spec.Multiplier));
+                }
+            }
+
+            if (list.Count > 0)
+                return list.ToArray();
+
+            // Canonical mixamorig bone hitbox table (1.5x Head, 1.0x Chest/Stomach, 0.85x Limb).
+            // Synthesized default radii and fallback offsets are in world-space meters scaled by viewScale (safe for any GLB armature unit scale).
+            float vs = Mathf.Max(0.1f, viewScale);
+            if (boneMap != null && boneMap.Count > 0)
+            {
+                boneMap.TryGetValue("Head", out Transform head);
+                boneMap.TryGetValue("HeadTop_End", out Transform headTop);
+                boneMap.TryGetValue("Neck", out Transform neck);
+                boneMap.TryGetValue("Spine2", out Transform spine2);
+                boneMap.TryGetValue("Spine1", out Transform spine1);
+                boneMap.TryGetValue("Spine", out Transform spine);
+                boneMap.TryGetValue("Hips", out Transform hips);
+                boneMap.TryGetValue("LeftArm", out Transform lArm);
+                boneMap.TryGetValue("LeftForeArm", out Transform lFore);
+                boneMap.TryGetValue("LeftHand", out Transform lHand);
+                boneMap.TryGetValue("RightArm", out Transform rArm);
+                boneMap.TryGetValue("RightForeArm", out Transform rFore);
+                boneMap.TryGetValue("RightHand", out Transform rHand);
+                boneMap.TryGetValue("LeftUpLeg", out Transform lUpLeg);
+                boneMap.TryGetValue("LeftLeg", out Transform lLeg);
+                boneMap.TryGetValue("LeftFoot", out Transform lFoot);
+                boneMap.TryGetValue("RightUpLeg", out Transform rUpLeg);
+                boneMap.TryGetValue("RightLeg", out Transform rLeg);
+                boneMap.TryGetValue("RightFoot", out Transform rFoot);
+
+                if (head != null)
+                {
+                    Vector3 headLocalA = Vector3.zero;
+                    Vector3 headLocalB = headTop != null
+                        ? head.InverseTransformPoint(headTop.position)
+                        : head.InverseTransformPoint(head.position + Vector3.up * (0.18f * vs));
+                    if (headLocalB.sqrMagnitude < 1e-6f)
+                        headLocalB = head.InverseTransformPoint(head.position + Vector3.up * (0.18f * vs));
+                    list.Add(new HitboxCapsuleEntry(HitboxZone.Head, "Head", "mixamorig:Head", head, headLocalA, headLocalB, 0.115f * vs, HitboxMultHead));
+                }
+
+                Transform chestBone = spine2 ?? spine1;
+                if (chestBone != null)
+                    AddBoneSegmentHitbox(list, HitboxZone.Chest, "Chest", "mixamorig:Spine2", chestBone, neck, 0.145f * vs, HitboxMultChest, Vector3.up * (0.20f * vs));
+
+                Transform stomachBone = spine ?? hips;
+                if (stomachBone != null)
+                    AddBoneSegmentHitbox(list, HitboxZone.Stomach, "Stomach", "mixamorig:Spine", stomachBone, spine2 ?? spine1, 0.135f * vs, HitboxMultStomach, Vector3.up * (0.18f * vs));
+
+                AddBoneSegmentHitbox(list, HitboxZone.Limb, "LeftArm", "mixamorig:LeftArm", lArm, lFore, 0.055f * vs, HitboxMultLimb, Vector3.down * (0.20f * vs));
+                AddBoneSegmentHitbox(list, HitboxZone.Limb, "LeftForeArm", "mixamorig:LeftForeArm", lFore, lHand, 0.048f * vs, HitboxMultLimb, Vector3.down * (0.18f * vs));
+                AddBoneSegmentHitbox(list, HitboxZone.Limb, "RightArm", "mixamorig:RightArm", rArm, rFore, 0.055f * vs, HitboxMultLimb, Vector3.down * (0.20f * vs));
+                AddBoneSegmentHitbox(list, HitboxZone.Limb, "RightForeArm", "mixamorig:RightForeArm", rFore, rHand, 0.048f * vs, HitboxMultLimb, Vector3.down * (0.18f * vs));
+                AddBoneSegmentHitbox(list, HitboxZone.Limb, "LeftUpLeg", "mixamorig:LeftUpLeg", lUpLeg, lLeg, 0.078f * vs, HitboxMultLimb, Vector3.down * (0.30f * vs));
+                AddBoneSegmentHitbox(list, HitboxZone.Limb, "LeftLeg", "mixamorig:LeftLeg", lLeg, lFoot, 0.062f * vs, HitboxMultLimb, Vector3.down * (0.30f * vs));
+                AddBoneSegmentHitbox(list, HitboxZone.Limb, "RightUpLeg", "mixamorig:RightUpLeg", rUpLeg, rLeg, 0.078f * vs, HitboxMultLimb, Vector3.down * (0.30f * vs));
+                AddBoneSegmentHitbox(list, HitboxZone.Limb, "RightLeg", "mixamorig:RightLeg", rLeg, rFoot, 0.062f * vs, HitboxMultLimb, Vector3.down * (0.30f * vs));
+            }
+
+            if (list.Count > 0)
+                return list.ToArray();
+
+            // Deterministic proportional fallback when running on a procedural capsule stand-in (no skeleton bones).
+            if (fallbackPivot != null)
+            {
+                float h = KidHeight * vs;
+                list.Add(new HitboxCapsuleEntry(HitboxZone.Head, "Head", "mixamorig:Head", fallbackPivot, new Vector3(0f, h * 0.82f, 0f), new Vector3(0f, h * 0.94f, 0f), h * 0.085f, HitboxMultHead));
+                list.Add(new HitboxCapsuleEntry(HitboxZone.Chest, "Chest", "mixamorig:Spine2", fallbackPivot, new Vector3(0f, h * 0.62f, 0f), new Vector3(0f, h * 0.78f, 0f), h * 0.115f, HitboxMultChest));
+                list.Add(new HitboxCapsuleEntry(HitboxZone.Stomach, "Stomach", "mixamorig:Spine", fallbackPivot, new Vector3(0f, h * 0.45f, 0f), new Vector3(0f, h * 0.60f, 0f), h * 0.105f, HitboxMultStomach));
+                list.Add(new HitboxCapsuleEntry(HitboxZone.Limb, "LeftArm", "mixamorig:LeftArm", fallbackPivot, new Vector3(h * 0.14f, h * 0.48f, 0f), new Vector3(h * 0.14f, h * 0.74f, 0f), h * 0.045f, HitboxMultLimb));
+                list.Add(new HitboxCapsuleEntry(HitboxZone.Limb, "RightArm", "mixamorig:RightArm", fallbackPivot, new Vector3(-h * 0.14f, h * 0.48f, 0f), new Vector3(-h * 0.14f, h * 0.74f, 0f), h * 0.045f, HitboxMultLimb));
+                list.Add(new HitboxCapsuleEntry(HitboxZone.Limb, "LeftLeg", "mixamorig:LeftUpLeg", fallbackPivot, new Vector3(h * 0.07f, h * 0.06f, 0f), new Vector3(h * 0.07f, h * 0.44f, 0f), h * 0.058f, HitboxMultLimb));
+                list.Add(new HitboxCapsuleEntry(HitboxZone.Limb, "RightLeg", "mixamorig:RightUpLeg", fallbackPivot, new Vector3(-h * 0.07f, h * 0.06f, 0f), new Vector3(-h * 0.07f, h * 0.44f, 0f), h * 0.058f, HitboxMultLimb));
+            }
+
+            return list.Count > 0 ? list.ToArray() : Array.Empty<HitboxCapsuleEntry>();
+        }
+
+        static void AddBoneSegmentHitbox(
+            List<HitboxCapsuleEntry> list,
+            HitboxZone zone,
+            string name,
+            string boneName,
+            Transform start,
+            Transform end,
+            float radius,
+            float mult,
+            Vector3 fallbackWorldOffset)
+        {
+            if (start == null) return;
+            Vector3 localB = end != null
+                ? start.InverseTransformPoint(end.position)
+                : start.InverseTransformPoint(start.position + fallbackWorldOffset);
+            if (localB.sqrMagnitude < 1e-6f)
+                localB = start.InverseTransformPoint(start.position + fallbackWorldOffset);
+            list.Add(new HitboxCapsuleEntry(zone, name, boneName, start, Vector3.zero, localB, radius, mult));
+        }
+
+        /// <summary>Analytic zero-Physics ray query against this kid's live hitbox capsules (zero GC).</summary>
+        public bool RaycastHitboxes(
+            Vector3 rayOriginWS,
+            Vector3 rayDirWS,
+            float maxDistance,
+            out HitboxZone hitZone,
+            out float hitDistance,
+            out float damageMultiplier)
+        {
+            hitZone = HitboxZone.Chest;
+            hitDistance = maxDistance;
+            damageMultiplier = 1f;
+            if (_hitboxCapsules == null || _hitboxCapsules.Length == 0 || maxDistance <= 0.001f)
+                return false;
+
+            float dirSq = rayDirWS.sqrMagnitude;
+            if (dirSq < 1e-8f) return false;
+            Vector3 dir = rayDirWS / Mathf.Sqrt(dirSq);
+            Vector3 rayEnd = rayOriginWS + dir * maxDistance;
+
+            bool anyHit = false;
+            float bestDist = maxDistance;
+            float bestMult = 0f;
+            HitboxZone bestZone = HitboxZone.Limb;
+
+            for (int i = 0; i < _hitboxCapsules.Length; i++)
+            {
+                HitboxCapsuleEntry entry = _hitboxCapsules[i];
+                if (!entry.IsValid || !entry.TryGetWorldSegment(out Vector3 a, out Vector3 b)) continue;
+
+                float dist = SegmentSegmentDistance(rayOriginWS, rayEnd, a, b);
+                if (dist > entry.Radius) continue;
+
+                Vector3 mid = (a + b) * 0.5f;
+                float proj = Mathf.Clamp(Vector3.Dot(mid - rayOriginWS, dir) - entry.Radius, 0f, maxDistance);
+                bool better = !anyHit
+                    || proj < bestDist - 0.04f
+                    || (Mathf.Abs(proj - bestDist) <= 0.04f && entry.DamageMultiplier > bestMult);
+                if (better)
+                {
+                    anyHit = true;
+                    bestDist = proj;
+                    bestMult = entry.DamageMultiplier;
+                    bestZone = entry.Zone;
+                }
+            }
+
+            if (!anyHit) return false;
+            hitZone = bestZone;
+            hitDistance = bestDist;
+            damageMultiplier = bestMult;
+            return true;
+        }
+
+        // ---- Shared Facial Blendshape Discovery (KidView & HeroStage) -----------------------------------------------------------
+
+        /// <summary>
+        /// Safely detects glTF facial morph targets (<c>Blink</c>, <c>Smile</c>, <c>Determined</c>, <c>Talk_Open</c>, and legacy
+        /// R6 aliases) on <paramref name="root"/>. 100% graceful no-op returning <c>false</c> when shapes are absent.
+        /// </summary>
+        public static bool TryFindFaceBlendShapes(GameObject root, out FaceBlendShapeBinding binding)
+        {
+            binding = FaceBlendShapeBinding.Empty;
+            if (root == null) return false;
+            SkinnedMeshRenderer[] renderers = root.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (TryFindFaceBlendShapes(renderers[i], out binding))
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>Safely resolves facial morph targets on a single <see cref="SkinnedMeshRenderer"/>.</summary>
+        public static bool TryFindFaceBlendShapes(SkinnedMeshRenderer smr, out FaceBlendShapeBinding binding)
+        {
+            binding = FaceBlendShapeBinding.Empty;
+            if (smr == null || smr.sharedMesh == null || smr.sharedMesh.blendShapeCount == 0)
+                return false;
+
+            Mesh m = smr.sharedMesh;
+            var candidate = new FaceBlendShapeBinding
+            {
+                Renderer = smr,
+                SourceMesh = m,
+                Blink = FindFirstBlendShape(m, "Blink", "blink"),
+                BlinkL = FindFirstBlendShape(m, "blink_L", "Blink_L", "eyeBlinkLeft"),
+                BlinkR = FindFirstBlendShape(m, "blink_R", "Blink_R", "eyeBlinkRight"),
+                Smile = FindFirstBlendShape(m, "Smile", "smile"),
+                Determined = FindFirstBlendShape(m, "Determined", "determined"),
+                TalkOpen = FindFirstBlendShape(m, "Talk_Open", "talk_open", "open"),
+                Angry = FindFirstBlendShape(m, "angry", "Angry"),
+                Surprised = FindFirstBlendShape(m, "surprised", "Surprised"),
+                Hurt = FindFirstBlendShape(m, "hurt", "Hurt"),
+            };
+
+            if (!candidate.HasAnyShape) return false;
+            binding = candidate;
+            return true;
+        }
+
+        /// <summary>Clamps and applies a blendshape weight only if the mesh still matches and the index is in range.</summary>
+        public static void SetFaceShapeWeightSafe(in FaceBlendShapeBinding binding, int shapeIndex, float weight0To100)
+        {
+            if (shapeIndex < 0 || binding.Renderer == null) return;
+            Mesh m = binding.Renderer.sharedMesh;
+            if (m == null || !ReferenceEquals(m, binding.SourceMesh) || shapeIndex >= m.blendShapeCount)
+                return;
+            binding.Renderer.SetBlendShapeWeight(shapeIndex, Mathf.Clamp(weight0To100, 0f, 100f));
+        }
+
+        static int FindFirstBlendShape(Mesh mesh, string nameA, string nameB = null, string nameC = null)
+        {
+            if (mesh == null) return -1;
+            int idx = mesh.GetBlendShapeIndex(nameA);
+            if (idx >= 0) return idx;
+            if (nameB != null)
+            {
+                idx = mesh.GetBlendShapeIndex(nameB);
+                if (idx >= 0) return idx;
+            }
+            if (nameC != null)
+            {
+                idx = mesh.GetBlendShapeIndex(nameC);
+                if (idx >= 0) return idx;
+            }
+            return -1;
+        }
+
+        FaceBlendShapeBinding ResolveFaceShapes()
+        {
+            for (int i = 0; i < _lodBindings.Count; i++)
+            {
+                if (TryFindFaceBlendShapes(_lodBindings[i].Target, out FaceBlendShapeBinding found))
+                    return found;
+            }
+            return FaceBlendShapeBinding.Empty;
         }
 
         Dictionary<string, Transform> BuildBoneLookup()
@@ -1352,6 +1897,56 @@ namespace Kalyeah.Game
         {
             _aimTargetWS = worldAimPoint;
             _hasAimTarget = hasAimTarget;
+        }
+
+        /// <summary>
+        /// Updates gameplay combat shader hooks (<c>_HitFlash</c>, <c>_BlindDesat</c>, <c>_StealthAlpha</c>/<c>_StealthRim</c>,
+        /// <c>_UltGlow</c>, <c>_RevealPulse</c>, <c>_DecayTint</c>) via cached <see cref="MaterialPropertyBlock"/> ONLY when dirty (zero GC).
+        /// </summary>
+        public void SetCombatVisualStates(
+            float hitFlash,
+            float blindAmount,
+            float stealthAmount,
+            float ultGlow,
+            float revealPulse,
+            Color decayTint)
+        {
+            float cFlash = Mathf.Clamp01(hitFlash);
+            float cBlind = Mathf.Clamp01(blindAmount);
+            float cStealth = Mathf.Clamp01(stealthAmount);
+            float cUlt = Mathf.Clamp01(ultGlow);
+            float cReveal = Mathf.Clamp01(revealPulse);
+            Color cDecay = new Color(
+                Mathf.Clamp01(decayTint.r),
+                Mathf.Clamp01(decayTint.g),
+                Mathf.Clamp01(decayTint.b),
+                Mathf.Clamp01(decayTint.a));
+
+            bool changed = Mathf.Abs(cFlash - _combatHitFlash) > 0.001f
+                || Mathf.Abs(cBlind - _blindAmount) > 0.001f
+                || Mathf.Abs(cStealth - _stealthAmount) > 0.001f
+                || Mathf.Abs(cUlt - _ultGlow) > 0.001f
+                || Mathf.Abs(cReveal - _revealPulse) > 0.001f
+                || !ColorsClose(cDecay, _decayTint);
+
+            if (!changed) return;
+
+            _combatHitFlash = cFlash;
+            _blindAmount = cBlind;
+            _stealthAmount = cStealth;
+            _ultGlow = cUlt;
+            _revealPulse = cReveal;
+            _decayTint = cDecay;
+            _materialStateDirty = true;
+            ApplyMaterialBlocks(_combatHitFlash, _appliedBuffId ?? "", _appliedTaggedDim);
+        }
+
+        static bool ColorsClose(Color a, Color b)
+        {
+            return Mathf.Abs(a.r - b.r) <= 0.002f
+                && Mathf.Abs(a.g - b.g) <= 0.002f
+                && Mathf.Abs(a.b - b.b) <= 0.002f
+                && Mathf.Abs(a.a - b.a) <= 0.002f;
         }
 
         /// <summary>Triggers a one-shot cast clip (<c>Cast_OneHand</c> standing or <c>Cast_Run</c> moving) without mutating sim state.</summary>
@@ -1887,20 +2482,37 @@ namespace Kalyeah.Game
         void UpdateBlobShadow(float airY)
         {
             if (_blobShadowRenderer == null || _blobShadowTransform == null) return;
+            // Subtle neutral grounded contact shadow stays active across ALL quality tiers so feet never float.
             bool showBlob = !_hiddenNearCamera
                 && !_isPolymorphed
-                && _kidPop > 0.1f
-                && (_graphicsProfile.BlobShadowsOnly || airY > 0.08f);
+                && _kidPop > 0.1f;
 
             if (_blobShadowRenderer.enabled != showBlob)
                 _blobShadowRenderer.enabled = showBlob;
 
-            if (showBlob)
+            if (!showBlob)
             {
-                float heightFade = Mathf.Clamp(1f - Mathf.Max(0f, airY) * 0.22f, 0.45f, 1f);
-                float diameter = 0.92f * _viewScale * heightFade;
-                _blobShadowTransform.localScale = new Vector3(diameter, diameter, 1f);
+                ActiveContactShadowAlpha = 0f;
+                return;
             }
+
+            bool strongBlob = _graphicsProfile.BlobShadowsOnly || airY > 0.08f;
+            float targetAlpha = strongBlob ? ContactShadowAlphaBlob : ContactShadowAlphaRt;
+            ActiveContactShadowAlpha = targetAlpha;
+
+            if (Mathf.Abs(targetAlpha - _appliedContactShadowAlpha) > 0.001f)
+            {
+                _appliedContactShadowAlpha = targetAlpha;
+                float alphaScale = targetAlpha / ContactShadowAlphaBlob;
+                _shadowBlock.Clear();
+                _shadowBlock.SetColor(BaseColorId, new Color(1f, 1f, 1f, alphaScale));
+                _blobShadowRenderer.SetPropertyBlock(_shadowBlock);
+            }
+
+            float heightFade = Mathf.Clamp(1f - Mathf.Max(0f, airY) * 0.22f, 0.45f, 1f);
+            float baseDiameter = strongBlob ? 0.92f : 0.78f;
+            float diameter = baseDiameter * _viewScale * heightFade;
+            _blobShadowTransform.localScale = new Vector3(diameter, diameter, 1f);
         }
 
         // ---- Sim-Honest Clip Playback & 8-Way Blending (A4 & A6) ---------------------------------------------------------------
@@ -2104,7 +2716,7 @@ namespace Kalyeah.Game
             if (_graphicsProfile.ShouldRunCorrectives(_lastCamDistance, IsLocalKid) && _correctives.Length > 0)
                 EvaluateCorrectives();
 
-            if (_faceMesh != null)
+            if (_faceShapes.HasAnyShape)
                 StepFaceDriver(dt);
 
             _lastLatePosWS = Root.transform.position;
@@ -2603,46 +3215,50 @@ namespace Kalyeah.Game
 
         void StepFaceDriver(float dt)
         {
-            Mesh m = _faceMesh.sharedMesh;
-            if (m == null || !ReferenceEquals(m, _faceSourceMesh) || m.blendShapeCount == 0) return;
+            if (!_faceShapes.HasAnyShape) return;
 
-            // Randomized 2-6s blink cycle (0.14 s smooth close/open).
+            bool reduceMotion = SettingsStore.Current.ReduceMotion;
+            // Randomized 2-6s blink cycle (0.14 s smooth close/open), paused safely under ReduceMotion or EditMode.
             float blinkW = 0f;
-            if (_bsBlinkL >= 0 || _bsBlinkR >= 0)
+            if (_faceShapes.HasBlink)
             {
-                if (_blinkPhase > 0f)
+                if (!reduceMotion && Application.isPlaying && dt > 0f)
                 {
-                    _blinkPhase += dt / 0.14f;
-                    if (_blinkPhase >= 1f)
+                    if (_blinkPhase > 0f)
                     {
-                        _blinkPhase = 0f;
-                        _blinkTimer = NextBlinkInterval();
+                        _blinkPhase += dt / 0.14f;
+                        if (_blinkPhase >= 1f)
+                        {
+                            _blinkPhase = 0f;
+                            _blinkTimer = NextBlinkInterval();
+                        }
+                        else
+                        {
+                            blinkW = Mathf.Sin(_blinkPhase * Mathf.PI) * 100f;
+                        }
                     }
                     else
                     {
-                        blinkW = Mathf.Sin(_blinkPhase * Mathf.PI) * 100f;
+                        _blinkTimer -= dt;
+                        if (_blinkTimer <= 0f) _blinkPhase = 0.001f;
                     }
                 }
                 else
                 {
-                    _blinkTimer -= dt;
-                    if (_blinkTimer <= 0f) _blinkPhase = 0.001f;
+                    _blinkPhase = 0f;
                 }
-                SetFaceWeight(m, _bsBlinkL, blinkW);
-                SetFaceWeight(m, _bsBlinkR, blinkW);
+                SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.Blink, blinkW);
+                SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.BlinkL, blinkW);
+                SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.BlinkR, blinkW);
             }
 
-            SetFaceWeight(m, _bsHurt, (_hitTimer > 0f || CurrentPose == "stunned" || CurrentPose == "tripped") ? 85f : 0f);
-            SetFaceWeight(m, _bsAngry, (CurrentPose == "cast" || CurrentPose == "dash") ? 55f : 0f);
-            SetFaceWeight(m, _bsSmile, (!string.IsNullOrEmpty(_appliedBuffId) && _appliedBuffId != "0" && !_appliedTaggedDim) ? 45f : 0f);
-            SetFaceWeight(m, _bsSurprised, CurrentPose == "airborne" ? 60f : 0f);
-            SetFaceWeight(m, _bsOpen, CurrentPose == "cast" ? 30f : 0f);
-        }
-
-        void SetFaceWeight(Mesh m, int shapeIndex, float weight)
-        {
-            if (shapeIndex >= 0 && shapeIndex < m.blendShapeCount)
-                _faceMesh.SetBlendShapeWeight(shapeIndex, weight);
+            bool combatFocus = CurrentPose == "cast" || CurrentPose == "dash";
+            SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.Hurt, (_hitTimer > 0f || CurrentPose == "stunned" || CurrentPose == "tripped") ? 85f : 0f);
+            SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.Determined, combatFocus ? 60f : 0f);
+            SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.Angry, combatFocus ? 55f : 0f);
+            SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.Smile, (!string.IsNullOrEmpty(_appliedBuffId) && _appliedBuffId != "0" && !_appliedTaggedDim) ? 45f : 0f);
+            SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.Surprised, CurrentPose == "airborne" ? 60f : 0f);
+            SetFaceShapeWeightSafe(in _faceShapes, _faceShapes.TalkOpen, CurrentPose == "cast" ? 30f : 0f);
         }
 
         float NextBlinkInterval()
@@ -2835,20 +3451,20 @@ namespace Kalyeah.Game
         {
             bool showKid = !_hiddenNearCamera && _kidPop > 0.001f;
             bool showCan = !_hiddenNearCamera && _canPop > 0.001f;
-            bool isEnemy = ResolveIsEnemy();
+            bool showOutline = ResolveIsEnemy() || _revealPulse > 0.001f;
 
             if (showKid != _kidRenderersVisible)
             {
                 _kidRenderersVisible = showKid;
                 SetRendererGroupEnabled(_kidBaseRenderers, showKid);
-                // docs/GRAPHICS.md: allies stay plain (subtle back-rim only); enemies wear the Valorant highlight.
-                SetRendererGroupEnabled(_kidOutlineRenderers, showKid && isEnemy);
+                // docs/GRAPHICS.md: allies stay plain (subtle back-rim only); enemies & revealed targets wear silhouette outlines.
+                SetRendererGroupEnabled(_kidOutlineRenderers, showKid && showOutline);
             }
             if (showCan != _canRenderersVisible)
             {
                 _canRenderersVisible = showCan;
                 SetRendererGroupEnabled(_canBaseRenderers, showCan);
-                SetRendererGroupEnabled(_canOutlineRenderers, showCan && isEnemy);
+                SetRendererGroupEnabled(_canOutlineRenderers, showCan && showOutline);
             }
         }
 
@@ -2860,7 +3476,13 @@ namespace Kalyeah.Game
 
         void ApplyMaterialBlocks(float hitFlash01, string buffId, bool tagged)
         {
-            int flashStep = Mathf.RoundToInt(hitFlash01 * 24f);
+            float clampedFlash = Mathf.Clamp01(hitFlash01);
+            _combatHitFlash = clampedFlash;
+            int flashStep = Mathf.RoundToInt(clampedFlash * 24f);
+            int blindStep = Mathf.RoundToInt(_blindAmount * 24f);
+            int stealthStep = Mathf.RoundToInt(_stealthAmount * 24f);
+            int ultStep = Mathf.RoundToInt(_ultGlow * 24f);
+            int revealStep = Mathf.RoundToInt(_revealPulse * 24f);
             bool hasBuff = TryResolveBuffAura(buffId, out Color auraRgb);
             int auraStep = hasBuff ? Mathf.RoundToInt((0.5f + 0.5f * Mathf.Sin(_clock * 5.5f)) * 12f) : 0;
             int highlightMode = SettingsStore.Current.ResolvedEnemyHighlightMode;
@@ -2868,6 +3490,11 @@ namespace Kalyeah.Game
             if (!_materialStateDirty
                 && flashStep == _appliedFlashStep
                 && auraStep == _appliedAuraStep
+                && blindStep == _appliedBlindStep
+                && stealthStep == _appliedStealthStep
+                && ultStep == _appliedUltStep
+                && revealStep == _appliedRevealStep
+                && ColorsClose(_decayTint, _appliedDecayTint)
                 && tagged == _appliedTaggedDim
                 && highlightMode == _appliedHighlightMode
                 && string.Equals(buffId, _appliedBuffId, StringComparison.Ordinal))
@@ -2876,36 +3503,58 @@ namespace Kalyeah.Game
             _materialStateDirty = false;
             _appliedFlashStep = flashStep;
             _appliedAuraStep = auraStep;
+            _appliedBlindStep = blindStep;
+            _appliedStealthStep = stealthStep;
+            _appliedUltStep = ultStep;
+            _appliedRevealStep = revealStep;
+            _appliedDecayTint = _decayTint;
             _appliedTaggedDim = tagged;
             _appliedHighlightMode = highlightMode;
             _appliedBuffId = buffId;
+            MaterialBlockApplyCount++;
 
             float flash = flashStep / 24f;
+            float blind = blindStep / 24f;
+            float stealth = stealthStep / 24f;
+            float ult = ultStep / 24f;
+            float reveal = revealStep / 24f;
             float auraPulse = hasBuff ? (0.45f + 0.30f * (auraStep / 12f)) : 0f;
             bool isEnemy = ResolveIsEnemy();
+            bool showOutline = isEnemy || reveal > 0.001f;
             Color highlightCol = ResolveActiveHighlightColor(isEnemy);
 
-            // Keep outline hulls active strictly for enemies (allies stay clean with Valorant back-rim light).
-            SetRendererGroupEnabled(_kidOutlineRenderers, _kidRenderersVisible && isEnemy);
-            SetRendererGroupEnabled(_canOutlineRenderers, _canRenderersVisible && isEnemy);
+            // Keep outline hulls active strictly for enemies or actively revealed targets (allies stay clean with subtle Fresnel).
+            SetRendererGroupEnabled(_kidOutlineRenderers, _kidRenderersVisible && showOutline);
+            SetRendererGroupEnabled(_canOutlineRenderers, _canRenderersVisible && showOutline);
 
-            if (HasTeamOutline && isEnemy)
+            if (HasTeamOutline && showOutline)
             {
+                Color baseOutlineCol = isEnemy ? highlightCol : new Color(1.00f, 0.44f, 0.20f, 1.0f);
                 Color outlineCol = tagged
-                    ? new Color(highlightCol.r * 0.72f, highlightCol.g * 0.72f, highlightCol.b * 0.72f, 0.65f)
-                    : highlightCol;
+                    ? new Color(baseOutlineCol.r * 0.72f, baseOutlineCol.g * 0.72f, baseOutlineCol.b * 0.72f, 0.65f)
+                    : baseOutlineCol;
                 _outlineBlock.Clear();
                 _outlineBlock.SetColor(OutlineColorId, outlineCol);
                 _outlineBlock.SetFloat(OutlineWidthId, DefaultOutlineWidth);
                 _outlineBlock.SetFloat(HitFlashId, flash);
+                _outlineBlock.SetFloat(RevealPulseId, reveal);
+                _outlineBlock.SetFloat(UltGlowId, ult);
+                _outlineBlock.SetFloat(StealthAlphaId, stealth);
                 _outlineBlock.SetColor(AuraColorId, hasBuff ? new Color(auraRgb.r, auraRgb.g, auraRgb.b, auraPulse) : Color.clear);
                 ApplyBlockToGroup(_kidOutlineRenderers, _outlineBlock);
                 ApplyBlockToGroup(_canOutlineRenderers, _outlineBlock);
             }
 
-            // Pure SRP Batcher fast-path for clean allies with no flash, buff, or tagged dim
+            bool hasCombatState = flash > 0.001f
+                || blind > 0.001f
+                || stealth > 0.001f
+                || ult > 0.001f
+                || reveal > 0.001f
+                || _decayTint.a > 0.001f;
+
+            // Pure SRP Batcher fast-path for clean allies with no active combat visual states, buff, or tagged dim
             // (base Kalyeah/Kid material already carries neutral-blue _AllyFresnelColor / _AllyFresnelStrength defaults).
-            if (!isEnemy && flash <= 0.001f && !hasBuff && !tagged)
+            if (!isEnemy && !hasCombatState && !hasBuff && !tagged)
             {
                 ApplyBlockToGroup(_kidBaseRenderers, null);
                 ApplyBlockToGroup(_canBaseRenderers, null);
@@ -2927,6 +3576,8 @@ namespace Kalyeah.Game
             float allyStrength = isEnemy
                 ? 0f
                 : (tagged ? KalyeahResources.DefaultAllyFresnelStrength * 0.5f : KalyeahResources.DefaultAllyFresnelStrength);
+            Color teamRimCol = isEnemy ? highlightCol : KalyeahResources.DefaultAllyFresnelColor;
+            float teamRimStrength = isEnemy ? (tagged ? 0.14f : 0.26f) : (tagged ? 0.08f : 0.16f);
 
             _surfaceBlock.Clear();
             _surfaceBlock.SetColor(BaseColorId, baseTint);
@@ -2937,7 +3588,15 @@ namespace Kalyeah.Game
             _surfaceBlock.SetColor(EnemyHighlightColorId, enemyRim);
             _surfaceBlock.SetColor(AllyFresnelColorId, KalyeahResources.DefaultAllyFresnelColor);
             _surfaceBlock.SetFloat(AllyFresnelStrengthId, allyStrength);
+            _surfaceBlock.SetColor(TeamRimColorId, teamRimCol);
+            _surfaceBlock.SetFloat(TeamRimStrengthId, teamRimStrength);
             _surfaceBlock.SetFloat(HitFlashId, flash);
+            _surfaceBlock.SetColor(DecayTintId, _decayTint);
+            _surfaceBlock.SetFloat(BlindDesatId, blind);
+            _surfaceBlock.SetFloat(StealthAlphaId, stealth);
+            _surfaceBlock.SetFloat(StealthRimId, stealth > 0.001f ? Mathf.Clamp01(stealth * 1.15f) : 0f);
+            _surfaceBlock.SetFloat(UltGlowId, ult);
+            _surfaceBlock.SetFloat(RevealPulseId, reveal);
             _surfaceBlock.SetColor(AuraColorId, hasBuff ? new Color(auraRgb.r, auraRgb.g, auraRgb.b, auraPulse) : Color.clear);
             _surfaceBlock.SetFloat(TaggedDimId, tagged ? 1f : 0f);
             ApplyBlockToGroup(_kidBaseRenderers, _surfaceBlock);

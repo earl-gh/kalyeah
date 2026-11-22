@@ -260,13 +260,22 @@ namespace Kalyeah.Game
                 _seenIds.Add(kid.Id);
 
                 Color teamColor = KomiksUi.TeamColor(kid.Team, localTeam, colorblindMode);
+                bool isLocal = localId >= 0 && kid.Id == localId;
                 if (!_kids.TryGetValue(kid.Id, out KidView view))
                 {
                     view = new KidView(Root, kid, _camera.KidViewScale, teamColor, _unlit);
+                    view.IsLocalKid = isLocal;
+                    if (isLocal)
+                        view.ApplyGraphicsProfile(view.ActiveGraphicsProfile);
                     _kids[kid.Id] = view;
                 }
                 else
                 {
+                    if (view.IsLocalKid != isLocal)
+                    {
+                        view.IsLocalKid = isLocal;
+                        view.ApplyGraphicsProfile(view.ActiveGraphicsProfile);
+                    }
                     view.SetTeamColor(teamColor);
                 }
 
@@ -279,6 +288,31 @@ namespace Kalyeah.Game
                 float flash01 = _hitFlashLeft.TryGetValue(kid.Id, out float flashLeft) && flashLeft > 0f
                     ? Mathf.Clamp01(flashLeft / HitFlashDuration)
                     : 0f;
+
+                bool hasAim = !kid.Tagged && kid.Facing.LengthSquared() > 0.0001f;
+                if (hasAim)
+                {
+                    float invLen = 1f / Mathf.Sqrt(kid.Facing.LengthSquared());
+                    SVector2 aimGround = pos + kid.Facing * (invLen * 8f);
+                    float aimHeight = ((kid.Crouching || kid.Sliding) ? 0.82f : 1.15f) * _camera.KidViewScale + Mathf.Max(0f, kid.AirY);
+                    view.SetAimTarget(KalyeahResources.World(aimGround, aimHeight), true);
+                }
+                else
+                {
+                    view.SetAimTarget(Vector3.zero, false);
+                }
+
+                float ultGlow = !kid.Tagged && !string.IsNullOrEmpty(kid.CastingWeaponId)
+                    && kid.CastingWeaponId.StartsWith("ult", StringComparison.OrdinalIgnoreCase)
+                    ? 1f
+                    : (!kid.Tagged && kid.UltCharge >= 99.5f ? 0.50f : 0f);
+                float revealPulse = !kid.Tagged && kid.CarryingFlag ? 0.85f : 0f;
+                Color decayTint = (kid.StatusKind == StatusKind.Slow || kid.SlowMagnitude > 0.05f)
+                    ? new Color(0.46f, 0.36f, 0.68f, Mathf.Clamp(0.42f + kid.SlowMagnitude * 0.35f, 0.35f, 0.72f))
+                    : (!kid.Tagged && kid.ExhaustLeft > 0.05f
+                        ? new Color(0.55f, 0.48f, 0.38f, 0.28f)
+                        : Color.clear);
+                view.SetCombatVisualStates(flash01, 0f, 0f, ultGlow, revealPulse, decayTint);
 
                 bool hideNear = hideLocalNearCamera && kid.Id == localId;
                 view.SyncState(
