@@ -229,6 +229,7 @@ namespace Kalyeah.Game
 
             // 4b. 5-wedge radial Tactical Ping Wheel & non-sightbox Taglish banter strip (under full-screen Pause/Results modals)
             PingAndBanter = new PingAndBanterView(SafeRoot, Canvas, interactive);
+            PingAndBanter.ExternalLayoutManaged = true;
             PingAndBanter.PingEmitted += OnPingEmitted;
 
             // 5. Persistent HUD overlays & modal sheets on top

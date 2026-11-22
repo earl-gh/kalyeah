@@ -356,15 +356,17 @@ namespace Kalyeah.Game
             _avatarPhotoRaw = MakeRaw("Photo", well.rectTransform, null);
             _avatarPhotoRaw.enabled = false;
 
-            // Small 20x20 dark-obsidian circular level badge (#0E131A + 1.5 px white ring) overlapping bottom center rim
-            RectTransform levelBadge = Ui.Panel("Level", avatar, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f), new Vector2(0f, 1f), new Vector2(20f, 20f));
+            // Small 22x22 dark-obsidian circular level badge (#0E131A + 1.5 px white ring) overlapping bottom center rim
+            RectTransform levelBadge = Ui.Panel("Level", avatar, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f), new Vector2(0f, 1f), new Vector2(22f, 22f));
             Image levelRing = Ui.MakeImage("Ring", levelBadge, PaperWhite, round: true);
             Stretch(levelRing.rectTransform, Vector2.zero, Vector2.one);
             Image levelCore = Ui.MakeImage("Core", levelBadge, ObsidianSolid, round: true);
             Stretch(levelCore.rectTransform, Vector2.zero, Vector2.one);
             levelCore.rectTransform.offsetMin = new Vector2(1.5f, 1.5f);
             levelCore.rectTransform.offsetMax = new Vector2(-1.5f, -1.5f);
-            _levelText = Label("Text", levelCore.rectTransform, "9", 13, Color.white, TextAnchor.MiddleCenter, display: true, ink: false);
+            _levelText = Label("Text", levelCore.rectTransform, "9", 12, Color.white, TextAnchor.MiddleCenter, display: true, ink: false);
+            _levelText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _levelText.verticalOverflow = VerticalWrapMode.Overflow;
             Stretch(_levelText.rectTransform, Vector2.zero, Vector2.one);
 
             // Bare uppercase condensed IGN directly to the right (10 cpx gap) at 24 px cap-height matching L4 currencies; zero rank badge

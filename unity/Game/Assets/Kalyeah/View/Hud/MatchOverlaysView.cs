@@ -1700,7 +1700,7 @@ namespace Kalyeah.Game
             {
                 ui.CachedId = k.Id;
                 ui.CachedChar = k.CharacterId ?? "";
-                Sprite bustSp = KalyeahResources.KidBustSprite(ui.CachedChar);
+                Sprite bustSp = KalyeahResources.KidHeadSprite(ui.CachedChar) ?? KalyeahResources.KidBustSprite(ui.CachedChar);
                 if (bustSp != null)
                 {
                     ui.Bust.sprite = bustSp;

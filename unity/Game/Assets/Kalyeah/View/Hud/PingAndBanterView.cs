@@ -178,6 +178,8 @@ namespace Kalyeah.Game
         public readonly RectTransform BanterRoot;
 
         public TacticalPingKind DefaultTapPing { get; set; } = TacticalPingKind.Attack;
+        /// <summary>When true, an owning HUD (<see cref="MatchHud"/>) manages <see cref="PingButtonRect"/> and <see cref="BanterRoot"/> placement.</summary>
+        public bool ExternalLayoutManaged { get; set; }
         public bool IsWheelOpen => _wheelOpen;
         public bool IsBanterVisible => _banterVisible;
         public float CooldownRemaining => _cooldownRemaining;
@@ -429,42 +431,45 @@ namespace Kalyeah.Game
             float maxTopFree = safe.y * 0.25f;
             float pingTopOffset = Mathf.Min(TopOffsetCanvas, Mathf.Max(4f, maxTopFree - btnSize - 4f));
 
-            if (leftHanded)
+            if (!ExternalLayoutManaged)
             {
-                PingButtonRect.anchorMin = new Vector2(0f, 1f);
-                PingButtonRect.anchorMax = new Vector2(0f, 1f);
-                PingButtonRect.pivot = new Vector2(0f, 1f);
-                PingButtonRect.anchoredPosition = new Vector2(EdgeInsetCanvas, -pingTopOffset);
-            }
-            else
-            {
-                PingButtonRect.anchorMin = new Vector2(1f, 1f);
-                PingButtonRect.anchorMax = new Vector2(1f, 1f);
-                PingButtonRect.pivot = new Vector2(1f, 1f);
-                PingButtonRect.anchoredPosition = new Vector2(-EdgeInsetCanvas, -pingTopOffset);
-            }
-            PingButtonRect.sizeDelta = new Vector2(btnSize, btnSize);
+                if (leftHanded)
+                {
+                    PingButtonRect.anchorMin = new Vector2(0f, 1f);
+                    PingButtonRect.anchorMax = new Vector2(0f, 1f);
+                    PingButtonRect.pivot = new Vector2(0f, 1f);
+                    PingButtonRect.anchoredPosition = new Vector2(EdgeInsetCanvas, -pingTopOffset);
+                }
+                else
+                {
+                    PingButtonRect.anchorMin = new Vector2(1f, 1f);
+                    PingButtonRect.anchorMax = new Vector2(1f, 1f);
+                    PingButtonRect.pivot = new Vector2(1f, 1f);
+                    PingButtonRect.anchoredPosition = new Vector2(-EdgeInsetCanvas, -pingTopOffset);
+                }
+                PingButtonRect.sizeDelta = new Vector2(btnSize, btnSize);
 
-            // Banter strip sits on the opposite upper corner strictly ABOVE the 45%x50% center sightbox (top 25% of safeH)
-            float banterTopOffset = Mathf.Min(TopOffsetCanvas, Mathf.Max(4f, maxTopFree - BanterHeightCanvas - 8f));
-            float maxBanterW = Mathf.Max(220f, safe.x - btnSize - EdgeInsetCanvas * 3f - 16f);
-            float banterW = Mathf.Min(Mathf.Clamp(safe.x * 0.38f, 280f, 388f), maxBanterW);
+                // Banter strip sits on the opposite upper corner strictly ABOVE the 45%x50% center sightbox (top 25% of safeH)
+                float banterTopOffset = Mathf.Min(TopOffsetCanvas, Mathf.Max(4f, maxTopFree - BanterHeightCanvas - 8f));
+                float maxBanterW = Mathf.Max(220f, safe.x - btnSize - EdgeInsetCanvas * 3f - 16f);
+                float banterW = Mathf.Min(Mathf.Clamp(safe.x * 0.38f, 280f, 388f), maxBanterW);
 
-            if (leftHanded)
-            {
-                BanterRoot.anchorMin = new Vector2(1f, 1f);
-                BanterRoot.anchorMax = new Vector2(1f, 1f);
-                BanterRoot.pivot = new Vector2(1f, 1f);
-                BanterRoot.anchoredPosition = new Vector2(-EdgeInsetCanvas, -banterTopOffset);
+                if (leftHanded)
+                {
+                    BanterRoot.anchorMin = new Vector2(1f, 1f);
+                    BanterRoot.anchorMax = new Vector2(1f, 1f);
+                    BanterRoot.pivot = new Vector2(1f, 1f);
+                    BanterRoot.anchoredPosition = new Vector2(-EdgeInsetCanvas, -banterTopOffset);
+                }
+                else
+                {
+                    BanterRoot.anchorMin = new Vector2(0f, 1f);
+                    BanterRoot.anchorMax = new Vector2(0f, 1f);
+                    BanterRoot.pivot = new Vector2(0f, 1f);
+                    BanterRoot.anchoredPosition = new Vector2(EdgeInsetCanvas, -banterTopOffset);
+                }
+                BanterRoot.sizeDelta = new Vector2(banterW, BanterHeightCanvas);
             }
-            else
-            {
-                BanterRoot.anchorMin = new Vector2(0f, 1f);
-                BanterRoot.anchorMax = new Vector2(0f, 1f);
-                BanterRoot.pivot = new Vector2(0f, 1f);
-                BanterRoot.anchoredPosition = new Vector2(EdgeInsetCanvas, -banterTopOffset);
-            }
-            BanterRoot.sizeDelta = new Vector2(banterW, BanterHeightCanvas);
 
             PositionWheelInsideSafe(safe, btnSize, pingTopOffset, leftHanded);
         }

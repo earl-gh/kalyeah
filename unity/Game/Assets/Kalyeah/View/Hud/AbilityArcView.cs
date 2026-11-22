@@ -654,16 +654,18 @@ namespace Kalyeah.Game
                 bg.color = bgColor;
             }
 
+            // Attach ArcButtonHit FIRST so GetComponent<IPointerDownHandler/IPointerUpHandler/IDragHandler/ICancelHandler>()
+            // resolves the gameplay input handler before Selectable / UiPressSpring (while Unity ExecuteEvents still notifies all).
+            var hit = rect.gameObject.AddComponent<ArcButtonHit>();
+            hit.Owner = this;
+            hit.Role = role;
+
             // Base Selectable (not Button/Toggle/InputField) pairs with UiPressSpring for PlayMode press squash + lip dip
             Selectable springSelectable = rect.gameObject.AddComponent<Selectable>();
             springSelectable.transition = Selectable.Transition.None;
             springSelectable.navigation = new Navigation { mode = Navigation.Mode.None };
             springSelectable.targetGraphic = bg;
             UiPressSpring pressSpring = UiShaders.AttachPressSpring(springSelectable, 0.94f, 2.5f);
-
-            var hit = rect.gameObject.AddComponent<ArcButtonHit>();
-            hit.Owner = this;
-            hit.Role = role;
 
             Image halo = null;
             bool hasSoftGlowHalo = false;

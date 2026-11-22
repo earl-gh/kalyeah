@@ -34,7 +34,9 @@ namespace Kalyeah.Game
         static readonly Color TakenScrim = new Color(0.030f, 0.042f, 0.060f, 0.84f);
         static readonly Color WarnAmber = MenuArt.CoralGold;
         static readonly Color RoleMedallionBg = new Color(0.055f, 0.075f, 0.105f, 0.88f);
-        static readonly Rect FullUv = new Rect(0f, 0f, 1f, 1f);
+        // portraits/busts/*.png are 360x480 with transparent sky at y=0.79..1.00 and head+shoulders at y=0.42..0.82.
+        static readonly Rect PickHeadCropUv = new Rect(0.08f, 0.42f, 0.84f, 0.42f);
+        static readonly Rect SlotHeadCropUv = new Rect(0.18f, 0.40f, 0.64f, 0.44f);
 
         const float HeaderHeight = 96f;
         const float TeamBarHeight = 96f;
@@ -350,12 +352,14 @@ namespace Kalyeah.Game
 
             Texture2D bustTex = KalyeahResources.KidBust(id);
             RawImage bust = KidsScreenView.MakeRaw("Bust", fill.rectTransform, bustTex);
-            bust.uvRect = FullUv;
+            bust.uvRect = PickHeadCropUv;
             bust.enabled = bust.texture != null;
-            bust.rectTransform.pivot = new Vector2(0.5f, 1f);
+            bust.rectTransform.pivot = new Vector2(0.5f, 0.5f);
             var cover = bust.gameObject.AddComponent<AspectRatioFitter>();
             cover.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
-            cover.aspectRatio = bustTex != null && bustTex.height > 0 ? (float)bustTex.width / bustTex.height : 0.78f;
+            cover.aspectRatio = bustTex != null && bustTex.height > 0
+                ? ((float)bustTex.width * PickHeadCropUv.width) / ((float)bustTex.height * PickHeadCropUv.height)
+                : 1.50f;
 
             Image scrim = Ui.MakeImage("Fade", fill.rectTransform, Color.white);
             scrim.sprite = MenuArt.BottomScrim();
@@ -543,11 +547,11 @@ namespace Kalyeah.Game
                 KidsScreenView.Place(emptyIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(22f, 22f));
 
                 RawImage bust = KidsScreenView.MakeRaw("Bust", fill.rectTransform, null);
-                bust.uvRect = FullUv;
-                bust.rectTransform.pivot = new Vector2(0.5f, 1f);
+                bust.uvRect = SlotHeadCropUv;
+                bust.rectTransform.pivot = new Vector2(0.5f, 0.5f);
                 var cover = bust.gameObject.AddComponent<AspectRatioFitter>();
                 cover.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
-                cover.aspectRatio = 0.78f;
+                cover.aspectRatio = 1.09f;
 
                 if (i == 0)
                 {
@@ -792,7 +796,7 @@ namespace Kalyeah.Game
                 string id = i == 0 ? _selected : i - 1 < _takenOrder.Count ? _takenOrder[i - 1] : null;
                 Texture2D tex = id != null ? KalyeahResources.KidBust(id) : null;
                 _slots[i].Bust.texture = tex;
-                _slots[i].Bust.uvRect = FullUv;
+                _slots[i].Bust.uvRect = SlotHeadCropUv;
                 _slots[i].Bust.enabled = tex != null;
                 _slots[i].EmptyIcon.SetActive(tex == null);
                 _slots[i].Ring.color = i == 0 ? Vermilion : id != null ? Paper : TitaniumBorder;

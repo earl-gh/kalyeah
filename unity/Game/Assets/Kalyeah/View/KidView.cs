@@ -365,6 +365,16 @@ namespace Kalyeah.Game
         public int MaterialBlockApplyCount { get; private set; }
         public bool HasHeldTirador => _heldTirador != null;
         public bool IsHeldTiradorVisible => _heldTirador != null && _heldTirador.activeSelf;
+
+        /// <summary>Enables or hides the right-hand wooden Tirador (disabled in non-combat Street modes like Tumbang Preso).</summary>
+        public void SetTiradorEnabled(bool enabled)
+        {
+            _tiradorEnabled = enabled;
+            bool show = _tiradorEnabled && !_wasTagged && !_isPolymorphed;
+            _tiradorVisible = show;
+            if (_heldTirador != null)
+                _heldTirador.SetActive(show);
+        }
         /// <summary>Optional zero-GC hook invoked on grounded running footsteps, slide skids, hard stops, and jump landings.</summary>
         public Action<Vector3, float> OnDustPuff { get; set; }
 
@@ -484,6 +494,7 @@ namespace Kalyeah.Game
         bool _hiddenNearCamera;
         bool _kidRenderersVisible = true;
         bool _canRenderersVisible;
+        bool _tiradorEnabled = true;
         bool _tiradorVisible = true;
         bool _lastVisibleToCamera = true;
         float _lastCamDistance = 5f;
@@ -3724,7 +3735,7 @@ namespace Kalyeah.Game
                 SetRendererGroupEnabled(_canBaseRenderers, showCan);
                 SetRendererGroupEnabled(_canOutlineRenderers, showCan && showOutline);
             }
-            bool showTirador = showKid && !_wasTagged && !_isPolymorphed;
+            bool showTirador = _tiradorEnabled && showKid && !_wasTagged && !_isPolymorphed;
             if (_heldTirador != null && showTirador != _tiradorVisible)
             {
                 _tiradorVisible = showTirador;

@@ -59,7 +59,7 @@ namespace Kalyeah.Game
         const float TurnTowardUiDeg = -14f;
         const float StreetTurnDeg = -8f;
         const float PedestalRadius = 0.64f;
-        const float ContactShadowRadius = 0.56f;
+        const float ContactShadowRadius = 0.66f;
         const float OrbitDamping = 6.5f;
 
         public const int StudioTextureWidth = 768;
@@ -86,11 +86,11 @@ namespace Kalyeah.Game
         static readonly Color StreetAmbientSky = new Color(0.361f, 0.549f, 0.784f, 1f);      // #5C8CC8
         static readonly Color StreetAmbientEq = new Color(0.596f, 0.596f, 0.580f, 1f);       // #989894
         static readonly Color StreetAmbientGround = new Color(0.420f, 0.384f, 0.345f, 1f);   // #6B6258
-        static readonly Color ConcreteRoadColor = new Color(0.784f, 0.769f, 0.737f, 1f);     // #C8C4BC
+        static readonly Color ConcreteRoadColor = new Color(0.718f, 0.694f, 0.651f, 1f);     // #B7B1A6 sunlit warm Manila concrete
         static readonly Color ConcreteCurbColor = new Color(0.863f, 0.847f, 0.812f, 1f);     // #DCD8CF
         static readonly Color ConcreteWalkColor = new Color(0.831f, 0.812f, 0.776f, 1f);     // #D4CFC6
-        static readonly Color RoadLineColor = new Color(0.935f, 0.922f, 0.895f, 0.82f);
-        static readonly Color CastShadowColor = new Color(0.28f, 0.38f, 0.52f, 0.28f);
+        static readonly Color RoadLineColor = new Color(0.955f, 0.942f, 0.910f, 0.88f);
+        static readonly Color CastShadowColor = new Color(0.24f, 0.34f, 0.48f, 0.14f);
         static readonly Color PoleConcreteColor = new Color(0.675f, 0.663f, 0.635f, 1f);
         static readonly Color PoleArmColor = new Color(0.46f, 0.40f, 0.34f, 1f);
         static readonly Color CompoundWallColor = new Color(0.835f, 0.796f, 0.733f, 1f);
@@ -519,7 +519,7 @@ namespace Kalyeah.Game
             Material shadeMat = CreateTransparentUnlitMaterial("ManilaCastShadowMat", null, CastShadowColor);
             Material poleMat = CreateSunlitLitMaterial("ManilaPoleMat", PoleConcreteColor, 0.14f);
             Material armMat = CreateSunlitLitMaterial("ManilaPoleArmMat", PoleArmColor, 0.18f);
-            Material wallMat = CreateSunlitLitMaterial("ManilaCompoundWallMat", CompoundWallColor, 0.08f);
+            Material wallMat = GreyBoxKit.GetBarangayBuildingMaterial(1) ?? CreateSunlitLitMaterial("ManilaCompoundWallMat", CompoundWallColor, 0.08f);
 
             // Main concrete road plane (top strictly at Y = 0.0f)
             MakeBox("IntersectionGround", stageRoot.transform, new Vector3(0f, -0.10f, -6f), new Vector3(42f, 0.20f, 32f), 0f, roadMat);
@@ -532,11 +532,13 @@ namespace Kalyeah.Game
             MakeBox("CornerApron", stageRoot.transform, new Vector3(0f, 0.07f, -5.0f), new Vector3(6.4f, 0.14f, 5.2f), 0f, walkMat);
             MakeBox("CornerCurbFront", stageRoot.transform, new Vector3(0f, 0.075f, -2.42f), new Vector3(5.6f, 0.15f, 0.28f), 0f, curbMat);
 
-            // Clean sunlit road corner markings & soft 10:30 AM angled building cast-shadow bands on foreground street
+            // Clean sunlit road corner markings, subtle pedestrian crosswalk bars & soft 10:30 AM curb shadows
             if (lineMat != null)
             {
                 MakeBox("RoadStripeLeft", stageRoot.transform, new Vector3(-4.2f, 0.008f, -1.85f), new Vector3(6.5f, 0.006f, 0.09f), 11f, lineMat);
                 MakeBox("RoadStripeRight", stageRoot.transform, new Vector3(4.2f, 0.008f, -1.85f), new Vector3(6.5f, 0.006f, 0.09f), -11f, lineMat);
+                for (int c = -2; c <= 2; c++)
+                    MakeBox("CrosswalkBar_" + (c + 2), stageRoot.transform, new Vector3(c * 1.15f, 0.007f, -1.25f), new Vector3(0.46f, 0.005f, 1.35f), 0f, lineMat);
             }
             if (shadeMat != null)
             {

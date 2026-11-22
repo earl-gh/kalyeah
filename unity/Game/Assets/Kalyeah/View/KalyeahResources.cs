@@ -1087,6 +1087,8 @@ namespace Kalyeah.Game
             new Dictionary<string, Texture2D>(16, StringComparer.OrdinalIgnoreCase);
         static readonly Dictionary<string, Sprite> BustSpriteCache =
             new Dictionary<string, Sprite>(16, StringComparer.OrdinalIgnoreCase);
+        static readonly Dictionary<string, Sprite> HeadSpriteCache =
+            new Dictionary<string, Sprite>(16, StringComparer.OrdinalIgnoreCase);
         static RigJointLimitsData s_jointLimitsCache;
         static AnimClipMetricsData s_clipMetricsCache;
         static Material s_nullFallbackMaterial;
@@ -1496,6 +1498,30 @@ namespace Kalyeah.Game
             created.name = "KalyeahBust_" + clean;
             created.hideFlags = HideFlags.HideAndDontSave;
             BustSpriteCache[clean] = created;
+            return created;
+        }
+
+        /// <summary>
+        /// Returns a cached head-and-shoulders close-up <see cref="Sprite"/> cropped cleanly from <see cref="KidBust"/>
+        /// (strips top sky margin and lower body so 5v5 scoreboard wings and small medallions stay crisp and readable).
+        /// </summary>
+        public static Sprite KidHeadSprite(string kidId)
+        {
+            string clean = CleanKidId(kidId);
+            if (string.IsNullOrEmpty(clean)) return null;
+            if (HeadSpriteCache.TryGetValue(clean, out Sprite cached) && cached != null)
+                return cached;
+
+            Texture2D tex = KidBust(clean);
+            if (tex == null) return null;
+            float rx = Mathf.Floor(tex.width * 0.19f);
+            float ry = Mathf.Floor(tex.height * 0.40f);
+            float rw = Mathf.Max(1f, Mathf.Floor(tex.width * 0.62f));
+            float rh = Mathf.Max(1f, Mathf.Floor(tex.height * 0.42f));
+            Sprite created = Sprite.Create(tex, new Rect(rx, ry, rw, rh), new Vector2(0.5f, 0.5f), 100f);
+            created.name = "KalyeahHead_" + clean;
+            created.hideFlags = HideFlags.HideAndDontSave;
+            HeadSpriteCache[clean] = created;
             return created;
         }
 
