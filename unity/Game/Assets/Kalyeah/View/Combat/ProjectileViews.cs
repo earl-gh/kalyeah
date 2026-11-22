@@ -1157,7 +1157,7 @@ namespace Kalyeah.Game
         void OnWeaponCast(int casterId, string weaponId)
         {
             if (_boundBridge == null || string.IsNullOrEmpty(weaponId)) return;
-            Audio?.PlayWeaponCast(weaponId);
+            // Cast SFX is owned by MatchBoot.OnWeaponCast so each cast does not burn 2 pooled voices.
 
             KidSnapshot? caster = _boundBridge.Find(casterId);
             if (!caster.HasValue) return;

@@ -1,27 +1,81 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Audio;
 
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Zero-GC match and menu audio hub: 1 looped BGM AudioSource ("audio/bgm") plus 12 pooled 2D SFX AudioSources
-    /// ("audio/sfx/*"), matching scripts/view/sfx_view.gd, scripts/view/match_music.gd, and docs/ART.md ("Audio").
+    /// PlayMode update driver attached to <see cref="AudioHub.Root"/> so combat ducking ramps smoothly with zero GC
+    /// and without requiring external callers to pump <see cref="AudioHub.Tick"/>.
+    /// </summary>
+    internal sealed class AudioHubDriver : MonoBehaviour
+    {
+        AudioHub _hub;
+
+        internal void Bind(AudioHub hub) => _hub = hub;
+
+        void Update()
+        {
+            if (_hub != null)
+                _hub.Tick(Time.unscaledDeltaTime);
+        }
+
+        void OnDestroy()
+        {
+            _hub = null;
+        }
+    }
+
+    /// <summary>
+    /// Zero-GC match and menu audio hub: looped BGM ("audio/bgm"), procedural Philippine Barangay street ambience
+    /// ("amb_barangay_day"), a dedicated 2D priority confirm/UI/banter pool (never starved by distant bots), a 3D
+    /// spatial combat pool (logarithmic 4-38 m rolloff), software bus gains with -4 dB / 0.6 s combat ducking, and
+    /// optional <see cref="AudioMixer"/> group routing compatible with headless EditMode.
     /// View-only: reads sim/UI events and settings, never alters simulation state or RNG.
     /// </summary>
     public sealed class AudioHub : IDisposable
     {
-        public const int SfxPoolSize = 12;
+        public enum AudioBus
+        {
+            Bgm = 0,
+            Ambience = 1,
+            SfxCombat3D = 2,
+            SfxConfirm2D = 3,
+            Ui = 4,
+            Banter = 5,
+        }
+
+        public const int Priority2DPoolSize = 6;
+        public const int World3DPoolSize = 10;
+        public const int SfxPoolSize = Priority2DPoolSize + World3DPoolSize;
         public const float MinPitchJitter = 0.95f;
         public const float MaxPitchJitter = 1.05f;
+        public const float DefaultWorldPitchJitter = 0.05f;
         public const float DefaultBgmRulesShare = 0.4f;
         public const float DefaultSfxRulesShare = 0.8f;
         public const float EmptyCanPitch = 1.5f;
 
+        public const float WorldSfxMinDistance = 4f;
+        public const float WorldSfxMaxDistance = 38f;
+
+        public const float DuckAttenuationDb = -4f;
+        public const float DefaultDuckDurationSeconds = 0.60f;
+        public const float DuckAttackSeconds = 0.045f;
+        public const float DuckReleaseSeconds = 0.22f;
+        public const float AmbienceMixDb = -22f;
+
+        public static readonly float DuckTargetGain = Mathf.Pow(10f, DuckAttenuationDb / 20f);
+        public static readonly float AmbienceBaseGain = Mathf.Pow(10f, AmbienceMixDb / 20f);
+
+        public const string AmbienceDayCueId = "amb_barangay_day";
         const string BgmPrefix = "audio/";
         const string SfxPrefix = "audio/sfx/";
+        const string DefaultMixerResource = "audio/KalyeahMixer";
+        const int SynthSampleRate = 22050;
+        const int BusCount = 6;
 
-        // Exact 32 clips in assets/audio/sfx/*.mp3 synced by tools/unity_export/sync_assets.sh.
+        // Exact 32 clips in assets/audio/sfx/*.mp3 synced by tools/unity_export/sync_assets.py.
         static readonly string[] KnownSfxIds =
         {
             "bato_heavy_boom",
@@ -62,9 +116,9 @@ namespace Kalyeah.Game
         static readonly HashSet<string> MissingBgm = new HashSet<string>(StringComparer.Ordinal);
         static readonly Dictionary<string, AudioClip> SfxCache = new Dictionary<string, AudioClip>(40, StringComparer.Ordinal);
         static readonly HashSet<string> MissingSfx = new HashSet<string>(StringComparer.Ordinal);
-        static readonly Dictionary<string, AudioClip> SynthCache = new Dictionary<string, AudioClip>(12, StringComparer.Ordinal);
-
-        const int SynthSampleRate = 22050;
+        static readonly Dictionary<string, AudioClip> SynthCache = new Dictionary<string, AudioClip>(20, StringComparer.Ordinal);
+        static bool _defaultMixerChecked;
+        static AudioMixer _defaultMixer;
 
         static readonly string[] SynthCueIds =
         {
@@ -76,11 +130,25 @@ namespace Kalyeah.Game
             "trap_snap",
             "wall_break",
             "reveal_chime",
+            AmbienceDayCueId,
+            "footstep_concrete",
+            "footstep_water",
+            "slide_skid",
+            "land_thud",
+            "multitag_fanfare",
+            "ui_hover_tick",
+            "ui_play_confirm",
         };
+
+        public static IReadOnlyList<string> AllSynthCueIds => SynthCueIds;
 
         public GameObject Root { get; private set; }
         public AudioSource BgmSource => _bgmSource;
-        public int PooledSfxCount => _sfxSources.Length;
+        public AudioSource AmbienceSource => _ambienceSource;
+        public AudioMixer ActiveMixer => _mixer;
+        public int Priority2DPoolCount => _sfx2DSources.Length;
+        public int World3DPoolCount => _sfx3DSources.Length;
+        public int PooledSfxCount => _sfx2DSources.Length + _sfx3DSources.Length;
 
         public float MasterVolume { get; private set; } = 1f;
         public float BgmVolume { get; private set; } = 1f;
@@ -91,13 +159,36 @@ namespace Kalyeah.Game
         public bool SfxEnabled { get; private set; } = true;
 
         public float EffectiveBgmVolume => MusicEnabled ? Mathf.Clamp01(MasterVolume * BgmVolume * RulesBgmShare) : 0f;
+        public float AppliedBgmVolume => Mathf.Clamp01(EffectiveBgmVolume * _busGains[(int)AudioBus.Bgm] * _duckGain);
         public float EffectiveSfxVolume => SfxEnabled ? Mathf.Clamp01(MasterVolume * SfxVolume * RulesSfxShare) : 0f;
+        public float EffectiveAmbienceVolume => (MusicEnabled && SfxEnabled)
+            ? Mathf.Clamp01(MasterVolume * SfxVolume * AmbienceBaseGain)
+            : 0f;
+        public float AppliedAmbienceVolume => Mathf.Clamp01(EffectiveAmbienceVolume * _busGains[(int)AudioBus.Ambience] * _duckGain);
+
+        public float DuckGain => _duckGain;
+        public float DuckHoldRemaining => _duckHoldRemaining;
+        public bool IsDucking => _duckHoldRemaining > 0f || _duckGain < 0.999f;
         public bool IsBgmPlaying => _bgmSource != null && _bgmSource.isPlaying;
+        public bool IsAmbiencePlaying => _ambienceSource != null && _ambienceSource.isPlaying;
 
         readonly AudioSource _bgmSource;
-        readonly AudioSource[] _sfxSources = new AudioSource[SfxPoolSize];
-        int _nextVoice;
+        readonly AudioSource _ambienceSource;
+        readonly AudioSource[] _sfx2DSources = new AudioSource[Priority2DPoolSize];
+        readonly AudioSource[] _sfx3DSources = new AudioSource[World3DPoolSize];
+        readonly float[] _busGains = new float[BusCount];
+
+        AudioMixer _mixer;
+        AudioMixerGroup _confirmGroup;
+        AudioMixerGroup _uiGroup;
+        AudioMixerGroup _banterGroup;
+        int _next2DVoice;
+        int _next3DVoice;
         uint _rngState;
+        float _duckGain = 1f;
+        float _duckTargetGain = 1f;
+        float _duckHoldRemaining;
+        bool _ambienceDesired;
 
         public AudioHub(
             Transform parent = null,
@@ -107,32 +198,60 @@ namespace Kalyeah.Game
         {
             RulesBgmShare = Mathf.Clamp01(rulesBgmShare);
             RulesSfxShare = Mathf.Clamp01(rulesSfxShare);
+            for (int i = 0; i < BusCount; i++) _busGains[i] = 1f;
+
             _rngState = (uint)Environment.TickCount ^ 0x9E3779B9u;
             if (_rngState == 0u) _rngState = 0x6D2B79F5u;
 
             Root = new GameObject("AudioHub");
             if (parent != null) Root.transform.SetParent(parent, false);
+            AudioHubDriver driver = Root.AddComponent<AudioHubDriver>();
+            driver.Bind(this);
 
             var bgmObject = new GameObject("Bgm");
             bgmObject.transform.SetParent(Root.transform, false);
             _bgmSource = bgmObject.AddComponent<AudioSource>();
-            ConfigureSource(_bgmSource, loop: true, priority: 64);
-            _bgmSource.volume = EffectiveBgmVolume;
+            Configure2DSource(_bgmSource, loop: true, priority: 64);
+            _bgmSource.volume = AppliedBgmVolume;
 
-            for (int i = 0; i < SfxPoolSize; i++)
+            var ambObject = new GameObject("Ambience");
+            ambObject.transform.SetParent(Root.transform, false);
+            _ambienceSource = ambObject.AddComponent<AudioSource>();
+            Configure2DSource(_ambienceSource, loop: true, priority: 80);
+            _ambienceSource.volume = AppliedAmbienceVolume;
+
+            for (int i = 0; i < Priority2DPoolSize; i++)
             {
-                var voiceObject = new GameObject("SfxVoice" + i);
+                var voiceObject = new GameObject("Sfx2DVoice" + i);
                 voiceObject.transform.SetParent(Root.transform, false);
                 AudioSource voice = voiceObject.AddComponent<AudioSource>();
-                ConfigureSource(voice, loop: false, priority: 128);
+                Configure2DSource(voice, loop: false, priority: 96);
                 voice.volume = EffectiveSfxVolume;
-                _sfxSources[i] = voice;
+                _sfx2DSources[i] = voice;
             }
+
+            for (int i = 0; i < World3DPoolSize; i++)
+            {
+                var voiceObject = new GameObject("Sfx3DVoice" + i);
+                voiceObject.transform.SetParent(Root.transform, false);
+                AudioSource voice = voiceObject.AddComponent<AudioSource>();
+                Configure3DSource(voice, priority: 160);
+                voice.volume = EffectiveSfxVolume;
+                _sfx3DSources[i] = voice;
+            }
+
+            if (!_defaultMixerChecked)
+            {
+                _defaultMixerChecked = true;
+                _defaultMixer = Resources.Load<AudioMixer>(DefaultMixerResource);
+            }
+            if (_defaultMixer != null)
+                BindMixer(_defaultMixer);
 
             if (prewarm) Prewarm();
         }
 
-        static void ConfigureSource(AudioSource source, bool loop, int priority)
+        static void Configure2DSource(AudioSource source, bool loop, int priority)
         {
             source.playOnAwake = false;
             source.loop = loop;
@@ -141,7 +260,102 @@ namespace Kalyeah.Game
             source.priority = priority;
         }
 
-        /// <summary>Loads and caches bgm.mp3, all 32 sfx/*.mp3 clips, and synthesized combat feedback cues upfront so mid-round playback allocates 0 B.</summary>
+        static void Configure3DSource(AudioSource source, int priority)
+        {
+            source.playOnAwake = false;
+            source.loop = false;
+            source.spatialBlend = 1f;
+            source.rolloffMode = AudioRolloffMode.Logarithmic;
+            source.minDistance = WorldSfxMinDistance;
+            source.maxDistance = WorldSfxMaxDistance;
+            source.dopplerLevel = 0f;
+            source.spread = 0f;
+            source.priority = priority;
+        }
+
+        public AudioSource GetPriority2DVoice(int index)
+        {
+            return index >= 0 && index < _sfx2DSources.Length ? _sfx2DSources[index] : null;
+        }
+
+        public AudioSource GetWorld3DVoice(int index)
+        {
+            return index >= 0 && index < _sfx3DSources.Length ? _sfx3DSources[index] : null;
+        }
+
+        /// <summary>
+        /// Routes all pooled sources into matching groups of <paramref name="mixer"/> using Unity's public
+        /// <see cref="AudioMixer.FindMatchingGroups"/> API. Passing <c>null</c> cleanly returns to software bus gain mode.
+        /// </summary>
+        public void BindMixer(AudioMixer mixer)
+        {
+            _mixer = mixer;
+            if (mixer == null)
+            {
+                _confirmGroup = null;
+                _uiGroup = null;
+                _banterGroup = null;
+                if (_bgmSource != null) _bgmSource.outputAudioMixerGroup = null;
+                if (_ambienceSource != null) _ambienceSource.outputAudioMixerGroup = null;
+                for (int i = 0; i < _sfx2DSources.Length; i++)
+                {
+                    if (_sfx2DSources[i] != null) _sfx2DSources[i].outputAudioMixerGroup = null;
+                }
+                for (int i = 0; i < _sfx3DSources.Length; i++)
+                {
+                    if (_sfx3DSources[i] != null) _sfx3DSources[i].outputAudioMixerGroup = null;
+                }
+                return;
+            }
+
+            AudioMixerGroup bgmGroup = FindMixerGroup(mixer, "BGM", "Music");
+            AudioMixerGroup ambGroup = FindMixerGroup(mixer, "Ambience", "Ambient");
+            AudioMixerGroup combat3DGroup = FindMixerGroup(mixer, "SFX_Combat_3D", "SFX");
+            _confirmGroup = FindMixerGroup(mixer, "SFX_Confirm_2D", "SFX");
+            _uiGroup = FindMixerGroup(mixer, "UI", "SFX_Confirm_2D", "SFX");
+            _banterGroup = FindMixerGroup(mixer, "Banter", "SFX_Confirm_2D", "SFX");
+
+            if (_bgmSource != null) _bgmSource.outputAudioMixerGroup = bgmGroup;
+            if (_ambienceSource != null) _ambienceSource.outputAudioMixerGroup = ambGroup;
+            for (int i = 0; i < _sfx2DSources.Length; i++)
+            {
+                if (_sfx2DSources[i] != null) _sfx2DSources[i].outputAudioMixerGroup = _confirmGroup;
+            }
+            for (int i = 0; i < _sfx3DSources.Length; i++)
+            {
+                if (_sfx3DSources[i] != null) _sfx3DSources[i].outputAudioMixerGroup = combat3DGroup;
+            }
+
+            ApplyVolumes();
+        }
+
+        static AudioMixerGroup FindMixerGroup(AudioMixer mixer, params string[] candidates)
+        {
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                AudioMixerGroup[] found = mixer.FindMatchingGroups(candidates[i]);
+                if (found != null && found.Length > 0 && found[0] != null)
+                    return found[0];
+            }
+            return null;
+        }
+
+        /// <summary>Sets a software bus gain multiplier (0..1) without mutating user volume preferences.</summary>
+        public void SetBusGain(AudioBus bus, float gain01)
+        {
+            int idx = (int)bus;
+            if (idx < 0 || idx >= BusCount) return;
+            _busGains[idx] = Mathf.Clamp01(gain01);
+            ApplyVolumes();
+        }
+
+        public float GetBusGain(AudioBus bus)
+        {
+            int idx = (int)bus;
+            return idx >= 0 && idx < BusCount ? _busGains[idx] : 1f;
+        }
+
+        /// <summary>Loads and caches bgm.mp3, all 32 sfx/*.mp3 clips, and synthesized ambience/foley/feedback cues upfront so mid-round playback allocates 0 B.</summary>
         public void Prewarm()
         {
             LoadBgmClip("bgm");
@@ -214,6 +428,52 @@ namespace Kalyeah.Game
             ApplySfxVolumes();
         }
 
+        /// <summary>
+        /// Triggers smooth software combat ducking on BGM and Ambience (default -4 dB for 0.6 s) without mutating
+        /// user volume settings or AudioMixer slider parameters.
+        /// </summary>
+        public void TriggerDuck(float durationSeconds = DefaultDuckDurationSeconds, float attenuationDb = DuckAttenuationDb)
+        {
+            float clampedDb = Mathf.Min(0f, attenuationDb);
+            float target = Mathf.Clamp(Mathf.Pow(10f, clampedDb / 20f), 0.1f, 1f);
+            _duckTargetGain = Mathf.Min(_duckTargetGain, target);
+            _duckHoldRemaining = Mathf.Max(_duckHoldRemaining, Mathf.Max(0f, durationSeconds));
+        }
+
+        /// <summary>Advances smooth BGM and Ambience ducking attack/hold/release envelopes. Zero-GC when idle.</summary>
+        public void Tick(float deltaTime)
+        {
+            if (deltaTime <= 0f) return;
+            if (_duckHoldRemaining <= 0f && _duckGain >= 0.9999f)
+                return;
+
+            float remainingDt = deltaTime;
+            if (_duckHoldRemaining > 0f)
+            {
+                float holdStep = Mathf.Min(_duckHoldRemaining, remainingDt);
+                _duckHoldRemaining -= holdStep;
+                remainingDt -= holdStep;
+
+                float span = Mathf.Max(0.05f, 1f - _duckTargetGain);
+                float step = span * (holdStep / DuckAttackSeconds);
+                _duckGain = Mathf.MoveTowards(_duckGain, _duckTargetGain, Mathf.Max(0.001f, step));
+            }
+
+            if (_duckHoldRemaining <= 0f && remainingDt > 0f && _duckGain < 1f)
+            {
+                float span = Mathf.Max(0.05f, 1f - _duckTargetGain);
+                float step = span * (remainingDt / DuckReleaseSeconds);
+                _duckGain = Mathf.MoveTowards(_duckGain, 1f, Mathf.Max(0.001f, step));
+                if (_duckGain >= 0.9999f)
+                {
+                    _duckGain = 1f;
+                    _duckTargetGain = 1f;
+                }
+            }
+
+            ApplyBgmVolume();
+        }
+
         /// <summary>Starts or resumes looped match BGM ("audio/bgm" by default); silent no-op if clip is absent.</summary>
         public bool PlayBgm(string bgmId = "bgm", bool restart = false)
         {
@@ -225,16 +485,96 @@ namespace Kalyeah.Game
             _bgmSource.clip = clip;
             _bgmSource.loop = true;
             _bgmSource.pitch = 1f;
-            _bgmSource.volume = EffectiveBgmVolume;
+            _bgmSource.volume = AppliedBgmVolume;
             _bgmSource.mute = !MusicEnabled;
 
             if (restart || changed || !_bgmSource.isPlaying) _bgmSource.Play();
+
+            if (Application.isPlaying)
+                PlayAmbience(AmbienceDayCueId);
+
             return true;
         }
 
         public void StopBgm()
         {
             if (_bgmSource != null && _bgmSource.isPlaying) _bgmSource.Stop();
+            StopAmbience();
+        }
+
+        /// <summary>Starts the procedural Philippine Barangay ambient loop (-22 dB, PlayMode only, auto-muted when Sounds or Music are off).</summary>
+        public bool PlayAmbience(string ambienceId = AmbienceDayCueId, bool restart = false)
+        {
+            if (!Application.isPlaying || _ambienceSource == null || string.IsNullOrEmpty(ambienceId))
+                return false;
+
+            AudioClip clip = GetOrBuildSynthClip(ambienceId);
+            if (clip == null) return false;
+
+            _ambienceDesired = true;
+            bool changed = _ambienceSource.clip != clip;
+            _ambienceSource.clip = clip;
+            _ambienceSource.loop = true;
+            _ambienceSource.pitch = 1f;
+            ApplyAmbienceVolume();
+
+            if (MusicEnabled && SfxEnabled && (restart || changed || !_ambienceSource.isPlaying))
+                _ambienceSource.Play();
+            return true;
+        }
+
+        public void StopAmbience()
+        {
+            _ambienceDesired = false;
+            if (_ambienceSource != null && _ambienceSource.isPlaying)
+                _ambienceSource.Stop();
+        }
+
+        /// <summary>Plays a spatialized 3D combat/world SFX or procedural foley clip at <paramref name="worldPos"/> on the dedicated 3D pool.</summary>
+        public bool PlayWorldSfx(string clipId, Vector3 worldPos, float volume = 1f, float pitchJitter = DefaultWorldPitchJitter)
+        {
+            if (!SfxEnabled || string.IsNullOrEmpty(clipId)) return false;
+            AudioClip clip = ResolveAnyClip(clipId);
+            if (clip == null) return false;
+            return PlayWorldClip(clip, clipId, worldPos, volume, pitchScale: 1f, pitchJitter: pitchJitter);
+        }
+
+        /// <summary>Plays a weapon's cast SFX spatialized at <paramref name="worldPos"/> on the 3D combat pool.</summary>
+        public bool PlayWorldWeaponCast(string weaponId, Vector3 worldPos, float volume = 1f)
+        {
+            string clipId = ResolveWeaponCastClip(weaponId, out float pitchScale);
+            if (string.IsNullOrEmpty(clipId)) return false;
+            AudioClip clip = LoadSfxClip(clipId);
+            if (clip == null) return false;
+            return PlayWorldClip(clip, clipId, worldPos, volume, pitchScale, DefaultWorldPitchJitter);
+        }
+
+        /// <summary>Plays a weapon's deferred impact SFX spatialized at <paramref name="worldPos"/> on the 3D combat pool.</summary>
+        public bool PlayWorldWeaponImpact(string weaponId, Vector3 worldPos, float volume = 1f)
+        {
+            string clipId = ResolveWeaponImpactClip(weaponId);
+            if (string.IsNullOrEmpty(clipId)) return false;
+            AudioClip clip = LoadSfxClip(clipId);
+            if (clip == null) return false;
+            return PlayWorldClip(clip, clipId, worldPos, volume, pitchScale: 1f, DefaultWorldPitchJitter);
+        }
+
+        /// <summary>Plays concrete or estero puddle footstep foley spatialized at <paramref name="worldPos"/>.</summary>
+        public bool PlayFootstep(bool inWater, Vector3 worldPos, float volume = 0.72f)
+        {
+            return PlayWorldSfx(inWater ? "footstep_water" : "footstep_concrete", worldPos, volume, pitchJitter: 0.08f);
+        }
+
+        /// <summary>Plays rubber-on-asphalt tactical slide skid foley spatialized at <paramref name="worldPos"/>.</summary>
+        public bool PlaySlideSkid(Vector3 worldPos, float volume = 0.78f)
+        {
+            return PlayWorldSfx("slide_skid", worldPos, volume, pitchJitter: 0.06f);
+        }
+
+        /// <summary>Plays grounded jump-landing impact foley spatialized at <paramref name="worldPos"/>.</summary>
+        public bool PlayLandThud(Vector3 worldPos, float volume = 0.85f)
+        {
+            return PlayWorldSfx("land_thud", worldPos, volume, pitchJitter: 0.06f);
         }
 
         /// <summary>Plays a weapon's cast SFX using the owner's sound-audit mapping and speed adjustments.</summary>
@@ -247,28 +587,34 @@ namespace Kalyeah.Game
         /// <summary>Plays deferred visual-sync impact/snip/wall SFX (meteor boom, can poof, scissors snip, wall block).</summary>
         public bool PlayWeaponImpact(string weaponId)
         {
-            if (string.IsNullOrEmpty(weaponId)) return false;
+            string clipId = ResolveWeaponImpactClip(weaponId);
+            return !string.IsNullOrEmpty(clipId) && PlaySfx(clipId);
+        }
+
+        static string ResolveWeaponImpactClip(string weaponId)
+        {
+            if (string.IsNullOrEmpty(weaponId)) return null;
             switch (weaponId)
             {
                 case "bato_heavy":
                 case "ult_bagsak":
-                    return PlaySfx("bato_heavy_boom");
+                    return "bato_heavy_boom";
                 case "lata":
-                    return PlaySfx("lata_poof");
+                    return "lata_poof";
                 case "bola":
-                    return PlaySfx("bola_bounce");
+                    return "bola_bounce";
                 case "gunting_heavy":
-                    return PlaySfx("gunting_big_snip");
+                    return "gunting_big_snip";
                 case "gunting_light":
-                    return PlaySfx("gunting_light");
+                    return "gunting_light";
                 case "papel_shield":
-                    return PlaySfx("paper_block");
+                    return "paper_block";
                 case "papel_trap":
-                    return PlaySfx("trap_spring");
+                    return "trap_spring";
                 case "langit_lupa":
-                    return PlaySfx("soil_block");
+                    return "soil_block";
                 default:
-                    return false;
+                    return null;
             }
         }
 
@@ -277,13 +623,17 @@ namespace Kalyeah.Game
 
         public bool PlayHit(bool isTag, string weaponId)
         {
+            if (SfxEnabled && isTag) TriggerDuck();
             string clipId = ResolveHitClip(isTag, weaponId, out float pitchScale);
             return PlaySfx(clipId, pitchScale);
         }
 
-        /// <summary>Plays distinct tactile Valorant/CODM synthesized hit confirmation: crisp body tick, metallic headshot ding, or bold TAYA! tag sting.</summary>
+        /// <summary>Plays distinct tactile Valorant/CODM synthesized hit confirmation on the unstarvable 2D priority pool and ducks BGM on headshots/tags.</summary>
         public bool PlayHitConfirm(bool isHeadshot, bool isTag)
         {
+            if (SfxEnabled && (isHeadshot || isTag))
+                TriggerDuck();
+
             if (isTag)
             {
                 bool ding = isHeadshot && PlaySynthCue("headshot_ding", pitchScale: 1.04f, volumeScale: 0.78f, applyJitter: false);
@@ -293,6 +643,26 @@ namespace Kalyeah.Game
             if (isHeadshot)
                 return PlaySynthCue("headshot_ding", pitchScale: 1f, volumeScale: 0.96f, applyJitter: true);
             return PlaySynthCue("body_hit", pitchScale: 1f, volumeScale: 0.84f, applyJitter: true);
+        }
+
+        /// <summary>Plays multi-tag streak fanfare on the 2D priority pool and ducks BGM/Ambience cleanly.</summary>
+        public bool PlayMultiTagFanfare(int streakCount = 2)
+        {
+            if (SfxEnabled) TriggerDuck();
+            float lift = 1f + 0.04f * Mathf.Clamp(streakCount - 2, 0, 4);
+            return PlaySynthCue("multitag_fanfare", pitchScale: lift, volumeScale: 1f, applyJitter: false);
+        }
+
+        /// <summary>Ducks BGM/Ambience for Taglish banter callouts and optionally plays a 2D banter/ping cue.</summary>
+        public bool PlayBanter(string clipId = null, float volumeScale = 1f)
+        {
+            TriggerDuck();
+            if (!SfxEnabled) return false;
+            if (string.IsNullOrEmpty(clipId)) return true;
+
+            AudioClip clip = ResolveAnyClip(clipId);
+            if (clip == null) return true;
+            return Play2DClip(clip, clipId, pitchScale: 1f, volumeScale: volumeScale, applyJitter: false, AudioBus.Banter);
         }
 
         /// <summary>Plays crisp two-stage slingshot pouch reload clack.</summary>
@@ -310,54 +680,56 @@ namespace Kalyeah.Game
         /// <summary>Plays crisp sonar glass chime when a reveal triggers on or by the local player.</summary>
         public bool PlayRevealChime() => PlaySynthCue("reveal_chime", pitchScale: 1f, volumeScale: 0.86f, applyJitter: false);
 
-        /// <summary>Plays a cached procedurally-synthesized combat feedback cue with zero per-frame heap allocation.</summary>
+        /// <summary>Plays a subtle tactile hover micro-tick on the 2D UI pool.</summary>
+        public bool PlayUiHoverTick() => PlaySynthCueOnBus("ui_hover_tick", AudioBus.Ui, pitchScale: 1f, volumeScale: 0.72f, applyJitter: true);
+
+        /// <summary>Plays a decisive modern tactical PLAY / lock-in confirmation chime on the 2D UI pool.</summary>
+        public bool PlayUiPlayConfirm() => PlaySynthCueOnBus("ui_play_confirm", AudioBus.Ui, pitchScale: 1f, volumeScale: 0.96f, applyJitter: false);
+
+        /// <summary>Plays a cached procedurally-synthesized combat feedback cue on the 2D priority pool with zero per-frame heap allocation.</summary>
         public bool PlaySynthCue(string cueId, float pitchScale = 1f, float volumeScale = 1f, bool applyJitter = true)
         {
-            if (!SfxEnabled || string.IsNullOrEmpty(cueId)) return false;
-            float effectiveVol = EffectiveSfxVolume * Mathf.Clamp01(volumeScale);
-            if (effectiveVol <= 0.0001f) return false;
-
-            AudioClip clip = GetOrBuildSynthClip(cueId);
-            if (clip == null) return false;
-
-            AudioSource voice = AcquireVoice();
-            if (voice == null) return false;
-
-            float jitter = applyJitter ? SamplePitchJitter() : 1f;
-            voice.Stop();
-            voice.clip = clip;
-            voice.mute = false;
-            voice.volume = effectiveVol;
-            voice.pitch = Mathf.Clamp(pitchScale * jitter, 0.5f, 2.5f);
-            voice.Play();
-            return true;
+            return PlaySynthCueOnBus(cueId, AudioBus.SfxConfirm2D, pitchScale, volumeScale, applyJitter);
         }
 
-        /// <summary>Plays crisp UI card/button tap or cancel feedback on the SFX pool.</summary>
+        bool PlaySynthCueOnBus(string cueId, AudioBus bus, float pitchScale, float volumeScale, bool applyJitter)
+        {
+            if (!SfxEnabled || string.IsNullOrEmpty(cueId)) return false;
+            AudioClip clip = GetOrBuildSynthClip(cueId);
+            if (clip == null) return false;
+            return Play2DClip(clip, cueId, pitchScale, volumeScale, applyJitter, bus);
+        }
+
+        /// <summary>Plays crisp UI card/button tap or cancel feedback on the 2D UI pool.</summary>
         public bool PlayUiTap(bool isCancel = false)
         {
-            return PlaySfx(isCancel ? "card_cancel" : "card_pick", pitchScale: 1f, volumeScale: 1f);
+            return PlaySfxOnBus(isCancel ? "card_cancel" : "card_pick", AudioBus.Ui, pitchScale: 1f, volumeScale: 1f, applyJitter: true);
         }
 
         public bool PlayUiTap(string role)
         {
-            if (string.IsNullOrEmpty(role)) return PlaySfx("card_pick");
+            if (string.IsNullOrEmpty(role)) return PlaySfxOnBus("card_pick", AudioBus.Ui, 1f, 1f, true);
             switch (role)
             {
+                case "hover":
+                    return PlayUiHoverTick();
+                case "play":
+                case "lock_in":
+                    return PlayUiPlayConfirm();
                 case "cancel":
                 case "back":
                 case "deny":
-                    return PlaySfx("card_cancel");
+                    return PlaySfxOnBus("card_cancel", AudioBus.Ui, 1f, 1f, true);
                 case "ready":
                 case "confirm":
                 case "chime":
-                    return PlaySfx("card_ready");
+                    return PlaySfxOnBus("card_ready", AudioBus.Ui, 1f, 1f, true);
                 default:
-                    return PlaySfx("card_pick");
+                    return PlaySfxOnBus("card_pick", AudioBus.Ui, 1f, 1f, true);
             }
         }
 
-        /// <summary>Plays Agawang Base objective cues (base capture, rescue, merienda pickup, tag toast, match victory).</summary>
+        /// <summary>Plays Agawang Base objective cues (base capture, rescue, merienda pickup, tag toast, match victory) and ducks BGM on major beats.</summary>
         public bool PlayObjectiveEvent(string eventKind = "capture")
         {
             if (string.IsNullOrEmpty(eventKind)) return false;
@@ -367,6 +739,7 @@ namespace Kalyeah.Game
                 case "win":
                 case "match_won":
                 case "round_won":
+                    if (SfxEnabled) TriggerDuck(durationSeconds: 0.9f);
                     return PlaySfx("victory", pitchScale: 1f, volumeScale: 1f, applyJitter: false);
                 case "merienda":
                 case "heal":
@@ -374,6 +747,7 @@ namespace Kalyeah.Game
                     return PlaySfx("heal");
                 case "tag_in":
                 case "tagged":
+                    if (SfxEnabled) TriggerDuck();
                     // TagToast.SOUND_IN ("card_pick" at 1.25x speed).
                     return PlaySfx("card_pick", pitchScale: 1.25f);
                 case "tag_out":
@@ -385,8 +759,10 @@ namespace Kalyeah.Game
                 case "capture":
                 case "rescue":
                 case "rescued":
-                case "card_ready":
                 case "point":
+                    if (SfxEnabled) TriggerDuck();
+                    return PlaySfx("card_ready");
+                case "card_ready":
                 default:
                     return PlaySfx("card_ready");
             }
@@ -422,6 +798,7 @@ namespace Kalyeah.Game
                     return PlaySfx("card_ready");
                 case "tag":
                 case "taya":
+                    if (SfxEnabled) TriggerDuck();
                     return PlaySfx("tsinelas_hit_heavy");
                 case "trip":
                 case "tripped":
@@ -430,10 +807,12 @@ namespace Kalyeah.Game
                     return a || b;
                 case "victory":
                 case "win":
+                    if (SfxEnabled) TriggerDuck(durationSeconds: 0.9f);
                     return PlaySfx("victory", pitchScale: 1f, volumeScale: 1f, applyJitter: false);
                 case "point":
                 case "line_crossed":
                 default:
+                    if (SfxEnabled) TriggerDuck();
                     return PlaySfx("card_ready");
             }
         }
@@ -475,27 +854,62 @@ namespace Kalyeah.Game
         }
 
         /// <summary>
-        /// Plays `sfxId` ("assets/audio/sfx/&lt;sfxId&gt;.mp3") on the next free pooled voice (or reuses the oldest of the 12)
-        /// with 0.95..1.05 pitch jitter times the clip's owner-tuned base pitch.
+        /// Plays `sfxId` ("assets/audio/sfx/&lt;sfxId&gt;.mp3") on the 2D priority pool with 0.95..1.05 pitch jitter
+        /// times the clip's owner-tuned base pitch.
         /// </summary>
         public bool PlaySfx(string sfxId, float pitchScale = 1f, float volumeScale = 1f, bool applyJitter = true)
         {
-            if (!SfxEnabled || string.IsNullOrEmpty(sfxId)) return false;
-            float effectiveVol = EffectiveSfxVolume * Mathf.Clamp01(volumeScale);
-            if (effectiveVol <= 0.0001f) return false;
+            return PlaySfxOnBus(sfxId, AudioBus.SfxConfirm2D, pitchScale, volumeScale, applyJitter);
+        }
 
+        bool PlaySfxOnBus(string sfxId, AudioBus bus, float pitchScale, float volumeScale, bool applyJitter)
+        {
+            if (!SfxEnabled || string.IsNullOrEmpty(sfxId)) return false;
             AudioClip clip = LoadSfxClip(sfxId);
             if (clip == null) return false;
+            return Play2DClip(clip, sfxId, pitchScale, volumeScale, applyJitter, bus);
+        }
 
-            AudioSource voice = AcquireVoice();
+        bool Play2DClip(AudioClip clip, string clipId, float pitchScale, float volumeScale, bool applyJitter, AudioBus bus)
+        {
+            float effectiveVol = EffectiveSfxVolume * _busGains[(int)bus] * Mathf.Clamp01(volumeScale);
+            if (effectiveVol <= 0.0001f) return false;
+
+            AudioSource voice = Acquire2DVoice();
             if (voice == null) return false;
+
+            if (_mixer != null)
+            {
+                voice.outputAudioMixerGroup = bus == AudioBus.Ui
+                    ? _uiGroup
+                    : (bus == AudioBus.Banter ? _banterGroup : _confirmGroup);
+            }
 
             float jitter = applyJitter ? SamplePitchJitter() : 1f;
             voice.Stop();
             voice.clip = clip;
             voice.mute = false;
             voice.volume = effectiveVol;
-            voice.pitch = Mathf.Clamp(BaseClipPitch(sfxId) * pitchScale * jitter, 0.5f, 2.5f);
+            voice.pitch = Mathf.Clamp(BaseClipPitch(clipId) * pitchScale * jitter, 0.5f, 2.5f);
+            voice.Play();
+            return true;
+        }
+
+        bool PlayWorldClip(AudioClip clip, string clipId, Vector3 worldPos, float volume, float pitchScale, float pitchJitter)
+        {
+            float effectiveVol = EffectiveSfxVolume * _busGains[(int)AudioBus.SfxCombat3D] * Mathf.Clamp01(volume);
+            if (effectiveVol <= 0.0001f) return false;
+
+            AudioSource voice = Acquire3DVoice();
+            if (voice == null) return false;
+
+            float jitter = pitchJitter > 0f ? SamplePitchJitter(pitchJitter) : 1f;
+            voice.Stop();
+            voice.transform.position = worldPos;
+            voice.clip = clip;
+            voice.mute = false;
+            voice.volume = effectiveVol;
+            voice.pitch = Mathf.Clamp(BaseClipPitch(clipId) * pitchScale * jitter, 0.5f, 2.5f);
             voice.Play();
             return true;
         }
@@ -698,33 +1112,47 @@ namespace Kalyeah.Game
             }
         }
 
-        AudioSource AcquireVoice()
+        AudioSource Acquire2DVoice()
         {
-            for (int offset = 0; offset < SfxPoolSize; offset++)
+            return AcquireFromPool(_sfx2DSources, ref _next2DVoice);
+        }
+
+        AudioSource Acquire3DVoice()
+        {
+            return AcquireFromPool(_sfx3DSources, ref _next3DVoice);
+        }
+
+        static AudioSource AcquireFromPool(AudioSource[] pool, ref int cursor)
+        {
+            int count = pool.Length;
+            for (int offset = 0; offset < count; offset++)
             {
-                int idx = (_nextVoice + offset) % SfxPoolSize;
-                AudioSource candidate = _sfxSources[idx];
+                int idx = (cursor + offset) % count;
+                AudioSource candidate = pool[idx];
                 if (candidate != null && !candidate.isPlaying)
                 {
-                    _nextVoice = (idx + 1) % SfxPoolSize;
+                    cursor = (idx + 1) % count;
                     return candidate;
                 }
             }
-            AudioSource oldest = _sfxSources[_nextVoice];
-            _nextVoice = (_nextVoice + 1) % SfxPoolSize;
+            AudioSource oldest = pool[cursor];
+            cursor = (cursor + 1) % count;
             return oldest;
         }
 
-        float SamplePitchJitter()
+        float SamplePitchJitter() => SamplePitchJitter(0.5f * (MaxPitchJitter - MinPitchJitter));
+
+        float SamplePitchJitter(float halfRange)
         {
-            // Zero-GC xorshift32 PRNG strictly for view-only ear variety in [0.95, 1.05].
+            // Zero-GC xorshift32 PRNG strictly for view-only ear variety.
             uint x = _rngState;
             x ^= x << 13;
             x ^= x >> 17;
             x ^= x << 5;
             _rngState = x;
             float t = (x & 0x00FFFFFFu) * (1f / 16777215f);
-            return MinPitchJitter + (MaxPitchJitter - MinPitchJitter) * t;
+            float clamped = Mathf.Clamp(halfRange, 0f, 0.45f);
+            return (1f - clamped) + (2f * clamped * t);
         }
 
         void ApplyVolumes()
@@ -735,22 +1163,82 @@ namespace Kalyeah.Game
 
         void ApplyBgmVolume()
         {
-            if (_bgmSource == null) return;
-            _bgmSource.volume = EffectiveBgmVolume;
-            _bgmSource.mute = !MusicEnabled;
+            if (_bgmSource != null)
+            {
+                _bgmSource.volume = AppliedBgmVolume;
+                _bgmSource.mute = !MusicEnabled;
+            }
+            ApplyAmbienceVolume();
+            SyncMixerSliderParameter("MusicVol", EffectiveBgmVolume);
+        }
+
+        void ApplyAmbienceVolume()
+        {
+            if (_ambienceSource == null) return;
+            bool enabled = MusicEnabled && SfxEnabled;
+            _ambienceSource.volume = AppliedAmbienceVolume;
+            _ambienceSource.mute = !enabled;
+            if (!enabled)
+            {
+                if (_ambienceSource.isPlaying) _ambienceSource.Stop();
+            }
+            else if (_ambienceDesired && Application.isPlaying && _ambienceSource.clip != null && !_ambienceSource.isPlaying)
+            {
+                _ambienceSource.Play();
+            }
         }
 
         void ApplySfxVolumes()
         {
-            float vol = EffectiveSfxVolume;
-            for (int i = 0; i < _sfxSources.Length; i++)
+            float vol2D = EffectiveSfxVolume * _busGains[(int)AudioBus.SfxConfirm2D];
+            for (int i = 0; i < _sfx2DSources.Length; i++)
             {
-                AudioSource src = _sfxSources[i];
+                AudioSource src = _sfx2DSources[i];
                 if (src == null) continue;
-                src.volume = vol;
+                src.volume = vol2D;
                 src.mute = !SfxEnabled;
                 if (!SfxEnabled && src.isPlaying) src.Stop();
             }
+
+            float vol3D = EffectiveSfxVolume * _busGains[(int)AudioBus.SfxCombat3D];
+            for (int i = 0; i < _sfx3DSources.Length; i++)
+            {
+                AudioSource src = _sfx3DSources[i];
+                if (src == null) continue;
+                src.volume = vol3D;
+                src.mute = !SfxEnabled;
+                if (!SfxEnabled && src.isPlaying) src.Stop();
+            }
+
+            ApplyAmbienceVolume();
+            SyncMixerSliderParameter("SFXVol", EffectiveSfxVolume);
+        }
+
+        void SyncMixerSliderParameter(string paramName, float linear01)
+        {
+            if (_mixer == null) return;
+            // Only write exposed user-slider parameters; ducking never writes MusicVol so sliders and ducking coexist.
+            if (!_mixer.GetFloat(paramName, out _)) return;
+            float db = linear01 <= 0.0001f ? -80f : Mathf.Clamp(20f * Mathf.Log10(linear01), -80f, 0f);
+            _mixer.SetFloat(paramName, db);
+        }
+
+        static AudioClip ResolveAnyClip(string clipId)
+        {
+            if (IsKnownSynthCue(clipId))
+                return GetOrBuildSynthClip(clipId);
+            AudioClip asset = LoadSfxClip(clipId);
+            return asset != null ? asset : GetOrBuildSynthClip(clipId);
+        }
+
+        static bool IsKnownSynthCue(string cueId)
+        {
+            for (int i = 0; i < SynthCueIds.Length; i++)
+            {
+                if (string.Equals(SynthCueIds[i], cueId, StringComparison.Ordinal))
+                    return true;
+            }
+            return false;
         }
 
         static AudioClip LoadBgmClip(string bgmId)
@@ -783,6 +1271,8 @@ namespace Kalyeah.Game
             return loaded;
         }
 
+        public static AudioClip GetSynthClip(string cueId) => GetOrBuildSynthClip(cueId);
+
         static AudioClip GetOrBuildSynthClip(string cueId)
         {
             if (string.IsNullOrEmpty(cueId)) return null;
@@ -798,8 +1288,19 @@ namespace Kalyeah.Game
             return built;
         }
 
-        static AudioClip BuildSynthClip(string cueId)
+        /// <summary>Synthesizes deterministic mono PCM samples for any built-in procedural cue (22050 Hz).</summary>
+        public static bool TrySynthesizePcm(string cueId, out float[] pcm, out int sampleRate)
         {
+            pcm = null;
+            sampleRate = SynthSampleRate;
+            if (string.IsNullOrEmpty(cueId)) return false;
+
+            if (string.Equals(cueId, AmbienceDayCueId, StringComparison.Ordinal))
+            {
+                pcm = SynthesizeBarangayAmbience(SynthSampleRate);
+                return pcm != null && pcm.Length > 0;
+            }
+
             float duration;
             switch (cueId)
             {
@@ -811,21 +1312,39 @@ namespace Kalyeah.Game
                 case "trap_snap": duration = 0.115f; break;
                 case "wall_break": duration = 0.220f; break;
                 case "reveal_chime": duration = 0.230f; break;
-                default: return null;
+                case "footstep_concrete": duration = 0.085f; break;
+                case "footstep_water": duration = 0.130f; break;
+                case "slide_skid": duration = 0.260f; break;
+                case "land_thud": duration = 0.140f; break;
+                case "multitag_fanfare": duration = 0.520f; break;
+                case "ui_hover_tick": duration = 0.024f; break;
+                case "ui_play_confirm": duration = 0.195f; break;
+                default: return false;
             }
 
             int samples = Mathf.Max(64, Mathf.RoundToInt(duration * SynthSampleRate));
-            float[] pcm = new float[samples];
-            uint noise = 0x51A7F31Bu ^ (uint)cueId.Length * 0x9E3779B9u;
+            float actualDuration = (samples - 1) / (float)SynthSampleRate;
+            pcm = new float[samples];
+            uint noise = 0x51A7F31Bu ^ ((uint)cueId.Length * 0x9E3779B9u) ^ ((uint)cueId[0] * 0x85EBCA6Bu);
             const float twoPi = Mathf.PI * 2f;
+
+            // One-pole filter states for warm, band-shaped foley and crisp UI clicks.
+            float lpLow = 0f;
+            float lpMid = 0f;
 
             for (int i = 0; i < samples; i++)
             {
                 float t = i / (float)SynthSampleRate;
                 float u = i / (float)(samples - 1);
                 float n = NextSynthNoise(ref noise);
-                float attack = Mathf.Clamp01(t / 0.003f);
-                float tail = Mathf.Clamp01((duration - t) / 0.008f);
+                lpLow += 0.08f * (n - lpLow);
+                lpMid += 0.28f * (n - lpMid);
+                float bpMid = lpMid - lpLow;
+
+                float attackSec = cueId == "ui_hover_tick" ? 0.002f : 0.0035f;
+                float tailSec = cueId == "ui_hover_tick" ? 0.006f : 0.008f;
+                float attack = Mathf.Clamp01(t / attackSec);
+                float tail = Mathf.Clamp01((actualDuration - t) / tailSec);
                 float v = 0f;
 
                 switch (cueId)
@@ -907,14 +1426,174 @@ namespace Kalyeah.Game
                         v = ping1 + ping2;
                         break;
                     }
+                    case "footstep_concrete":
+                    {
+                        float heel = Mathf.Sin(twoPi * (155f - 85f * u) * t) * Mathf.Exp(-t * 54f) * 0.58f;
+                        float slap = Mathf.Sin(twoPi * 420f * t) * Mathf.Exp(-t * 82f) * 0.24f;
+                        float grit = bpMid * Mathf.Exp(-t * 72f) * 0.95f;
+                        v = heel + slap + grit;
+                        break;
+                    }
+                    case "footstep_water":
+                    {
+                        float dip = Mathf.Sin(twoPi * (215f - 95f * u) * t) * Mathf.Exp(-t * 36f) * 0.34f;
+                        float sprayEnv = Mathf.Clamp01(t / 0.014f) * Mathf.Exp(-t * 24f);
+                        float spray = (bpMid * 1.25f + lpMid * 0.35f) * sprayEnv;
+                        float t2 = t - 0.018f;
+                        float drop = t2 >= 0f
+                            ? Mathf.Sin(twoPi * (680f + 760f * Mathf.Clamp01(t2 / 0.065f)) * t2) * Mathf.Exp(-t2 * 44f) * 0.28f * Mathf.Clamp01(t2 / 0.004f)
+                            : 0f;
+                        v = dip + spray + drop;
+                        break;
+                    }
+                    case "slide_skid":
+                    {
+                        float env = Mathf.Clamp01(t / 0.025f) * Mathf.Exp(-t * 8.5f);
+                        float gritPulse = 0.78f + 0.22f * Mathf.Sin(twoPi * 38f * t);
+                        float scrape = Mathf.Sin(twoPi * (330f - 120f * u) * t) * 0.22f;
+                        float friction = (bpMid * 1.45f + lpLow * 0.65f) * gritPulse;
+                        v = (friction + scrape) * env;
+                        break;
+                    }
+                    case "land_thud":
+                    {
+                        float drop1 = Mathf.Sin(twoPi * (134f - 86f * u) * t) * Mathf.Exp(-t * 26f) * 0.72f;
+                        float t2 = t - 0.022f;
+                        float drop2 = t2 >= 0f
+                            ? Mathf.Sin(twoPi * (195f - 100f * Mathf.Clamp01(t2 / 0.09f)) * t2) * Mathf.Exp(-t2 * 46f) * 0.32f * Mathf.Clamp01(t2 / 0.004f)
+                            : 0f;
+                        float dust = lpLow * Mathf.Exp(-t * 38f) * 0.78f;
+                        v = drop1 + drop2 + dust;
+                        break;
+                    }
+                    case "multitag_fanfare":
+                    {
+                        float sub = Mathf.Sin(twoPi * 130.81f * t) * Mathf.Exp(-t * 9f) * 0.28f;
+                        float n1 = WarmBell(t, 0.000f, 523.25f, 11f, 0.36f);
+                        float n2 = WarmBell(t, 0.085f, 659.25f, 10f, 0.40f);
+                        float n3 = WarmBell(t, 0.170f, 783.99f, 7.5f, 0.46f);
+                        float shimmer = WarmBell(t, 0.195f, 1174.66f, 8.5f, 0.22f);
+                        v = sub + n1 + n2 + n3 + shimmer;
+                        break;
+                    }
+                    case "ui_hover_tick":
+                    {
+                        float body = Mathf.Sin(twoPi * (1680f - 440f * u) * t) * Mathf.Exp(-t * 185f) * 0.54f;
+                        float micro = bpMid * Mathf.Exp(-t * 230f) * 0.48f;
+                        v = body + micro;
+                        break;
+                    }
+                    case "ui_play_confirm":
+                    {
+                        float click = (Mathf.Sin(twoPi * 1540f * t) * 0.36f + bpMid * 0.35f) * Mathf.Exp(-t * 140f);
+                        float low = Mathf.Sin(twoPi * 246.94f * t) * Mathf.Exp(-t * 22f) * 0.36f;
+                        float tone1 = WarmBell(t, 0.000f, 493.88f, 17f, 0.34f);
+                        float tone2 = WarmBell(t, 0.048f, 739.99f, 12f, 0.46f);
+                        float air = WarmBell(t, 0.052f, 1479.98f, 16f, 0.16f);
+                        v = click + low + tone1 + tone2 + air;
+                        break;
+                    }
                 }
 
                 pcm[i] = Mathf.Clamp(v * attack * tail * 0.85f, -0.98f, 0.98f);
             }
 
+            return true;
+        }
+
+        static float WarmBell(float t, float startSec, float freqHz, float decay, float amp)
+        {
+            float dt = t - startSec;
+            if (dt < 0f) return 0f;
+            const float twoPi = Mathf.PI * 2f;
+            float env = Mathf.Clamp01(dt / 0.004f) * Mathf.Exp(-dt * decay);
+            float fund = Mathf.Sin(twoPi * freqHz * dt);
+            float h2 = Mathf.Sin(twoPi * freqHz * 2f * dt) * 0.28f * Mathf.Exp(-dt * 4f);
+            float h3 = Mathf.Sin(twoPi * freqHz * 3f * dt) * 0.10f * Mathf.Exp(-dt * 9f);
+            return (fund + h2 + h3) * env * amp;
+        }
+
+        /// <summary>
+        /// Synthesizes a 4.0 s seamless Philippine barangay sunlit ambience bed: gentle tropical breeze,
+        /// distant warm barrio air, and faint soft afternoon cicada shimmer with zero loop-boundary click.
+        /// </summary>
+        static float[] SynthesizeBarangayAmbience(int sampleRate)
+        {
+            const float duration = 4.0f;
+            int samples = sampleRate * 4;
+            int fade = sampleRate / 5; // 200 ms equal-power overlap for seamless circular breeze wrap.
+            int total = samples + fade;
+            float[] rawNoise = new float[total];
+
+            uint state = 0x4B414C59u; // Deterministic seed ("KALY").
+            float lpBreeze = 0f;
+            float lpWarm = 0f;
+            // Warm up filter state so sample 0 starts cleanly on the filtered manifold.
+            for (int w = 0; w < 512; w++)
+            {
+                float n = NextSynthNoise(ref state);
+                lpBreeze += 0.045f * (n - lpBreeze);
+                lpWarm += 0.012f * (n - lpWarm);
+            }
+
+            for (int i = 0; i < total; i++)
+            {
+                float n = NextSynthNoise(ref state);
+                lpBreeze += 0.045f * (n - lpBreeze);
+                lpWarm += 0.012f * (n - lpWarm);
+                rawNoise[i] = lpBreeze * 0.58f + lpWarm * 1.15f;
+            }
+
+            float[] pcm = new float[samples];
+            const float twoPi = Mathf.PI * 2f;
+            float invDuration = 1f / duration; // 0.25 Hz fundamental -> exact integer cycles wrap cleanly.
+
+            for (int i = 0; i < samples; i++)
+            {
+                float noiseBed;
+                if (i < fade)
+                {
+                    float w = 0.5f - 0.5f * Mathf.Cos(Mathf.PI * (i / (float)fade));
+                    noiseBed = rawNoise[i] * w + rawNoise[samples + i] * (1f - w);
+                }
+                else
+                {
+                    noiseBed = rawNoise[i];
+                }
+
+                float phase = (i / (float)samples) * twoPi;
+                float t = i / (float)sampleRate;
+
+                // Slow tropical breeze swell (1 cycle and 2 cycles per 4 s loop).
+                float breezeSwell = 0.72f + 0.20f * Mathf.Sin(phase) + 0.08f * Mathf.Sin(2f * phase + 1.1f);
+                float breeze = noiseBed * breezeSwell * 0.85f;
+
+                // Distant warm barrio air (exact integer multiples of 0.25 Hz).
+                float barrioAir = (Mathf.Sin(twoPi * 110f * t) * 0.032f
+                                 + Mathf.Sin(twoPi * 165f * t + 0.7f) * 0.018f)
+                                 * (0.80f + 0.20f * Mathf.Sin(phase + 0.4f));
+
+                // Faint soft tropical cicada shimmer (kuliglig; exact integer cycles of 0.25 Hz).
+                float cicadaEnv = (0.55f + 0.45f * Mathf.Sin(2f * phase))
+                                * (0.72f + 0.28f * Mathf.Sin(twoPi * (56f * invDuration) * t)); // 14 Hz gentle trill
+                float cicada = (Mathf.Sin(twoPi * 4150f * t) * 0.016f
+                              + Mathf.Sin(twoPi * 4480f * t + 0.9f) * 0.011f)
+                              * cicadaEnv;
+
+                pcm[i] = Mathf.Clamp(breeze + barrioAir + cicada, -0.95f, 0.95f);
+            }
+
+            return pcm;
+        }
+
+        static AudioClip BuildSynthClip(string cueId)
+        {
+            if (!TrySynthesizePcm(cueId, out float[] pcm, out int sampleRate) || pcm == null || pcm.Length == 0)
+                return null;
+
             try
             {
-                AudioClip clip = AudioClip.Create("KalyeahSynth_" + cueId, samples, 1, SynthSampleRate, false);
+                AudioClip clip = AudioClip.Create("KalyeahSynth_" + cueId, pcm.Length, 1, sampleRate, false);
                 if (clip != null)
                     clip.SetData(pcm, 0);
                 return clip;
@@ -938,9 +1617,14 @@ namespace Kalyeah.Game
         public void Dispose()
         {
             StopBgm();
-            for (int i = 0; i < _sfxSources.Length; i++)
+            StopAmbience();
+            for (int i = 0; i < _sfx2DSources.Length; i++)
             {
-                if (_sfxSources[i] != null && _sfxSources[i].isPlaying) _sfxSources[i].Stop();
+                if (_sfx2DSources[i] != null && _sfx2DSources[i].isPlaying) _sfx2DSources[i].Stop();
+            }
+            for (int i = 0; i < _sfx3DSources.Length; i++)
+            {
+                if (_sfx3DSources[i] != null && _sfx3DSources[i].isPlaying) _sfx3DSources[i].Stop();
             }
             if (Root != null)
             {
