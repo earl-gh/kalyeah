@@ -1133,6 +1133,8 @@ namespace Kalyeah.Game
         static readonly int CullModeId = Shader.PropertyToID("_CullMode");
         static readonly int SmoothnessId = Shader.PropertyToID("_Smoothness");
         static readonly int MetallicId = Shader.PropertyToID("_Metallic");
+        static readonly int GltfMetallicFactorId = Shader.PropertyToID("metallicFactor");
+        static readonly int GltfRoughnessFactorId = Shader.PropertyToID("roughnessFactor");
         static readonly int AmbientMinId = Shader.PropertyToID("_AmbientMin");
         static readonly int AmbientMaxId = Shader.PropertyToID("_AmbientMax");
         static readonly int EnemyHighlightId = Shader.PropertyToID("_EnemyHighlight");
@@ -1712,7 +1714,7 @@ namespace Kalyeah.Game
                 for (int i = 0; i < mats.Length; i++)
                 {
                     Material src = mats[i];
-                    if (src != null && !NeedsMaterialSanitize(src.shader)) continue;
+                    if (src != null && !NeedsMaterialSanitize(src.shader) && !NeedsMatteStylizeClamp(src)) continue;
                     Material fixedMat = GetOrCreateSanitizedMaterial(src);
                     if (fixedMat != null && !ReferenceEquals(fixedMat, src))
                     {
@@ -1722,6 +1724,40 @@ namespace Kalyeah.Game
                 }
                 if (changed) renderer.sharedMaterials = mats;
             }
+        }
+
+        const float MaxPropMetallic = 0.15f;
+        const float MinPropRoughness = 0.65f;
+        const float MaxPropSmoothness = 0.35f;
+
+        static bool NeedsMatteStylizeClamp(Material mat)
+        {
+            if (mat == null || mat.shader == null) return false;
+            string n = mat.shader.name;
+            if (!string.IsNullOrEmpty(n) && n.StartsWith("Kalyeah/", StringComparison.Ordinal))
+                return false;
+            if (mat.HasProperty(GltfMetallicFactorId) && mat.GetFloat(GltfMetallicFactorId) > MaxPropMetallic + 0.01f)
+                return true;
+            if (mat.HasProperty(GltfRoughnessFactorId) && mat.GetFloat(GltfRoughnessFactorId) < MinPropRoughness - 0.01f)
+                return true;
+            if (mat.HasProperty(MetallicId) && mat.GetFloat(MetallicId) > MaxPropMetallic + 0.01f)
+                return true;
+            if (mat.HasProperty(SmoothnessId) && mat.GetFloat(SmoothnessId) > MaxPropSmoothness + 0.01f)
+                return true;
+            return false;
+        }
+
+        static void ApplyMatteStylizeClamp(Material mat)
+        {
+            if (mat == null) return;
+            if (mat.HasProperty(GltfMetallicFactorId) && mat.GetFloat(GltfMetallicFactorId) > MaxPropMetallic)
+                mat.SetFloat(GltfMetallicFactorId, MaxPropMetallic);
+            if (mat.HasProperty(GltfRoughnessFactorId) && mat.GetFloat(GltfRoughnessFactorId) < MinPropRoughness)
+                mat.SetFloat(GltfRoughnessFactorId, MinPropRoughness);
+            if (mat.HasProperty(MetallicId) && mat.GetFloat(MetallicId) > MaxPropMetallic)
+                mat.SetFloat(MetallicId, MaxPropMetallic);
+            if (mat.HasProperty(SmoothnessId) && mat.GetFloat(SmoothnessId) > MaxPropSmoothness)
+                mat.SetFloat(SmoothnessId, MaxPropSmoothness);
         }
 
         static bool NeedsMaterialSanitize(Shader shader)
@@ -1758,14 +1794,19 @@ namespace Kalyeah.Game
             if (SanitizedMaterialCache.TryGetValue(src, out Material cached) && cached != null && !NeedsMaterialSanitize(cached.shader))
                 return cached;
 
-            Shader targetShader = ResolveValidPbrShader();
+            bool shaderNeedsSwap = NeedsMaterialSanitize(src.shader);
+            Shader targetShader = shaderNeedsSwap ? ResolveValidPbrShader() : src.shader;
             if (targetShader == null) return src;
 
             bool isGltfShaderGraph = targetShader.name != null && targetShader.name.StartsWith("Shader Graphs/glTF-", StringComparison.Ordinal);
-            Material replacement = isGltfShaderGraph ? new Material(src) { shader = targetShader } : new Material(targetShader);
-            replacement.name = src.name + "_URP";
+            Material replacement = (!shaderNeedsSwap || isGltfShaderGraph)
+                ? new Material(src) { shader = targetShader }
+                : new Material(targetShader);
+            replacement.name = shaderNeedsSwap ? src.name + "_URP" : src.name + "_Matte";
             replacement.hideFlags = HideFlags.DontSave;
-            CopyPbrProperties(src, replacement);
+            if (shaderNeedsSwap)
+                CopyPbrProperties(src, replacement);
+            ApplyMatteStylizeClamp(replacement);
             SanitizedMaterialCache[src] = replacement;
             return replacement;
         }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Reflection;
 using Kalyeah.Sim;
 using UnityEngine;
 using UnityEngine.UI;
@@ -26,7 +25,6 @@ namespace Kalyeah.Game
         static readonly Color ScoreAllyDefault = new Color(41f / 255f, 182f / 255f, 246f / 255f, 1f); // #29B6F6
         static readonly Color ScoreEnemyDefault = MenuArt.SignalVermilion; // #FF4655
         static readonly string[] PrebuiltScores = BuildScoreTable(30);
-        static readonly Func<SimBridge, BarangayNeutrals> ReadSimNeutrals = BuildNeutralsReader();
 
         const float BanterTagCooldownSeconds = 8.0f;
         const float BanterRescueCooldownSeconds = 6.0f;
@@ -97,25 +95,6 @@ namespace Kalyeah.Game
             for (int i = 0; i < count; i++)
                 table[i] = i.ToString(CultureInfo.InvariantCulture);
             return table;
-        }
-
-        static Func<SimBridge, BarangayNeutrals> BuildNeutralsReader()
-        {
-            PropertyInfo prop = typeof(SimBridge).GetProperty("Neutrals", BindingFlags.Instance | BindingFlags.Public);
-            if (prop != null && prop.PropertyType == typeof(BarangayNeutrals) && prop.GetMethod != null)
-            {
-                try
-                {
-                    return (Func<SimBridge, BarangayNeutrals>)Delegate.CreateDelegate(
-                        typeof(Func<SimBridge, BarangayNeutrals>),
-                        prop.GetMethod);
-                }
-                catch (Exception)
-                {
-                    return null;
-                }
-            }
-            return null;
         }
 
         public MatchHud(Transform parent, Camera camera, bool interactive)
@@ -515,8 +494,7 @@ namespace Kalyeah.Game
                 if (showMapChrome)
                 {
                     SyncMapToggleVisual();
-                    BarangayNeutrals neutrals = ReadSimNeutrals != null ? ReadSimNeutrals(sim) : null;
-                    Minimap.Refresh(sim, camYaw, neutrals);
+                    Minimap.Refresh(sim, camYaw, sim != null ? sim.Neutrals : null);
                 }
             }
         }

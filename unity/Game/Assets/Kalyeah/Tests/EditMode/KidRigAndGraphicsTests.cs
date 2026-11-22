@@ -76,7 +76,7 @@ namespace Kalyeah.Game
             Assert.AreEqual(1, med.QualityIndex);
             Assert.AreEqual("Medium", med.Name);
             Assert.AreEqual(60, med.MaxFpsCap);
-            Assert.AreEqual(0.95f, med.RenderScale, 0.0001f);
+            Assert.AreEqual(1.00f, med.RenderScale, 0.0001f);
             Assert.AreEqual(1, med.MsaaSamples);
             Assert.IsTrue(med.RealTimeShadows);
             Assert.IsTrue(med.SoftShadows);
