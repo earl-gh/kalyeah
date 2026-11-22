@@ -58,6 +58,7 @@ namespace Kalyeah.Game
             public KidsScreenView Owner;
             void OnRectTransformDimensionsChange() => Owner?.RefreshLayout();
             void Update() => Owner?.Tick(Time.unscaledDeltaTime);
+            void OnDestroy() => Owner?.ReleaseOwnedMaterials();
         }
 
         sealed class Card
@@ -178,7 +179,6 @@ namespace Kalyeah.Game
 
             BuildGrid();
             BuildPage();
-            Root.gameObject.AddComponent<KidsLifecycle>().Owner = this;
             ShowGrid();
         }
 
@@ -1184,12 +1184,6 @@ namespace Kalyeah.Game
         {
             if (string.IsNullOrWhiteSpace(raw)) return "tirador";
             return raw.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
-        }
-
-        sealed class KidsLifecycle : MonoBehaviour
-        {
-            [NonSerialized] public KidsScreenView Owner;
-            void OnDestroy() => Owner?.ReleaseOwnedMaterials();
         }
 
         static bool IsOwnedMaterial(Material mat) =>
