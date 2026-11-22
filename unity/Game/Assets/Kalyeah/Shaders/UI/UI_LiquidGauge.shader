@@ -163,7 +163,8 @@ Shader "Kalyeah/UI_LiquidGauge"
                 // Luminous leading meniscus edge highlight.
                 float distToMeniscus = abs(uv.x - fillEdge);
                 float hasMeniscus = step(0.015, fill) * step(fill, 0.992);
-                half meniscus = (half)(exp(-pow(distToMeniscus / max(pxX * 3.2, 0.008), 2.0)) * hasMeniscus) * _MeniscusGlow;
+                float dMen = distToMeniscus / max(pxX * 3.2, 0.008);
+                half meniscus = (half)(exp(-(dMen * dMen)) * hasMeniscus) * _MeniscusGlow;
                 barRgb = saturate(barRgb + half3(0.45h, 0.48h, 0.52h) * meniscus);
 
                 // Composite track -> amber delayed drain trail -> live fill.

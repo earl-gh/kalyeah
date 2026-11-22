@@ -111,8 +111,8 @@ Shader "Kalyeah/UI_SoftGlow"
 
                 float2 centered = input.uv * 2.0 - 1.0;
                 float r = length(centered);
-                float falloff = pow(saturate(1.0 - r), max(_Softness, 1.0));
-                float core = pow(saturate(1.0 - r * 1.45), max(_Softness * 1.35, 1.5)) * 0.45;
+                float falloff = pow(max(saturate(1.0 - r), 1e-5), max(_Softness, 1.0)) * step(r, 0.999);
+                float core = pow(max(saturate(1.0 - r * 1.45), 1e-5), max(_Softness * 1.35, 1.5)) * step(r * 1.45, 0.999) * 0.45;
                 float edgeClamp = 1.0 - smoothstep(0.88, 1.0, r);
 
                 float pulse = (_PulseSpeed > 0.001 && _ReduceMotion < 0.5)

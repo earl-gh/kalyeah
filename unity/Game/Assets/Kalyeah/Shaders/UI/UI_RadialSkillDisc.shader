@@ -182,7 +182,8 @@ Shader "Kalyeah/UI_RadialSkillDisc"
                 // Soft outer Ult-ready halo breathing on rim.
                 if (_UltPulse > 0.01h)
                 {
-                    float haloRing = exp(-pow((r - 0.89) / 0.11, 2.0));
+                    float dHalo = (r - 0.89) / 0.11;
+                    float haloRing = exp(-(dHalo * dHalo));
                     colRgb = saturate(colRgb + _RimColor.rgb * (half)haloRing * ultBoost * 0.42h);
                 }
 

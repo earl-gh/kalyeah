@@ -191,39 +191,30 @@ namespace Kalyeah.Game.Editor
         static void EnsureFolderTexturesAreSprites(string folder)
         {
             string[] texGuids = AssetDatabase.FindAssets("t:Texture2D", new[] { folder });
-            var reimportPaths = new List<string>();
+            var dirtyPaths = new List<string>();
             for (int i = 0; i < texGuids.Length; i++)
             {
                 string path = AssetDatabase.GUIDToAssetPath(texGuids[i]);
                 if (!IsValidProjectSpritePath(path)) continue;
                 TextureImporter ti = AssetImporter.GetAtPath(path) as TextureImporter;
                 if (ti == null) continue;
-
-                bool dirty = false;
-                if (ti.textureType != TextureImporterType.Sprite)
-                {
-                    ti.textureType = TextureImporterType.Sprite;
-                    ti.spriteImportMode = SpriteImportMode.Single;
-                    dirty = true;
-                }
-                if (ti.mipmapEnabled)
-                {
-                    ti.mipmapEnabled = false;
-                    dirty = true;
-                }
-                if (dirty)
-                    reimportPaths.Add(path);
+                if (ti.textureType != TextureImporterType.Sprite || ti.mipmapEnabled)
+                    dirtyPaths.Add(path);
             }
 
-            if (reimportPaths.Count == 0) return;
+            if (dirtyPaths.Count == 0) return;
 
             AssetDatabase.StartAssetEditing();
             try
             {
-                for (int i = 0; i < reimportPaths.Count; i++)
+                for (int i = 0; i < dirtyPaths.Count; i++)
                 {
-                    TextureImporter ti = AssetImporter.GetAtPath(reimportPaths[i]) as TextureImporter;
-                    ti?.SaveAndReimport();
+                    TextureImporter ti = AssetImporter.GetAtPath(dirtyPaths[i]) as TextureImporter;
+                    if (ti == null) continue;
+                    ti.textureType = TextureImporterType.Sprite;
+                    ti.spriteImportMode = SpriteImportMode.Single;
+                    ti.mipmapEnabled = false;
+                    ti.SaveAndReimport();
                 }
             }
             finally

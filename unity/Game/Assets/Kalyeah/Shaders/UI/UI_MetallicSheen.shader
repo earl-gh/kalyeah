@@ -160,7 +160,7 @@ Shader "Kalyeah/UI_MetallicSheen"
                 half baseAlpha = lerp(_BaseBottom.a, _BaseTop.a, (half)faceT);
 
                 // Subtle lateral curvature shading + crisp grounded bottom press-lip.
-                half shoulder = 1.0h - 0.06h * pow(abs((half)input.uv.x * 2.0h - 1.0h), 2.2h);
+                half shoulder = 1.0h - 0.06h * pow(max(abs((half)input.uv.x * 2.0h - 1.0h), 1e-4h), 2.2h);
                 faceRgb *= shoulder;
                 half inLip = 1.0h - (half)smoothstep(lipPx - 0.7, lipPx + 0.7, pos.y);
                 faceRgb = lerp(faceRgb, _BaseBottom.rgb * 0.68h, inLip);
@@ -175,7 +175,8 @@ Shader "Kalyeah/UI_MetallicSheen"
                 float sheenStrength = 0.0;
                 if (_ReduceMotion > 0.5)
                 {
-                    float staticBand = exp(-pow((diag - 0.32) / (width * 1.15), 2.0)) * 0.30;
+                    float dStatic = (diag - 0.32) / (width * 1.15);
+                    float staticBand = exp(-(dStatic * dStatic)) * 0.30;
                     sheenStrength = staticBand;
                 }
                 else
@@ -183,8 +184,10 @@ Shader "Kalyeah/UI_MetallicSheen"
                     float cycle = fmod(_Time.y * max(_SheenSpeed, 0.05), 3.4);
                     float sweepCenter = lerp(-0.45, 1.55, saturate(cycle / 1.05));
                     float activeSweep = step(cycle, 1.10);
-                    float mainBand = exp(-pow((diag - sweepCenter) / width, 2.0));
-                    float twinBand = exp(-pow((diag - (sweepCenter - width * 1.45)) / (width * 0.32), 2.0)) * 0.55;
+                    float dMain = (diag - sweepCenter) / width;
+                    float dTwin = (diag - (sweepCenter - width * 1.45)) / (width * 0.32);
+                    float mainBand = exp(-(dMain * dMain));
+                    float twinBand = exp(-(dTwin * dTwin)) * 0.55;
                     sheenStrength = (mainBand + twinBand) * activeSweep;
                 }
                 faceRgb = lerp(faceRgb, _SheenColor.rgb, saturate((half)sheenStrength * _SheenColor.a));
