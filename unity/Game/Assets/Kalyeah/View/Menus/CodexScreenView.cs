@@ -1,14 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Tabbed Komiks Almanac screen (Kids 2x5 roster grid, Weapons &amp; Kit 16 cards incl. Tirador &amp; Bagsak,
-    /// and Larong Kalye 12-month Filipino street-game heritage book read from Data/rules__larong_kalye).
+    /// Option A1 Editorial Barangay Almanac screen:
+    /// 12 Kids (4 Puroks, 6 symmetric Rival pairs, Ate Lorna's sari-sari profiles &amp; clean busts),
+    /// 36 live <c>docs/KITS.md</c> Spec Skills (read from <c>characters__*.json</c> with A2 frosted-titanium discs &amp; <see cref="MenuArt.SkillEmblem"/> icons),
+    /// and the 12-Month Larong Kalye Filipino street-game heritage book (<c>rules__larong_kalye</c>).
     /// </summary>
     public sealed class CodexScreenView : IDisposable
     {
@@ -16,21 +19,21 @@ namespace Kalyeah.Game
         public const int TabWeapons = 1;
         public const int TabLarongKalye = 2;
 
-        static readonly Color BackdropSolid = new Color(0.02f, 0.035f, 0.07f, 1f);
-        static readonly Color BackdropWash = new Color(0.02f, 0.035f, 0.07f, 0.72f);
-        static readonly Color CardTop = new Color(0.100f, 0.152f, 0.242f, 0.92f);
-        static readonly Color CardBottom = new Color(0.052f, 0.086f, 0.152f, 0.96f);
-        static readonly Color FairTop = new Color(0.10f, 0.34f, 0.28f, 0.94f);
-        static readonly Color FairBottom = new Color(0.05f, 0.19f, 0.17f, 0.97f);
-        static readonly Color FairBorder = new Color(0.24f, 0.82f, 0.56f, 0.45f);
-        static readonly Color GoalTop = new Color(0.13f, 0.20f, 0.34f, 0.94f);
-        static readonly Color GoalBottom = new Color(0.07f, 0.11f, 0.21f, 0.97f);
-        static readonly Color DividerColor = new Color(0.76f, 0.88f, 0.96f, 0.14f);
-        static readonly Color Gold = MenuArt.Gold;
-        static readonly Color Coral = new Color(0.96f, 0.38f, 0.26f, 1f);
-        static readonly Color Teal = MenuArt.GoldLight;
+        static readonly Color BackdropSolid = new Color(0.035f, 0.047f, 0.066f, 1f);
+        static readonly Color BackdropWash = new Color(0.055f, 0.075f, 0.102f, 0.80f);
+        static readonly Color ObsidianPanel = MenuArt.ObsidianGlass;
+        static readonly Color ObsidianDeep = MenuArt.ObsidianSolid;
+        static readonly Color ObsidianCard = new Color(0.078f, 0.104f, 0.142f, 0.88f);
+        static readonly Color Paper = MenuArt.PaperWhite;
+        static readonly Color Vermilion = MenuArt.SignalVermilion;
+        static readonly Color TitaniumBorder = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.24f);
+        static readonly Color TitaniumBorderStrong = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.42f);
+        static readonly Color HairlineColor = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.20f);
+        static readonly Color CoralGold = MenuArt.CoralGold;
+        static readonly Color WaterCyan = MenuArt.WaterCyan;
         static readonly Color Muted = MenuArt.MutedText;
         static readonly Color Ink = MenuArt.Ink;
+        static readonly Rect FullUv = new Rect(0f, 0f, 1f, 1f);
 
         static readonly string[] MonthNamesEn =
         {
@@ -43,25 +46,39 @@ namespace Kalyeah.Game
             public string Id;
             public string Name;
             public string Description;
-            public Color Accent;
+            public string Role;
+            public string PurokName;
+            public string PurokLandmark;
+            public string RivalName;
+            public string FriendsLine;
+            public string Personality;
+            public string HomeAndFamily;
+            public string DreamJob;
+            public string AteLornaSummary;
+            public readonly List<SkillEntry> Skills = new List<SkillEntry>(3);
         }
 
-        sealed class WeaponEntry
+        sealed class SkillEntry
         {
             public string Id;
+            public string KidId;
+            public string KidName;
+            public string RoleName;
+            public string PurokName;
+            public string Slot;
             public string Name;
             public string ShortName;
             public string Description;
             public string StreetGame;
-            public string RoleLabel;
-            public Color RoleColor;
+            public int WaterCost;
+            public float Cooldown;
+            public int MaxCharges;
             public int Damage;
             public int Heal;
-            public int ElixirCost;
-            public float Cooldown;
+            public int WallHp;
             public float Range;
             public float Radius;
-            public bool IsPrimary;
+            public float Duration;
             public bool IsUltimate;
         }
 
@@ -80,6 +97,15 @@ namespace Kalyeah.Game
             public string[] How;
             public string[] Rules;
             public string Safety;
+        }
+
+        sealed class MiniSkillBadgeUi
+        {
+            public Image DiscBg;
+            public Material DiscMat;
+            public Image Emblem;
+            public Text NameLabel;
+            public Text CostLabel;
         }
 
         [ExecuteAlways]
@@ -135,21 +161,23 @@ namespace Kalyeah.Game
         readonly SafeArea _safeArea;
         readonly RectTransform _shell;
 
-        readonly List<KidEntry> _kids = new List<KidEntry>(10);
-        readonly List<WeaponEntry> _weapons = new List<WeaponEntry>(16);
+        readonly List<KidEntry> _kids = new List<KidEntry>(12);
+        readonly List<SkillEntry> _skills = new List<SkillEntry>(36);
         readonly List<HeritageEntry> _heritage = new List<HeritageEntry>(12);
         readonly Dictionary<string, string> _streetBlurbs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         readonly RectTransform[] _tabPanes = new RectTransform[3];
         readonly Image[] _tabPillBgs = new Image[3];
+        readonly Image[] _tabUnderlines = new Image[3];
         readonly Text[] _tabPillLabels = new Text[3];
         readonly LayoutElement[] _tabPillLayouts = new LayoutElement[3];
 
         readonly List<GameObject> _kidCardOutlines = new List<GameObject>(12);
-        readonly List<GameObject> _weaponCardOutlines = new List<GameObject>(16);
+        readonly List<GameObject> _skillCardOutlines = new List<GameObject>(36);
         readonly List<Image> _monthButtonBgs = new List<Image>(12);
         readonly List<Text> _monthButtonLabels = new List<Text>(12);
         readonly List<LayoutElement> _monthButtonLayouts = new List<LayoutElement>(12);
+        readonly MiniSkillBadgeUi[] _kidInspectorSkills = new MiniSkillBadgeUi[3];
 
         RectTransform _headerRect;
         RectTransform _backBtnRect;
@@ -158,7 +186,9 @@ namespace Kalyeah.Game
         RectTransform _tabsRowRect;
         HorizontalLayoutGroup _tabsRowLayout;
         GridCellAutoSizer _kidsGridSizer;
-        GridCellAutoSizer _weaponsGridSizer;
+        GridCellAutoSizer _skillsGridSizer;
+        ScrollRect _kidBioScroll;
+        ScrollRect _skillInspectorScroll;
         ScrollRect _heritageScroll;
 
         Text _headerTitle;
@@ -166,33 +196,36 @@ namespace Kalyeah.Game
 
         // Kids inspector
         RawImage _kidPortrait;
-        Image _kidPortraitFallback;
         Text _kidNameText;
-        Text _kidBadgeText;
+        Text _kidMetaBadgeText;
+        Text _kidRivalText;
         Text _kidBioText;
 
-        // Weapons inspector
-        RawImage _weaponIcon;
-        Image _weaponRoleChip;
-        Text _weaponRoleText;
-        Text _weaponNameText;
-        Text _weaponOriginText;
-        Text _weaponDescText;
-        Text _weaponStatsText;
-        Text _weaponBlurbText;
+        // Skills inspector
+        Image _skillDiscImg;
+        Material _skillDiscMat;
+        Image _skillEmblemImg;
+        Image _skillSlotChip;
+        Text _skillSlotText;
+        Text _skillNameText;
+        Text _skillOriginText;
+        Text _skillDescText;
+        Text _skillStatsText;
+        Text _skillBlurbText;
 
         // Heritage inspector
         Text _heritageMonthBadge;
         Text _heritageTitleText;
         Text _heritageMetaText;
         Text _heritageGoalText;
+        Text _heritageAteLornaText;
         Text _heritageSetupText;
         Text _heritageHowText;
         Text _heritageRulesText;
 
         int _activeTab;
         int _selectedKidIndex;
-        int _selectedWeaponIndex;
+        int _selectedSkillIndex;
         int _selectedMonthIndex;
         bool _refreshingLayout;
         bool _disposed;
@@ -202,7 +235,7 @@ namespace Kalyeah.Game
         public SafeArea SafeAreaComponent => _safeArea;
         public int ActiveTab => _activeTab;
         public int KidCount => _kids.Count;
-        public int WeaponCardCount => _weapons.Count;
+        public int WeaponCardCount => _skills.Count;
         public int HeritageMonthCount => _heritage.Count;
 
         public CodexScreenView(Transform parent, Action onBack)
@@ -239,7 +272,7 @@ namespace Kalyeah.Game
 
             BuildHeader(_shell);
             BuildKidsTab(_shell);
-            BuildWeaponsTab(_shell);
+            BuildSkillsTab(_shell);
             BuildLarongKalyeTab(_shell);
 
             var lifecycle = Root.gameObject.AddComponent<CodexLifecycle>();
@@ -272,22 +305,27 @@ namespace Kalyeah.Game
         public void SetActiveTab(int tabIndex)
         {
             _activeTab = Mathf.Clamp(tabIndex, 0, _tabPanes.Length - 1);
-            Sprite activeSprite = MenuArt.CtaGold(10);
-            Sprite idleSprite = MenuArt.CtaGhost(10);
             for (int i = 0; i < _tabPanes.Length; i++)
             {
                 bool active = i == _activeTab;
                 if (_tabPanes[i] != null) _tabPanes[i].gameObject.SetActive(active);
                 if (_tabPillBgs[i] != null)
                 {
-                    _tabPillBgs[i].sprite = active ? activeSprite : idleSprite;
-                    _tabPillBgs[i].color = Color.white;
+                    if (active)
+                        ApplyPaperSurface(_tabPillBgs[i], cornerCut: 6f);
+                    else
+                        ApplyGlassSurface(_tabPillBgs[i], ObsidianCard, TitaniumBorder, Color.clear, cornerCut: 6f, accentW: 0f);
                 }
+                if (_tabUnderlines[i] != null)
+                    _tabUnderlines[i].gameObject.SetActive(active);
                 if (_tabPillLabels[i] != null)
-                    Ui.SetTextColor(_tabPillLabels[i], active ? Ink : MenuArt.Cream);
+                {
+                    Ui.SetTextColor(_tabPillLabels[i], active ? Ink : Paper);
+                    if (active) Ui.ClearOutline(_tabPillLabels[i]);
+                }
             }
             _kidsGridSizer?.Apply();
-            _weaponsGridSizer?.Apply();
+            _skillsGridSizer?.Apply();
         }
 
         public void Dispose()
@@ -319,7 +357,7 @@ namespace Kalyeah.Game
 
                 float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
                 float minGutter = Mathf.Max(8f, ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinGutterDp, _canvas));
-                float headerH = Mathf.Max(104f, minTouch + 8f);
+                float headerH = Mathf.Max(96f, minTouch + 8f);
 
                 if (_headerRect != null)
                 {
@@ -327,7 +365,7 @@ namespace Kalyeah.Game
                     _headerRect.sizeDelta = new Vector2(0f, headerH);
                 }
 
-                Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(142f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+                Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(138f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
                 if (_backBtnRect != null)
                 {
                     _backBtnRect.anchoredPosition = new Vector2(10f, 0f);
@@ -338,7 +376,7 @@ namespace Kalyeah.Game
                 if (_headerAccentRect != null)
                     _headerAccentRect.anchoredPosition = new Vector2(titleLeft, 0f);
 
-                float tabAnchorMinX = clampedWidth < 1040f ? 0.40f : 0.42f;
+                float tabAnchorMinX = clampedWidth < 1040f ? 0.40f : 0.43f;
                 if (_headerTitleRect != null)
                 {
                     _headerTitleRect.anchorMin = new Vector2(0f, 0f);
@@ -386,7 +424,7 @@ namespace Kalyeah.Game
 
                 LayoutRebuilder.ForceRebuildLayoutImmediate(_shell);
                 _kidsGridSizer?.SetMinCell(minTouch);
-                _weaponsGridSizer?.SetMinCell(minTouch);
+                _skillsGridSizer?.SetMinCell(minTouch);
             }
             finally
             {
@@ -400,14 +438,16 @@ namespace Kalyeah.Game
             Stretch(baseFill.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             baseFill.gameObject.AddComponent<RectMask2D>();
 
-            Texture2D mainBg = KalyeahResources.Texture("ui/home/stall") ?? KalyeahResources.Texture("ui/main_bg") ?? KalyeahResources.Texture("ui/boot/boot_bg");
+            Texture2D mainBg = KalyeahResources.Texture("ui/home/stall")
+                ?? KalyeahResources.Texture("ui/main_bg")
+                ?? KalyeahResources.Texture("ui/boot/boot_bg");
             if (mainBg != null)
             {
                 var rawGo = new GameObject("ArtBackdrop", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
                 rawGo.transform.SetParent(baseFill.transform, false);
                 var raw = rawGo.GetComponent<RawImage>();
                 raw.texture = mainBg;
-                raw.color = new Color(0.90f, 0.88f, 0.96f, 0.24f);
+                raw.color = new Color(0.95f, 0.92f, 0.86f, 0.24f);
                 raw.raycastTarget = false;
                 Stretch(raw.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
@@ -423,50 +463,50 @@ namespace Kalyeah.Game
         void BuildHeader(RectTransform parent)
         {
             float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
-            float headerH = Mathf.Max(104f, minTouch + 8f);
+            float headerH = Mathf.Max(96f, minTouch + 8f);
 
             _headerRect = Ui.Panel("Header", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -4f), new Vector2(0f, headerH));
 
-            Image divider = Ui.MakeImage("HeaderDivider", _headerRect, DividerColor);
-            Stretch(divider.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(10f, 0f), new Vector2(-10f, 1.5f));
+            Image divider = Ui.MakeImage("HeaderDivider", _headerRect, HairlineColor);
+            Stretch(divider.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(10f, 0f), new Vector2(-10f, 1f));
 
-            Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(142f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(138f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
             _backBtnRect = Ui.Panel("BackButton", _headerRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, 0f), backSize);
             Image backHit = _backBtnRect.gameObject.AddComponent<Image>();
-            backHit.color = Color.clear; // transparent >= 48 dp hit catcher
+            backHit.color = Color.clear;
 
-            RectTransform backVisual = Ui.Panel("Visual", _backBtnRect, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 52f));
-            Image backFace = Ui.MakeSliced("Plate", backVisual, MenuArt.CtaGhost(12), Color.white, raycast: false);
+            RectTransform backVisual = Ui.Panel("Visual", _backBtnRect, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 48f));
+            Image backFace = MakeGlassPanel("Plate", backVisual, ObsidianCard, TitaniumBorderStrong, Color.clear, cornerCut: 6f, accentW: 0f);
 
-            Image chev = Ui.MakeImage("Chevron", backVisual, MenuArt.GoldLight, round: false, raycast: false);
+            Image chev = Ui.MakeImage("Chevron", backVisual, Paper, round: false, raycast: false);
             chev.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Chevron);
             RectTransform cr = chev.rectTransform;
             cr.anchorMin = cr.anchorMax = new Vector2(0f, 0.5f);
             cr.pivot = new Vector2(0.5f, 0.5f);
-            cr.anchoredPosition = new Vector2(22f, 0f);
-            cr.sizeDelta = new Vector2(16f, 16f);
+            cr.anchoredPosition = new Vector2(20f, 0f);
+            cr.sizeDelta = new Vector2(15f, 15f);
             cr.localEulerAngles = new Vector3(0f, 0f, 180f);
 
             Button backBtn = _backBtnRect.gameObject.AddComponent<Button>();
             backBtn.targetGraphic = backFace;
             backBtn.onClick.AddListener(() => _onBack?.Invoke());
-            Ui.AddPressFeel(_backBtnRect, 0.95f);
+            UiShaders.AttachPressSpring(backBtn, 0.95f, 2f);
 
-            _backLabel = MakeFittedText("Label", backVisual, "BACK", 20, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            Stretch(_backLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(34f, 4f), new Vector2(-10f, -4f));
+            _backLabel = MakeFittedText("Label", backVisual, "BACK", 19, Paper, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(_backLabel);
+            Stretch(_backLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(32f, 4f), new Vector2(-10f, -4f));
 
-            _headerAccentRect = Ui.Panel("TitleAccent", _headerRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(166f, 0f), new Vector2(4f, 34f));
+            _headerAccentRect = Ui.Panel("TitleAccent", _headerRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(162f, 0f), new Vector2(4f, 34f));
             Image accentImg = _headerAccentRect.gameObject.AddComponent<Image>();
-            accentImg.sprite = MenuArt.AccentRail(2);
-            accentImg.type = Image.Type.Sliced;
-            accentImg.color = Gold;
+            accentImg.color = Vermilion;
             accentImg.raycastTarget = false;
 
-            _headerTitle = MakeFittedText("Title", _headerRect, "KOMIKS ALMANAC", 28, MenuArt.Cream, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _headerTitle = MakeFittedText("Title", _headerRect, "BARANGAY ALMANAC", 26, Paper, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(_headerTitle);
             _headerTitleRect = _headerTitle.rectTransform;
-            Stretch(_headerTitleRect, new Vector2(0f, 0f), new Vector2(0.42f, 1f), new Vector2(180f, 8f), new Vector2(-8f, -8f));
+            Stretch(_headerTitleRect, new Vector2(0f, 0f), new Vector2(0.43f, 1f), new Vector2(176f, 8f), new Vector2(-8f, -8f));
 
-            _tabsRowRect = Ui.Panel("Tabs", _headerRect, new Vector2(0.42f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+            _tabsRowRect = Ui.Panel("Tabs", _headerRect, new Vector2(0.43f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
             _tabsRowRect.offsetMin = new Vector2(8f, 4f);
             _tabsRowRect.offsetMax = new Vector2(-10f, -4f);
 
@@ -478,34 +518,39 @@ namespace Kalyeah.Game
             _tabsRowLayout.childForceExpandWidth = true;
             _tabsRowLayout.childForceExpandHeight = true;
 
-            Sprite idleTabSprite = MenuArt.CtaGhost(10);
-            string[] defaults = { "KIDS (10)", "WEAPONS & KIT (16)", "LARONG KALYE (12)" };
+            string[] defaults = { "KIDS (12)", "SKILLS & KITS (36)", "LARONG KALYE (12)" };
             for (int i = 0; i < 3; i++)
             {
                 int captured = i;
                 var tabGo = new GameObject($"Tab_{i}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
                 tabGo.transform.SetParent(_tabsRowRect, false);
                 var hitImg = tabGo.GetComponent<Image>();
-                hitImg.color = Color.clear; // transparent >= 48 dp hit catcher
+                hitImg.color = Color.clear;
 
-                RectTransform visualRt = Ui.Panel("Visual", tabGo.transform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 52f));
-                Image visualImg = Ui.MakeSliced("Plate", visualRt, idleTabSprite, Color.white, raycast: false);
+                RectTransform visualRt = Ui.Panel("Visual", tabGo.transform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 48f));
+                Image visualImg = MakeGlassPanel("Plate", visualRt, ObsidianCard, TitaniumBorder, Color.clear, cornerCut: 6f, accentW: 0f);
+
+                Image underline = Ui.MakeImage("ActiveBar", visualRt, Vermilion, round: false, raycast: false);
+                Stretch(underline.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(10f, 0f), new Vector2(-10f, 3f));
+                underline.gameObject.SetActive(false);
 
                 var le = tabGo.GetComponent<LayoutElement>();
                 le.minWidth = minTouch;
                 le.minHeight = minTouch;
                 le.preferredHeight = minTouch;
-                le.preferredWidth = i == 1 ? 220f : 185f;
+                le.preferredWidth = i == 1 ? 226f : 184f;
 
                 var btn = tabGo.GetComponent<Button>();
                 btn.targetGraphic = visualImg;
                 btn.onClick.AddListener(() => SetActiveTab(captured));
-                Ui.AddPressFeel(tabGo, 0.96f);
+                UiShaders.AttachPressSpring(btn, 0.96f, 2f);
 
-                Text lbl = MakeFittedText("Label", visualRt, defaults[i], 19, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+                Text lbl = MakeFittedText("Label", visualRt, defaults[i], 18, Paper, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+                Ui.ClearOutline(lbl);
                 Stretch(lbl.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 4f), new Vector2(-8f, -4f));
 
                 _tabPillBgs[i] = visualImg;
+                _tabUnderlines[i] = underline;
                 _tabPillLabels[i] = lbl;
                 _tabPillLayouts[i] = le;
             }
@@ -516,33 +561,30 @@ namespace Kalyeah.Game
             RectTransform pane = CreateTabBody("KidsPane", parent);
             _tabPanes[TabKids] = pane;
 
-            // Left 58%: Auto-sized grid of kids (wrapped in vertical ScrollRect fallback for high-DPI viewports)
-            RectTransform gridHolder = Ui.Panel("KidsGridHolder", pane, new Vector2(0f, 0f), new Vector2(0.58f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            // Left 54%: Auto-sized 4x3 grid of all 12 Barangay Kids (zero role colors, clean busts)
+            RectTransform gridHolder = Ui.Panel("KidsGridHolder", pane, new Vector2(0f, 0f), new Vector2(0.54f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
             gridHolder.offsetMin = Vector2.zero;
             gridHolder.offsetMax = new Vector2(-8f, 0f);
 
-            Ui.MakeSliced("GridBg", gridHolder, MenuArt.ChamferGlass(16), Color.white, raycast: false);
+            MakeGlassPanel("GridBg", gridHolder, ObsidianPanel, TitaniumBorder, Color.clear, cornerCut: 8f, accentW: 0f);
 
             ScrollRect kidsScroll = CreateVerticalScroll("KidsScroll", gridHolder, out RectTransform gridRect);
             _ = kidsScroll;
 
             var grid = gridRect.gameObject.AddComponent<GridLayoutGroup>();
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = 5;
+            grid.constraintCount = 4;
             grid.padding = new RectOffset(8, 8, 8, 8);
-            grid.spacing = new Vector2(8f, 10f);
-            grid.cellSize = new Vector2(124f, 240f);
-            grid.childAlignment = TextAnchor.MiddleCenter;
+            grid.spacing = new Vector2(8f, 8f);
+            grid.cellSize = new Vector2(140f, 152f);
+            grid.childAlignment = TextAnchor.UpperCenter;
 
             var gridFitter = gridRect.gameObject.AddComponent<ContentSizeFitter>();
             gridFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
             _kidsGridSizer = gridRect.gameObject.AddComponent<GridCellAutoSizer>();
-            _kidsGridSizer.Configure(5, 2, new Vector2(8f, 10f), minTouch, preferredCellHeight: 0f);
-
-            Sprite cardSprite = MenuArt.ChamferCard(CardTop, CardBottom, MenuArt.PanelBorder, 10, 1, 0.22f);
-            Sprite selectOutlineSprite = MenuArt.ChamferOutline(MenuArt.GoldBorder, 10, 2);
+            _kidsGridSizer.Configure(4, 3, new Vector2(8f, 8f), minTouch, preferredCellHeight: 0f);
 
             _kidCardOutlines.Clear();
             for (int i = 0; i < _kids.Count; i++)
@@ -553,22 +595,16 @@ namespace Kalyeah.Game
                 var cardGo = new GameObject($"KidCard_{kid.Id}", typeof(RectTransform), typeof(Image), typeof(Button));
                 cardGo.transform.SetParent(gridRect, false);
                 var bg = cardGo.GetComponent<Image>();
-                bg.sprite = cardSprite;
-                bg.type = Image.Type.Sliced;
-                bg.color = Color.white;
+                ApplyGlassSurface(bg, ObsidianCard, TitaniumBorder, Color.clear, cornerCut: 6f, accentW: 0f);
                 var btn = cardGo.GetComponent<Button>();
                 btn.targetGraphic = bg;
                 btn.onClick.AddListener(() => SelectKid(idx));
-                Ui.AddPressFeel(cardGo, 0.95f);
+                UiShaders.AttachPressSpring(btn, 0.95f, 2f);
 
-                Image spotlight = Ui.MakeImage("Spotlight", cardGo.transform, new Color(1f, 0.94f, 0.80f, 0.14f), round: false, raycast: false);
-                spotlight.sprite = MenuArt.CardSpotlight();
-                Stretch(spotlight.rectTransform, new Vector2(0.04f, 0.20f), new Vector2(0.96f, 0.94f), Vector2.zero, Vector2.zero);
+                Image topHairline = Ui.MakeImage("TopRule", cardGo.transform, HairlineColor, round: false, raycast: false);
+                Stretch(topHairline.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(10f, -2f), new Vector2(-10f, -1f));
 
-                Image accentBar = Ui.MakeSliced("Accent", cardGo.transform, MenuArt.AccentRail(2), kid.Accent, raycast: false);
-                Stretch(accentBar.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(10f, -5f), new Vector2(-10f, -1f));
-
-                RectTransform artBox = Ui.Panel("ArtBox", cardGo.transform, new Vector2(0.08f, 0.25f), new Vector2(0.92f, 0.90f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+                RectTransform artBox = Ui.Panel("ArtBox", cardGo.transform, new Vector2(0.06f, 0.34f), new Vector2(0.94f, 0.94f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
                 Texture2D portrait = LoadKidTexture(kid.Id);
                 if (portrait != null)
                 {
@@ -576,87 +612,171 @@ namespace Kalyeah.Game
                     rawGo.transform.SetParent(artBox, false);
                     var raw = rawGo.GetComponent<RawImage>();
                     raw.texture = portrait;
+                    raw.uvRect = FullUv;
                     raw.raycastTarget = false;
                     Stretch(raw.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
                     var arf = rawGo.GetComponent<AspectRatioFitter>();
                     arf.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-                    arf.aspectRatio = 0.75f;
+                    arf.aspectRatio = portrait.height > 0 ? (float)portrait.width / portrait.height : 0.85f;
                 }
                 else
                 {
-                    Image disc = Ui.MakeImage("StandIn", artBox, kid.Accent, round: true);
-                    Stretch(disc.rectTransform, new Vector2(0.15f, 0.15f), new Vector2(0.85f, 0.85f), Vector2.zero, Vector2.zero);
+                    Image disc = Ui.MakeImage("StandIn", artBox, TitaniumBorderStrong, round: true, raycast: false);
+                    Stretch(disc.rectTransform, new Vector2(0.20f, 0.16f), new Vector2(0.80f, 0.84f), Vector2.zero, Vector2.zero);
                 }
 
-                Text nameLbl = MakeFittedText("Name", cardGo.transform, kid.Name, 20, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-                Stretch(nameLbl.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.24f), new Vector2(4f, 4f), new Vector2(-4f, -2f));
+                Text nameLbl = MakeFittedText("Name", cardGo.transform, kid.Name.ToUpperInvariant(), 17, Paper, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+                nameLbl.resizeTextMinSize = 8;
+                Ui.ClearOutline(nameLbl);
+                Stretch(nameLbl.rectTransform, new Vector2(0f, 0.16f), new Vector2(1f, 0.34f), new Vector2(4f, 0f), new Vector2(-4f, 0f));
+
+                Text purokLbl = MakeFittedText("Purok", cardGo.transform, kid.PurokName.ToUpperInvariant(), 12, Muted, TextAnchor.MiddleCenter);
+                purokLbl.resizeTextMinSize = 7;
+                Ui.ClearOutline(purokLbl);
+                Stretch(purokLbl.rectTransform, new Vector2(0f, 0.01f), new Vector2(1f, 0.16f), new Vector2(4f, 0f), new Vector2(-4f, 0f));
 
                 RectTransform selFrame = Ui.Fill("SelectedFrame", cardGo.transform);
-                Ui.MakeSliced("Outline", selFrame, selectOutlineSprite, Color.white, raycast: false);
-                Ui.MakeCornerBrackets("Brackets", selFrame, MenuArt.GoldLight);
+                Image selBar = Ui.MakeImage("SelectRail", selFrame, Vermilion, round: false, raycast: false);
+                Stretch(selBar.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 6f), new Vector2(3.5f, -6f));
+                Ui.MakeSliced("Outline", selFrame, MenuArt.ChamferOutline(Paper, 6, 2), Paper, raycast: false);
                 selFrame.gameObject.SetActive(false);
 
                 _kidCardOutlines.Add(selFrame.gameObject);
             }
 
-            // Right 42%: Selected Kid Inspector
-            RectTransform inspector = Ui.Panel("KidInspector", pane, new Vector2(0.58f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+            // Right 46%: Selected Kid Editorial Dossier (LoreCodexData + Ate Lorna + 3 Live Skill Discs)
+            RectTransform inspector = Ui.Panel("KidInspector", pane, new Vector2(0.54f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
             inspector.offsetMin = new Vector2(8f, 0f);
             inspector.offsetMax = Vector2.zero;
 
-            Ui.MakeSliced("Bg", inspector, MenuArt.ChamferGlass(16), Color.white, raycast: false);
-            Ui.MakeCornerBrackets("InspBrackets", inspector, new Color(Gold.r, Gold.g, Gold.b, 0.42f));
+            MakeGlassPanel("Bg", inspector, ObsidianPanel, TitaniumBorderStrong, Paper, cornerCut: 8f, accentW: 3f);
 
-            RectTransform portraitFrame = Ui.Panel("PortraitFrame", inspector, new Vector2(0.05f, 0.53f), new Vector2(0.39f, 0.94f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            _kidPortraitFallback = Ui.MakeSliced("PortraitPlate", portraitFrame, MenuArt.StatChip(10), Color.white, raycast: false);
-
-            Image inspSpot = Ui.MakeImage("InspSpotlight", portraitFrame, new Color(1f, 0.94f, 0.80f, 0.18f), round: false, raycast: false);
-            inspSpot.sprite = MenuArt.CardSpotlight();
-            Stretch(inspSpot.rectTransform, Vector2.zero, Vector2.one, new Vector2(4f, 4f), new Vector2(-4f, -4f));
+            // Top band (38%): Clean bust portrait + Name + Purok/Role + Rival
+            RectTransform portraitFrame = Ui.Panel("PortraitFrame", inspector, new Vector2(0.04f, 0.60f), new Vector2(0.35f, 0.95f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            MakeGlassPanel("PortraitPlate", portraitFrame, ObsidianDeep, TitaniumBorderStrong, Color.clear, cornerCut: 6f, accentW: 0f);
 
             RectTransform portraitInner = Ui.Fill("PortraitInner", portraitFrame);
-            portraitInner.offsetMin = new Vector2(6f, 6f);
-            portraitInner.offsetMax = new Vector2(-6f, -6f);
+            portraitInner.offsetMin = new Vector2(4f, 4f);
+            portraitInner.offsetMax = new Vector2(-4f, -4f);
 
             var rawPortraitGo = new GameObject("PortraitRaw", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
             rawPortraitGo.transform.SetParent(portraitInner, false);
             _kidPortrait = rawPortraitGo.GetComponent<RawImage>();
+            _kidPortrait.uvRect = FullUv;
             _kidPortrait.raycastTarget = false;
             Stretch(_kidPortrait.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             var inspArf = rawPortraitGo.GetComponent<AspectRatioFitter>();
             inspArf.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-            inspArf.aspectRatio = 0.75f;
+            inspArf.aspectRatio = 0.85f;
 
-            Ui.MakeSliced("PortraitRim", portraitFrame, MenuArt.ChamferOutline(MenuArt.GoldBorder, 10, 2), Color.white, raycast: false);
+            _kidNameText = MakeFittedText("KidName", inspector, "", 28, Paper, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
+            _kidNameText.resizeTextMinSize = 14;
+            Ui.ClearOutline(_kidNameText);
+            Stretch(_kidNameText.rectTransform, new Vector2(0.38f, 0.82f), new Vector2(0.96f, 0.95f), Vector2.zero, Vector2.zero);
 
-            _kidNameText = MakeFittedText("KidName", inspector, "", 32, MenuArt.GoldLight, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
-            Stretch(_kidNameText.rectTransform, new Vector2(0.42f, 0.76f), new Vector2(0.96f, 0.94f), Vector2.zero, Vector2.zero);
+            Image metaChip = MakePaperPanel("MetaChip", inspector, cornerCut: 4f);
+            Stretch(metaChip.rectTransform, new Vector2(0.38f, 0.71f), new Vector2(0.96f, 0.80f), Vector2.zero, Vector2.zero);
+            _kidMetaBadgeText = MakeFittedText("MetaText", metaChip.transform, "", 14, Ink, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _kidMetaBadgeText.resizeTextMinSize = 9;
+            Ui.ClearOutline(_kidMetaBadgeText);
+            Stretch(_kidMetaBadgeText.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 1f), new Vector2(-8f, -1f));
 
-            Image fairChip = Ui.MakeSliced("FairChip", inspector, MenuArt.ChamferCard(FairTop, FairBottom, FairBorder, 10, 1, 0.22f), Color.white, raycast: false);
-            Stretch(fairChip.rectTransform, new Vector2(0.42f, 0.53f), new Vector2(0.96f, 0.74f), Vector2.zero, Vector2.zero);
-            Ui.MakeAccentRail("FairRail", fairChip.transform, MenuArt.SuccessGreen, width: 3f, verticalInset: 10f);
-            _kidBadgeText = MakeFittedText("FairText", fairChip.transform, "COSMETIC ONLY\nEqual HP, Speed & Hitbox", 18, MenuArt.Cream, TextAnchor.MiddleCenter);
-            _kidBadgeText.resizeTextMinSize = 14;
-            _kidBadgeText.verticalOverflow = VerticalWrapMode.Overflow;
-            Ui.ClearOutline(_kidBadgeText);
-            Stretch(_kidBadgeText.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 4f), new Vector2(-8f, -4f));
+            Image rivalPlate = MakeGlassPanel("RivalPlate", inspector, ObsidianDeep, TitaniumBorder, Vermilion, cornerCut: 4f, accentW: 3f);
+            Stretch(rivalPlate.rectTransform, new Vector2(0.38f, 0.60f), new Vector2(0.96f, 0.69f), Vector2.zero, Vector2.zero);
+            _kidRivalText = MakeFittedText("RivalText", rivalPlate.transform, "", 13, CoralGold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _kidRivalText.resizeTextMinSize = 9;
+            Ui.ClearOutline(_kidRivalText);
+            Stretch(_kidRivalText.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 1f), new Vector2(-8f, -1f));
 
-            _kidBioText = MakeWrappedText("Bio", inspector, "", 20, MenuArt.Cream, TextAnchor.UpperLeft);
+            Image midRule = Ui.MakeImage("MidRule", inspector, HairlineColor, round: false, raycast: false);
+            Stretch(midRule.rectTransform, new Vector2(0.04f, 0.58f), new Vector2(0.96f, 0.58f), Vector2.zero, new Vector2(0f, 1f));
+
+            // Middle band (34%): Scrollable Ate Lorna & LoreCodexData bio (Overflow inside ScrollRect -> zero truncation!)
+            RectTransform bioHolder = Ui.Panel("BioScrollHolder", inspector, new Vector2(0.04f, 0.24f), new Vector2(0.96f, 0.56f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            _kidBioScroll = CreateVerticalScroll("KidBioScroll", bioHolder, out RectTransform bioContent);
+            var bioLayout = bioContent.gameObject.AddComponent<VerticalLayoutGroup>();
+            bioLayout.padding = new RectOffset(4, 6, 2, 4);
+            bioLayout.childControlWidth = true;
+            bioLayout.childControlHeight = true;
+            bioLayout.childForceExpandWidth = true;
+            bioLayout.childForceExpandHeight = false;
+            var bioFitter = bioContent.gameObject.AddComponent<ContentSizeFitter>();
+            bioFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            _kidBioText = Ui.MakeText("Bio", bioContent, "", 16, Paper, TextAnchor.UpperLeft);
             Ui.ClearOutline(_kidBioText);
-            Stretch(_kidBioText.rectTransform, new Vector2(0.05f, 0.05f), new Vector2(0.95f, 0.49f), Vector2.zero, Vector2.zero);
+            _kidBioText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _kidBioText.verticalOverflow = VerticalWrapMode.Overflow;
+
+            Image kitRule = Ui.MakeImage("KitRule", inspector, HairlineColor, round: false, raycast: false);
+            Stretch(kitRule.rectTransform, new Vector2(0.04f, 0.22f), new Vector2(0.96f, 0.22f), Vector2.zero, new Vector2(0f, 1f));
+
+            // Bottom band (18%): 3 live signature skill mini-discs (A2 Frosted-Titanium + SkillEmblem)
+            RectTransform kitRow = Ui.Panel("KitStrip", inspector, new Vector2(0.04f, 0.03f), new Vector2(0.96f, 0.20f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            var kitLayout = kitRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+            kitLayout.spacing = 8f;
+            kitLayout.childAlignment = TextAnchor.MiddleCenter;
+            kitLayout.childControlWidth = true;
+            kitLayout.childControlHeight = true;
+            kitLayout.childForceExpandWidth = true;
+            kitLayout.childForceExpandHeight = true;
+
+            for (int s = 0; s < 3; s++)
+            {
+                bool isUlt = s == 2;
+                var slotGo = new GameObject($"KidSkill_{s}", typeof(RectTransform), typeof(Image));
+                slotGo.transform.SetParent(kitRow, false);
+                ApplyGlassSurface(slotGo.GetComponent<Image>(), ObsidianDeep, isUlt ? CoralGold : TitaniumBorder, Color.clear, cornerCut: 5f, accentW: 0f);
+
+                RectTransform discBox = Ui.Panel("Disc", slotGo.transform, new Vector2(0.04f, 0.12f), new Vector2(0.34f, 0.88f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+                var discArf = discBox.gameObject.AddComponent<AspectRatioFitter>();
+                discArf.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                discArf.aspectRatio = 1f;
+
+                Image discImg = Ui.MakeImage("DiscFace", discBox, Color.white, round: false, raycast: false);
+                Stretch(discImg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                Material discMat = UiShaders.CreateFrostedTitaniumDisc(
+                    new Color(0.075f, 0.105f, 0.145f, 0.82f),
+                    isUlt ? CoralGold : MenuArt.TitaniumRim,
+                    0.76f);
+                ApplyDiscMaterial(discImg, discMat, isUlt ? CoralGold : ObsidianCard);
+
+                Image emblemImg = Ui.MakeImage("Emblem", discBox, Paper, round: false, raycast: false);
+                emblemImg.preserveAspect = true;
+                Stretch(emblemImg.rectTransform, new Vector2(0.20f, 0.20f), new Vector2(0.80f, 0.80f), Vector2.zero, Vector2.zero);
+
+                Text nameTxt = MakeFittedText("SkillName", slotGo.transform, "", 13, Paper, TextAnchor.LowerLeft, KalyeahResources.DisplayFont());
+                nameTxt.resizeTextMinSize = 8;
+                Ui.ClearOutline(nameTxt);
+                Stretch(nameTxt.rectTransform, new Vector2(0.36f, 0.46f), new Vector2(0.96f, 0.92f), Vector2.zero, Vector2.zero);
+
+                Text costTxt = MakeFittedText("SkillCost", slotGo.transform, "", 11, isUlt ? CoralGold : WaterCyan, TextAnchor.UpperLeft);
+                costTxt.resizeTextMinSize = 8;
+                Ui.ClearOutline(costTxt);
+                Stretch(costTxt.rectTransform, new Vector2(0.36f, 0.08f), new Vector2(0.96f, 0.46f), Vector2.zero, Vector2.zero);
+
+                _kidInspectorSkills[s] = new MiniSkillBadgeUi
+                {
+                    DiscBg = discImg,
+                    DiscMat = discMat,
+                    Emblem = emblemImg,
+                    NameLabel = nameTxt,
+                    CostLabel = costTxt,
+                };
+            }
         }
 
-        void BuildWeaponsTab(RectTransform parent)
+        void BuildSkillsTab(RectTransform parent)
         {
             RectTransform pane = CreateTabBody("WeaponsPane", parent);
             _tabPanes[TabWeapons] = pane;
 
-            // Left 60%: Scrollable auto-sized 4-column grid of all 16 Weapons & Kit cards (incl. Tirador & Bagsak)
-            RectTransform leftPane = Ui.Panel("WeaponsScrollHolder", pane, new Vector2(0f, 0f), new Vector2(0.60f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            // Left 58%: Scrollable 4-column grid of all 36 live docs/KITS.md skills
+            RectTransform leftPane = Ui.Panel("WeaponsScrollHolder", pane, new Vector2(0f, 0f), new Vector2(0.58f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
             leftPane.offsetMax = new Vector2(-8f, 0f);
-            Ui.MakeSliced("Bg", leftPane, MenuArt.ChamferGlass(16), Color.white, raycast: false);
+            MakeGlassPanel("Bg", leftPane, ObsidianPanel, TitaniumBorder, Color.clear, cornerCut: 8f, accentW: 0f);
 
             ScrollRect scroll = CreateVerticalScroll("WeaponsScroll", leftPane, out RectTransform content);
             _ = scroll;
@@ -664,133 +784,159 @@ namespace Kalyeah.Game
             var grid = content.gameObject.AddComponent<GridLayoutGroup>();
             grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             grid.constraintCount = 4;
-            grid.padding = new RectOffset(10, 10, 10, 10);
+            grid.padding = new RectOffset(8, 8, 8, 8);
             grid.spacing = new Vector2(8f, 8f);
-            grid.cellSize = new Vector2(160f, 132f);
+            grid.cellSize = new Vector2(156f, 128f);
             var fitter = content.gameObject.AddComponent<ContentSizeFitter>();
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
-            _weaponsGridSizer = content.gameObject.AddComponent<GridCellAutoSizer>();
-            _weaponsGridSizer.Configure(4, 0, new Vector2(8f, 8f), minTouch, preferredCellHeight: 132f);
+            _skillsGridSizer = content.gameObject.AddComponent<GridCellAutoSizer>();
+            _skillsGridSizer.Configure(4, 0, new Vector2(8f, 8f), minTouch, preferredCellHeight: 128f);
 
-            Sprite cardSprite = MenuArt.ChamferCard(CardTop, CardBottom, MenuArt.PanelBorder, 10, 1, 0.22f);
-            Sprite selectOutlineSprite = MenuArt.ChamferOutline(MenuArt.GoldBorder, 10, 2);
-
-            _weaponCardOutlines.Clear();
-            for (int i = 0; i < _weapons.Count; i++)
+            _skillCardOutlines.Clear();
+            for (int i = 0; i < _skills.Count; i++)
             {
                 int idx = i;
-                WeaponEntry w = _weapons[i];
+                SkillEntry sk = _skills[i];
 
-                var cardGo = new GameObject($"WeaponCard_{w.Id}", typeof(RectTransform), typeof(Image), typeof(Button));
+                var cardGo = new GameObject($"SkillCard_{sk.Id}", typeof(RectTransform), typeof(Image), typeof(Button));
                 cardGo.transform.SetParent(content, false);
                 var bg = cardGo.GetComponent<Image>();
-                bg.sprite = cardSprite;
-                bg.type = Image.Type.Sliced;
-                bg.color = Color.white;
+                ApplyGlassSurface(bg, ObsidianCard, sk.IsUltimate ? new Color(CoralGold.r, CoralGold.g, CoralGold.b, 0.40f) : TitaniumBorder, Color.clear, cornerCut: 6f, accentW: 0f);
                 var btn = cardGo.GetComponent<Button>();
                 btn.targetGraphic = bg;
                 btn.onClick.AddListener(() => SelectWeapon(idx));
-                Ui.AddPressFeel(cardGo, 0.95f);
+                UiShaders.AttachPressSpring(btn, 0.95f, 2f);
 
-                Image tagStrip = Ui.MakeSliced("RoleStrip", cardGo.transform, MenuArt.RoundSolid(6), w.RoleColor, raycast: false);
+                // Top editorial tag strip (Paper-White for ULT, deep obsidian+hairline for S1/S2 — zero role colors)
+                Image tagStrip = Ui.MakeImage("SlotStrip", cardGo.transform, sk.IsUltimate ? Paper : ObsidianDeep, round: false, raycast: false);
                 Stretch(tagStrip.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(4f, -26f), new Vector2(-4f, -2f));
 
-                Text badge = MakeFittedText("Badge", tagStrip.transform, w.RoleLabel, 17, Ink, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-                badge.resizeTextMinSize = 10;
+                string slotCaption = $"{sk.KidName.ToUpperInvariant()} · {SlotCode(sk.Slot)}";
+                Text badge = MakeFittedText("Badge", tagStrip.transform, slotCaption, 12, sk.IsUltimate ? Ink : Muted, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+                badge.resizeTextMinSize = 8;
                 Ui.ClearOutline(badge);
                 Stretch(badge.rectTransform, Vector2.zero, Vector2.one, new Vector2(4f, 0f), new Vector2(-4f, 0f));
 
-                RectTransform iconBox = Ui.Panel("IconBox", cardGo.transform, new Vector2(0.06f, 0.30f), new Vector2(0.38f, 0.78f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-                Texture2D icon = LoadWeaponTexture(w.Id);
-                if (icon != null)
-                {
-                    var iconGo = new GameObject("Icon", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
-                    iconGo.transform.SetParent(iconBox, false);
-                    var raw = iconGo.GetComponent<RawImage>();
-                    raw.texture = icon;
-                    raw.raycastTarget = false;
-                    Stretch(raw.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                // A2 Frosted-Titanium Skill Disc + MenuArt.SkillEmblem
+                RectTransform discHolder = Ui.Panel("IconBox", cardGo.transform, new Vector2(0.05f, 0.24f), new Vector2(0.40f, 0.78f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+                var discArf = discHolder.gameObject.AddComponent<AspectRatioFitter>();
+                discArf.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+                discArf.aspectRatio = 1f;
 
-                    var arf = iconGo.GetComponent<AspectRatioFitter>();
-                    arf.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-                    arf.aspectRatio = 1f;
-                }
-                else
-                {
-                    Image orb = Ui.MakeImage("StandIn", iconBox, w.RoleColor, round: true);
-                    Stretch(orb.rectTransform, new Vector2(0.10f, 0.10f), new Vector2(0.90f, 0.90f), Vector2.zero, Vector2.zero);
-                }
+                Image discImg = Ui.MakeImage("DiscFace", discHolder, Color.white, round: false, raycast: false);
+                Stretch(discImg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                Material discMat = UiShaders.CreateFrostedTitaniumDisc(
+                    new Color(0.075f, 0.105f, 0.145f, 0.80f),
+                    sk.IsUltimate ? CoralGold : MenuArt.TitaniumRim,
+                    0.78f);
+                ApplyDiscMaterial(discImg, discMat, ObsidianDeep);
 
-                Text title = MakeWrappedText("Title", cardGo.transform, w.Name, 18, MenuArt.Cream, TextAnchor.MiddleLeft);
+                Image emblem = Ui.MakeImage("Emblem", discHolder, Paper, round: false, raycast: false);
+                emblem.sprite = MenuArt.SkillEmblem(sk.Id);
+                emblem.preserveAspect = true;
+                Stretch(emblem.rectTransform, new Vector2(0.20f, 0.20f), new Vector2(0.80f, 0.80f), Vector2.zero, Vector2.zero);
+
+                Text title = MakeFittedText("Title", cardGo.transform, sk.Name, 15, Paper, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+                title.resizeTextMinSize = 9;
                 Ui.ClearOutline(title);
-                Stretch(title.rectTransform, new Vector2(0.41f, 0.28f), new Vector2(0.96f, 0.80f), Vector2.zero, Vector2.zero);
+                Stretch(title.rectTransform, new Vector2(0.42f, 0.26f), new Vector2(0.96f, 0.78f), Vector2.zero, Vector2.zero);
 
-                string meta = w.IsUltimate ? "100% Charge" : string.Format(CultureInfo.InvariantCulture, "{0:0.#}s CD", w.Cooldown);
-                Text sub = MakeFittedText("Meta", cardGo.transform, meta, 16, Muted, TextAnchor.LowerRight, KalyeahResources.DisplayFont());
+                string meta = sk.IsUltimate
+                    ? string.Format(CultureInfo.InvariantCulture, "ULT · {0:0.#}s", sk.Cooldown)
+                    : string.Format(CultureInfo.InvariantCulture, "{0} WATER · {1:0.#}s", sk.WaterCost, sk.Cooldown);
+                Text sub = MakeFittedText("Meta", cardGo.transform, meta, 12, sk.IsUltimate ? CoralGold : WaterCyan, TextAnchor.LowerRight, KalyeahResources.DisplayFont());
+                sub.resizeTextMinSize = 8;
                 Ui.ClearOutline(sub);
-                Stretch(sub.rectTransform, new Vector2(0.06f, 0.04f), new Vector2(0.95f, 0.26f), Vector2.zero, Vector2.zero);
+                Stretch(sub.rectTransform, new Vector2(0.06f, 0.04f), new Vector2(0.95f, 0.24f), Vector2.zero, Vector2.zero);
 
                 RectTransform selFrame = Ui.Fill("SelectedFrame", cardGo.transform);
-                Ui.MakeSliced("Outline", selFrame, selectOutlineSprite, Color.white, raycast: false);
-                Ui.MakeCornerBrackets("Brackets", selFrame, MenuArt.GoldLight);
+                Image selRail = Ui.MakeImage("SelectRail", selFrame, Vermilion, round: false, raycast: false);
+                Stretch(selRail.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 6f), new Vector2(3f, -6f));
+                Ui.MakeSliced("Outline", selFrame, MenuArt.ChamferOutline(Paper, 6, 2), Paper, raycast: false);
                 selFrame.gameObject.SetActive(false);
 
-                _weaponCardOutlines.Add(selFrame.gameObject);
+                _skillCardOutlines.Add(selFrame.gameObject);
             }
 
-            // Right 40%: Weapon & Street-Origin Inspector
-            RectTransform inspector = Ui.Panel("WeaponInspector", pane, new Vector2(0.60f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+            // Right 42%: Skill & Street-Origin Inspector
+            RectTransform inspector = Ui.Panel("WeaponInspector", pane, new Vector2(0.58f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
             inspector.offsetMin = new Vector2(8f, 0f);
-            Ui.MakeSliced("Bg", inspector, MenuArt.ChamferGlass(16), Color.white, raycast: false);
-            Ui.MakeCornerBrackets("InspBrackets", inspector, new Color(Gold.r, Gold.g, Gold.b, 0.42f));
+            MakeGlassPanel("Bg", inspector, ObsidianPanel, TitaniumBorderStrong, Vermilion, cornerCut: 8f, accentW: 3f);
 
-            RectTransform iconFrame = Ui.Panel("IconFrame", inspector, new Vector2(0.06f, 0.70f), new Vector2(0.32f, 0.94f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            Ui.MakeSliced("Plate", iconFrame, MenuArt.StatChip(10), Color.white, raycast: false);
-            Ui.MakeSliced("PlateRim", iconFrame, MenuArt.ChamferOutline(MenuArt.GoldBorder, 10, 1), Color.white, raycast: false);
+            // Large A2 Frosted-Titanium Disc
+            RectTransform discFrame = Ui.Panel("IconFrame", inspector, new Vector2(0.05f, 0.68f), new Vector2(0.30f, 0.94f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            var inspDiscArf = discFrame.gameObject.AddComponent<AspectRatioFitter>();
+            inspDiscArf.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            inspDiscArf.aspectRatio = 1f;
 
-            RectTransform iconInner = Ui.Fill("IconInner", iconFrame);
-            iconInner.offsetMin = new Vector2(8f, 8f);
-            iconInner.offsetMax = new Vector2(-8f, -8f);
+            _skillDiscImg = Ui.MakeImage("DiscFace", discFrame, Color.white, round: false, raycast: false);
+            Stretch(_skillDiscImg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            _skillDiscMat = UiShaders.CreateFrostedTitaniumDisc(new Color(0.075f, 0.105f, 0.145f, 0.84f), MenuArt.TitaniumRim, 0.78f);
+            ApplyDiscMaterial(_skillDiscImg, _skillDiscMat, ObsidianDeep);
 
-            var rawGo2 = new GameObject("IconRaw", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
-            rawGo2.transform.SetParent(iconInner, false);
-            _weaponIcon = rawGo2.GetComponent<RawImage>();
-            _weaponIcon.raycastTarget = false;
-            Stretch(_weaponIcon.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            _skillEmblemImg = Ui.MakeImage("Emblem", discFrame, Paper, round: false, raycast: false);
+            _skillEmblemImg.preserveAspect = true;
+            Stretch(_skillEmblemImg.rectTransform, new Vector2(0.20f, 0.20f), new Vector2(0.80f, 0.80f), Vector2.zero, Vector2.zero);
 
-            var weaponInspArf = rawGo2.GetComponent<AspectRatioFitter>();
-            weaponInspArf.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-            weaponInspArf.aspectRatio = 1f;
+            _skillSlotChip = MakePaperPanel("RoleChip", inspector, cornerCut: 4f);
+            Stretch(_skillSlotChip.rectTransform, new Vector2(0.33f, 0.85f), new Vector2(0.95f, 0.94f), Vector2.zero, Vector2.zero);
+            _skillSlotText = MakeFittedText("RoleLabel", _skillSlotChip.transform, "", 14, Ink, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _skillSlotText.resizeTextMinSize = 9;
+            Ui.ClearOutline(_skillSlotText);
+            Stretch(_skillSlotText.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 1f), new Vector2(-8f, -1f));
 
-            _weaponRoleChip = Ui.MakeSliced("RoleChip", inspector, MenuArt.RoundSolid(8), Gold, raycast: false);
-            Stretch(_weaponRoleChip.rectTransform, new Vector2(0.35f, 0.85f), new Vector2(0.94f, 0.94f), Vector2.zero, Vector2.zero);
-            _weaponRoleText = MakeFittedText("RoleLabel", _weaponRoleChip.transform, "", 18, Ink, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            Ui.ClearOutline(_weaponRoleText);
-            Stretch(_weaponRoleText.rectTransform, Vector2.zero, Vector2.one, new Vector2(6f, 0f), new Vector2(-6f, 0f));
+            _skillNameText = MakeFittedText("WeaponName", inspector, "", 24, Paper, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _skillNameText.resizeTextMinSize = 12;
+            Ui.ClearOutline(_skillNameText);
+            Stretch(_skillNameText.rectTransform, new Vector2(0.33f, 0.74f), new Vector2(0.95f, 0.85f), Vector2.zero, Vector2.zero);
 
-            _weaponNameText = MakeFittedText("WeaponName", inspector, "", 26, MenuArt.GoldLight, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
-            Stretch(_weaponNameText.rectTransform, new Vector2(0.35f, 0.74f), new Vector2(0.94f, 0.85f), Vector2.zero, Vector2.zero);
+            _skillOriginText = MakeFittedText("Origin", inspector, "", 15, CoralGold, TextAnchor.UpperLeft);
+            _skillOriginText.resizeTextMinSize = 9;
+            Ui.ClearOutline(_skillOriginText);
+            Stretch(_skillOriginText.rectTransform, new Vector2(0.33f, 0.66f), new Vector2(0.95f, 0.74f), Vector2.zero, Vector2.zero);
 
-            _weaponOriginText = MakeFittedText("Origin", inspector, "", 18, Teal, TextAnchor.UpperLeft);
-            Ui.ClearOutline(_weaponOriginText);
-            Stretch(_weaponOriginText.rectTransform, new Vector2(0.35f, 0.66f), new Vector2(0.94f, 0.74f), Vector2.zero, Vector2.zero);
+            Image rule = Ui.MakeImage("SkillRule", inspector, HairlineColor, round: false, raycast: false);
+            Stretch(rule.rectTransform, new Vector2(0.05f, 0.64f), new Vector2(0.95f, 0.64f), Vector2.zero, new Vector2(0f, 1f));
 
-            _weaponDescText = MakeWrappedText("Desc", inspector, "", 19, MenuArt.Cream, TextAnchor.UpperLeft);
-            Ui.ClearOutline(_weaponDescText);
-            Stretch(_weaponDescText.rectTransform, new Vector2(0.06f, 0.42f), new Vector2(0.94f, 0.65f), Vector2.zero, Vector2.zero);
+            // Scrollable detail stack (description + live stats plate + cultural blurb -> zero truncation at 844x390!)
+            RectTransform bodyHolder = Ui.Panel("SkillDetailScrollHolder", inspector, new Vector2(0.05f, 0.04f), new Vector2(0.95f, 0.62f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            _skillInspectorScroll = CreateVerticalScroll("SkillDetailScroll", bodyHolder, out RectTransform detailContent);
+            var detailLayout = detailContent.gameObject.AddComponent<VerticalLayoutGroup>();
+            detailLayout.padding = new RectOffset(4, 6, 4, 8);
+            detailLayout.spacing = 10f;
+            detailLayout.childControlWidth = true;
+            detailLayout.childControlHeight = true;
+            detailLayout.childForceExpandWidth = true;
+            detailLayout.childForceExpandHeight = false;
+            var detailFitter = detailContent.gameObject.AddComponent<ContentSizeFitter>();
+            detailFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-            Image statsBox = Ui.MakeSliced("StatsBox", inspector, MenuArt.StatChip(10), Color.white, raycast: false);
-            Stretch(statsBox.rectTransform, new Vector2(0.06f, 0.22f), new Vector2(0.94f, 0.40f), Vector2.zero, Vector2.zero);
-            Ui.MakeAccentRail("StatsRail", statsBox.transform, Gold, width: 3f, verticalInset: 10f);
-            _weaponStatsText = MakeWrappedText("Stats", statsBox.transform, "", 18, MenuArt.GoldLight, TextAnchor.MiddleLeft);
-            Ui.ClearOutline(_weaponStatsText);
-            Stretch(_weaponStatsText.rectTransform, Vector2.zero, Vector2.one, new Vector2(14f, 4f), new Vector2(-10f, -4f));
+            _skillDescText = Ui.MakeText("Desc", detailContent, "", 17, Paper, TextAnchor.UpperLeft);
+            Ui.ClearOutline(_skillDescText);
+            _skillDescText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _skillDescText.verticalOverflow = VerticalWrapMode.Overflow;
 
-            _weaponBlurbText = MakeWrappedText("CulturalBlurb", inspector, "", 18, Muted, TextAnchor.UpperLeft);
-            Ui.ClearOutline(_weaponBlurbText);
-            Stretch(_weaponBlurbText.rectTransform, new Vector2(0.06f, 0.04f), new Vector2(0.94f, 0.20f), Vector2.zero, Vector2.zero);
+            var statsGo = new GameObject("StatsBox", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup));
+            statsGo.transform.SetParent(detailContent, false);
+            ApplyGlassSurface(statsGo.GetComponent<Image>(), ObsidianDeep, TitaniumBorderStrong, WaterCyan, cornerCut: 6f, accentW: 3f);
+            var statsLayout = statsGo.GetComponent<VerticalLayoutGroup>();
+            statsLayout.padding = new RectOffset(14, 12, 10, 10);
+            statsLayout.childControlWidth = true;
+            statsLayout.childControlHeight = true;
+            statsLayout.childForceExpandWidth = true;
+            statsLayout.childForceExpandHeight = false;
+
+            _skillStatsText = Ui.MakeText("Stats", statsGo.transform, "", 15, Paper, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(_skillStatsText);
+            _skillStatsText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _skillStatsText.verticalOverflow = VerticalWrapMode.Overflow;
+
+            _skillBlurbText = Ui.MakeText("CulturalBlurb", detailContent, "", 15, Muted, TextAnchor.UpperLeft);
+            Ui.ClearOutline(_skillBlurbText);
+            _skillBlurbText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _skillBlurbText.verticalOverflow = VerticalWrapMode.Overflow;
         }
 
         void BuildLarongKalyeTab(RectTransform parent)
@@ -801,7 +947,7 @@ namespace Kalyeah.Game
             // Left 34%: Scrollable 12-Month Heritage Selector
             RectTransform monthListPane = Ui.Panel("MonthList", pane, new Vector2(0f, 0f), new Vector2(0.34f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
             monthListPane.offsetMax = new Vector2(-8f, 0f);
-            Ui.MakeSliced("Bg", monthListPane, MenuArt.ChamferGlass(16), Color.white, raycast: false);
+            MakeGlassPanel("Bg", monthListPane, ObsidianPanel, TitaniumBorder, Color.clear, cornerCut: 8f, accentW: 0f);
 
             CreateVerticalScroll("MonthsScroll", monthListPane, out RectTransform monthContent);
             var vLayout = monthContent.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -815,7 +961,6 @@ namespace Kalyeah.Game
             fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             float rowMinH = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
-            Sprite idleMonthSprite = MenuArt.CtaGhost(10);
             _monthButtonBgs.Clear();
             _monthButtonLabels.Clear();
             _monthButtonLayouts.Clear();
@@ -828,10 +973,10 @@ namespace Kalyeah.Game
                 var rowGo = new GameObject($"Month_{h.Month}_{h.Name}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
                 rowGo.transform.SetParent(monthContent, false);
                 var hitImg = rowGo.GetComponent<Image>();
-                hitImg.color = Color.clear; // transparent >= 48 dp hit catcher
+                hitImg.color = Color.clear;
 
-                RectTransform visualRt = Ui.Panel("Visual", rowGo.transform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 54f));
-                Image visualImg = Ui.MakeSliced("Plate", visualRt, idleMonthSprite, Color.white, raycast: false);
+                RectTransform visualRt = Ui.Panel("Visual", rowGo.transform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 48f));
+                Image visualImg = MakeGlassPanel("Plate", visualRt, ObsidianCard, TitaniumBorder, Color.clear, cornerCut: 5f, accentW: 0f);
 
                 var le = rowGo.GetComponent<LayoutElement>();
                 le.minHeight = rowMinH;
@@ -840,9 +985,11 @@ namespace Kalyeah.Game
                 var btn = rowGo.GetComponent<Button>();
                 btn.targetGraphic = visualImg;
                 btn.onClick.AddListener(() => SelectMonth(idx));
-                Ui.AddPressFeel(rowGo, 0.96f);
+                UiShaders.AttachPressSpring(btn, 0.96f, 2f);
 
-                Text txt = MakeFittedText("Label", visualRt, $"{mShort} · {h.Name}", 19, MenuArt.Cream, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+                Text txt = MakeFittedText("Label", visualRt, $"{mShort} · {h.Name}", 17, Paper, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+                txt.resizeTextMinSize = 10;
+                Ui.ClearOutline(txt);
                 Stretch(txt.rectTransform, Vector2.zero, Vector2.one, new Vector2(14f, 4f), new Vector2(-10f, -4f));
 
                 _monthButtonBgs.Add(visualImg);
@@ -850,31 +997,38 @@ namespace Kalyeah.Game
                 _monthButtonLayouts.Add(le);
             }
 
-            // Right 66%: Heritage Book Spread with fixed top banner + scrollable Goal & 3-column rules
+            // Right 66%: Heritage Book Spread with fixed top banner + scrollable Goal, Ate Lorna note & 3-column rules
             RectTransform book = Ui.Panel("HeritageBook", pane, new Vector2(0.34f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
             book.offsetMin = new Vector2(8f, 0f);
-            Ui.MakeSliced("BookBg", book, MenuArt.ChamferGlass(16), Color.white, raycast: false);
+            MakeGlassPanel("BookBg", book, ObsidianPanel, TitaniumBorderStrong, Color.clear, cornerCut: 8f, accentW: 0f);
 
-            RectTransform bookHeader = Ui.Panel("BookHeader", book, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(0f, 134f));
-            bookHeader.offsetMin = new Vector2(16f, -144f);
+            RectTransform bookHeader = Ui.Panel("BookHeader", book, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -10f), new Vector2(0f, 124f));
+            bookHeader.offsetMin = new Vector2(16f, -134f);
             bookHeader.offsetMax = new Vector2(-16f, -10f);
 
-            Image monthChip = Ui.MakeSliced("MonthChip", bookHeader, MenuArt.CtaGold(8), Color.white, raycast: false);
-            Stretch(monthChip.rectTransform, new Vector2(0f, 0.72f), new Vector2(0.38f, 1f), Vector2.zero, Vector2.zero);
-            _heritageMonthBadge = MakeFittedText("MonthText", monthChip.transform, "", 18, Ink, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Image monthChip = MakeGlassPanel("MonthChip", bookHeader, Vermilion, Color.clear, Color.clear, cornerCut: 5f, accentW: 0f);
+            Stretch(monthChip.rectTransform, new Vector2(0f, 0.72f), new Vector2(0.40f, 1f), Vector2.zero, Vector2.zero);
+            _heritageMonthBadge = MakeFittedText("MonthText", monthChip.transform, "", 15, Paper, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            _heritageMonthBadge.resizeTextMinSize = 9;
             Ui.ClearOutline(_heritageMonthBadge);
             Stretch(_heritageMonthBadge.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 0f), new Vector2(-8f, 0f));
 
-            _heritageTitleText = MakeFittedText("GameTitle", bookHeader, "", 30, MenuArt.GoldLight, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _heritageTitleText = MakeFittedText("GameTitle", bookHeader, "", 27, Paper, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _heritageTitleText.resizeTextMinSize = 14;
+            Ui.ClearOutline(_heritageTitleText);
             Stretch(_heritageTitleText.rectTransform, new Vector2(0f, 0.30f), new Vector2(1f, 0.70f), Vector2.zero, Vector2.zero);
 
-            _heritageMetaText = MakeFittedText("Meta", bookHeader, "", 18, Teal, TextAnchor.MiddleLeft);
+            _heritageMetaText = MakeFittedText("Meta", bookHeader, "", 15, CoralGold, TextAnchor.MiddleLeft);
+            _heritageMetaText.resizeTextMinSize = 9;
             Ui.ClearOutline(_heritageMetaText);
             Stretch(_heritageMetaText.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.28f), Vector2.zero, Vector2.zero);
 
+            Image hdrRule = Ui.MakeImage("BookHeaderRule", book, HairlineColor, round: false, raycast: false);
+            Stretch(hdrRule.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(16f, -139f), new Vector2(-16f, -138f));
+
             RectTransform bookBodyHolder = Ui.Panel("BookScrollHolder", book, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             bookBodyHolder.offsetMin = new Vector2(12f, 10f);
-            bookBodyHolder.offsetMax = new Vector2(-12f, -150f);
+            bookBodyHolder.offsetMax = new Vector2(-12f, -144f);
 
             _heritageScroll = CreateVerticalScroll("HeritageScroll", bookBodyHolder, out RectTransform bookContent);
             var bookVLayout = bookContent.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -889,22 +1043,24 @@ namespace Kalyeah.Game
 
             var goalGo = new GameObject("GoalBanner", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup));
             goalGo.transform.SetParent(bookContent, false);
-            var goalImg = goalGo.GetComponent<Image>();
-            goalImg.sprite = MenuArt.ChamferCard(GoalTop, GoalBottom, MenuArt.GoldBorder, 10, 1, 0.22f);
-            goalImg.type = Image.Type.Sliced;
-            goalImg.color = Color.white;
-            goalImg.raycastTarget = false;
+            ApplyGlassSurface(goalGo.GetComponent<Image>(), ObsidianDeep, TitaniumBorderStrong, Paper, cornerCut: 6f, accentW: 3f);
             var goalLayout = goalGo.GetComponent<VerticalLayoutGroup>();
             goalLayout.padding = new RectOffset(16, 14, 10, 10);
+            goalLayout.spacing = 4f;
             goalLayout.childControlWidth = true;
             goalLayout.childControlHeight = true;
             goalLayout.childForceExpandWidth = true;
             goalLayout.childForceExpandHeight = false;
 
-            _heritageGoalText = Ui.MakeText("GoalText", goalGo.transform, "", 19, MenuArt.Cream, TextAnchor.MiddleLeft);
+            _heritageGoalText = Ui.MakeText("GoalText", goalGo.transform, "", 17, Paper, TextAnchor.MiddleLeft);
             Ui.ClearOutline(_heritageGoalText);
             _heritageGoalText.horizontalOverflow = HorizontalWrapMode.Wrap;
             _heritageGoalText.verticalOverflow = VerticalWrapMode.Overflow;
+
+            _heritageAteLornaText = Ui.MakeText("AteLornaNote", goalGo.transform, "", 14, Muted, TextAnchor.MiddleLeft);
+            Ui.ClearOutline(_heritageAteLornaText);
+            _heritageAteLornaText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            _heritageAteLornaText.verticalOverflow = VerticalWrapMode.Overflow;
 
             var colsRowGo = new GameObject("ColumnsRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
             colsRowGo.transform.SetParent(bookContent, false);
@@ -925,15 +1081,11 @@ namespace Kalyeah.Game
         {
             var colGo = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(LayoutElement));
             colGo.transform.SetParent(parent, false);
-            var bg = colGo.GetComponent<Image>();
-            bg.sprite = MenuArt.StatChip(10);
-            bg.type = Image.Type.Sliced;
-            bg.color = Color.white;
-            bg.raycastTarget = false;
+            ApplyGlassSurface(colGo.GetComponent<Image>(), ObsidianDeep, TitaniumBorder, Color.clear, cornerCut: 6f, accentW: 0f);
 
             var le = colGo.GetComponent<LayoutElement>();
             le.flexibleWidth = 1f;
-            le.minWidth = 120f;
+            le.minWidth = 110f;
 
             var v = colGo.GetComponent<VerticalLayoutGroup>();
             v.padding = new RectOffset(12, 12, 10, 12);
@@ -943,13 +1095,14 @@ namespace Kalyeah.Game
             v.childForceExpandWidth = true;
             v.childForceExpandHeight = false;
 
-            Text head = MakeFittedText("Heading", colGo.transform, heading, 18, MenuArt.GoldLight, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            Text head = MakeFittedText("Heading", colGo.transform, heading, 16, CoralGold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            head.resizeTextMinSize = 10;
             Ui.ClearOutline(head);
             var headLe = head.gameObject.AddComponent<LayoutElement>();
-            headLe.minHeight = 26f;
-            headLe.preferredHeight = 26f;
+            headLe.minHeight = 24f;
+            headLe.preferredHeight = 24f;
 
-            Text body = Ui.MakeText("Body", colGo.transform, "", 18, MenuArt.Cream, TextAnchor.UpperLeft);
+            Text body = Ui.MakeText("Body", colGo.transform, "", 16, Paper, TextAnchor.UpperLeft);
             Ui.ClearOutline(body);
             body.horizontalOverflow = HorizontalWrapMode.Wrap;
             body.verticalOverflow = VerticalWrapMode.Overflow;
@@ -968,59 +1121,131 @@ namespace Kalyeah.Game
             if (_kidPortrait != null)
             {
                 _kidPortrait.texture = tex;
+                _kidPortrait.uvRect = FullUv;
                 _kidPortrait.enabled = tex != null;
             }
-            if (_kidPortraitFallback != null)
-                _kidPortraitFallback.color = Color.white;
             if (_kidNameText != null) _kidNameText.text = kid.Name.ToUpperInvariant();
-            if (_kidBioText != null) _kidBioText.text = kid.Description;
+            if (_kidMetaBadgeText != null) _kidMetaBadgeText.text = $"{kid.PurokName.ToUpperInvariant()}  ·  {kid.Role.ToUpperInvariant()}";
+            if (_kidRivalText != null) _kidRivalText.text = string.IsNullOrEmpty(kid.RivalName) ? "BARANGAY CREW" : $"RIVAL: {kid.RivalName.ToUpperInvariant()}";
+
+            if (_kidBioText != null)
+            {
+                var sb = new StringBuilder(320);
+                if (!string.IsNullOrEmpty(kid.AteLornaSummary))
+                    sb.Append(LoreCodexData.AteLornaName).Append(": \"").Append(kid.AteLornaSummary).Append('"');
+                else if (!string.IsNullOrEmpty(kid.Description))
+                    sb.Append(kid.Description);
+
+                if (!string.IsNullOrEmpty(kid.Personality))
+                    sb.Append("\n\nVIBE: ").Append(kid.Personality);
+                if (!string.IsNullOrEmpty(kid.HomeAndFamily))
+                    sb.Append("\nHOME: ").Append(kid.HomeAndFamily);
+                if (!string.IsNullOrEmpty(kid.DreamJob))
+                    sb.Append("\nDREAM: ").Append(kid.DreamJob);
+                if (!string.IsNullOrEmpty(kid.FriendsLine))
+                    sb.Append("\nPUROK CREW: ").Append(kid.FriendsLine);
+                if (!string.IsNullOrEmpty(kid.PurokLandmark))
+                    sb.Append("\nHANGOUT: ").Append(kid.PurokLandmark);
+
+                _kidBioText.text = sb.ToString();
+            }
+
+            for (int s = 0; s < _kidInspectorSkills.Length; s++)
+            {
+                MiniSkillBadgeUi ui = _kidInspectorSkills[s];
+                if (ui == null) continue;
+                if (s < kid.Skills.Count)
+                {
+                    SkillEntry sk = kid.Skills[s];
+                    if (ui.Emblem != null) ui.Emblem.sprite = MenuArt.SkillEmblem(sk.Id);
+                    if (ui.NameLabel != null) ui.NameLabel.text = sk.Name;
+                    if (ui.CostLabel != null)
+                    {
+                        ui.CostLabel.text = sk.IsUltimate
+                            ? string.Format(CultureInfo.InvariantCulture, "ULT · {0:0.#}s", sk.Cooldown)
+                            : string.Format(CultureInfo.InvariantCulture, "{0} WATER · {1:0.#}s", sk.WaterCost, sk.Cooldown);
+                    }
+                    if (ui.DiscMat != null && ui.DiscMat != Graphic.defaultGraphicMaterial && ui.DiscMat.HasProperty(UiShaders.PropRimColor))
+                        ui.DiscMat.SetColor(UiShaders.PropRimColor, sk.IsUltimate ? CoralGold : MenuArt.TitaniumRim);
+                }
+                else
+                {
+                    if (ui.NameLabel != null) ui.NameLabel.text = "";
+                    if (ui.CostLabel != null) ui.CostLabel.text = "";
+                }
+            }
+
+            if (_kidBioScroll != null && _kidBioScroll.content != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_kidBioScroll.content);
+                _kidBioScroll.verticalNormalizedPosition = 1f;
+            }
         }
 
         public void SelectWeapon(int index)
         {
-            if (_weapons.Count == 0) return;
-            _selectedWeaponIndex = Mathf.Clamp(index, 0, _weapons.Count - 1);
-            for (int i = 0; i < _weaponCardOutlines.Count; i++)
-                _weaponCardOutlines[i].SetActive(i == _selectedWeaponIndex);
+            if (_skills.Count == 0) return;
+            _selectedSkillIndex = Mathf.Clamp(index, 0, _skills.Count - 1);
+            for (int i = 0; i < _skillCardOutlines.Count; i++)
+                _skillCardOutlines[i].SetActive(i == _selectedSkillIndex);
 
-            WeaponEntry w = _weapons[_selectedWeaponIndex];
-            Texture2D icon = LoadWeaponTexture(w.Id);
-            if (_weaponIcon != null)
+            SkillEntry sk = _skills[_selectedSkillIndex];
+            if (_skillEmblemImg != null)
+                _skillEmblemImg.sprite = MenuArt.SkillEmblem(sk.Id);
+            if (_skillDiscMat != null && _skillDiscMat != Graphic.defaultGraphicMaterial && _skillDiscMat.HasProperty(UiShaders.PropRimColor))
             {
-                _weaponIcon.texture = icon;
-                _weaponIcon.enabled = icon != null;
-            }
-            if (_weaponRoleChip != null) _weaponRoleChip.color = w.RoleColor;
-            if (_weaponRoleText != null) _weaponRoleText.text = w.RoleLabel;
-            if (_weaponNameText != null) _weaponNameText.text = w.Name;
-            if (_weaponOriginText != null)
-                _weaponOriginText.text = string.IsNullOrEmpty(w.StreetGame) ? "Barangay Kit" : ("Inspired by: " + w.StreetGame);
-            if (_weaponDescText != null) _weaponDescText.text = w.Description;
-
-            if (_weaponStatsText != null)
-            {
-                string impact = w.Heal > 0 && w.Damage > 0
-                    ? $"DMG {w.Damage}  |  HEAL +{w.Heal}"
-                    : w.Heal > 0
-                        ? $"HEAL +{w.Heal}"
-                        : w.Damage > 0
-                            ? $"DMG {w.Damage}"
-                            : "UTILITY / SHIELD";
-                string rangePart = w.Range > 0f ? string.Format(CultureInfo.InvariantCulture, "RANGE {0:0.#}m", w.Range) : "SELF / ZONE";
-                string cdPart = w.IsUltimate ? "CHARGE 100%" : string.Format(CultureInfo.InvariantCulture, "CD {0:0.##}s  |  ICE {1}", w.Cooldown, w.ElixirCost);
-                _weaponStatsText.text = $"{impact}\n{rangePart}  |  {cdPart}";
+                _skillDiscMat.SetColor(UiShaders.PropRimColor, sk.IsUltimate ? Vermilion : MenuArt.TitaniumRim);
+                if (_skillDiscMat.HasProperty(UiShaders.PropUltPulse))
+                    _skillDiscMat.SetFloat(UiShaders.PropUltPulse, sk.IsUltimate ? 0.55f : 0f);
             }
 
-            if (_weaponBlurbText != null)
+            if (_skillSlotChip != null)
             {
-                if (!string.IsNullOrEmpty(w.StreetGame) && _streetBlurbs.TryGetValue(w.StreetGame, out string blurb))
-                    _weaponBlurbText.text = $"\"{blurb}\"";
+                if (sk.IsUltimate)
+                    ApplyGlassSurface(_skillSlotChip, Vermilion, Color.clear, Color.clear, cornerCut: 4f, accentW: 0f);
                 else
-                    _weaponBlurbText.text = w.IsPrimary
-                        ? "Always equipped under your resting thumb — reliable street pebble shots between superpower cooldowns."
-                        : w.IsUltimate
-                            ? "Charges passively and on street skirmish hits; turns teamfights at the enemy base post!"
-                            : "Equip up to 3 Superpowers in Pick Kid & Loadout, or swap while Tagged on the sidewalk.";
+                    ApplyPaperSurface(_skillSlotChip, cornerCut: 4f);
+            }
+            if (_skillSlotText != null)
+            {
+                _skillSlotText.text = $"{sk.KidName.ToUpperInvariant()}  ·  {sk.RoleName.ToUpperInvariant()}  ·  {SlotCode(sk.Slot)}";
+                Ui.SetTextColor(_skillSlotText, sk.IsUltimate ? Paper : Ink);
+                Ui.ClearOutline(_skillSlotText);
+            }
+            if (_skillNameText != null) _skillNameText.text = sk.Name;
+            if (_skillOriginText != null)
+                _skillOriginText.text = string.IsNullOrEmpty(sk.StreetGame)
+                    ? $"{sk.PurokName} Signature Kit"
+                    : $"Larong Kalye: {sk.StreetGame}  ·  {sk.PurokName}";
+            if (_skillDescText != null) _skillDescText.text = sk.Description;
+
+            if (_skillStatsText != null)
+            {
+                var parts = new List<string>(6);
+                parts.Add(sk.IsUltimate ? "ULTIMATE · 0 WATER" : $"WATER {sk.WaterCost}");
+                parts.Add(string.Format(CultureInfo.InvariantCulture, "CD {0:0.#}s", sk.Cooldown));
+                if (sk.MaxCharges > 1) parts.Add($"{sk.MaxCharges} CHARGES");
+                if (sk.Damage > 0) parts.Add($"DMG {sk.Damage}");
+                if (sk.Heal > 0) parts.Add($"HEAL +{sk.Heal}");
+                if (sk.WallHp > 0) parts.Add($"WALL {sk.WallHp} HP");
+                if (sk.Range > 0f) parts.Add(string.Format(CultureInfo.InvariantCulture, "RANGE {0:0.#}m", sk.Range));
+                if (sk.Radius > 0f) parts.Add(string.Format(CultureInfo.InvariantCulture, "RADIUS {0:0.#}m", sk.Radius));
+                if (sk.Duration > 0f) parts.Add(string.Format(CultureInfo.InvariantCulture, "DURATION {0:0.#}s", sk.Duration));
+                _skillStatsText.text = string.Join("  |  ", parts);
+            }
+
+            if (_skillBlurbText != null)
+            {
+                if (!string.IsNullOrEmpty(sk.StreetGame) && _streetBlurbs.TryGetValue(sk.StreetGame, out string blurb))
+                    _skillBlurbText.text = $"\"{blurb}\"";
+                else
+                    _skillBlurbText.text = $"{LoreCodexData.AteLornaName}: \"{LoreCodexData.ResolveAteLornaIntro(sk.PurokName, _selectedSkillIndex).Text}\"";
+            }
+
+            if (_skillInspectorScroll != null && _skillInspectorScroll.content != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_skillInspectorScroll.content);
+                _skillInspectorScroll.verticalNormalizedPosition = 1f;
             }
         }
 
@@ -1028,15 +1253,18 @@ namespace Kalyeah.Game
         {
             if (_heritage.Count == 0) return;
             _selectedMonthIndex = Mathf.Clamp(index, 0, _heritage.Count - 1);
-            Sprite activeSprite = MenuArt.CtaGold(10);
-            Sprite idleSprite = MenuArt.CtaGhost(10);
             for (int i = 0; i < _monthButtonBgs.Count; i++)
             {
                 bool active = i == _selectedMonthIndex;
-                _monthButtonBgs[i].sprite = active ? activeSprite : idleSprite;
-                _monthButtonBgs[i].color = Color.white;
+                if (active)
+                    ApplyPaperSurface(_monthButtonBgs[i], cornerCut: 5f);
+                else
+                    ApplyGlassSurface(_monthButtonBgs[i], ObsidianCard, TitaniumBorder, Color.clear, cornerCut: 5f, accentW: 0f);
                 if (i < _monthButtonLabels.Count && _monthButtonLabels[i] != null)
-                    Ui.SetTextColor(_monthButtonLabels[i], active ? Ink : MenuArt.Cream);
+                {
+                    Ui.SetTextColor(_monthButtonLabels[i], active ? Ink : Paper);
+                    if (active) Ui.ClearOutline(_monthButtonLabels[i]);
+                }
             }
 
             HeritageEntry h = _heritage[_selectedMonthIndex];
@@ -1047,9 +1275,11 @@ namespace Kalyeah.Game
 
             string itemsJoined = h.Items != null && h.Items.Length > 0 ? string.Join(", ", h.Items) : "None";
             if (_heritageMetaText != null)
-                _heritageMetaText.text = $"Players: {h.PlayersMin}–{h.PlayersMax}   |   Time: {h.Time}   |   Place: {h.Place}   |   Gear: {itemsJoined}";
+                _heritageMetaText.text = $"Players: {h.PlayersMin}-{h.PlayersMax}   |   Time: {h.Time}   |   Place: {h.Place}   |   Gear: {itemsJoined}";
             if (_heritageGoalText != null)
                 _heritageGoalText.text = "GOAL: " + h.Goal;
+            if (_heritageAteLornaText != null)
+                _heritageAteLornaText.text = $"{LoreCodexData.AteLornaName} — {LoreCodexData.ResolveAteLornaIntro(h.Name, h.Month).Text}";
             if (_heritageSetupText != null)
                 _heritageSetupText.text = FormatBullets(h.Setup);
             if (_heritageHowText != null)
@@ -1072,21 +1302,17 @@ namespace Kalyeah.Game
         void RefreshLocalization()
         {
             bool fil = SettingsStore.Current.Language == "fil";
-            if (_headerTitle != null) _headerTitle.text = fil ? "ALMANAK NG KALYE" : "KOMIKS ALMANAC";
+            if (_headerTitle != null) _headerTitle.text = fil ? "ALMANAK NG BARANGAY" : "BARANGAY ALMANAC";
             if (_backLabel != null) _backLabel.text = fil ? "BALIK" : "BACK";
-            if (_tabPillLabels[0] != null) _tabPillLabels[0].text = fil ? $"BATA ({_kids.Count})" : $"KIDS ({_kids.Count})";
-            if (_tabPillLabels[1] != null) _tabPillLabels[1].text = fil ? $"GAMIT ({_weapons.Count})" : $"WEAPONS & KIT ({_weapons.Count})";
+            if (_tabPillLabels[0] != null) _tabPillLabels[0].text = fil ? $"MGA BATA ({_kids.Count})" : $"KIDS ({_kids.Count})";
+            if (_tabPillLabels[1] != null) _tabPillLabels[1].text = fil ? $"KAKAYAHAN ({_skills.Count})" : $"SKILLS & KITS ({_skills.Count})";
             if (_tabPillLabels[2] != null) _tabPillLabels[2].text = $"LARONG KALYE ({_heritage.Count})";
-            if (_kidBadgeText != null)
-                _kidBadgeText.text = fil
-                    ? "PAMPORMA LANG\nPantay na HP, Bilis at Hitbox"
-                    : "COSMETIC ONLY\nEqual HP, Speed & Hitbox";
         }
 
         void LoadCatalogData()
         {
             _kids.Clear();
-            _weapons.Clear();
+            _skills.Clear();
             _heritage.Clear();
             _streetBlurbs.Clear();
 
@@ -1105,68 +1331,130 @@ namespace Kalyeah.Game
                 // Optional enrichment if missing in synthetic test DataSource.
             }
 
-            // 2. Kids (10)
-            string[] kidIds;
-            try
-            {
-                kidIds = _data.CharacterIds();
-            }
-            catch
-            {
-                kidIds = AppSession.DefaultRoster;
-            }
-
+            // 2. All 12 Kids (AppSession.DefaultRoster + LoreCodexData) + All 36 docs/KITS.md Skills
+            string[] kidIds = AppSession.DefaultRoster;
+            var friendIds = new List<string>(4);
             for (int i = 0; i < kidIds.Length; i++)
             {
                 string id = kidIds[i];
+                bool hasLore = LoreCodexData.TryGetKid(id, out KidLoreEntry lore);
+                PurokEntry purok = hasLore ? LoreCodexData.GetPurok(lore.Purok) : default;
+                string rivalId = LoreCodexData.GetRivalId(id);
+                string rivalName = "";
+                if (!string.IsNullOrEmpty(rivalId))
+                    rivalName = LoreCodexData.TryGetKid(rivalId, out KidLoreEntry rivalLore) ? rivalLore.DisplayName : Capitalize(rivalId);
+
+                LoreCodexData.GetPurokFriends(id, friendIds);
+                var friendNames = new List<string>(friendIds.Count);
+                for (int f = 0; f < friendIds.Count; f++)
+                {
+                    friendNames.Add(LoreCodexData.TryGetKid(friendIds[f], out KidLoreEntry fLore)
+                        ? fLore.DisplayName
+                        : Capitalize(friendIds[f]));
+                }
+
+                Dictionary<string, object> charProps = null;
                 try
                 {
-                    Dictionary<string, object> p = _data.Props("characters__" + id);
-                    _kids.Add(new KidEntry
-                    {
-                        Id = id,
-                        Name = ReadStr(p, "display_name", Capitalize(id)),
-                        Description = ReadStr(p, "description", "Barangay street contender."),
-                        Accent = ReadColor(p, "extra_color", Gold),
-                    });
+                    charProps = _data.Props("characters__" + id);
                 }
                 catch
                 {
-                    _kids.Add(new KidEntry { Id = id, Name = Capitalize(id), Description = "Barangay street contender.", Accent = Gold });
-                }
-            }
-
-            // 3. Weapons & Kit (16: Primary Tirador + 14 Deck Superpowers + Ultimate Bagsak)
-            try
-            {
-                Dictionary<string, object> gr = _data.Props("rules__game_rules");
-                if (gr.TryGetValue("primary_weapon", out object primRef) && primRef != null)
-                    AddWeaponFromDataName(DataSource.NameOfRef(primRef), isPrimary: true, isUltimate: false);
-
-                if (gr.TryGetValue("weapons", out object listObj) && listObj is List<object> weaponRefs)
-                {
-                    for (int i = 0; i < weaponRefs.Count; i++)
-                        AddWeaponFromDataName(DataSource.NameOfRef(weaponRefs[i]), isPrimary: false, isUltimate: false);
+                    charProps = null;
                 }
 
-                if (gr.TryGetValue("ultimate_weapon", out object ultRef) && ultRef != null)
-                    AddWeaponFromDataName(DataSource.NameOfRef(ultRef), isPrimary: false, isUltimate: true);
-            }
-            catch
-            {
-                // Fallback if minimal test DataSource omits rules__game_rules
-                AddWeaponFallback("tirador_bato", "Tirador · Bato", isPrimary: true, isUltimate: false);
-                string[] fallbackDeck =
+                string displayName = ReadStr(charProps, "display_name", hasLore ? lore.DisplayName : Capitalize(id));
+                string roleName = hasLore ? LoreCodexData.RoleName(lore.Role) : Capitalize(ReadStr(charProps, "role", "Striker"));
+                string purokName = hasLore && !string.IsNullOrEmpty(purok.Name) ? purok.Name : "Barangay";
+
+                var entry = new KidEntry
                 {
-                    "bato_light", "bato_heavy", "gunting_light", "gunting_heavy", "papel_trap", "papel_shield",
-                    "tsinelas_light", "tsinelas_heavy", "lata", "jacks", "bola", "trumpo", "heal", "langit_lupa"
+                    Id = id,
+                    Name = displayName,
+                    Description = ReadStr(charProps, "description", hasLore ? lore.AteLornaCodexSummary : "Barangay street contender."),
+                    Role = roleName,
+                    PurokName = purokName,
+                    PurokLandmark = hasLore ? purok.Description : "",
+                    RivalName = rivalName,
+                    FriendsLine = friendNames.Count > 0 ? string.Join(", ", friendNames) : "",
+                    Personality = hasLore ? lore.Personality : "",
+                    HomeAndFamily = hasLore ? lore.HomeAndFamily : "",
+                    DreamJob = hasLore ? lore.DreamJob : "",
+                    AteLornaSummary = hasLore ? lore.AteLornaCodexSummary : "",
                 };
-                for (int i = 0; i < fallbackDeck.Length; i++)
-                    AddWeaponFallback(fallbackDeck[i], Capitalize(fallbackDeck[i]), isPrimary: false, isUltimate: false);
-                AddWeaponFallback("ult_bagsak", "Bagsak ng Kalye", isPrimary: false, isUltimate: true);
+
+                // Read 3 live skills directly from characters__<id>.json
+                int addedSkills = 0;
+                if (charProps != null && charProps.TryGetValue("skills", out object skillsObj) && skillsObj is List<object> rawSkills)
+                {
+                    for (int s = 0; s < rawSkills.Count; s++)
+                    {
+                        if (!(rawSkills[s] is Dictionary<string, object> sd)) continue;
+                        string slot = ReadStr(sd, "slot", s == 0 ? "s1" : s == 1 ? "s2" : "ult");
+                        bool isUlt = string.Equals(slot, "ult", StringComparison.OrdinalIgnoreCase);
+                        string skillId = ReadStr(sd, "id", $"{id}_{slot}");
+                        var skill = new SkillEntry
+                        {
+                            Id = skillId,
+                            KidId = id,
+                            KidName = displayName,
+                            RoleName = roleName,
+                            PurokName = purokName,
+                            Slot = slot,
+                            Name = ReadStr(sd, "display_name", Capitalize(skillId)),
+                            ShortName = ReadStr(sd, "short_name", ""),
+                            Description = ReadStr(sd, "description", "Barangay street skill."),
+                            StreetGame = ReadStr(sd, "street_game", ""),
+                            WaterCost = isUlt ? 0 : ReadInt(sd, "water_cost", 25),
+                            Cooldown = ReadFloat(sd, "cooldown", isUlt ? 85f : 10f),
+                            MaxCharges = ReadInt(sd, "max_charges", 1),
+                            Damage = ReadInt(sd, "damage", 0),
+                            Heal = ReadInt(sd, "heal", 0),
+                            WallHp = ReadInt(sd, "wall_hp", 0),
+                            Range = ReadFloat(sd, "max_range", 0f),
+                            Radius = ReadFloat(sd, "radius", 0f),
+                            Duration = ReadFloat(sd, "duration", 0f),
+                            IsUltimate = isUlt,
+                        };
+                        entry.Skills.Add(skill);
+                        _skills.Add(skill);
+                        addedSkills++;
+                    }
+                }
+
+                // Fallback for minimal synthetic test DataSources lacking character skills arrays
+                if (addedSkills == 0)
+                {
+                    string[] fallbackSlots = { "s1", "s2", "ult" };
+                    for (int s = 0; s < 3; s++)
+                    {
+                        bool isUlt = s == 2;
+                        var skill = new SkillEntry
+                        {
+                            Id = $"{id}_{fallbackSlots[s]}",
+                            KidId = id,
+                            KidName = displayName,
+                            RoleName = roleName,
+                            PurokName = purokName,
+                            Slot = fallbackSlots[s],
+                            Name = isUlt ? $"{displayName} Ultimate" : $"{displayName} Skill {s + 1}",
+                            ShortName = SlotCode(fallbackSlots[s]),
+                            Description = entry.Description,
+                            StreetGame = "Larong Kalye",
+                            WaterCost = isUlt ? 0 : 25,
+                            Cooldown = isUlt ? 85f : 10f,
+                            MaxCharges = 1,
+                            IsUltimate = isUlt,
+                        };
+                        entry.Skills.Add(skill);
+                        _skills.Add(skill);
+                    }
+                }
+
+                _kids.Add(entry);
             }
 
-            // 4. Larong Kalye 12-Month Heritage Almanac
+            // 3. Larong Kalye 12-Month Heritage Almanac
             try
             {
                 Dictionary<string, object> lk = _data.Props("rules__larong_kalye");
@@ -1196,96 +1484,98 @@ namespace Kalyeah.Game
             }
             catch
             {
-                // Keep empty or fallback if synthetic test omits rules__larong_kalye
+                // Keep empty if synthetic test omits rules__larong_kalye.
             }
         }
 
-        void AddWeaponFromDataName(string dataName, bool isPrimary, bool isUltimate)
+        static string SlotCode(string slot)
         {
-            Dictionary<string, object> p = _data.Props(dataName);
-            string id = ReadStr(p, "id", dataName);
-            int kind = ReadInt(p, "kind", 0);
-            string roleLabel = isPrimary ? "PRIMARY KIT" : isUltimate ? "ULTIMATE" : RoleLabelFor(kind);
-            Color roleColor = isPrimary ? Teal : isUltimate ? Gold : RoleColorFor(kind);
-
-            _weapons.Add(new WeaponEntry
-            {
-                Id = id,
-                Name = ReadStr(p, "display_name", Capitalize(id)),
-                ShortName = ReadStr(p, "short_name", ""),
-                Description = ReadStr(p, "description", ""),
-                StreetGame = ReadStr(p, "street_game", ""),
-                RoleLabel = roleLabel,
-                RoleColor = roleColor,
-                Damage = ReadInt(p, "damage", 0),
-                Heal = ReadInt(p, "heal", 0),
-                ElixirCost = ReadInt(p, "elixir_cost", 0),
-                Cooldown = ReadFloat(p, "cooldown", 0f),
-                Range = ReadFloat(p, "max_range", 0f),
-                Radius = ReadFloat(p, "radius", 0f),
-                IsPrimary = isPrimary,
-                IsUltimate = isUltimate,
-            });
-        }
-
-        void AddWeaponFallback(string id, string name, bool isPrimary, bool isUltimate)
-        {
-            _weapons.Add(new WeaponEntry
-            {
-                Id = id,
-                Name = name,
-                ShortName = name,
-                Description = "Barangay street kit.",
-                RoleLabel = isPrimary ? "PRIMARY KIT" : isUltimate ? "ULTIMATE" : "SUPERPOWER",
-                RoleColor = isPrimary ? Teal : isUltimate ? Gold : Coral,
-                IsPrimary = isPrimary,
-                IsUltimate = isUltimate,
-            });
-        }
-
-        static string RoleLabelFor(int kind)
-        {
-            switch ((WeaponRoleKind)kind)
-            {
-                case WeaponRoleKind.CrowdControl: return "CROWD CTRL";
-                case WeaponRoleKind.Block: return "SHIELD / BLOCK";
-                case WeaponRoleKind.Heal: return "HEAL / MERIENDA";
-                default: return "ATTACK";
-            }
-        }
-
-        static Color RoleColorFor(int kind)
-        {
-            switch ((WeaponRoleKind)kind)
-            {
-                case WeaponRoleKind.CrowdControl: return new Color(0.72f, 0.52f, 0.98f, 1f);
-                case WeaponRoleKind.Block: return new Color(0.32f, 0.76f, 0.98f, 1f);
-                case WeaponRoleKind.Heal: return new Color(0.34f, 0.88f, 0.52f, 1f);
-                default: return Coral;
-            }
+            if (string.Equals(slot, "ult", StringComparison.OrdinalIgnoreCase)) return "ULT";
+            if (string.Equals(slot, "s2", StringComparison.OrdinalIgnoreCase)) return "S2";
+            return "S1";
         }
 
         static Texture2D LoadKidTexture(string kidId)
         {
             if (string.IsNullOrEmpty(kidId)) return null;
-            return KalyeahResources.Texture("portraits/" + kidId)
-                ?? KalyeahResources.Texture("ui/avatars/" + kidId);
+            return KalyeahResources.KidBust(kidId)
+                ?? KalyeahResources.Texture("portraits/faces/" + kidId)
+                ?? KalyeahResources.Texture("portraits/" + kidId);
         }
 
-        static Texture2D LoadWeaponTexture(string weaponId)
+        static Image MakeGlassPanel(string name, Transform parent, Color fill, Color border, Color leftAccent, float cornerCut = 6f, float accentW = 0f)
         {
-            if (string.IsNullOrEmpty(weaponId)) return null;
-            return KalyeahResources.Texture("icons/art/" + weaponId)
-                ?? KalyeahResources.Texture("icons/cards/" + weaponId)
-                ?? KalyeahResources.Texture("ui/weapons/" + weaponId)
-                ?? KalyeahResources.Texture("icons/" + weaponId);
+            Image img = Ui.MakeImage(name, parent, Color.white, round: false, raycast: false);
+            Stretch(img.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            ApplyGlassSurface(img, fill, border, leftAccent, cornerCut, accentW);
+            return img;
+        }
+
+        static Image MakePaperPanel(string name, Transform parent, float cornerCut = 4f)
+        {
+            Image img = Ui.MakeImage(name, parent, Paper, round: false, raycast: false);
+            ApplyPaperSurface(img, cornerCut);
+            return img;
+        }
+
+        static void ApplyGlassSurface(Image img, Color fill, Color border, Color leftAccent, float cornerCut, float accentW)
+        {
+            if (img == null) return;
+            img.sprite = null;
+            img.type = Image.Type.Simple;
+            Material mat = UiShaders.CreateTacticalGlass(fill, border, leftAccent, cornerCut, accentW, topHighlight: 0.14f);
+            if (mat != null && mat != Graphic.defaultGraphicMaterial)
+            {
+                img.material = mat;
+                img.color = Color.white;
+            }
+            else
+            {
+                img.material = null;
+                img.color = fill;
+            }
+        }
+
+        static void ApplyPaperSurface(Image img, float cornerCut)
+        {
+            if (img == null) return;
+            img.sprite = null;
+            img.type = Image.Type.Simple;
+            Material mat = UiShaders.CreateTacticalGlass(Paper, TitaniumBorderStrong, Color.clear, cornerCut, accentW: 0f, topHighlight: 0.06f);
+            if (mat != null && mat != Graphic.defaultGraphicMaterial)
+            {
+                img.material = mat;
+                img.color = Color.white;
+            }
+            else
+            {
+                img.material = null;
+                img.color = Paper;
+            }
+        }
+
+        static void ApplyDiscMaterial(Image img, Material mat, Color fallback)
+        {
+            if (img == null) return;
+            img.sprite = null;
+            img.type = Image.Type.Simple;
+            if (mat != null && mat != Graphic.defaultGraphicMaterial)
+            {
+                img.material = mat;
+                img.color = Color.white;
+            }
+            else
+            {
+                img.material = null;
+                img.color = fallback;
+            }
         }
 
         static RectTransform CreateTabBody(string name, RectTransform parent)
         {
             RectTransform body = Ui.Panel(name, parent, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             body.offsetMin = new Vector2(0f, 8f);
-            body.offsetMax = new Vector2(0f, -116f);
+            body.offsetMax = new Vector2(0f, -108f);
             return body;
         }
 
@@ -1320,23 +1610,12 @@ namespace Kalyeah.Game
 
         static Text MakeFittedText(string name, Transform parent, string text, int maxSize, Color color, TextAnchor align, Font font = null)
         {
-            Text t = Ui.MakeText(name, parent, text, Mathf.Max(18, maxSize), color, align, font);
+            Text t = Ui.MakeText(name, parent, text, Mathf.Max(14, maxSize), color, align, font);
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
             t.verticalOverflow = VerticalWrapMode.Truncate;
             t.resizeTextForBestFit = true;
-            t.resizeTextMinSize = 12;
-            t.resizeTextMaxSize = Mathf.Max(18, maxSize);
-            return t;
-        }
-
-        static Text MakeWrappedText(string name, Transform parent, string text, int maxSize, Color color, TextAnchor align)
-        {
-            Text t = Ui.MakeText(name, parent, text, Mathf.Max(18, maxSize), color, align);
-            t.horizontalOverflow = HorizontalWrapMode.Wrap;
-            t.verticalOverflow = VerticalWrapMode.Truncate;
-            t.resizeTextForBestFit = true;
-            t.resizeTextMinSize = 12;
-            t.resizeTextMaxSize = Mathf.Max(18, maxSize);
+            t.resizeTextMinSize = 9;
+            t.resizeTextMaxSize = Mathf.Max(14, maxSize);
             return t;
         }
 
@@ -1351,7 +1630,7 @@ namespace Kalyeah.Game
         static string FormatBullets(string[] items)
         {
             if (items == null || items.Length == 0) return "";
-            var sb = new System.Text.StringBuilder(160);
+            var sb = new StringBuilder(160);
             for (int i = 0; i < items.Length; i++)
             {
                 if (string.IsNullOrWhiteSpace(items[i])) continue;
@@ -1395,18 +1674,6 @@ namespace Kalyeah.Game
             return Array.Empty<string>();
         }
 
-        static Color ReadColor(Dictionary<string, object> d, string key, Color fallback)
-        {
-            if (d != null && d.TryGetValue(key, out object v) && v is Dictionary<string, object> c)
-            {
-                float r = ReadFloat(c, "r", fallback.r);
-                float g = ReadFloat(c, "g", fallback.g);
-                float b = ReadFloat(c, "b", fallback.b);
-                return new Color(r, g, b, 1f);
-            }
-            return fallback;
-        }
-
         static string Capitalize(string raw)
         {
             if (string.IsNullOrEmpty(raw)) return "";
@@ -1418,9 +1685,9 @@ namespace Kalyeah.Game
         [ExecuteAlways]
         sealed class GridCellAutoSizer : MonoBehaviour
         {
-            int _cols = 5;
-            int _rows = 2;
-            Vector2 _spacing = new Vector2(8f, 10f);
+            int _cols = 4;
+            int _rows = 3;
+            Vector2 _spacing = new Vector2(8f, 8f);
             float _minCell = 48f;
             float _preferredCellHeight;
             bool _subscribed;

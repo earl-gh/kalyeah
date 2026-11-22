@@ -10,11 +10,11 @@ using UnityEngine.UI;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Modal sheets hosted on <see cref="HomeScreenView"/>:
-    /// (a) <c>ProfileSheet</c> + local-only <c>IdCameraSheet</c> (all 10 kid avatar tiles + optional <see cref="WebCamTexture"/>
+    /// Option A1 Editorial modal sheets hosted on <see cref="HomeScreenView"/>:
+    /// (a) <c>ProfileSheet</c> + local-only <c>IdCameraSheet</c> (all 12 kid busts + optional <see cref="WebCamTexture"/>
     ///     front-camera selfie stored strictly on-device under <see cref="Application.persistentDataPath"/>, never uploaded),
-    /// (b) <c>GameOfMonthSheet</c> (<c>Data/rules__larong_kalye</c> monthly real-world street-game card via <c>ui/tips_icon</c>),
-    /// (c) <c>DonateSheet</c> (<c>Data/rules__donate_info</c> grown-up confirmation modal via <c>ui/mail_icon</c>).
+    /// (b) <c>GameOfMonthSheet</c> (<c>Data/rules__larong_kalye</c> monthly real-world street-game card),
+    /// (c) <c>DonateSheet</c> (<c>Data/rules__donate_info</c> grown-up confirmation modal).
     /// Hidden by default and suppressed during non-interactive screenshot capture so <c>title.png</c> remains unobstructed.
     /// </summary>
     public sealed class HomeSheetsView : IDisposable
@@ -55,29 +55,28 @@ namespace Kalyeah.Game
             "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER",
         };
 
-        // Crops the 26 px white mat off 512x512 ui/avatars/<id>.png textures (matching avatar_photos.gd INSET = 26).
-        static readonly Rect AvatarCropUv = new Rect(0.051f, 0.051f, 0.898f, 0.898f);
         static readonly Rect FullUv = new Rect(0f, 0f, 1f, 1f);
 
         static readonly Regex DisallowedNameChars = new Regex(@"[^\p{L}\p{N} '._-]", RegexOptions.Compiled);
 
-        static readonly Color ScrimColor = new Color(0.01f, 0.02f, 0.05f, 0.86f);
-        // tactical AAA dark-glass sheet palette (docs/SPEC.md §10)
-        static readonly Color HeaderTop = new Color(0.115f, 0.175f, 0.285f, 0.95f);
-        static readonly Color HeaderBottom = new Color(0.058f, 0.095f, 0.172f, 0.97f);
-        static readonly Color PlateTop = new Color(0.095f, 0.148f, 0.238f, 0.92f);
-        static readonly Color PlateBottom = new Color(0.048f, 0.080f, 0.148f, 0.96f);
-        static readonly Color TileTop = new Color(0.090f, 0.138f, 0.225f, 0.95f);
-        static readonly Color TileBottom = new Color(0.042f, 0.070f, 0.130f, 0.98f);
-        static readonly Color InputIdleBorder = new Color(1.00f, 0.80f, 0.34f, 0.78f);
-        static readonly Color Espresso = MenuArt.Cream;
-        static readonly Color DarkOchre = MenuArt.Gold;
-        static readonly Color MangoGold = MenuArt.Gold;
-        static readonly Color FiestaOrange = MenuArt.Gold;
-        static readonly Color BarrioBlue = new Color(0.17f, 0.25f, 0.42f, 1f);
+        static readonly Color ScrimColor = new Color(0.030f, 0.042f, 0.060f, 0.84f);
+        static readonly Color ObsidianGlass = MenuArt.ObsidianGlass;
+        static readonly Color ObsidianSolid = MenuArt.ObsidianSolid;
+        static readonly Color ObsidianCard = new Color(0.075f, 0.102f, 0.140f, 0.90f);
+        static readonly Color Paper = MenuArt.PaperWhite;
+        static readonly Color Vermilion = MenuArt.SignalVermilion;
+        static readonly Color VermilionDeep = MenuArt.SignalVermilionDeep;
+        static readonly Color TitaniumBorder = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.24f);
+        static readonly Color TitaniumBorderStrong = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.44f);
+        static readonly Color InputIdleBorder = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.48f);
+        static readonly Color Espresso = MenuArt.PaperWhite;
+        static readonly Color DarkOchre = MenuArt.CoralGold;
+        static readonly Color MangoGold = MenuArt.SignalVermilion;
+        static readonly Color FiestaOrange = MenuArt.SignalVermilion;
+        static readonly Color BarrioBlue = new Color(0.088f, 0.118f, 0.160f, 0.92f);
         static readonly Color JadeGreen = MenuArt.SuccessGreen;
-        static readonly Color SlateBtn = new Color(0.24f, 0.29f, 0.42f, 1f);
-        static readonly Color ErrorRed = new Color(1f, 0.48f, 0.44f, 1f);
+        static readonly Color SlateBtn = new Color(0.075f, 0.102f, 0.140f, 0.88f);
+        static readonly Color ErrorRed = MenuArt.SignalVermilion;
 
         /// <summary>Browser opener used by <c>DonateSheet</c> after grown-up confirmation; replaceable in tests.</summary>
         public static Action<string> OpenUrlHandler { get; set; } = Application.OpenURL;
@@ -861,17 +860,13 @@ namespace Kalyeah.Game
             cardCatch.color = Color.clear;
             cardCatch.raycastTarget = true;
 
-            // Keep exact GameObject name "CardCreamFill" (contract in ScreenFitBoundsTests) with upgraded chamfered tactical glass
+            // Keep exact GameObject name "CardCreamFill" (contract in ScreenFitBoundsTests) with Option A1 Smoked Obsidian glass
             RectTransform bodyFill = Ui.Fill("CardCreamFill", _modalCard);
             bodyFill.offsetMin = new Vector2(2f, 2f);
             bodyFill.offsetMax = new Vector2(-2f, -2f);
             Image glassBg = bodyFill.gameObject.AddComponent<Image>();
-            glassBg.sprite = MenuArt.ChamferGlass(18);
-            glassBg.type = Image.Type.Sliced;
-            glassBg.color = Color.white;
+            ApplyGlassSurface(glassBg, ObsidianSolid, TitaniumBorderStrong, Color.clear, cornerCut: 10f, accentW: 0f);
             glassBg.raycastTarget = true;
-
-            Ui.MakeCornerBrackets("CardBrackets", _modalCard, new Color(MenuArt.Gold.r, MenuArt.Gold.g, MenuArt.Gold.b, 0.52f), expand: 1f);
 
             _headerBandRect = Ui.Panel(
                 "HeaderBand",
@@ -882,12 +877,10 @@ namespace Kalyeah.Game
                 new Vector2(0f, -6f),
                 new Vector2(-12f, 108f));
             Image headerBandImg = _headerBandRect.gameObject.AddComponent<Image>();
-            headerBandImg.sprite = MenuArt.ChamferCard(HeaderTop, HeaderBottom, MenuArt.PanelBorder, 12, 1, 0.26f);
-            headerBandImg.type = Image.Type.Sliced;
-            headerBandImg.color = Color.white;
+            ApplyGlassSurface(headerBandImg, ObsidianGlass, TitaniumBorder, Color.clear, cornerCut: 6f, accentW: 0f);
             headerBandImg.raycastTarget = false;
 
-            RectTransform accentRt = Ui.MakeAccentRail("HeaderAccent", _headerBandRect, MangoGold, width: 4f, verticalInset: 18f);
+            RectTransform accentRt = Ui.MakeAccentRail("HeaderAccent", _headerBandRect, MangoGold, width: 3.5f, verticalInset: 18f);
             _headerAccentRail = accentRt.GetComponent<Image>();
 
             RectTransform iconBox = Ui.Panel(
@@ -907,17 +900,18 @@ namespace Kalyeah.Game
             iconFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             iconFitter.aspectRatio = 1f;
 
-            _headerTitle = Ui.MakeText("Title", _headerBandRect, "YOUR PLAYER TAG", 30, MenuArt.Cream, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _headerTitle = Ui.MakeText("Title", _headerBandRect, "YOUR PLAYER TAG", 28, Paper, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(_headerTitle);
             _headerTitle.resizeTextForBestFit = true;
             _headerTitle.resizeTextMinSize = 18;
-            _headerTitle.resizeTextMaxSize = 30;
+            _headerTitle.resizeTextMaxSize = 28;
             RectTransform tr = _headerTitle.rectTransform;
             tr.anchorMin = Vector2.zero;
             tr.anchorMax = Vector2.one;
             tr.offsetMin = new Vector2(24f, 6f);
             tr.offsetMax = new Vector2(-114f, -6f);
 
-            // Sleek chamfered close button inside a >= 48 dp transparent hit catcher
+            // Sleek obsidian close button inside a >= 48 dp transparent hit catcher
             var closeGo = new GameObject("CloseSheetButton", typeof(RectTransform), typeof(Image), typeof(Button));
             closeGo.transform.SetParent(_headerBandRect, false);
             _closeBtnRect = closeGo.GetComponent<RectTransform>();
@@ -930,19 +924,20 @@ namespace Kalyeah.Game
             closeHit.color = Color.clear;
             closeHit.raycastTarget = true;
 
-            RectTransform closeFaceRt = Ui.Panel("CloseFace", _closeBtnRect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(52f, 52f));
-            Image closeFaceImg = Ui.MakeSliced("Plate", closeFaceRt, MenuArt.CtaGhost(10), Color.white, raycast: false);
+            RectTransform closeFaceRt = Ui.Panel("CloseFace", _closeBtnRect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(50f, 50f));
+            Image closeFaceImg = MakeGlassPanel("Plate", closeFaceRt, ObsidianCard, TitaniumBorderStrong, Color.clear, cornerCut: 6f, accentW: 0f);
 
-            Image closeGlyph = Ui.MakeImage("CloseGlyph", closeFaceRt, MenuArt.Cream, round: false, raycast: false);
+            Image closeGlyph = Ui.MakeImage("CloseGlyph", closeFaceRt, Paper, round: false, raycast: false);
             closeGlyph.sprite = MenuArt.CloseIcon();
             closeGlyph.rectTransform.anchorMin = closeGlyph.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             closeGlyph.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            closeGlyph.rectTransform.sizeDelta = new Vector2(22f, 22f);
+            closeGlyph.rectTransform.sizeDelta = new Vector2(20f, 20f);
 
             _closeBtn = closeGo.GetComponent<Button>();
             _closeBtn.targetGraphic = closeFaceImg;
+            _closeBtn.transition = Selectable.Transition.None;
             _closeBtn.onClick.AddListener(() => Close());
-            Ui.AddPressFeel(closeGo, 0.92f);
+            UiShaders.AttachPressSpring(_closeBtn, 0.92f, 2f);
         }
 
         void BuildProfileBody()
@@ -1169,15 +1164,14 @@ namespace Kalyeah.Game
             var go = new GameObject("Avatar_" + avatarId, typeof(RectTransform), typeof(Image), typeof(Button));
             go.transform.SetParent(parent, false);
             var frame = go.GetComponent<Image>();
-            frame.sprite = MenuArt.Round(TileTop, TileBottom, MenuArt.PanelBorder, 10, 2, 0.20f);
-            frame.type = Image.Type.Sliced;
-            frame.color = Color.white;
+            ApplyGlassSurface(frame, ObsidianCard, TitaniumBorder, Color.clear, cornerCut: 6f, accentW: 0f);
 
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = frame;
+            btn.transition = Selectable.Transition.None;
             int captured = index;
             btn.onClick.AddListener(() => SelectAvatar(captured));
-            Ui.AddPressFeel(go, 0.94f);
+            UiShaders.AttachPressSpring(btn, 0.94f, 2f);
 
             RectTransform inner = Ui.Fill("AvatarWell", go.transform);
             inner.offsetMin = new Vector2(4f, 4f);
@@ -1192,19 +1186,16 @@ namespace Kalyeah.Game
             Stretch(raw.rectTransform, 0f, 0f, 0f, 0f);
             var fit = rawGo.GetComponent<AspectRatioFitter>();
             fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-            fit.aspectRatio = 1f;
+            fit.aspectRatio = 0.85f;
 
-            // Transparent-center luminous gold frame + corner brackets + check medallion (zero veil over avatar face!)
             var ringGo = new GameObject("Ring", typeof(RectTransform), typeof(Image));
             ringGo.transform.SetParent(go.transform, false);
             var ring = ringGo.GetComponent<Image>();
-            ring.sprite = MenuArt.RoundOutline(MenuArt.GoldBorder, 10, 3);
+            ring.sprite = MenuArt.ChamferOutline(Vermilion, 6, 3);
             ring.type = Image.Type.Sliced;
             ring.color = Color.white;
             ring.raycastTarget = false;
             Stretch(ring.rectTransform, 0f, 0f, 0f, 0f);
-
-            Ui.MakeCornerBrackets("Brackets", ringGo.transform, MenuArt.GoldLight);
 
             Image checkBadge = Ui.MakeImage("SelectedDot", ringGo.transform, Color.white, round: false, raycast: false);
             checkBadge.sprite = MenuArt.CheckBadge();
@@ -1212,7 +1203,7 @@ namespace Kalyeah.Game
             checkRt.anchorMin = checkRt.anchorMax = new Vector2(1f, 1f);
             checkRt.pivot = new Vector2(1f, 1f);
             checkRt.anchoredPosition = new Vector2(-4f, -4f);
-            checkRt.sizeDelta = new Vector2(26f, 26f);
+            checkRt.sizeDelta = new Vector2(24f, 24f);
 
             return new AvatarTileUi
             {
@@ -1584,25 +1575,16 @@ namespace Kalyeah.Game
 
         static Texture2D LoadAvatarTexture(string avatarId, out Rect uvRect)
         {
-            Texture2D avatarMat = KalyeahResources.Texture("ui/avatars/" + avatarId);
-            if (avatarMat != null)
-            {
-                uvRect = AvatarCropUv;
-                return avatarMat;
-            }
+            uvRect = FullUv;
+            Texture2D bust = KalyeahResources.KidBust(avatarId);
+            if (bust != null)
+                return bust;
 
             Texture2D face = KalyeahResources.Texture("portraits/faces/" + avatarId);
             if (face != null)
-            {
-                uvRect = FullUv;
                 return face;
-            }
 
-            Texture2D portrait = KalyeahResources.Texture("portraits/" + avatarId);
-            uvRect = portrait != null && portrait.height > portrait.width
-                ? new Rect(0f, 1f - (float)portrait.width / portrait.height, 1f, (float)portrait.width / portrait.height)
-                : FullUv;
-            return portrait;
+            return KalyeahResources.Texture("portraits/" + avatarId);
         }
 
         void RefreshProfileVisuals()
@@ -1689,12 +1671,12 @@ namespace Kalyeah.Game
                     _camPrimaryLabel.text = "Use Photo";
                     break;
                 case CameraStep.Denied:
-                    _cameraMessageText.text = "Camera access is off. Pick any of the 10 kid avatars or allow Camera in app settings.";
+                    _cameraMessageText.text = "Camera access is off. Pick any of the 12 kid avatars or allow Camera in app settings.";
                     _camSecondaryLabel.text = "Back to Avatars";
                     _camPrimaryBtn.gameObject.SetActive(false);
                     break;
                 case CameraStep.NoCamera:
-                    _cameraMessageText.text = "No camera found on this device. Pick one of the 10 kid avatars!";
+                    _cameraMessageText.text = "No camera found on this device. Pick one of the 12 kid avatars!";
                     _camSecondaryLabel.text = "Back to Avatars";
                     _camPrimaryBtn.gameObject.SetActive(false);
                     break;
@@ -2146,9 +2128,7 @@ namespace Kalyeah.Game
         static void MakeTacticalPlate(RectTransform container, int cut)
         {
             Image bg = container.gameObject.AddComponent<Image>();
-            bg.sprite = MenuArt.ChamferCard(PlateTop, PlateBottom, MenuArt.PanelBorder, cut, 1, 0.24f);
-            bg.type = Image.Type.Sliced;
-            bg.color = Color.white;
+            ApplyGlassSurface(bg, ObsidianGlass, TitaniumBorder, Color.clear, cornerCut: Mathf.Clamp(cut, 4f, 10f), accentW: 0f);
             bg.raycastTarget = false;
         }
 
@@ -2159,24 +2139,25 @@ namespace Kalyeah.Game
             rect = go.GetComponent<RectTransform>();
 
             Image hitImg = go.GetComponent<Image>();
-            hitImg.color = Color.clear; // transparent >= 48 dp hit catcher
+            hitImg.color = Color.clear;
             hitImg.raycastTarget = true;
 
-            RectTransform faceRt = Ui.Panel("Face", rect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(54f, 54f));
-            Image faceImg = Ui.MakeSliced("Plate", faceRt, MenuArt.CtaGhost(10), Color.white, raycast: false);
+            RectTransform faceRt = Ui.Panel("Face", rect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(52f, 52f));
+            Image faceImg = MakeGlassPanel("Plate", faceRt, ObsidianCard, TitaniumBorderStrong, Color.clear, cornerCut: 6f, accentW: 0f);
 
-            Image chev = Ui.MakeImage("Chevron", faceRt, MenuArt.GoldLight, round: false, raycast: false);
+            Image chev = Ui.MakeImage("Chevron", faceRt, Paper, round: false, raycast: false);
             chev.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Chevron);
             RectTransform cr = chev.rectTransform;
             cr.anchorMin = cr.anchorMax = new Vector2(0.5f, 0.5f);
             cr.pivot = new Vector2(0.5f, 0.5f);
-            cr.sizeDelta = new Vector2(20f, 20f);
+            cr.sizeDelta = new Vector2(19f, 19f);
             if (flipLeft) cr.localEulerAngles = new Vector3(0f, 0f, 180f);
 
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = faceImg;
+            btn.transition = Selectable.Transition.None;
             btn.onClick.AddListener(() => onClick?.Invoke());
-            Ui.AddPressFeel(go, 0.93f);
+            UiShaders.AttachPressSpring(btn, 0.93f, 2f);
             return btn;
         }
 
@@ -2196,28 +2177,37 @@ namespace Kalyeah.Game
             rect = go.GetComponent<RectTransform>();
 
             bool isPrimary = fill == FiestaOrange;
-            Color resolvedTextColor = isPrimary ? MenuArt.Ink : textColor;
+            Color resolvedTextColor = isPrimary ? Paper : (Ui.Luminance(textColor) < 0.25f ? Paper : textColor);
 
             Image hitImg = go.GetComponent<Image>();
-            hitImg.color = Color.clear; // transparent >= 48 dp hit catcher
+            hitImg.color = Color.clear;
             hitImg.raycastTarget = true;
 
-            RectTransform fillRect = Ui.Panel("Fill", rect, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 58f));
+            RectTransform fillRect = Ui.Panel("Fill", rect, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 54f));
             Image fillImg = fillRect.gameObject.AddComponent<Image>();
-            fillImg.sprite = isPrimary ? MenuArt.CtaGold(12) : MenuArt.CtaGhost(12);
-            fillImg.type = Image.Type.Sliced;
-            fillImg.color = Color.white;
             fillImg.raycastTarget = false;
-
             if (isPrimary)
-                Ui.AddSheen(fillRect);
+            {
+                Material ctaMat = UiShaders.CreateMetallicCta(Vermilion, VermilionDeep, cornerCut: 8f);
+                if (ctaMat != null && ctaMat != Graphic.defaultGraphicMaterial)
+                {
+                    fillImg.material = ctaMat;
+                    fillImg.color = Color.white;
+                }
+                else
+                {
+                    fillImg.color = Vermilion;
+                }
+            }
             else
-                Ui.MakeAccentRail("BtnRail", fillRect, fill == BarrioBlue ? MenuArt.Gold : MenuArt.PanelBorder, width: 3f, verticalInset: 12f);
+            {
+                ApplyGlassSurface(fillImg, ObsidianCard, TitaniumBorderStrong, fill == BarrioBlue ? Paper : Color.clear, cornerCut: 6f, accentW: fill == BarrioBlue ? 3f : 0f);
+            }
 
             float textLeft = isPrimary ? 10f : 14f;
             if (icon.HasValue)
             {
-                Image glyphImg = Ui.MakeImage("Icon", fillRect, MenuArt.GoldLight, round: false, raycast: false);
+                Image glyphImg = Ui.MakeImage("Icon", fillRect, Paper, round: false, raycast: false);
                 glyphImg.sprite = MenuArt.Glyph(icon.Value);
                 RectTransform ir = glyphImg.rectTransform;
                 ir.anchorMin = ir.anchorMax = new Vector2(0f, 0.5f);
@@ -2229,13 +2219,9 @@ namespace Kalyeah.Game
 
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = fillImg;
-            ColorBlock colors = btn.colors;
-            colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(1f, 0.98f, 0.92f, 1f);
-            colors.pressedColor = new Color(0.86f, 0.86f, 0.90f, 1f);
-            btn.colors = colors;
+            btn.transition = Selectable.Transition.None;
             btn.onClick.AddListener(() => onClick?.Invoke());
-            Ui.AddPressFeel(go, 0.95f);
+            UiShaders.AttachPressSpring(btn, isPrimary ? 0.94f : 0.95f, isPrimary ? 3f : 2f);
 
             Text txt = Ui.MakeText("Label", fillRect, label, fontSize, resolvedTextColor, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             txt.resizeTextForBestFit = true;
@@ -2243,7 +2229,34 @@ namespace Kalyeah.Game
             txt.resizeTextMaxSize = fontSize;
             Stretch(txt.rectTransform, textLeft, 4f, -10f, -4f);
             Ui.SetTextColor(txt, resolvedTextColor);
+            Ui.ClearOutline(txt);
             return btn;
+        }
+
+        static Image MakeGlassPanel(string name, Transform parent, Color fill, Color border, Color leftAccent, float cornerCut = 6f, float accentW = 0f)
+        {
+            Image img = Ui.MakeImage(name, parent, Color.white, round: false, raycast: false);
+            Stretch(img.rectTransform, 0f, 0f, 0f, 0f);
+            ApplyGlassSurface(img, fill, border, leftAccent, cornerCut, accentW);
+            return img;
+        }
+
+        static void ApplyGlassSurface(Image img, Color fill, Color border, Color leftAccent, float cornerCut, float accentW)
+        {
+            if (img == null) return;
+            img.sprite = null;
+            img.type = Image.Type.Simple;
+            Material mat = UiShaders.CreateTacticalGlass(fill, border, leftAccent, cornerCut, accentW, topHighlight: 0.14f);
+            if (mat != null && mat != Graphic.defaultGraphicMaterial)
+            {
+                img.material = mat;
+                img.color = Color.white;
+            }
+            else
+            {
+                img.material = null;
+                img.color = fill;
+            }
         }
 
         static void Stretch(RectTransform rt, float left, float bottom, float right, float top)

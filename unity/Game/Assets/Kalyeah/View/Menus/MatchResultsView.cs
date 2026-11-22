@@ -39,19 +39,25 @@ namespace Kalyeah.Game
         const float StatColWidthCanvas = 38f;
         const float MinHonorColWidthCanvas = 96f;
 
-        static readonly Color ColVictoryWash = new Color(0.08f, 0.30f, 0.24f, 0.38f);
-        static readonly Color ColDefeatWash = new Color(0.28f, 0.10f, 0.14f, 0.42f);
-        static readonly Color ColVictorySun = new Color(0.98f, 0.80f, 0.28f, 0.14f);
-        static readonly Color ColDefeatSun = new Color(0.90f, 0.34f, 0.28f, 0.10f);
-        static readonly Color ColBlueAccent = new Color(0.26f, 0.72f, 0.98f, 1f);
-        static readonly Color ColRedAccent = new Color(0.94f, 0.36f, 0.30f, 1f);
-        static readonly Color ColRowTop = new Color(0.092f, 0.146f, 0.230f, 0.92f);
-        static readonly Color ColRowBottom = new Color(0.044f, 0.076f, 0.138f, 0.96f);
-        static readonly Color ColRowMvpTop = new Color(0.155f, 0.175f, 0.215f, 0.95f);
-        static readonly Color ColRowMvpBottom = new Color(0.072f, 0.095f, 0.148f, 0.98f);
-        static readonly Color ColHeaderBar = new Color(0.036f, 0.062f, 0.115f, 0.92f);
-        static readonly Color ColDivider = new Color(0.76f, 0.88f, 0.96f, 0.18f);
+        static readonly Color ColVictoryWash = new Color(0.055f, 0.088f, 0.112f, 0.80f);
+        static readonly Color ColDefeatWash = new Color(0.118f, 0.058f, 0.078f, 0.84f);
+        static readonly Color ColVictorySun = new Color(1.00f, 0.90f, 0.72f, 0.12f);
+        static readonly Color ColDefeatSun = new Color(1.00f, 0.275f, 0.333f, 0.10f);
+        static readonly Color ColBlueAccent = MenuArt.AllyBlue;
+        static readonly Color ColRedAccent = MenuArt.EnemyRed;
+        static readonly Color ColObsidianGlass = MenuArt.ObsidianGlass;
+        static readonly Color ColObsidianSolid = MenuArt.ObsidianSolid;
+        static readonly Color ColObsidianRow = new Color(0.072f, 0.098f, 0.136f, 0.88f);
+        static readonly Color ColObsidianMvp = new Color(0.118f, 0.128f, 0.158f, 0.94f);
+        static readonly Color ColPaper = MenuArt.PaperWhite;
+        static readonly Color ColVermilion = MenuArt.SignalVermilion;
+        static readonly Color ColVermilionDeep = MenuArt.SignalVermilionDeep;
+        static readonly Color ColCoralGold = MenuArt.CoralGold;
+        static readonly Color ColTitaniumBorder = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.24f);
+        static readonly Color ColTitaniumStrong = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.44f);
+        static readonly Color ColDivider = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.20f);
         static readonly Color ColHonorDim = new Color(1f, 1f, 1f, 0.42f);
+        static readonly Rect FullUv = new Rect(0f, 0f, 1f, 1f);
 
         [ExecuteAlways]
         sealed class ResultsLifecycle : MonoBehaviour
@@ -133,6 +139,7 @@ namespace Kalyeah.Game
             public RectTransform HonorButtonRect;
             public Button HonorButton;
             public Image HonorPlate;
+            public Image HonorBurstGlow;
             public Image HonorIcon;
             public Text HonorLabel;
             public CanvasGroup HonorVisualGroup;
@@ -253,18 +260,19 @@ namespace Kalyeah.Game
             SafeAreaComponent.Changed += HandleSafeAreaChanged;
             SafeAreaComponent.Apply();
 
-            // 3. Band 1: Top Hero Banner (VICTORY/DEFEAT + Score + Barya Coin & Mastery XP reward strip)
+            // 3. Band 1: Top Hero Banner (Option A1 Editorial VICTORY/DEFEAT slash + Score + Reward strip)
             HeroBannerRect = Ui.Panel("HeroBanner", SafeRoot, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
             HeroBannerRect.offsetMin = new Vector2(SideMarginCanvas, -HeroBannerHeightCanvas);
             HeroBannerRect.offsetMax = new Vector2(-SideMarginCanvas, 0f);
 
-            _heroBannerBg = Ui.MakeSliced("Bg", HeroBannerRect, MenuArt.ChamferGlass(12), Color.white, raycast: false);
-            _heroTopRail = Ui.MakeSliced("TopRail", HeroBannerRect, MenuArt.AccentRail(2), MenuArt.Gold, raycast: false);
-            Stretch(_heroTopRail.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(14f, -4f), new Vector2(-14f, 0f));
+            _heroBannerBg = MakeGlassPanel("Bg", HeroBannerRect, ColObsidianGlass, ColTitaniumStrong, ColPaper, cornerCut: 8f, accentW: 4f);
+            _heroTopRail = Ui.MakeImage("TopRail", HeroBannerRect, ColPaper, round: false, raycast: false);
+            Stretch(_heroTopRail.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(10f, -3f), new Vector2(-10f, 0f));
 
             // Left: Outcome title + mode/map subtitle
             RectTransform titleZone = Ui.Panel("TitleZone", HeroBannerRect, new Vector2(0.015f, 0.06f), new Vector2(0.35f, 0.92f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
-            _outcomeTitle = MakeFittedText("OutcomeTitle", titleZone, "VICTORY", 38, MenuArt.GoldLight, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont(), minSize: 18);
+            _outcomeTitle = MakeFittedText("OutcomeTitle", titleZone, "VICTORY", 38, ColPaper, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont(), minSize: 18);
+            Ui.ClearOutline(_outcomeTitle);
             Stretch(_outcomeTitle.rectTransform, new Vector2(0f, 0.34f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
 
             _modeSubtitle = MakeFittedText("ModeSubtitle", titleZone, "BLITZ · BARANGAY", 13, MenuArt.MutedText, TextAnchor.MiddleLeft, KalyeahResources.UiFont(), minSize: 9);
@@ -273,15 +281,16 @@ namespace Kalyeah.Game
 
             // Center: Score pill (Blue - Red)
             RectTransform scoreZone = Ui.Panel("ScoreZone", HeroBannerRect, new Vector2(0.36f, 0.12f), new Vector2(0.54f, 0.88f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            Ui.MakeSliced("ScorePlate", scoreZone, MenuArt.StatChip(8), Color.white, raycast: false);
-            Ui.MakeAccentRail("BluePip", scoreZone, ColBlueAccent, width: 4f, verticalInset: 8f, rightSide: false);
-            Ui.MakeAccentRail("RedPip", scoreZone, ColRedAccent, width: 4f, verticalInset: 8f, rightSide: true);
-            _scoreLabel = MakeFittedText("ScoreText", scoreZone, "3  -  1", 32, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 16);
+            MakeGlassPanel("ScorePlate", scoreZone, ColObsidianSolid, ColTitaniumBorder, Color.clear, cornerCut: 6f, accentW: 0f);
+            Ui.MakeAccentRail("BluePip", scoreZone, ColBlueAccent, width: 3.5f, verticalInset: 8f, rightSide: false);
+            Ui.MakeAccentRail("RedPip", scoreZone, ColRedAccent, width: 3.5f, verticalInset: 8f, rightSide: true);
+            _scoreLabel = MakeFittedText("ScoreText", scoreZone, "3  -  1", 32, ColPaper, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 16);
+            Ui.ClearOutline(_scoreLabel);
             Stretch(_scoreLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 2f), new Vector2(-12f, -2f));
 
             // Right: Barya coin + Mastery XP + Ranked Star strip
             RectTransform rewardZone = Ui.Panel("RewardStrip", HeroBannerRect, new Vector2(0.555f, 0.10f), new Vector2(0.985f, 0.90f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
-            Ui.MakeSliced("RewardPlate", rewardZone, MenuArt.StatChip(8), Color.white, raycast: false);
+            MakeGlassPanel("RewardPlate", rewardZone, ColObsidianSolid, ColTitaniumBorder, Color.clear, cornerCut: 6f, accentW: 0f);
 
             Image coinImg = Ui.MakeImage("BaryaCoin", rewardZone, Color.white, round: false, raycast: false);
             coinImg.sprite = MenuArt.BaryaCoin();
@@ -358,16 +367,14 @@ namespace Kalyeah.Game
                 _redRows[i] = BuildPlayerRow("RedRow_" + i, _redColumn, ColRedAccent);
             }
 
-            // 6. Band 4: Bottom Action Bar (>= 48 dp HOME & beveled gold PLAY AGAIN)
+            // 6. Band 4: Bottom Action Bar (>= 48 dp obsidian HOME & Signal Vermilion PLAY AGAIN)
             BottomBarRect = Ui.Panel("BottomActionBar", SafeRoot, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, Vector2.zero);
 
             HomeButton = BuildActionButton(
                 "HomeButton",
                 BottomBarRect,
                 "HOME",
-                MenuArt.CtaGhost(12),
-                MenuArt.Cream,
-                addSheen: false,
+                isPrimary: false,
                 out _homeButtonRect);
             HomeButton.onClick.AddListener(HandleHomeClicked);
 
@@ -375,9 +382,7 @@ namespace Kalyeah.Game
                 "PlayAgainButton",
                 BottomBarRect,
                 "PLAY AGAIN",
-                MenuArt.CtaGold(14),
-                MenuArt.Ink,
-                addSheen: true,
+                isPrimary: true,
                 out _playAgainButtonRect);
             PlayAgainButton.onClick.AddListener(HandlePlayAgainClicked);
 
@@ -610,17 +615,23 @@ namespace Kalyeah.Game
             bool won = payload.LocalTeamWon;
             if (_backdropWash != null) _backdropWash.color = won ? ColVictoryWash : ColDefeatWash;
             if (_sunburstImg != null) _sunburstImg.color = won ? ColVictorySun : ColDefeatSun;
-            if (_heroTopRail != null) _heroTopRail.color = won ? MenuArt.Gold : MenuArt.Coral;
+            if (_heroTopRail != null) _heroTopRail.color = won ? ColPaper : ColVermilion;
             if (_heroBannerBg != null)
             {
-                Color border = won ? MenuArt.GoldBorder : new Color(0.92f, 0.42f, 0.36f, 0.55f);
-                _heroBannerBg.sprite = MenuArt.ChamferCard(MenuArt.PanelTop, MenuArt.PanelBottom, border, 12, 2, 0.28f);
+                ApplyGlassSurface(
+                    _heroBannerBg,
+                    ColObsidianGlass,
+                    won ? ColTitaniumStrong : new Color(ColVermilion.r, ColVermilion.g, ColVermilion.b, 0.45f),
+                    won ? ColPaper : ColVermilion,
+                    cornerCut: 8f,
+                    accentW: 4f);
             }
 
             if (_outcomeTitle != null)
             {
                 _outcomeTitle.text = won ? "VICTORY" : "DEFEAT";
-                Ui.SetTextColor(_outcomeTitle, won ? MenuArt.GoldLight : MenuArt.Coral);
+                Ui.SetTextColor(_outcomeTitle, won ? ColPaper : ColVermilion);
+                Ui.ClearOutline(_outcomeTitle);
             }
 
             string modeName = payload.Mode.ToString().ToUpperInvariant();
@@ -696,22 +707,23 @@ namespace Kalyeah.Game
             row.IsLocalPlayer = stats.IsLocalPlayer;
             row.Root.gameObject.SetActive(true);
 
-            row.CardBg.sprite = MenuArt.ChamferCard(
-                isMvp ? ColRowMvpTop : ColRowTop,
-                isMvp ? ColRowMvpBottom : ColRowBottom,
-                isMvp ? MenuArt.GoldBorder : MenuArt.PanelBorder,
-                10,
-                isMvp ? 2 : 1,
-                0.24f);
+            ApplyGlassSurface(
+                row.CardBg,
+                isMvp ? ColObsidianMvp : ColObsidianRow,
+                isMvp ? new Color(ColCoralGold.r, ColCoralGold.g, ColCoralGold.b, 0.55f) : ColTitaniumBorder,
+                isMvp ? ColCoralGold : teamAccent,
+                cornerCut: 6f,
+                accentW: 3.5f);
             row.MvpOutline.gameObject.SetActive(isMvp);
-            row.TeamRail.color = isMvp ? MenuArt.Gold : teamAccent;
+            row.TeamRail.gameObject.SetActive(false);
 
             bool hasKid = LoreCodexData.TryGetKid(stats.KidId, out KidLoreEntry kid);
             string kidDisplay = hasKid ? kid.DisplayName : stats.KidId;
             string roleDisplay = hasKid ? LoreCodexData.RoleName(kid.Role) : "Kid";
 
             row.PlayerNameText.text = stats.PlayerName;
-            Ui.SetTextColor(row.PlayerNameText, stats.IsLocalPlayer ? MenuArt.GoldLight : MenuArt.Cream);
+            Ui.SetTextColor(row.PlayerNameText, stats.IsLocalPlayer ? ColCoralGold : ColPaper);
+            Ui.ClearOutline(row.PlayerNameText);
             row.KidRoleText.text = stats.RawDamage > 0
                 ? kidDisplay + " · " + roleDisplay + " · " + FormatDamage(stats.RawDamage) + " DMG"
                 : kidDisplay + " · " + roleDisplay;
@@ -723,15 +735,17 @@ namespace Kalyeah.Game
             row.StatTText.text = stats.Tags.ToString();
             row.StatRText.text = stats.Rescues.ToString();
             row.StatCText.text = stats.Captures.ToString();
-            Color statColor = isMvp ? MenuArt.GoldLight : MenuArt.Cream;
+            Color statColor = isMvp ? ColCoralGold : ColPaper;
             Ui.SetTextColor(row.StatTText, statColor);
             Ui.SetTextColor(row.StatRText, statColor);
             Ui.SetTextColor(row.StatCText, statColor);
 
-            // Portrait with RectMask2D + EnvelopeParent (zero distortion)
-            Texture2D tex = KalyeahResources.Texture("portraits/" + stats.KidId)
-                         ?? KalyeahResources.Texture("ui/avatars/" + stats.KidId);
+            // Clean KidBust portrait with RectMask2D + EnvelopeParent (FullUv, zero red-striped crops)
+            Texture2D tex = KalyeahResources.KidBust(stats.KidId)
+                         ?? KalyeahResources.Texture("portraits/faces/" + stats.KidId)
+                         ?? KalyeahResources.Texture("portraits/" + stats.KidId);
             row.PortraitRaw.texture = tex;
+            row.PortraitRaw.uvRect = FullUv;
             row.PortraitRaw.enabled = tex != null;
             if (tex != null && tex.height > 0)
                 row.PortraitFitter.aspectRatio = (float)tex.width / tex.height;
@@ -787,22 +801,36 @@ namespace Kalyeah.Game
         {
             if (honoredThis)
             {
-                row.HonorPlate.sprite = MenuArt.CtaGold(8);
-                row.HonorPlate.color = Color.white;
+                row.HonorPlate.sprite = null;
+                row.HonorPlate.type = Image.Type.Simple;
+                Material goldBurst = UiShaders.CreateMetallicCta(MenuArt.GoldLight, MenuArt.Gold, cornerCut: 6f);
+                if (goldBurst != null && goldBurst != Graphic.defaultGraphicMaterial)
+                {
+                    row.HonorPlate.material = goldBurst;
+                    row.HonorPlate.color = Color.white;
+                }
+                else
+                {
+                    row.HonorPlate.material = null;
+                    row.HonorPlate.color = MenuArt.GoldLight;
+                }
+                if (row.HonorBurstGlow != null) row.HonorBurstGlow.gameObject.SetActive(true);
                 row.HonorIcon.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Check);
                 row.HonorIcon.color = MenuArt.Ink;
                 row.HonorLabel.text = "HONORED";
                 Ui.SetTextColor(row.HonorLabel, MenuArt.Ink);
+                Ui.ClearOutline(row.HonorLabel);
                 row.HonorVisualGroup.alpha = 1f;
             }
             else
             {
-                row.HonorPlate.sprite = MenuArt.CtaGhost(8);
-                row.HonorPlate.color = Color.white;
+                ApplyGlassSurface(row.HonorPlate, ColObsidianSolid, ColTitaniumStrong, Color.clear, cornerCut: 6f, accentW: 0f);
+                if (row.HonorBurstGlow != null) row.HonorBurstGlow.gameObject.SetActive(false);
                 row.HonorIcon.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Heart);
-                row.HonorIcon.color = MenuArt.GoldLight;
+                row.HonorIcon.color = ColCoralGold;
                 row.HonorLabel.text = "HONOR";
-                Ui.SetTextColor(row.HonorLabel, MenuArt.Cream);
+                Ui.SetTextColor(row.HonorLabel, ColPaper);
+                Ui.ClearOutline(row.HonorLabel);
                 row.HonorVisualGroup.alpha = honorLockedElsewhere ? ColHonorDim.a : 1f;
             }
         }
@@ -825,8 +853,7 @@ namespace Kalyeah.Game
         TeamHeaderUi BuildTeamHeader(string name, Transform parent, string title, Color accent, float anchorMinX, float anchorMaxX)
         {
             RectTransform rt = Ui.Panel(name, parent, new Vector2(anchorMinX, 0f), new Vector2(anchorMaxX, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            Ui.MakeSliced("Bg", rt, MenuArt.RoundSolid(6), ColHeaderBar, raycast: false);
-            Ui.MakeAccentRail("Rail", rt, accent, width: 4f, verticalInset: 4f);
+            MakeGlassPanel("Bg", rt, ColObsidianSolid, ColTitaniumBorder, accent, cornerCut: 4f, accentW: 3.5f);
 
             Text teamTitle = MakeFittedText("TeamTitle", rt, title, 14, accent, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont(), minSize: 10);
             Ui.ClearOutline(teamTitle);
@@ -883,16 +910,20 @@ namespace Kalyeah.Game
             cardRt.offsetMin = new Vector2(0f, RowCardInsetY);
             cardRt.offsetMax = new Vector2(0f, -RowCardInsetY);
 
-            Image cardBg = Ui.MakeSliced("Bg", cardRt, MenuArt.ChamferCard(ColRowTop, ColRowBottom, MenuArt.PanelBorder, 10, 1, 0.24f), Color.white, raycast: false);
-            Image mvpOutline = Ui.MakeSliced("MvpOutline", cardRt, MenuArt.ChamferOutline(MenuArt.GoldBorder, 10, 2), Color.white, raycast: false);
+            Image cardBg = MakeGlassPanel("Bg", cardRt, ColObsidianRow, ColTitaniumBorder, teamAccent, cornerCut: 6f, accentW: 3.5f);
+            Image bottomHairline = Ui.MakeImage("BottomHairline", cardRt, ColDivider, round: false, raycast: false);
+            Stretch(bottomHairline.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(10f, 0f), new Vector2(-10f, 1f));
+
+            Image mvpOutline = Ui.MakeSliced("MvpOutline", cardRt, MenuArt.ChamferOutline(ColCoralGold, 6, 2), Color.white, raycast: false);
             mvpOutline.gameObject.SetActive(false);
 
-            RectTransform railRt = Ui.MakeAccentRail("TeamRail", cardRt, teamAccent, width: 4f, verticalInset: 8f);
+            RectTransform railRt = Ui.MakeAccentRail("TeamRail", cardRt, teamAccent, width: 3.5f, verticalInset: 8f);
             Image teamRail = railRt.GetComponent<Image>();
+            teamRail.gameObject.SetActive(false);
 
-            // Portrait thumbnail (RectMask2D + EnvelopeParent -> zero stretch across all 4 aspects)
+            // Portrait thumbnail (RectMask2D + EnvelopeParent -> clean KidBust portrait)
             RectTransform portraitFrame = Ui.Panel("PortraitFrame", cardRt, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(12f, 0f), new Vector2(54f, 54f));
-            Ui.MakeSliced("Plate", portraitFrame, MenuArt.StatChip(8), Color.white, raycast: false);
+            MakeGlassPanel("Plate", portraitFrame, ColObsidianSolid, ColTitaniumBorder, Color.clear, cornerCut: 4f, accentW: 0f);
 
             RectTransform maskRt = Ui.Fill("Mask", portraitFrame);
             maskRt.offsetMin = new Vector2(3f, 3f);
@@ -963,9 +994,19 @@ namespace Kalyeah.Game
 
             RectTransform honorVis = Ui.Panel("Visual", honorBtnRt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(92f, 44f));
             CanvasGroup honorCg = honorVis.gameObject.AddComponent<CanvasGroup>();
-            Image honorPlate = Ui.MakeSliced("Plate", honorVis, MenuArt.CtaGhost(8), Color.white, raycast: false);
 
-            Image honorIcon = Ui.MakeImage("Icon", honorVis, MenuArt.GoldLight, round: false, raycast: false);
+            Image honorBurstGlow = Ui.MakeImage("HonorBurstGlow", honorVis, Color.white, round: false, raycast: false);
+            Stretch(honorBurstGlow.rectTransform, Vector2.zero, Vector2.one, new Vector2(-10f, -8f), new Vector2(10f, 8f));
+            Material burstMat = UiShaders.CreateSoftGlow(MenuArt.GoldLight);
+            if (burstMat != null && burstMat != Graphic.defaultGraphicMaterial)
+                honorBurstGlow.material = burstMat;
+            else
+                honorBurstGlow.color = new Color(MenuArt.GoldLight.r, MenuArt.GoldLight.g, MenuArt.GoldLight.b, 0.35f);
+            honorBurstGlow.gameObject.SetActive(false);
+
+            Image honorPlate = MakeGlassPanel("Plate", honorVis, ColObsidianSolid, ColTitaniumStrong, Color.clear, cornerCut: 6f, accentW: 0f);
+
+            Image honorIcon = Ui.MakeImage("Icon", honorVis, ColCoralGold, round: false, raycast: false);
             honorIcon.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Heart);
             honorIcon.preserveAspect = true;
             RectTransform iconRt = honorIcon.rectTransform;
@@ -975,17 +1016,20 @@ namespace Kalyeah.Game
             iconRt.anchoredPosition = new Vector2(5f, 0f);
             iconRt.sizeDelta = new Vector2(14f, 14f);
 
-            Text honorLabel = MakeFittedText("Label", honorVis, "HONOR", 12, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 7);
+            Text honorLabel = MakeFittedText("Label", honorVis, "HONOR", 12, ColPaper, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 7);
+            Ui.ClearOutline(honorLabel);
             Stretch(honorLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(20f, 2f), new Vector2(-4f, -2f));
 
             var honorBtn = honorGo.GetComponent<Button>();
             honorBtn.targetGraphic = honorPlate;
-            Ui.AddPressFeel(honorGo, 0.94f);
+            honorBtn.transition = Selectable.Transition.None;
+            UiShaders.AttachPressSpring(honorBtn, 0.92f, 2f);
 
             // Non-interactive YOU pill shown on local player's own row (prevents self-honor)
             RectTransform selfBadge = Ui.Panel("SelfBadge", rowRt, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-4f, 0f), new Vector2(88f, 38f));
-            Ui.MakeSliced("Plate", selfBadge, MenuArt.StatChip(8), Color.white, raycast: false);
-            Text selfText = MakeFittedText("Label", selfBadge, "YOU", 13, MenuArt.GoldLight, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 10);
+            MakeGlassPanel("Plate", selfBadge, ColPaper, ColTitaniumStrong, Color.clear, cornerCut: 5f, accentW: 0f);
+            Text selfText = MakeFittedText("Label", selfBadge, "YOU", 13, MenuArt.Ink, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 10);
+            Ui.ClearOutline(selfText);
             Stretch(selfText.rectTransform, Vector2.zero, Vector2.one, new Vector2(4f, 2f), new Vector2(-4f, -2f));
             selfBadge.gameObject.SetActive(false);
 
@@ -1013,6 +1057,7 @@ namespace Kalyeah.Game
                 HonorButtonRect = honorBtnRt,
                 HonorButton = honorBtn,
                 HonorPlate = honorPlate,
+                HonorBurstGlow = honorBurstGlow,
                 HonorIcon = honorIcon,
                 HonorLabel = honorLabel,
                 HonorVisualGroup = honorCg,
@@ -1060,9 +1105,7 @@ namespace Kalyeah.Game
             string name,
             Transform parent,
             string label,
-            Sprite sprite,
-            Color textColor,
-            bool addSheen,
+            bool isPrimary,
             out RectTransform hitRect)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
@@ -1072,19 +1115,60 @@ namespace Kalyeah.Game
             var hitImg = go.GetComponent<Image>();
             hitImg.color = new Color(0f, 0f, 0f, 0.001f); // transparent >= 48 dp touch catcher
 
-            RectTransform vis = Ui.Panel("Visual", hitRect, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, addSheen ? 58f : 54f));
-            Image plate = Ui.MakeSliced("Plate", vis, sprite, Color.white, raycast: false);
-            if (addSheen)
-                Ui.AddSheen(vis);
+            RectTransform vis = Ui.Panel("Visual", hitRect, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, isPrimary ? 56f : 52f));
+            Image plate;
+            if (isPrimary)
+            {
+                plate = Ui.MakeImage("Plate", vis, ColVermilion, round: false, raycast: false);
+                Stretch(plate.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                Material ctaMat = UiShaders.CreateMetallicCta(ColVermilion, ColVermilionDeep, cornerCut: 10f);
+                if (ctaMat != null && ctaMat != Graphic.defaultGraphicMaterial)
+                {
+                    plate.material = ctaMat;
+                    plate.color = Color.white;
+                }
+            }
+            else
+            {
+                plate = MakeGlassPanel("Plate", vis, ColObsidianSolid, ColTitaniumStrong, Color.clear, cornerCut: 6f, accentW: 0f);
+            }
 
-            Text txt = MakeFittedText("Label", vis, label, addSheen ? 22 : 20, textColor, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 12);
-            Ui.SetTextColor(txt, textColor);
+            Text txt = MakeFittedText("Label", vis, label, isPrimary ? 22 : 19, ColPaper, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont(), minSize: 12);
+            Ui.SetTextColor(txt, ColPaper);
+            Ui.ClearOutline(txt);
             Stretch(txt.rectTransform, Vector2.zero, Vector2.one, new Vector2(12f, 4f), new Vector2(-12f, -4f));
 
             var btn = go.GetComponent<Button>();
             btn.targetGraphic = plate;
-            Ui.AddPressFeel(go, 0.95f);
+            btn.transition = Selectable.Transition.None;
+            UiShaders.AttachPressSpring(btn, isPrimary ? 0.94f : 0.95f, isPrimary ? 3f : 2f);
             return btn;
+        }
+
+        static Image MakeGlassPanel(string name, Transform parent, Color fill, Color border, Color leftAccent, float cornerCut = 6f, float accentW = 0f)
+        {
+            Image img = Ui.MakeImage(name, parent, Color.white, round: false, raycast: false);
+            Stretch(img.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            ApplyGlassSurface(img, fill, border, leftAccent, cornerCut, accentW);
+            return img;
+        }
+
+        static void ApplyGlassSurface(Image img, Color fill, Color border, Color leftAccent, float cornerCut, float accentW)
+        {
+            if (img == null) return;
+            img.sprite = null;
+            img.type = Image.Type.Simple;
+            Material mat = UiShaders.CreateTacticalGlass(fill, border, leftAccent, cornerCut, accentW, topHighlight: 0.14f);
+            if (mat != null && mat != Graphic.defaultGraphicMaterial)
+            {
+                img.material = mat;
+                img.color = Color.white;
+            }
+            else
+            {
+                img.material = null;
+                img.color = fill;
+            }
         }
 
         void HandleSafeAreaChanged(SafeArea _) => RefreshLayout();

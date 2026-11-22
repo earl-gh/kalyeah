@@ -8,9 +8,10 @@ using UnityEngine.UI;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Full-bleed barangay Komiks async scene-transition curtain (<c>Title &lt;-&gt; Match</c>) and deterministic
-    /// dual-aspect preview view. Splits full-bleed art + twilight scrim on <see cref="Root"/> from inset brand,
-    /// mode badge, gameplay tip card, and progress bar under <see cref="SafeRoot"/> (<see cref="SafeArea"/>).
+    /// Option A1 Editorial async scene-transition curtain (<c>Title &lt;-&gt; Match</c>) and deterministic dual-aspect preview:
+    /// full-bleed sunlit barangay backdrop + smoked obsidian scrim on <see cref="Root"/>, and four strictly disjoint
+    /// SafeArea bands: Brand + 5v5 frameless bust faceoff, Mode pill, Ate Lorna (<see cref="LoreCodexData"/>) Tip card,
+    /// and a glowing Signal Vermilion full-width progress bar.
     /// </summary>
     public sealed class LoadingScreenView : IDisposable
     {
@@ -18,15 +19,23 @@ namespace Kalyeah.Game
         public const string DefaultModeTitle = "AGAWANG BASE \u00B7 5V5";
         public const string HomeModeTitle = "BARANGAY HOME";
 
-        static readonly Color FallbackBackdropColor = new Color(0.02f, 0.035f, 0.07f, 1f);
-        static readonly Color BackdropTintColor = Color.white;
-        static readonly Color ScrimTintColor = new Color(0.02f, 0.035f, 0.07f, 0.68f);
-        static readonly Color HorizonGlowColor = new Color(0.961f, 0.725f, 0.227f, 0.08f);
-        static readonly Color BadgeTop = new Color(0.115f, 0.175f, 0.285f, 0.94f);
-        static readonly Color BadgeBottom = new Color(0.052f, 0.085f, 0.155f, 0.97f);
-        static readonly Color TrackTop = new Color(0.024f, 0.044f, 0.082f, 0.98f);
-        static readonly Color TrackBottom = new Color(0.056f, 0.092f, 0.160f, 0.98f);
-        static readonly Color TrackBorder = new Color(0.76f, 0.88f, 0.96f, 0.25f);
+        static readonly Color FallbackBackdropColor = new Color(0.035f, 0.047f, 0.066f, 1f);
+        static readonly Color BackdropTintColor = new Color(0.95f, 0.92f, 0.86f, 0.34f);
+        static readonly Color ScrimTintColor = new Color(0.055f, 0.075f, 0.102f, 0.78f);
+        static readonly Color ObsidianGlass = MenuArt.ObsidianGlass;
+        static readonly Color ObsidianSolid = MenuArt.ObsidianSolid;
+        static readonly Color Paper = MenuArt.PaperWhite;
+        static readonly Color Vermilion = MenuArt.SignalVermilion;
+        static readonly Color VermilionDeep = MenuArt.SignalVermilionDeep;
+        static readonly Color CoralGold = MenuArt.CoralGold;
+        static readonly Color TitaniumBorder = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.24f);
+        static readonly Color TitaniumBorderStrong = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.44f);
+        static readonly Color AllyBlue = MenuArt.AllyBlue;
+        static readonly Color EnemyRed = MenuArt.EnemyRed;
+        static readonly Color TrackFill = new Color(0.040f, 0.054f, 0.076f, 0.96f);
+
+        static readonly string[] DefaultBlueSquad = { "narda", "karding", "oriang", "paeng", "domeng" };
+        static readonly string[] DefaultRedSquad = { "jumong", "kikay", "pamela", "jopay", "manoy" };
 
         readonly struct TipEntry
         {
@@ -66,8 +75,8 @@ namespace Kalyeah.Game
                 "Sa Barangay Hotspot, panatilihing malapit ang mga telepono sa host para swabe ang 30 Hz na laro."),
             new TipEntry(
                 "BARANGAY",
-                "Every kid has identical movement and health — pick your favorite barkada style and tune your 3-superpower loadout!",
-                "Pantay ang bilis at lakas ng bawat bata — piliin ang paborito mong porma at ayusin ang 3 superpower mo!"),
+                "Every kid brings 3 unique street-game skills on a shared Water bar — time your Ultimate when the squad pushes!",
+                "May 3 kakaibang larong-kalye skill ang bawat bata — itugma ang Ultimate kapag sabay-sabay na sumusugod ang barkada!"),
         };
 
         [ExecuteAlways]
@@ -189,7 +198,6 @@ namespace Kalyeah.Game
 
             IEnumerator RunTransition(string sceneName)
             {
-                // Yield one full frame first so the Komiks loading curtain paints before scene/asset construction begins.
                 yield return null;
 
                 AsyncOperation op = SceneManager.LoadSceneAsync(sceneName);
@@ -272,6 +280,7 @@ namespace Kalyeah.Game
         readonly RectTransform _statusRect;
         readonly RectTransform _percentRect;
         readonly RectTransform _progressInnerRect;
+        readonly Material _gaugeMat;
 
         int _tipIndex;
         string _statusOverride;
@@ -333,10 +342,6 @@ namespace Kalyeah.Game
             return view;
         }
 
-        /// <summary>
-        /// Transitions to <paramref name="sceneName"/> behind a full-bleed <c>DontDestroyOnLoad</c> Komiks loading curtain
-        /// in PlayMode (yielding 1 frame before <see cref="SceneManager.LoadSceneAsync(string)"/>), or synchronously in EditMode.
-        /// </summary>
         public static void LoadScene(string sceneName, DataSource data = null, string modeTitle = null)
         {
             if (string.IsNullOrWhiteSpace(sceneName)) return;
@@ -361,14 +366,12 @@ namespace Kalyeah.Game
             s_runner.BeginTransition(sceneName, data, resolvedMode);
         }
 
-        /// <summary>Signals that the destination scene has finished building its world/UI and the loading curtain may fade out.</summary>
         public static void CompleteAndHide()
         {
             if (s_runner != null)
                 s_runner.SignalSceneReady();
         }
 
-        /// <summary>Immediately hides any active runtime loading curtain without waiting for a fade.</summary>
         public static void HideImmediate()
         {
             if (s_runner != null)
@@ -453,7 +456,7 @@ namespace Kalyeah.Game
             _layoutHook = Root.gameObject.AddComponent<LoadingLayoutHook>();
             _layoutHook.Owner = this;
 
-            // 1. Full-bleed Backdrop + EnvelopeParent art + full-bleed Scrim on Root (covers 100% of cutouts & gesture bar)
+            // 1. Full-bleed Backdrop + EnvelopeParent art + Option A1 Smoked Obsidian Scrim on Root
             Image backdropFallback = Ui.MakeImage("Backdrop", Root, FallbackBackdropColor, round: false, raycast: false);
             BackdropRect = backdropFallback.rectTransform;
             FillFullBleed(BackdropRect);
@@ -479,14 +482,7 @@ namespace Kalyeah.Game
             ScrimRect = _scrimImage.rectTransform;
             FillFullBleed(ScrimRect);
 
-            Image glowImg = Ui.MakeImage("HorizonGlow", Root, HorizonGlowColor, round: false, raycast: false);
-            RectTransform glowRect = glowImg.rectTransform;
-            glowRect.anchorMin = Vector2.zero;
-            glowRect.anchorMax = new Vector2(1f, 0.38f);
-            glowRect.offsetMin = Vector2.zero;
-            glowRect.offsetMax = Vector2.zero;
-
-            // 2. SafeArea child holding all readable Komiks content & progress bar
+            // 2. SafeArea child holding 4 strictly disjoint editorial bands
             SafeRoot = Ui.Fill("SafeArea", Root);
             SafeArea = SafeRoot.gameObject.AddComponent<SafeArea>();
             SafeArea.Changed += OnSafeAreaChanged;
@@ -494,16 +490,17 @@ namespace Kalyeah.Game
             Font displayFont = KalyeahResources.DisplayFont();
             Font uiFont = KalyeahResources.UiFont();
 
-            // 2A. Brand Lockup (FitInParent)
+            // 2A. Brand Wordmark + Crisp A1 5v5 Frameless Bust Faceoff Strip (contained cleanly inside LogoFrameRect)
             LogoFrameRect = Ui.Panel(
                 "LogoFrame",
                 SafeRoot,
                 new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f),
-                new Vector2(0f, 194f),
-                new Vector2(440f, 132f));
+                new Vector2(0f, 186f),
+                new Vector2(780f, 192f));
 
+            RectTransform wordmarkSlot = Ui.Panel("WordmarkSlot", LogoFrameRect, new Vector2(0f, 0.62f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, Vector2.zero);
             Texture2D logoTex = KalyeahResources.Texture("ui/title_logo")
                 ?? KalyeahResources.Texture("ui/kalyeah_logo")
                 ?? KalyeahResources.Texture("ui/brand/kalyeah_wordmark")
@@ -511,7 +508,7 @@ namespace Kalyeah.Game
             if (logoTex != null)
             {
                 var logoGo = new GameObject("TitleLogo", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
-                logoGo.transform.SetParent(LogoFrameRect, false);
+                logoGo.transform.SetParent(wordmarkSlot, false);
                 var logoRaw = logoGo.GetComponent<RawImage>();
                 logoRaw.texture = logoTex;
                 logoRaw.color = Color.white;
@@ -523,117 +520,209 @@ namespace Kalyeah.Game
             }
             else
             {
-                Text fallbackLogo = Ui.MakeText("TitleLogoFallback", LogoFrameRect, "KALYEAH!", 48, Ui.Cream, TextAnchor.MiddleCenter, displayFont);
-                ConfigureReadableText(fallbackLogo, minSize: 24, maxSize: 48);
-                FillInset(fallbackLogo.rectTransform, 8f, 4f, 8f, 4f);
+                Text fallbackLogo = Ui.MakeText("TitleLogoFallback", wordmarkSlot, "KALYEAH!", 38, Paper, TextAnchor.MiddleCenter, displayFont);
+                Ui.ClearOutline(fallbackLogo);
+                ConfigureReadableText(fallbackLogo, minSize: 18, maxSize: 38);
+                FillInset(fallbackLogo.rectTransform, 8f, 2f, 8f, 2f);
             }
 
-            // 2B. Mode Badge Pill (tactical chamfered plate with gold border & accent pips)
-            Image badgeBg = Ui.MakeSliced(
-                "ModeBadge",
-                SafeRoot,
-                MenuArt.ChamferCard(BadgeTop, BadgeBottom, MenuArt.GoldBorder, 12, 2, 0.30f),
-                Color.white,
-                raycast: false);
+            // 5v5 Frameless Bust Faceoff Cards (Blue 5 vs VS vs Red 5)
+            BuildFaceoffRow(LogoFrameRect, displayFont);
+
+            // 2B. Mode Badge Pill (smoked obsidian editorial plate with Signal Vermilion left accent)
+            Image badgeBg = Ui.MakeImage("ModeBadge", SafeRoot, ObsidianSolid, round: false, raycast: false);
             ModeBadgeRect = badgeBg.rectTransform;
             ModeBadgeRect.anchorMin = new Vector2(0.5f, 0.5f);
             ModeBadgeRect.anchorMax = new Vector2(0.5f, 0.5f);
             ModeBadgeRect.pivot = new Vector2(0.5f, 0.5f);
-            Ui.MakeAccentRail("LeftPip", ModeBadgeRect, MenuArt.Gold, width: 3f, verticalInset: 12f);
-            Ui.MakeAccentRail("RightPip", ModeBadgeRect, MenuArt.Gold, width: 3f, verticalInset: 12f, rightSide: true);
+            ApplyGlassSurface(badgeBg, ObsidianSolid, TitaniumBorderStrong, Vermilion, cornerCut: 6f, accentW: 3.5f);
 
-            ModeTitleLabel = Ui.MakeText("ModeTitle", ModeBadgeRect, "", 24, MenuArt.GoldLight, TextAnchor.MiddleCenter, displayFont);
-            ConfigureReadableText(ModeTitleLabel, minSize: 14, maxSize: 24);
-            FillInset(ModeTitleLabel.rectTransform, 22f, 6f, 22f, 6f);
+            ModeTitleLabel = Ui.MakeText("ModeTitle", ModeBadgeRect, "", 22, Paper, TextAnchor.MiddleCenter, displayFont);
+            Ui.ClearOutline(ModeTitleLabel);
+            ConfigureReadableText(ModeTitleLabel, minSize: 13, maxSize: 22);
+            FillInset(ModeTitleLabel.rectTransform, 18f, 4f, 18f, 4f);
 
-            // 2C. Barangay Gameplay Tip Card
-            Image tipBg = Ui.MakeSliced("TipCard", SafeRoot, MenuArt.ChamferGlass(16), Color.white, raycast: false);
+            // 2C. Ate Lorna Sari-Sari Intro + Barangay Tip Card
+            Image tipBg = Ui.MakeImage("TipCard", SafeRoot, ObsidianGlass, round: false, raycast: false);
             TipCardRect = tipBg.rectTransform;
             TipCardRect.anchorMin = new Vector2(0.5f, 0.5f);
             TipCardRect.anchorMax = new Vector2(0.5f, 0.5f);
             TipCardRect.pivot = new Vector2(0.5f, 0.5f);
-            Ui.MakeAccentRail("TipRail", TipCardRect, MenuArt.Gold, width: 4f, verticalInset: 16f);
+            ApplyGlassSurface(tipBg, ObsidianGlass, TitaniumBorder, Paper, cornerCut: 8f, accentW: 3f);
 
-            Image iconWell = Ui.MakeSliced("TipIconWell", TipCardRect, MenuArt.StatChip(10), Color.white, raycast: false);
+            Image iconWell = Ui.MakeImage("TipIconWell", TipCardRect, ObsidianSolid, round: false, raycast: false);
             _tipIconWellRect = iconWell.rectTransform;
             _tipIconWellRect.anchorMin = new Vector2(0f, 0.5f);
             _tipIconWellRect.anchorMax = new Vector2(0f, 0.5f);
             _tipIconWellRect.pivot = new Vector2(0f, 0.5f);
-            Ui.MakeSliced("WellRim", _tipIconWellRect, MenuArt.ChamferOutline(MenuArt.GoldBorder, 10, 1), Color.white, raycast: false);
+            ApplyGlassSurface(iconWell, ObsidianSolid, TitaniumBorderStrong, Color.clear, cornerCut: 6f, accentW: 0f);
 
-            Texture2D tipIconTex = KalyeahResources.Texture("ui/tips_icon");
-            if (tipIconTex != null)
+            string featuredKid = string.IsNullOrWhiteSpace(AppSession.Current.SelectedCharacter)
+                ? AppSession.DefaultCharacter
+                : AppSession.Current.SelectedCharacter;
+            Sprite bustSprite = KalyeahResources.KidBustSprite(featuredKid);
+            if (bustSprite != null)
             {
-                var iconContainer = Ui.Fill("TipIconPadding", _tipIconWellRect);
-                FillInset(iconContainer, 8f, 8f, 8f, 8f);
-                var iconGo = new GameObject("TipIcon", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
-                iconGo.transform.SetParent(iconContainer, false);
-                var iconRaw = iconGo.GetComponent<RawImage>();
-                iconRaw.texture = tipIconTex;
-                iconRaw.color = Color.white;
-                iconRaw.raycastTarget = false;
-                var iconFitter = iconGo.GetComponent<AspectRatioFitter>();
-                iconFitter.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-                iconFitter.aspectRatio = tipIconTex.width / Mathf.Max(1f, (float)tipIconTex.height);
+                Image bustImg = Ui.MakeImage("TipBust", _tipIconWellRect, Color.white, round: false, raycast: false);
+                bustImg.sprite = bustSprite;
+                bustImg.preserveAspect = true;
+                FillInset(bustImg.rectTransform, 4f, 4f, 4f, 4f);
             }
             else
             {
-                Text bulbFallback = Ui.MakeText("TipGlyph", _tipIconWellRect, "!", 28, MenuArt.GoldLight, TextAnchor.MiddleCenter, displayFont);
-                ConfigureReadableText(bulbFallback, minSize: 18, maxSize: 28);
+                Text bulbFallback = Ui.MakeText("TipGlyph", _tipIconWellRect, "AL", 22, CoralGold, TextAnchor.MiddleCenter, displayFont);
+                Ui.ClearOutline(bulbFallback);
+                ConfigureReadableText(bulbFallback, minSize: 14, maxSize: 22);
                 FillFullBleed(bulbFallback.rectTransform);
             }
 
-            TipHeaderLabel = Ui.MakeText("TipHeader", TipCardRect, "", 20, MenuArt.GoldLight, TextAnchor.MiddleLeft, displayFont);
-            ConfigureReadableText(TipHeaderLabel, minSize: 18, maxSize: 20);
+            TipHeaderLabel = Ui.MakeText("TipHeader", TipCardRect, "", 18, CoralGold, TextAnchor.MiddleLeft, displayFont);
+            ConfigureReadableText(TipHeaderLabel, minSize: 12, maxSize: 18);
             Ui.ClearOutline(TipHeaderLabel);
             _tipHeaderRect = TipHeaderLabel.rectTransform;
 
-            TipBodyLabel = Ui.MakeText("TipBody", TipCardRect, "", 20, MenuArt.Cream, TextAnchor.MiddleLeft, uiFont);
-            ConfigureReadableText(TipBodyLabel, minSize: 14, maxSize: 21);
+            TipBodyLabel = Ui.MakeText("TipBody", TipCardRect, "", 18, Paper, TextAnchor.MiddleLeft, uiFont);
+            ConfigureReadableText(TipBodyLabel, minSize: 11, maxSize: 18);
             TipBodyLabel.lineSpacing = 1.08f;
             Ui.ClearOutline(TipBodyLabel);
             _tipBodyRect = TipBodyLabel.rectTransform;
 
-            // 2D. Tactical Progress Bar Card
-            Image progCardBg = Ui.MakeSliced("ProgressCard", SafeRoot, MenuArt.ChamferGlass(16), Color.white, raycast: false);
+            // 2D. Glowing Signal Vermilion Full-Width Progress Bar Card
+            Image progCardBg = Ui.MakeImage("ProgressCard", SafeRoot, ObsidianGlass, round: false, raycast: false);
             ProgressCardRect = progCardBg.rectTransform;
             ProgressCardRect.anchorMin = new Vector2(0.5f, 0.5f);
             ProgressCardRect.anchorMax = new Vector2(0.5f, 0.5f);
             ProgressCardRect.pivot = new Vector2(0.5f, 0.5f);
-            Ui.MakeCornerBrackets("ProgressBrackets", ProgressCardRect, new Color(MenuArt.Gold.r, MenuArt.Gold.g, MenuArt.Gold.b, 0.45f));
+            ApplyGlassSurface(progCardBg, ObsidianGlass, TitaniumBorderStrong, Color.clear, cornerCut: 8f, accentW: 0f);
 
-            StatusLabel = Ui.MakeText("StatusLabel", ProgressCardRect, "", 20, MenuArt.Cream, TextAnchor.MiddleLeft, displayFont);
-            ConfigureReadableText(StatusLabel, minSize: 18, maxSize: 20);
+            StatusLabel = Ui.MakeText("StatusLabel", ProgressCardRect, "", 19, Paper, TextAnchor.MiddleLeft, displayFont);
+            Ui.ClearOutline(StatusLabel);
+            ConfigureReadableText(StatusLabel, minSize: 13, maxSize: 19);
             _statusRect = StatusLabel.rectTransform;
 
-            PercentLabel = Ui.MakeText("PercentLabel", ProgressCardRect, "", 22, MenuArt.GoldLight, TextAnchor.MiddleRight, displayFont);
-            ConfigureReadableText(PercentLabel, minSize: 18, maxSize: 22);
+            PercentLabel = Ui.MakeText("PercentLabel", ProgressCardRect, "", 20, Vermilion, TextAnchor.MiddleRight, displayFont);
+            Ui.ClearOutline(PercentLabel);
+            ConfigureReadableText(PercentLabel, minSize: 13, maxSize: 20);
             _percentRect = PercentLabel.rectTransform;
 
-            Image trackBg = Ui.MakeSliced(
-                "ProgressTrack",
-                ProgressCardRect,
-                MenuArt.Round(TrackTop, TrackBottom, TrackBorder, 8, 1, 0.12f),
-                Color.white,
-                raycast: false);
+            Image trackBg = Ui.MakeImage("ProgressTrack", ProgressCardRect, TrackFill, round: false, raycast: false);
             ProgressTrackRect = trackBg.rectTransform;
+            _gaugeMat = UiShaders.CreateLiquidGauge(Vermilion, CoralGold, segments: 0, animatedLiquid: true);
+            bool hasShaderGauge = _gaugeMat != null && _gaugeMat != Graphic.defaultGraphicMaterial;
+            if (hasShaderGauge)
+            {
+                trackBg.material = _gaugeMat;
+                trackBg.color = Color.white;
+            }
 
             _progressInnerRect = Ui.Fill("ProgressInner", ProgressTrackRect);
-            FillInset(_progressInnerRect, 4f, 4f, 4f, 4f);
+            FillInset(_progressInnerRect, 2f, 2f, 2f, 2f);
             _progressInnerRect.gameObject.AddComponent<RectMask2D>();
 
-            Image fillImg = Ui.MakeSliced("ProgressFill", _progressInnerRect, MenuArt.AccentRail(6), MenuArt.Gold, raycast: false);
+            Image fillImg = Ui.MakeImage("ProgressFill", _progressInnerRect, hasShaderGauge ? Color.clear : Vermilion, round: false, raycast: false);
             ProgressFillRect = fillImg.rectTransform;
             ProgressFillRect.anchorMin = Vector2.zero;
             ProgressFillRect.anchorMax = new Vector2(0.68f, 1f);
             ProgressFillRect.offsetMin = Vector2.zero;
             ProgressFillRect.offsetMax = Vector2.zero;
-            Ui.AddSheen(ProgressFillRect);
 
             SetTipIndex(deterministicTipIndex);
             SetModeTitle(string.IsNullOrWhiteSpace(modeTitle) ? DefaultModeTitle : modeTitle);
             SetProgress(progress);
             RefreshLayout();
+        }
+
+        static void BuildFaceoffRow(RectTransform logoFrame, Font displayFont)
+        {
+            RectTransform faceoff = Ui.Panel("Faceoff5v5", logoFrame, new Vector2(0f, 0f), new Vector2(1f, 0.58f), new Vector2(0.5f, 0f), Vector2.zero, Vector2.zero);
+
+            string localKid = string.IsNullOrWhiteSpace(AppSession.Current.SelectedCharacter)
+                ? DefaultBlueSquad[0]
+                : AppSession.Current.SelectedCharacter.ToLowerInvariant();
+            string[] blueIds = BuildBlueSquadWithLocal(localKid);
+
+            RectTransform blueBand = Ui.Panel("BlueSquad", faceoff, new Vector2(0f, 0f), new Vector2(0.45f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            BuildFramelessSquadStrip(blueBand, blueIds, AllyBlue, isRightSide: false);
+
+            // Center editorial VS marker
+            RectTransform vsBox = Ui.Panel("VsBadge", faceoff, new Vector2(0.45f, 0.16f), new Vector2(0.55f, 0.84f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            Image vsSlash = Ui.MakeImage("VsSlash", vsBox, Vermilion, round: false, raycast: false);
+            FillInset(vsSlash.rectTransform, 6f, 14f, 6f, 14f);
+            Material vsMat = UiShaders.CreateMetallicCta(Vermilion, VermilionDeep, cornerCut: 6f);
+            if (vsMat != null && vsMat != Graphic.defaultGraphicMaterial)
+            {
+                vsSlash.material = vsMat;
+                vsSlash.color = Color.white;
+            }
+            Text vsTxt = Ui.MakeText("VsLabel", vsBox, "VS", 18, Paper, TextAnchor.MiddleCenter, displayFont);
+            Ui.ClearOutline(vsTxt);
+            ConfigureReadableText(vsTxt, minSize: 11, maxSize: 18);
+            FillFullBleed(vsTxt.rectTransform);
+
+            RectTransform redBand = Ui.Panel("RedSquad", faceoff, new Vector2(0.55f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+            BuildFramelessSquadStrip(redBand, DefaultRedSquad, EnemyRed, isRightSide: true);
+        }
+
+        static string[] BuildBlueSquadWithLocal(string localKid)
+        {
+            var result = new string[5];
+            result[0] = localKid;
+            int idx = 1;
+            for (int i = 0; i < DefaultBlueSquad.Length && idx < 5; i++)
+            {
+                if (string.Equals(DefaultBlueSquad[i], localKid, StringComparison.OrdinalIgnoreCase)) continue;
+                result[idx++] = DefaultBlueSquad[i];
+            }
+            if (idx < 5) result[idx] = "inggo";
+            return result;
+        }
+
+        static void BuildFramelessSquadStrip(RectTransform parent, string[] kidIds, Color teamHairline, bool isRightSide)
+        {
+            var h = parent.gameObject.AddComponent<HorizontalLayoutGroup>();
+            h.spacing = 6f;
+            h.padding = new RectOffset(4, 4, 2, 2);
+            h.childControlWidth = true;
+            h.childControlHeight = true;
+            h.childForceExpandWidth = true;
+            h.childForceExpandHeight = true;
+
+            for (int i = 0; i < kidIds.Length; i++)
+            {
+                string id = kidIds[i];
+                var slotGo = new GameObject($"Faceoff_{id}", typeof(RectTransform));
+                slotGo.transform.SetParent(parent, false);
+
+                // Subtle ground-anchor obsidian pedestal haze + crisp 2 px team hairline (frameless portrait above!)
+                Image floorLine = Ui.MakeImage("TeamRule", slotGo.transform, teamHairline, round: false, raycast: false);
+                floorLine.rectTransform.anchorMin = new Vector2(0.08f, 0f);
+                floorLine.rectTransform.anchorMax = new Vector2(0.92f, 0f);
+                floorLine.rectTransform.pivot = new Vector2(0.5f, 0f);
+                floorLine.rectTransform.anchoredPosition = Vector2.zero;
+                floorLine.rectTransform.sizeDelta = new Vector2(0f, 2.5f);
+
+                Sprite bust = KalyeahResources.KidBustSprite(id);
+                if (bust != null)
+                {
+                    Image portrait = Ui.MakeImage("Bust", slotGo.transform, Color.white, round: false, raycast: false);
+                    portrait.sprite = bust;
+                    portrait.preserveAspect = true;
+                    portrait.rectTransform.anchorMin = new Vector2(0f, 0.04f);
+                    portrait.rectTransform.anchorMax = new Vector2(1f, 1f);
+                    portrait.rectTransform.offsetMin = Vector2.zero;
+                    portrait.rectTransform.offsetMax = Vector2.zero;
+                    if (isRightSide)
+                        portrait.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
+                }
+                else
+                {
+                    Image standIn = Ui.MakeImage("StandIn", slotGo.transform, new Color(teamHairline.r, teamHairline.g, teamHairline.b, 0.28f), round: true, raycast: false);
+                    standIn.rectTransform.anchorMin = new Vector2(0.18f, 0.14f);
+                    standIn.rectTransform.anchorMax = new Vector2(0.82f, 0.88f);
+                    standIn.rectTransform.offsetMin = Vector2.zero;
+                    standIn.rectTransform.offsetMax = Vector2.zero;
+                }
+            }
         }
 
         public void SetModeTitle(string modeTitle)
@@ -642,6 +731,7 @@ namespace Kalyeah.Game
             if (ModeTitleLabel != null)
                 ModeTitleLabel.text = ModeTitle;
             RefreshModeBadgeWidth();
+            RefreshTipCopy();
         }
 
         public void SetTipIndex(int index)
@@ -683,9 +773,16 @@ namespace Kalyeah.Game
                 }
             }
 
+            float visualFill = Progress <= 0.001f ? 0f : Mathf.Clamp(Progress, 0.04f, 1f);
+            if (_gaugeMat != null && _gaugeMat != Graphic.defaultGraphicMaterial)
+            {
+                if (_gaugeMat.HasProperty(UiShaders.PropFill)) _gaugeMat.SetFloat(UiShaders.PropFill, visualFill);
+                if (_gaugeMat.HasProperty(UiShaders.PropTrailFill)) _gaugeMat.SetFloat(UiShaders.PropTrailFill, visualFill);
+                UiShaders.SyncReduceMotion(_gaugeMat);
+            }
+
             if (ProgressFillRect != null)
             {
-                float visualFill = Progress <= 0.001f ? 0f : Mathf.Clamp(Progress, 0.04f, 1f);
                 ProgressFillRect.anchorMin = Vector2.zero;
                 ProgressFillRect.anchorMax = new Vector2(visualFill, 1f);
                 ProgressFillRect.offsetMin = Vector2.zero;
@@ -702,30 +799,28 @@ namespace Kalyeah.Game
 
             Vector2 safe = ScreenFitMetrics.SafeCanvasSize(Canvas);
             float scale = Mathf.Clamp(safe.y / 684f, 0.78f, 1f);
-            float contentW = Mathf.Clamp(safe.x - 96f, 480f, 800f);
+            float contentW = Mathf.Clamp(safe.x - 96f, 480f, 820f);
 
             if (LogoFrameRect != null)
             {
-                float logoW = Mathf.Min(440f * scale, contentW - 40f);
-                float logoH = 132f * scale;
-                LogoFrameRect.sizeDelta = new Vector2(logoW, logoH);
-                LogoFrameRect.anchoredPosition = new Vector2(0f, 194f * scale);
+                LogoFrameRect.sizeDelta = new Vector2(contentW, 192f * scale);
+                LogoFrameRect.anchoredPosition = new Vector2(0f, 186f * scale);
             }
 
             RefreshModeBadgeWidth(scale, contentW);
             if (ModeBadgeRect != null)
-                ModeBadgeRect.anchoredPosition = new Vector2(0f, 80f * scale);
+                ModeBadgeRect.anchoredPosition = new Vector2(0f, 54f * scale);
 
             if (TipCardRect != null)
             {
-                float tipH = 152f * scale;
+                float tipH = 148f * scale;
                 TipCardRect.sizeDelta = new Vector2(contentW, tipH);
-                TipCardRect.anchoredPosition = new Vector2(0f, -45f * scale);
+                TipCardRect.anchoredPosition = new Vector2(0f, -62f * scale);
 
-                float iconSide = Mathf.Round(68f * scale);
-                float leftPad = 22f;
-                float textLeft = leftPad + iconSide + 18f;
-                float rightPad = 22f;
+                float iconSide = Mathf.Round(66f * scale);
+                float leftPad = 20f;
+                float textLeft = leftPad + iconSide + 16f;
+                float rightPad = 20f;
 
                 if (_tipIconWellRect != null)
                 {
@@ -738,8 +833,8 @@ namespace Kalyeah.Game
                     _tipHeaderRect.anchorMin = new Vector2(0f, 1f);
                     _tipHeaderRect.anchorMax = new Vector2(1f, 1f);
                     _tipHeaderRect.pivot = new Vector2(0.5f, 1f);
-                    _tipHeaderRect.offsetMin = new Vector2(textLeft, -42f * scale);
-                    _tipHeaderRect.offsetMax = new Vector2(-rightPad, -12f * scale);
+                    _tipHeaderRect.offsetMin = new Vector2(textLeft, -38f * scale);
+                    _tipHeaderRect.offsetMax = new Vector2(-rightPad, -10f * scale);
                 }
 
                 if (_tipBodyRect != null)
@@ -747,23 +842,23 @@ namespace Kalyeah.Game
                     _tipBodyRect.anchorMin = Vector2.zero;
                     _tipBodyRect.anchorMax = Vector2.one;
                     _tipBodyRect.pivot = new Vector2(0.5f, 0.5f);
-                    _tipBodyRect.offsetMin = new Vector2(textLeft, 12f * scale);
-                    _tipBodyRect.offsetMax = new Vector2(-rightPad, -48f * scale);
+                    _tipBodyRect.offsetMin = new Vector2(textLeft, 10f * scale);
+                    _tipBodyRect.offsetMax = new Vector2(-rightPad, -42f * scale);
                 }
             }
 
             if (ProgressCardRect != null)
             {
-                float progH = 92f * scale;
+                float progH = 90f * scale;
                 ProgressCardRect.sizeDelta = new Vector2(contentW, progH);
-                ProgressCardRect.anchoredPosition = new Vector2(0f, -193f * scale);
+                ProgressCardRect.anchoredPosition = new Vector2(0f, -206f * scale);
 
                 if (_statusRect != null)
                 {
                     _statusRect.anchorMin = new Vector2(0f, 1f);
                     _statusRect.anchorMax = new Vector2(0.75f, 1f);
                     _statusRect.pivot = new Vector2(0f, 1f);
-                    _statusRect.offsetMin = new Vector2(18f, -40f * scale);
+                    _statusRect.offsetMin = new Vector2(18f, -38f * scale);
                     _statusRect.offsetMax = new Vector2(-8f, -8f * scale);
                 }
 
@@ -772,7 +867,7 @@ namespace Kalyeah.Game
                     _percentRect.anchorMin = new Vector2(0.77f, 1f);
                     _percentRect.anchorMax = new Vector2(1f, 1f);
                     _percentRect.pivot = new Vector2(1f, 1f);
-                    _percentRect.offsetMin = new Vector2(8f, -40f * scale);
+                    _percentRect.offsetMin = new Vector2(8f, -38f * scale);
                     _percentRect.offsetMax = new Vector2(-18f, -8f * scale);
                 }
 
@@ -781,8 +876,8 @@ namespace Kalyeah.Game
                     ProgressTrackRect.anchorMin = new Vector2(0f, 0f);
                     ProgressTrackRect.anchorMax = new Vector2(1f, 0f);
                     ProgressTrackRect.pivot = new Vector2(0.5f, 0f);
-                    ProgressTrackRect.offsetMin = new Vector2(16f, 10f * scale);
-                    ProgressTrackRect.offsetMax = new Vector2(-16f, 44f * scale);
+                    ProgressTrackRect.offsetMin = new Vector2(16f, 12f * scale);
+                    ProgressTrackRect.offsetMax = new Vector2(-16f, 40f * scale);
                 }
             }
 
@@ -827,32 +922,54 @@ namespace Kalyeah.Game
 
         void OnSafeAreaChanged(SafeArea _) => RefreshLayout();
 
-        void RefreshModeBadgeWidth(float scale = 1f, float contentW = 800f)
+        void RefreshModeBadgeWidth(float scale = 1f, float contentW = 820f)
         {
             if (ModeBadgeRect == null) return;
             if (contentW <= 0f)
             {
                 Vector2 safe = ScreenFitMetrics.SafeCanvasSize(Canvas);
                 scale = Mathf.Clamp(safe.y / 684f, 0.78f, 1f);
-                contentW = Mathf.Clamp(safe.x - 96f, 480f, 800f);
+                contentW = Mathf.Clamp(safe.x - 96f, 480f, 820f);
             }
 
             int charCount = !string.IsNullOrEmpty(ModeTitle) ? ModeTitle.Length : 18;
-            float estWidth = charCount * 15.5f + 64f;
-            float badgeW = Mathf.Clamp(estWidth, 340f, contentW - 40f);
-            ModeBadgeRect.sizeDelta = new Vector2(badgeW, 54f * scale);
+            float estWidth = charCount * 15f + 56f;
+            float badgeW = Mathf.Clamp(estWidth, 320f, contentW - 40f);
+            ModeBadgeRect.sizeDelta = new Vector2(badgeW, 46f * scale);
         }
 
         void RefreshTipCopy()
         {
             bool fil = IsFilipinoLocale();
             if (TipHeaderLabel != null)
-                TipHeaderLabel.text = fil ? "TIP SA KALYE" : "KALYE TIP";
+                TipHeaderLabel.text = fil
+                    ? $"{LoreCodexData.AteLornaRoleTag}  \u00B7  TIP SA KALYE"
+                    : $"{LoreCodexData.AteLornaRoleTag}  \u00B7  SARI-SARI TIP";
 
             if (TipBodyLabel != null && CuratedTips.Length > 0)
             {
+                string intro = LoreCodexData.ResolveAteLornaIntro(ModeTitle ?? "Barangay", _tipIndex).Text;
                 TipEntry entry = CuratedTips[Mathf.Clamp(_tipIndex, 0, CuratedTips.Length - 1)];
-                TipBodyLabel.text = fil && !string.IsNullOrEmpty(entry.Fil) ? entry.Fil : entry.En;
+                string gameplayTip = fil && !string.IsNullOrEmpty(entry.Fil) ? entry.Fil : entry.En;
+                TipBodyLabel.text = $"\"{intro}\"\n{gameplayTip}";
+            }
+        }
+
+        static void ApplyGlassSurface(Image img, Color fill, Color border, Color leftAccent, float cornerCut, float accentW)
+        {
+            if (img == null) return;
+            img.sprite = null;
+            img.type = Image.Type.Simple;
+            Material mat = UiShaders.CreateTacticalGlass(fill, border, leftAccent, cornerCut, accentW, topHighlight: 0.14f);
+            if (mat != null && mat != Graphic.defaultGraphicMaterial)
+            {
+                img.material = mat;
+                img.color = Color.white;
+            }
+            else
+            {
+                img.material = null;
+                img.color = fill;
             }
         }
 
@@ -891,7 +1008,7 @@ namespace Kalyeah.Game
             label.horizontalOverflow = HorizontalWrapMode.Wrap;
             label.verticalOverflow = VerticalWrapMode.Truncate;
             label.resizeTextForBestFit = true;
-            label.resizeTextMinSize = Mathf.Max(14, minSize);
+            label.resizeTextMinSize = Mathf.Max(10, minSize);
             label.resizeTextMaxSize = Mathf.Max(label.resizeTextMinSize, maxSize);
         }
 

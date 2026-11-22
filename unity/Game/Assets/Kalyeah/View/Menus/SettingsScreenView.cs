@@ -7,7 +7,8 @@ using UnityEngine.UI;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Tabbed Settings screen (Audio, Controls, Graphics &amp; Accessibility, Donate + Reset Defaults)
+    /// Option A1 Editorial Settings screen (Audio, Controls, Graphics &amp; Accessibility, Donate + Reset Defaults):
+    /// sleek left category rail, hairline-divided rows inside smoked-obsidian tactical glass, and Signal Vermilion active pills,
     /// bound to <see cref="SettingsStore.Current"/> and persisted to <see cref="PlayerPrefs"/>.
     /// </summary>
     public sealed class SettingsScreenView : IDisposable
@@ -18,29 +19,22 @@ namespace Kalyeah.Game
         /// <summary>Donate lives in Settings, not on home (docs/SPEC.md §8).</summary>
         public const int TabDonate = 3;
 
-        // the home's palette: deep navy, dark tactical glass panels and Jeepney gold (docs/SPEC.md §10)
-        static readonly Color BackdropSolid = new Color(0.02f, 0.035f, 0.07f, 1f);
-        static readonly Color BackdropWash = new Color(0.02f, 0.035f, 0.07f, 0.72f);
-        static readonly Color RowTop = new Color(0.100f, 0.152f, 0.242f, 0.90f);
-        static readonly Color RowBottom = new Color(0.054f, 0.088f, 0.156f, 0.94f);
-        static readonly Color RowBorder = new Color(0.76f, 0.88f, 0.96f, 0.16f);
-        static readonly Color TrackTop = new Color(0.024f, 0.044f, 0.082f, 0.98f);
-        static readonly Color TrackBottom = new Color(0.056f, 0.092f, 0.160f, 0.98f);
-        static readonly Color TrackBorder = new Color(0.76f, 0.88f, 0.96f, 0.24f);
-        static readonly Color StepperTop = new Color(0.145f, 0.215f, 0.325f, 0.95f);
-        static readonly Color StepperBottom = new Color(0.062f, 0.102f, 0.180f, 0.98f);
-        static readonly Color StepperBorder = new Color(0.76f, 0.88f, 0.96f, 0.38f);
-        static readonly Color ResetTop = new Color(0.16f, 0.08f, 0.10f, 0.76f);
-        static readonly Color ResetBottom = new Color(0.09f, 0.04f, 0.06f, 0.86f);
-        static readonly Color ResetBorder = new Color(0.96f, 0.44f, 0.36f, 0.72f);
-        static readonly Color ResetText = new Color(1f, 0.74f, 0.68f, 1f);
-        static readonly Color TabActiveTop = new Color(0.13f, 0.20f, 0.31f, 0.86f);
-        static readonly Color TabActiveBottom = new Color(0.07f, 0.11f, 0.20f, 0.92f);
-        static readonly Color DividerColor = new Color(0.76f, 0.88f, 0.96f, 0.14f);
-        static readonly Color RowRailIdle = new Color(0.76f, 0.88f, 0.96f, 0.24f);
-        static readonly Color TabBarIdle = new Color(0.76f, 0.88f, 0.96f, 0.18f);
-        static readonly Color Gold = MenuArt.Gold;
-        static readonly Color Ink = MenuArt.Ink;
+        static readonly Color BackdropSolid = new Color(0.035f, 0.047f, 0.066f, 1f);
+        static readonly Color BackdropWash = new Color(0.055f, 0.075f, 0.102f, 0.80f);
+        static readonly Color ObsidianGlass = MenuArt.ObsidianGlass;
+        static readonly Color ObsidianSolid = MenuArt.ObsidianSolid;
+        static readonly Color ObsidianCard = new Color(0.075f, 0.102f, 0.140f, 0.88f);
+        static readonly Color Paper = MenuArt.PaperWhite;
+        static readonly Color Vermilion = MenuArt.SignalVermilion;
+        static readonly Color VermilionDeep = MenuArt.SignalVermilionDeep;
+        static readonly Color TitaniumBorder = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.24f);
+        static readonly Color TitaniumBorderStrong = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.44f);
+        static readonly Color HairlineColor = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.20f);
+        static readonly Color TrackFill = new Color(0.042f, 0.056f, 0.078f, 0.96f);
+        static readonly Color ResetFill = new Color(0.145f, 0.068f, 0.082f, 0.86f);
+        static readonly Color ResetBorder = new Color(1.00f, 0.275f, 0.333f, 0.62f);
+        static readonly Color ResetText = new Color(1f, 0.78f, 0.76f, 1f);
+        static readonly Color Muted = MenuArt.MutedText;
 
         [ExecuteAlways]
         sealed class SettingsLifecycle : MonoBehaviour
@@ -142,13 +136,12 @@ namespace Kalyeah.Game
         readonly RectTransform[] _tabPanes = new RectTransform[4];
         readonly Image[] _tabPillBgs = new Image[4];
         readonly Text[] _tabPillLabels = new Text[4];
-        readonly Image[] _tabBars = new Image[4];
         readonly LayoutElement[] _tabPillLayouts = new LayoutElement[4];
         readonly List<Action> _syncCallbacks = new List<Action>(20);
         readonly List<ToggleRowRefs> _toggleRows = new List<ToggleRowRefs>(8);
         readonly List<SliderRowRefs> _sliderRows = new List<SliderRowRefs>(4);
         readonly List<SegmentedRowRefs> _segmentedRows = new List<SegmentedRowRefs>(8);
-        readonly List<ScrollPaneRefs> _scrollPanes = new List<ScrollPaneRefs>(3);
+        readonly List<ScrollPaneRefs> _scrollPanes = new List<ScrollPaneRefs>(4);
         DonateRowRefs _donateRow;
 
         RectTransform _headerRect;
@@ -157,7 +150,6 @@ namespace Kalyeah.Game
         RectTransform _headerTitleRect;
         RectTransform _headerAccentRect;
         RectTransform _tabBarRect;
-        HorizontalLayoutGroup _tabBarLayout;
 
         Text _headerTitle;
         Text _backLabel;
@@ -268,11 +260,19 @@ namespace Kalyeah.Game
             {
                 bool active = i == _activeTab;
                 if (_tabPanes[i] != null) _tabPanes[i].gameObject.SetActive(active);
-                if (_tabPillBgs[i] != null) _tabPillBgs[i].enabled = active;
-                if (_tabBars[i] != null) _tabBars[i].color = active ? Gold : TabBarIdle;
+                if (_tabPillBgs[i] != null)
+                {
+                    ApplyGlassSurface(
+                        _tabPillBgs[i],
+                        active ? ObsidianSolid : new Color(0.055f, 0.075f, 0.102f, 0.36f),
+                        active ? TitaniumBorderStrong : TitaniumBorder,
+                        active ? Vermilion : Color.clear,
+                        cornerCut: 6f,
+                        accentW: active ? 3.5f : 0f);
+                }
                 if (_tabPillLabels[i] != null)
                 {
-                    Ui.SetTextColor(_tabPillLabels[i], active ? MenuArt.GoldLight : MenuArt.MutedText);
+                    Ui.SetTextColor(_tabPillLabels[i], active ? Paper : Muted);
                     Ui.ClearOutline(_tabPillLabels[i]);
                 }
             }
@@ -297,7 +297,8 @@ namespace Kalyeah.Game
                 if (_resetLabel != null) _resetLabel.text = fil ? "IBALIK SA DATI" : "RESET DEFAULTS";
                 if (_tabPillLabels[0] != null) _tabPillLabels[0].text = fil ? "TUNOG" : "AUDIO";
                 if (_tabPillLabels[1] != null) _tabPillLabels[1].text = fil ? "KONTROL" : "CONTROLS";
-                if (_tabPillLabels[2] != null) _tabPillLabels[2].text = fil ? "GRAPIKA AT TULONG" : "GRAPHICS & ACCESSIBILITY";
+                if (_tabPillLabels[2] != null) _tabPillLabels[2].text = fil ? "GRAPIKA" : "GRAPHICS";
+                if (_tabPillLabels[3] != null) _tabPillLabels[3].text = fil ? "SUPORTA" : "DONATE";
 
                 for (int i = 0; i < _syncCallbacks.Count; i++)
                     _syncCallbacks[i]?.Invoke();
@@ -363,8 +364,10 @@ namespace Kalyeah.Game
 
             float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
             float minGutter = Mathf.Max(8f, ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinGutterDp, _canvas));
-            float headerH = Mathf.Max(104f, minTouch + 8f);
-            float tabBarH = Mathf.Max(96f, minTouch);
+            float headerH = Mathf.Max(98f, minTouch + 8f);
+            float railW = clampedWidth < 960f ? 186f : 212f;
+            float bodyTopInset = -(4f + headerH + 8f);
+            float paneW = Mathf.Max(420f, clampedWidth - railW - 10f);
 
             if (_headerRect != null)
             {
@@ -372,14 +375,14 @@ namespace Kalyeah.Game
                 _headerRect.sizeDelta = new Vector2(0f, headerH);
             }
 
-            Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(142f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(140f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
             if (_backBtnRect != null)
             {
                 _backBtnRect.anchoredPosition = new Vector2(10f, 0f);
                 _backBtnRect.sizeDelta = backSize;
             }
 
-            Vector2 resetSize = ScreenFitMetrics.ClampTouchSize(new Vector2(214f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            Vector2 resetSize = ScreenFitMetrics.ClampTouchSize(new Vector2(210f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
             if (_resetBtnRect != null)
             {
                 _resetBtnRect.anchoredPosition = new Vector2(-10f, 0f);
@@ -398,15 +401,15 @@ namespace Kalyeah.Game
                 _headerTitleRect.offsetMax = new Vector2(-(10f + resetSize.x + minGutter), -8f);
             }
 
-            float tabBarTop = -(4f + headerH + 4f);
+            // Sleek left category rail strictly below Header and strictly left of activePane
             if (_tabBarRect != null)
             {
-                _tabBarRect.anchoredPosition = new Vector2(0f, tabBarTop);
-                _tabBarRect.sizeDelta = new Vector2(0f, tabBarH);
+                _tabBarRect.anchorMin = new Vector2(0f, 0f);
+                _tabBarRect.anchorMax = new Vector2(0f, 1f);
+                _tabBarRect.pivot = new Vector2(0f, 0.5f);
+                _tabBarRect.offsetMin = new Vector2(0f, 6f);
+                _tabBarRect.offsetMax = new Vector2(railW, bodyTopInset);
             }
-
-            if (_tabBarLayout != null)
-                _tabBarLayout.spacing = Mathf.Max(10f, minGutter);
 
             for (int i = 0; i < _tabPillLayouts.Length; i++)
             {
@@ -417,52 +420,51 @@ namespace Kalyeah.Game
                 le.preferredHeight = minTouch;
             }
 
-            float paneTopInset = tabBarTop - tabBarH - 6f;
             for (int i = 0; i < _tabPanes.Length; i++)
             {
                 if (_tabPanes[i] == null) continue;
-                _tabPanes[i].offsetMin = new Vector2(0f, 6f);
-                _tabPanes[i].offsetMax = new Vector2(0f, paneTopInset);
+                _tabPanes[i].offsetMin = new Vector2(railW + 10f, 6f);
+                _tabPanes[i].offsetMax = new Vector2(0f, bodyTopInset);
             }
 
             float toggleRowH = Mathf.Max(98f, minTouch + 2f);
-            Vector2 toggleBtnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(164f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            Vector2 toggleBtnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(158f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
             for (int i = 0; i < _toggleRows.Count; i++)
             {
                 ToggleRowRefs r = _toggleRows[i];
                 r.RowLayout.minHeight = toggleRowH;
                 r.RowLayout.preferredHeight = toggleRowH;
-                r.ToggleRect.anchoredPosition = new Vector2(-14f, 0f);
+                r.ToggleRect.anchoredPosition = new Vector2(-12f, 0f);
                 r.ToggleRect.sizeDelta = toggleBtnSize;
                 r.TitleRect.anchorMin = Vector2.zero;
                 r.TitleRect.anchorMax = Vector2.one;
-                r.TitleRect.offsetMin = new Vector2(22f, 6f);
-                r.TitleRect.offsetMax = new Vector2(-(14f + toggleBtnSize.x + minGutter), -6f);
+                r.TitleRect.offsetMin = new Vector2(14f, 6f);
+                r.TitleRect.offsetMax = new Vector2(-(12f + toggleBtnSize.x + minGutter), -6f);
             }
 
             if (_donateRow != null)
             {
                 float donateRowH = Mathf.Max(132f, minTouch + 36f);
-                Vector2 donateBtnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(196f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+                Vector2 donateBtnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(188f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
                 _donateRow.RowLayout.minHeight = donateRowH;
                 _donateRow.RowLayout.preferredHeight = donateRowH;
-                _donateRow.ButtonRect.anchoredPosition = new Vector2(-16f, 0f);
+                _donateRow.ButtonRect.anchoredPosition = new Vector2(-12f, 0f);
                 _donateRow.ButtonRect.sizeDelta = donateBtnSize;
                 _donateRow.CopyRect.anchorMin = Vector2.zero;
                 _donateRow.CopyRect.anchorMax = Vector2.one;
-                _donateRow.CopyRect.offsetMin = new Vector2(86f, 12f);
-                _donateRow.CopyRect.offsetMax = new Vector2(-(16f + donateBtnSize.x + minGutter), -12f);
+                _donateRow.CopyRect.offsetMin = new Vector2(76f, 12f);
+                _donateRow.CopyRect.offsetMax = new Vector2(-(12f + donateBtnSize.x + minGutter), -12f);
             }
 
-            float sliderRowH = Mathf.Max(102f, minTouch + 6f);
+            float sliderRowH = Mathf.Max(100f, minTouch + 4f);
             float btnSide = minTouch;
             float knobPx = minTouch;
             float halfKnob = knobPx * 0.5f;
-            float pctWidth = 86f;
-            float rightPad = 14f;
-            float plusRightEdge = -(rightPad + pctWidth + 10f);
+            float pctWidth = 76f;
+            float rightPad = 12f;
+            float plusRightEdge = -(rightPad + pctWidth + 8f);
             float sliderRightEdge = plusRightEdge - btnSide - minGutter;
-            float titleMaxShare = clampedWidth < 1020f ? 0.31f : 0.35f;
+            float titleMaxShare = paneW < 820f ? 0.27f : 0.31f;
 
             for (int i = 0; i < _sliderRows.Count; i++)
             {
@@ -472,30 +474,30 @@ namespace Kalyeah.Game
 
                 s.TitleRect.anchorMin = new Vector2(0f, 0f);
                 s.TitleRect.anchorMax = new Vector2(titleMaxShare, 1f);
-                s.TitleRect.offsetMin = new Vector2(22f, 6f);
-                s.TitleRect.offsetMax = new Vector2(-8f, -6f);
+                s.TitleRect.offsetMin = new Vector2(14f, 6f);
+                s.TitleRect.offsetMax = new Vector2(-6f, -6f);
 
                 s.MinusRect.anchorMin = new Vector2(titleMaxShare, 0.5f);
                 s.MinusRect.anchorMax = new Vector2(titleMaxShare, 0.5f);
                 s.MinusRect.pivot = new Vector2(0f, 0.5f);
-                s.MinusRect.anchoredPosition = new Vector2(6f, 0f);
+                s.MinusRect.anchoredPosition = new Vector2(4f, 0f);
                 s.MinusRect.sizeDelta = new Vector2(btnSide, btnSide);
 
-                float sliderPadY = Mathf.Max(3f, (sliderRowH - minTouch) * 0.5f);
+                float sliderPadY = Mathf.Max(2f, (sliderRowH - minTouch) * 0.5f);
                 s.SliderRect.anchorMin = new Vector2(titleMaxShare, 0f);
                 s.SliderRect.anchorMax = new Vector2(1f, 1f);
-                s.SliderRect.offsetMin = new Vector2(6f + btnSide + minGutter, sliderPadY);
+                s.SliderRect.offsetMin = new Vector2(4f + btnSide + minGutter, sliderPadY);
                 s.SliderRect.offsetMax = new Vector2(sliderRightEdge, -sliderPadY);
 
                 s.TrackRect.anchorMin = new Vector2(0f, 0.5f);
                 s.TrackRect.anchorMax = new Vector2(1f, 0.5f);
-                s.TrackRect.offsetMin = new Vector2(halfKnob, -5f);
-                s.TrackRect.offsetMax = new Vector2(-halfKnob, 5f);
+                s.TrackRect.offsetMin = new Vector2(halfKnob, -4f);
+                s.TrackRect.offsetMax = new Vector2(-halfKnob, 4f);
 
                 s.FillAreaRect.anchorMin = new Vector2(0f, 0.5f);
                 s.FillAreaRect.anchorMax = new Vector2(1f, 0.5f);
-                s.FillAreaRect.offsetMin = new Vector2(halfKnob, -5f);
-                s.FillAreaRect.offsetMax = new Vector2(-halfKnob, 5f);
+                s.FillAreaRect.offsetMin = new Vector2(halfKnob, -4f);
+                s.FillAreaRect.offsetMax = new Vector2(-halfKnob, 4f);
 
                 s.HandleSlideRect.anchorMin = new Vector2(0f, 0.5f);
                 s.HandleSlideRect.anchorMax = new Vector2(1f, 0.5f);
@@ -513,12 +515,12 @@ namespace Kalyeah.Game
                 s.PercentRect.anchorMax = new Vector2(1f, 0.5f);
                 s.PercentRect.pivot = new Vector2(1f, 0.5f);
                 s.PercentRect.anchoredPosition = new Vector2(-rightPad, 0f);
-                s.PercentRect.sizeDelta = new Vector2(pctWidth, 42f);
+                s.PercentRect.sizeDelta = new Vector2(pctWidth, 40f);
             }
 
-            float segRowH = Mathf.Max(100f, minTouch + 4f);
-            float segTitleShare = clampedWidth < 1020f ? 0.31f : 0.36f;
-            float segPadY = Mathf.Max(2f, (segRowH - minTouch) * 0.5f);
+            float segRowH = Mathf.Max(98f, minTouch + 2f);
+            float segTitleShare = paneW < 820f ? 0.27f : 0.31f;
+            float segPadY = Mathf.Max(1f, (segRowH - minTouch) * 0.5f);
             for (int i = 0; i < _segmentedRows.Count; i++)
             {
                 SegmentedRowRefs sr = _segmentedRows[i];
@@ -526,14 +528,14 @@ namespace Kalyeah.Game
                 sr.RowLayout.preferredHeight = segRowH;
                 sr.TitleRect.anchorMin = new Vector2(0f, 0f);
                 sr.TitleRect.anchorMax = new Vector2(segTitleShare, 1f);
-                sr.TitleRect.offsetMin = new Vector2(22f, 6f);
-                sr.TitleRect.offsetMax = new Vector2(-8f, -6f);
+                sr.TitleRect.offsetMin = new Vector2(14f, 6f);
+                sr.TitleRect.offsetMax = new Vector2(-6f, -6f);
 
                 sr.GroupRect.anchorMin = new Vector2(segTitleShare, 0f);
                 sr.GroupRect.anchorMax = new Vector2(1f, 1f);
-                sr.GroupRect.offsetMin = new Vector2(8f, segPadY);
-                sr.GroupRect.offsetMax = new Vector2(-14f, -segPadY);
-                sr.GroupLayout.spacing = Mathf.Max(8f, minGutter * 0.5f);
+                sr.GroupRect.offsetMin = new Vector2(6f, segPadY);
+                sr.GroupRect.offsetMax = new Vector2(-12f, -segPadY);
+                sr.GroupLayout.spacing = Mathf.Max(6f, minGutter * 0.5f);
 
                 for (int c = 0; c < sr.ChoiceLayouts.Length; c++)
                 {
@@ -587,7 +589,7 @@ namespace Kalyeah.Game
                 rawGo.transform.SetParent(baseFill.transform, false);
                 var raw = rawGo.GetComponent<RawImage>();
                 raw.texture = mainBg;
-                raw.color = new Color(1f, 1f, 1f, 0.32f);
+                raw.color = new Color(0.95f, 0.92f, 0.86f, 0.24f);
                 raw.raycastTarget = false;
                 Stretch(raw.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
@@ -603,81 +605,103 @@ namespace Kalyeah.Game
         void BuildHeader(RectTransform parent)
         {
             float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
-            float headerH = Mathf.Max(104f, minTouch + 8f);
+            float headerH = Mathf.Max(98f, minTouch + 8f);
 
             _headerRect = Ui.Panel("Header", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -4f), new Vector2(0f, headerH));
 
-            Image divider = Ui.MakeImage("HeaderDivider", _headerRect, DividerColor);
-            Stretch(divider.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(10f, 0f), new Vector2(-10f, 1.5f));
+            Image divider = Ui.MakeImage("HeaderDivider", _headerRect, HairlineColor);
+            Stretch(divider.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(10f, 0f), new Vector2(-10f, 1f));
 
-            Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(142f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            Vector2 backSize = ScreenFitMetrics.ClampTouchSize(new Vector2(140f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
             _backBtnRect = MakeHeaderButton("BackButton", _headerRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(10f, 0f), backSize, isReset: false, () =>
             {
                 SavePersistedSettings();
                 _onBack?.Invoke();
             }, out _backLabel, "BACK");
 
-            _headerAccentRect = Ui.Panel("TitleAccent", _headerRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(166f, 0f), new Vector2(4f, 34f));
+            _headerAccentRect = Ui.Panel("TitleAccent", _headerRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(164f, 0f), new Vector2(4f, 34f));
             Image accentImg = _headerAccentRect.gameObject.AddComponent<Image>();
-            accentImg.sprite = MenuArt.AccentRail(2);
-            accentImg.type = Image.Type.Sliced;
-            accentImg.color = Gold;
+            accentImg.color = Vermilion;
             accentImg.raycastTarget = false;
 
-            _headerTitle = MakeFittedText("Title", _headerRect, "SETTINGS", 32, MenuArt.Cream, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _headerTitle = MakeFittedText("Title", _headerRect, "SETTINGS", 30, Paper, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(_headerTitle);
             _headerTitleRect = _headerTitle.rectTransform;
-            Stretch(_headerTitleRect, Vector2.zero, Vector2.one, new Vector2(180f, 8f), new Vector2(-238f, -8f));
+            Stretch(_headerTitleRect, Vector2.zero, Vector2.one, new Vector2(178f, 8f), new Vector2(-234f, -8f));
 
-            Vector2 resetSize = ScreenFitMetrics.ClampTouchSize(new Vector2(214f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            Vector2 resetSize = ScreenFitMetrics.ClampTouchSize(new Vector2(210f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
             _resetBtnRect = MakeHeaderButton("ResetDefaultsButton", _headerRect, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-10f, 0f), resetSize, isReset: true, ResetDefaults, out _resetLabel, "RESET DEFAULTS");
         }
 
         void BuildTabBar(RectTransform parent)
         {
             float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
-            float headerH = Mathf.Max(104f, minTouch + 8f);
-            float tabBarH = Mathf.Max(96f, minTouch);
+            float headerH = Mathf.Max(98f, minTouch + 8f);
+            float bodyTopInset = -(4f + headerH + 8f);
 
-            _tabBarRect = Ui.Panel("TabBar", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -(4f + headerH + 4f)), new Vector2(0f, tabBarH));
-            _tabBarLayout = _tabBarRect.gameObject.AddComponent<HorizontalLayoutGroup>();
-            _tabBarLayout.padding = new RectOffset(0, 0, 0, 0);
-            _tabBarLayout.spacing = 12f;
-            _tabBarLayout.childControlWidth = true;
-            _tabBarLayout.childControlHeight = true;
-            _tabBarLayout.childForceExpandWidth = true;
-            _tabBarLayout.childForceExpandHeight = true;
+            // Sleek left category rail (named "TabBar" under Shell so ScreenFitBoundsTests finds Header / TabBar / activePane as 3 disjoint bands)
+            _tabBarRect = Ui.Panel("TabBar", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
+            _tabBarRect.offsetMin = new Vector2(0f, 6f);
+            _tabBarRect.offsetMax = new Vector2(212f, bodyTopInset);
+            MakeGlassPanel("RailBg", _tabBarRect, ObsidianGlass, TitaniumBorder, Color.clear, cornerCut: 8f, accentW: 0f);
 
-            Sprite activePlate = MenuArt.ChamferCard(TabActiveTop, TabActiveBottom, MenuArt.PanelBorder, 10, 1, 0.24f);
-            string[] names = { "AUDIO", "CONTROLS", "GRAPHICS & ACCESSIBILITY", "DONATE" };
+            var scrollGo = new GameObject("RailScroll", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
+            scrollGo.transform.SetParent(_tabBarRect, false);
+            var scrollRt = scrollGo.GetComponent<RectTransform>();
+            Stretch(scrollRt, Vector2.zero, Vector2.one, new Vector2(6f, 6f), new Vector2(-6f, -6f));
+            scrollGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.01f);
+
+            var contentGo = new GameObject("RailContent", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+            contentGo.transform.SetParent(scrollGo.transform, false);
+            var content = contentGo.GetComponent<RectTransform>();
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.anchoredPosition = Vector2.zero;
+            content.sizeDelta = Vector2.zero;
+
+            var railLayout = contentGo.GetComponent<VerticalLayoutGroup>();
+            railLayout.padding = new RectOffset(2, 2, 4, 4);
+            railLayout.spacing = 6f;
+            railLayout.childControlWidth = true;
+            railLayout.childControlHeight = true;
+            railLayout.childForceExpandWidth = true;
+            railLayout.childForceExpandHeight = false;
+            contentGo.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var scroll = scrollGo.GetComponent<ScrollRect>();
+            scroll.viewport = scrollRt;
+            scroll.content = content;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+
+            string[] names = { "AUDIO", "CONTROLS", "GRAPHICS", "DONATE" };
             for (int i = 0; i < names.Length; i++)
             {
                 int idx = i;
                 var go = new GameObject($"SettingsTab_{i}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
-                go.transform.SetParent(_tabBarRect, false);
+                go.transform.SetParent(content, false);
                 var hitImg = go.GetComponent<Image>();
-                hitImg.color = Color.clear; // transparent >= 48 dp hit target
+                hitImg.color = Color.clear;
 
-                RectTransform plateRt = Ui.Panel("Visual", go.transform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 52f));
-                Image visualBg = Ui.MakeSliced("ActivePlate", plateRt, activePlate, Color.white, raycast: false);
-                visualBg.enabled = false;
-
-                Image bar = Ui.MakeSliced("Bar", plateRt, MenuArt.AccentRail(2), TabBarIdle, raycast: false);
-                Stretch(bar.rectTransform, new Vector2(0.06f, 0f), new Vector2(0.94f, 0f), new Vector2(0f, 0f), new Vector2(0f, 4f));
-                _tabBars[i] = bar;
+                RectTransform plateRt = Ui.Panel("Visual", go.transform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 56f));
+                Image visualBg = MakeGlassPanel("ActivePlate", plateRt, ObsidianCard, TitaniumBorder, Color.clear, cornerCut: 6f, accentW: 0f);
 
                 var le = go.GetComponent<LayoutElement>();
                 le.minWidth = minTouch;
                 le.minHeight = minTouch;
                 le.preferredHeight = minTouch;
-                le.preferredWidth = i == 2 ? 320f : i == 3 ? 180f : 220f;
 
                 var btn = go.GetComponent<Button>();
-                btn.targetGraphic = hitImg;
+                btn.targetGraphic = visualBg;
+                btn.transition = Selectable.Transition.None;
                 btn.onClick.AddListener(() => SetActiveTab(idx));
-                Ui.AddPressFeel(go, 0.97f);
+                UiShaders.AttachPressSpring(btn, 0.96f, 2f);
 
-                Text lbl = MakeFittedText("Label", plateRt, names[i], 20, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-                Stretch(lbl.rectTransform, Vector2.zero, Vector2.one, new Vector2(10f, 6f), new Vector2(-10f, -4f));
+                Text lbl = MakeFittedText("Label", plateRt, names[i], 19, Paper, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+                Ui.ClearOutline(lbl);
+                Stretch(lbl.rectTransform, Vector2.zero, Vector2.one, new Vector2(16f, 4f), new Vector2(-10f, -4f));
 
                 _tabPillBgs[i] = visualBg;
                 _tabPillLabels[i] = lbl;
@@ -863,15 +887,15 @@ namespace Kalyeah.Game
         RectTransform CreateScrollableTabPane(string name, RectTransform parent, out RectTransform paneRoot)
         {
             paneRoot = Ui.Panel(name, parent, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            paneRoot.offsetMin = new Vector2(0f, 6f);
-            paneRoot.offsetMax = new Vector2(0f, -214f);
+            paneRoot.offsetMin = new Vector2(222f, 6f);
+            paneRoot.offsetMax = new Vector2(0f, -110f);
 
-            Ui.MakeSliced("PaneBg", paneRoot, MenuArt.ChamferGlass(18), Color.white, raycast: false);
+            MakeGlassPanel("PaneBg", paneRoot, ObsidianGlass, TitaniumBorder, Color.clear, cornerCut: 8f, accentW: 0f);
 
             var scrollGo = new GameObject("Scroll", typeof(RectTransform), typeof(Image), typeof(RectMask2D), typeof(ScrollRect));
             scrollGo.transform.SetParent(paneRoot, false);
             var scrollRt = scrollGo.GetComponent<RectTransform>();
-            Stretch(scrollRt, Vector2.zero, Vector2.one, new Vector2(10f, 8f), new Vector2(-20f, -8f));
+            Stretch(scrollRt, Vector2.zero, Vector2.one, new Vector2(10f, 8f), new Vector2(-18f, -8f));
             scrollGo.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.01f);
 
             var contentGo = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
@@ -884,8 +908,8 @@ namespace Kalyeah.Game
             content.sizeDelta = Vector2.zero;
 
             var v = contentGo.GetComponent<VerticalLayoutGroup>();
-            v.padding = new RectOffset(6, 6, 4, 8);
-            v.spacing = 8f;
+            v.padding = new RectOffset(4, 4, 2, 6);
+            v.spacing = 0f;
             v.childControlWidth = true;
             v.childControlHeight = true;
             v.childForceExpandWidth = true;
@@ -901,10 +925,10 @@ namespace Kalyeah.Game
             scroll.movementType = ScrollRect.MovementType.Clamped;
             scroll.scrollSensitivity = 28f;
 
-            // Sleek thin non-interactive visual scroll indicator (zero sub-48dp Selectable components)
-            Image trackImg = Ui.MakeSliced("ScrollTrack", paneRoot, MenuArt.AccentRail(2), new Color(0.76f, 0.88f, 0.96f, 0.14f), raycast: false);
-            Stretch(trackImg.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-12f, 14f), new Vector2(-8f, -14f));
-            Image thumbImg = Ui.MakeSliced("ScrollThumb", trackImg.transform, MenuArt.AccentRail(2), Gold, raycast: false);
+            // Thin non-interactive visual scroll indicator
+            Image trackImg = Ui.MakeImage("ScrollTrack", paneRoot, HairlineColor, round: false, raycast: false);
+            Stretch(trackImg.rectTransform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(-10f, 14f), new Vector2(-7f, -14f));
+            Image thumbImg = Ui.MakeImage("ScrollThumb", trackImg.transform, Vermilion, round: false, raycast: false);
             Stretch(thumbImg.rectTransform, new Vector2(0f, 0.35f), Vector2.one, Vector2.zero, Vector2.zero);
 
             var refs = new ScrollPaneRefs
@@ -918,7 +942,7 @@ namespace Kalyeah.Game
             return content;
         }
 
-        /// <summary>Support Kalyeah: one tactical support card whose DONATE CTA opens the donate sheet (grown-up check first; gifts give nothing).</summary>
+        /// <summary>Support Kalyeah: one editorial support card whose Signal Vermilion DONATE CTA opens the donate sheet.</summary>
         void BuildDonateTab(RectTransform parent)
         {
             RectTransform content = CreateScrollableTabPane("DonatePane", parent, out RectTransform paneRoot);
@@ -926,52 +950,50 @@ namespace Kalyeah.Game
 
             float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
             float rowH = Mathf.Max(132f, minTouch + 36f);
-            RectTransform row = CreateRowContainer(content, "DonateRow", rowH, out LayoutElement rowLe, out Text titleText, railColor: Gold);
-            Ui.MakeCornerBrackets("DonateBrackets", row, new Color(Gold.r, Gold.g, Gold.b, 0.42f));
+            RectTransform row = CreateRowContainer(content, "DonateRow", rowH, out LayoutElement rowLe, out Text titleText);
 
-            // Heart emblem medallion on the left
-            RectTransform iconWell = Ui.Panel("IconWell", row, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(22f, 0f), new Vector2(50f, 50f));
-            Ui.MakeSliced("WellBg", iconWell, MenuArt.StatChip(10), Color.white, raycast: false);
-            Image heartGlyph = Ui.MakeImage("HeartGlyph", iconWell, Gold, round: false, raycast: false);
+            RectTransform iconWell = Ui.Panel("IconWell", row, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(14f, 0f), new Vector2(48f, 48f));
+            MakeGlassPanel("WellBg", iconWell, ObsidianSolid, TitaniumBorderStrong, Vermilion, cornerCut: 6f, accentW: 3f);
+            Image heartGlyph = Ui.MakeImage("HeartGlyph", iconWell, Vermilion, round: false, raycast: false);
             heartGlyph.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Heart);
             heartGlyph.rectTransform.anchorMin = heartGlyph.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             heartGlyph.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            heartGlyph.rectTransform.sizeDelta = new Vector2(24f, 24f);
+            heartGlyph.rectTransform.sizeDelta = new Vector2(22f, 22f);
 
-            // Title + honest subtitle stack
             RectTransform copyStack = Ui.Panel("CopyStack", row, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            copyStack.offsetMin = new Vector2(86f, 12f);
-            copyStack.offsetMax = new Vector2(-228f, -12f);
+            copyStack.offsetMin = new Vector2(76f, 12f);
+            copyStack.offsetMax = new Vector2(-216f, -12f);
             titleText.transform.SetParent(copyStack, false);
             titleText.font = KalyeahResources.DisplayFont();
-            titleText.fontSize = 24;
-            titleText.resizeTextMaxSize = 24;
+            titleText.fontSize = 22;
+            titleText.resizeTextMaxSize = 22;
             titleText.alignment = TextAnchor.LowerLeft;
+            Ui.ClearOutline(titleText);
             Stretch(titleText.rectTransform, new Vector2(0f, 0.48f), Vector2.one, Vector2.zero, Vector2.zero);
 
-            Text subText = MakeFittedText("Subtitle", copyStack, "Optional community tip · unlocks zero gameplay power", 17, MenuArt.MutedText, TextAnchor.UpperLeft);
-            subText.resizeTextMinSize = 12;
-            subText.resizeTextMaxSize = 17;
+            Text subText = MakeFittedText("Subtitle", copyStack, "Optional community tip · unlocks zero gameplay power", 16, Muted, TextAnchor.UpperLeft);
+            subText.resizeTextMinSize = 11;
+            subText.resizeTextMaxSize = 16;
             Ui.ClearOutline(subText);
             Stretch(subText.rectTransform, Vector2.zero, new Vector2(1f, 0.44f), Vector2.zero, Vector2.zero);
 
-            Vector2 btnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(196f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
-            RectTransform buttonRt = Ui.Panel("DonateBtn", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-16f, 0f), btnSize);
+            Vector2 btnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(188f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            RectTransform buttonRt = Ui.Panel("DonateBtn", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-12f, 0f), btnSize);
             Image hitImg = buttonRt.gameObject.AddComponent<Image>();
-            hitImg.color = Color.clear; // transparent >= 48 dp hit catcher
+            hitImg.color = Color.clear;
 
-            RectTransform visualRt = Ui.Panel("Visual", buttonRt, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 54f));
-            Image visualBg = Ui.MakeSliced("Face", visualRt, MenuArt.CtaGold(12), Color.white, raycast: false);
-            Ui.AddSheen(visualRt);
+            RectTransform visualRt = Ui.Panel("Visual", buttonRt, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 52f));
+            Image visualBg = MakeCtaPanel("Face", visualRt, Vermilion, VermilionDeep, cornerCut: 8f);
 
             DonateButton = buttonRt.gameObject.AddComponent<Button>();
             DonateButton.targetGraphic = visualBg;
+            DonateButton.transition = Selectable.Transition.None;
             DonateButton.onClick.AddListener(() => _onDonate?.Invoke());
-            Ui.AddPressFeel(buttonRt, 0.95f);
+            UiShaders.AttachPressSpring(DonateButton, 0.94f, 3f);
 
-            Text label = MakeFittedText("Label", visualRt, "DONATE", 22, Ink, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            Stretch(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 4f), new Vector2(-8f, -4f));
+            Text label = MakeFittedText("Label", visualRt, "DONATE", 21, Paper, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             Ui.ClearOutline(label);
+            Stretch(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 4f), new Vector2(-8f, -4f));
 
             _donateRow = new DonateRowRefs { RowLayout = rowLe, CopyRect = copyStack, ButtonRect = buttonRt };
             _syncCallbacks.Add(() =>
@@ -995,10 +1017,10 @@ namespace Kalyeah.Game
             float rowH = Mathf.Max(98f, minTouch + 2f);
             RectTransform row = CreateRowContainer(parent, name, rowH, out LayoutElement rowLe, out Text titleText);
 
-            Vector2 btnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(164f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
-            RectTransform toggleRt = Ui.Panel("ToggleBtn", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-14f, 0f), btnSize);
+            Vector2 btnSize = ScreenFitMetrics.ClampTouchSize(new Vector2(158f, minTouch), ScreenFitMetrics.MinTouchDp, _canvas);
+            RectTransform toggleRt = Ui.Panel("ToggleBtn", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-12f, 0f), btnSize);
             Image hitImg = toggleRt.gameObject.AddComponent<Image>();
-            hitImg.color = Color.clear; // transparent >= 48 dp hit catcher
+            hitImg.color = Color.clear;
 
             RectTransform switchVisual = Ui.MakeToggleVisual(
                 "SwitchVisual",
@@ -1008,21 +1030,22 @@ namespace Kalyeah.Game
                 out Image _,
                 out Text stateLbl,
                 trackWidth: 112f,
-                trackHeight: 44f);
+                trackHeight: 42f);
             switchVisual.anchorMin = new Vector2(1f, 0.5f);
             switchVisual.anchorMax = new Vector2(1f, 0.5f);
             switchVisual.pivot = new Vector2(1f, 0.5f);
             switchVisual.anchoredPosition = new Vector2(-4f, 0f);
             stateLbl.resizeTextForBestFit = true;
             stateLbl.resizeTextMinSize = 11;
-            stateLbl.resizeTextMaxSize = 16;
+            stateLbl.resizeTextMaxSize = 15;
             stateLbl.horizontalOverflow = HorizontalWrapMode.Wrap;
             stateLbl.verticalOverflow = VerticalWrapMode.Overflow;
 
             Button btn = toggleRt.gameObject.AddComponent<Button>();
             btn.targetGraphic = trackImg;
+            btn.transition = Selectable.Transition.None;
             btn.onClick.AddListener(() => setter(!getter()));
-            Ui.AddPressFeel(toggleRt, 0.95f);
+            UiShaders.AttachPressSpring(btn, 0.95f, 2f);
 
             _toggleRows.Add(new ToggleRowRefs
             {
@@ -1037,70 +1060,60 @@ namespace Kalyeah.Game
                 bool on = getter();
                 bool fil = SettingsStore.Current.Language == "fil";
                 Ui.ApplyToggleVisual(on, trackImg, thumbRect, stateLbl, fil ? "BUKAS" : "ON", fil ? "PATAY" : "OFF");
+                trackImg.color = on ? Vermilion : ObsidianCard;
+                Ui.SetTextColor(stateLbl, on ? Paper : Muted);
+                Ui.ClearOutline(stateLbl);
             });
         }
 
         void AddSliderRow(RectTransform parent, string name, Func<string> titleGetter, Func<float> getter, Action<float> setter)
         {
             float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
-            float rowH = Mathf.Max(102f, minTouch + 6f);
+            float rowH = Mathf.Max(100f, minTouch + 4f);
             RectTransform row = CreateRowContainer(parent, name, rowH, out LayoutElement rowLe, out Text titleText);
-            titleText.rectTransform.anchorMax = new Vector2(0.35f, 1f);
+            titleText.rectTransform.anchorMax = new Vector2(0.31f, 1f);
 
             float btnSide = minTouch;
             float knobPx = minTouch;
             float halfKnob = knobPx * 0.5f;
-            Sprite stepperSprite = MenuArt.Round(StepperTop, StepperBottom, StepperBorder, 25, 2, 0.30f);
 
-            // Sleek circular beveled Minus stepper inside >= 48 dp transparent hit catcher
             RectTransform minusRt = MakeStepperButton(
                 "MinusBtn",
                 row,
-                new Vector2(0.35f, 0.5f),
+                new Vector2(0.31f, 0.5f),
                 new Vector2(0f, 0.5f),
-                new Vector2(6f, 0f),
+                new Vector2(4f, 0f),
                 btnSide,
-                stepperSprite,
                 "-",
                 () => setter(Mathf.Clamp01(getter() - 0.10f)));
 
-            // UGUI Slider (height >= 48 dp; HandleSlideArea fixed knobPx tall & inset by halfKnob so circular 48 dp Handle never stretches or escapes Slider bounds)
             var sliderGo = new GameObject("Slider", typeof(RectTransform), typeof(Slider));
             sliderGo.transform.SetParent(row, false);
             var sliderRt = sliderGo.GetComponent<RectTransform>();
-            Stretch(sliderRt, new Vector2(0.35f, 0f), new Vector2(1f, 1f), new Vector2(6f + btnSide + 14f, 4f), new Vector2(-(110f + btnSide + 14f), -4f));
+            Stretch(sliderRt, new Vector2(0.31f, 0f), new Vector2(1f, 1f), new Vector2(4f + btnSide + 12f, 4f), new Vector2(-(98f + btnSide + 12f), -4f));
 
-            Sprite trackSprite = MenuArt.Round(TrackTop, TrackBottom, TrackBorder, 5, 1, 0.10f);
-            Image track = Ui.MakeSliced("Track", sliderRt, trackSprite, Color.white, raycast: false);
-            Stretch(track.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(halfKnob, -5f), new Vector2(-halfKnob, 5f));
+            Image track = Ui.MakeImage("Track", sliderRt, TrackFill, round: false, raycast: false);
+            Stretch(track.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(halfKnob, -4f), new Vector2(-halfKnob, 4f));
 
             RectTransform fillArea = Ui.Panel("FillArea", sliderRt, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            fillArea.offsetMin = new Vector2(halfKnob, -5f);
-            fillArea.offsetMax = new Vector2(-halfKnob, 5f);
-            Image fill = Ui.MakeSliced("Fill", fillArea, MenuArt.AccentRail(4), Gold, raycast: false);
+            fillArea.offsetMin = new Vector2(halfKnob, -4f);
+            fillArea.offsetMax = new Vector2(-halfKnob, 4f);
+            Image fill = Ui.MakeImage("Fill", fillArea, Vermilion, round: false, raycast: false);
             Stretch(fill.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
 
             RectTransform handleSlide = Ui.Panel("HandleSlideArea", sliderRt, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             handleSlide.offsetMin = new Vector2(halfKnob, -halfKnob);
             handleSlide.offsetMax = new Vector2(-halfKnob, halfKnob);
 
-            // Handle keeps the full 48 dp transparent touch area; glowing 3D knob + gold core pip centered inside
             Image handle = Ui.MakeImage("Handle", handleSlide, Color.clear, round: true, raycast: true);
             handle.rectTransform.sizeDelta = new Vector2(knobPx, 0f);
 
-            Image knobGlow = Ui.MakeImage("KnobGlow", handle.transform, new Color(1f, 0.78f, 0.28f, 0.40f), round: false, raycast: false);
-            knobGlow.sprite = MenuArt.Glow();
-            knobGlow.rectTransform.anchorMin = knobGlow.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            knobGlow.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            knobGlow.rectTransform.sizeDelta = new Vector2(46f, 46f);
-
-            Image handleFace = Ui.MakeImage("KnobFace", handle.transform, Color.white, round: false, raycast: false);
-            handleFace.sprite = MenuArt.ToggleThumb();
+            Image handleFace = Ui.MakeImage("KnobFace", handle.transform, Paper, round: true, raycast: false);
             handleFace.rectTransform.anchorMin = handleFace.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             handleFace.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            handleFace.rectTransform.sizeDelta = new Vector2(30f, 30f);
+            handleFace.rectTransform.sizeDelta = new Vector2(26f, 26f);
 
-            Image handlePip = Ui.MakeImage("KnobPip", handleFace.transform, Gold, round: true, raycast: false);
+            Image handlePip = Ui.MakeImage("KnobPip", handleFace.transform, Vermilion, round: true, raycast: false);
             handlePip.rectTransform.anchorMin = handlePip.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             handlePip.rectTransform.pivot = new Vector2(0.5f, 0.5f);
             handlePip.rectTransform.sizeDelta = new Vector2(10f, 10f);
@@ -1113,30 +1126,21 @@ namespace Kalyeah.Game
             slider.handleRect = handle.rectTransform;
             slider.targetGraphic = handleFace;
 
-            // Sleek circular beveled Plus stepper inside >= 48 dp transparent hit catcher
             RectTransform plusRt = MakeStepperButton(
                 "PlusBtn",
                 row,
                 new Vector2(1f, 0.5f),
                 new Vector2(1f, 0.5f),
-                new Vector2(-110f, 0f),
+                new Vector2(-98f, 0f),
                 btnSide,
-                stepperSprite,
                 "+",
                 () => setter(Mathf.Clamp01(getter() + 0.10f)));
 
-            // Framed gold % readout chip
-            RectTransform pctChip = Ui.MakeStatChip("PercentChip", row, "100%", MenuArt.GoldLight, out Text pctLabel, fontSize: 19, font: KalyeahResources.DisplayFont());
-            pctChip.anchorMin = new Vector2(1f, 0.5f);
-            pctChip.anchorMax = new Vector2(1f, 0.5f);
-            pctChip.pivot = new Vector2(1f, 0.5f);
-            pctChip.anchoredPosition = new Vector2(-14f, 0f);
-            pctChip.sizeDelta = new Vector2(86f, 42f);
-            pctLabel.resizeTextForBestFit = true;
-            pctLabel.resizeTextMinSize = 12;
-            pctLabel.resizeTextMaxSize = 19;
-            pctLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
-            pctLabel.verticalOverflow = VerticalWrapMode.Overflow;
+            RectTransform pctChip = Ui.Panel("PercentChip", row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-12f, 0f), new Vector2(76f, 40f));
+            MakeGlassPanel("Bg", pctChip, ObsidianSolid, TitaniumBorder, Color.clear, cornerCut: 5f, accentW: 0f);
+            Text pctLabel = MakeFittedText("Label", pctChip, "100%", 18, Paper, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(pctLabel);
+            Stretch(pctLabel.rectTransform, Vector2.zero, Vector2.one, new Vector2(4f, 2f), new Vector2(-4f, -2f));
 
             _sliderRows.Add(new SliderRowRefs
             {
@@ -1174,23 +1178,24 @@ namespace Kalyeah.Game
             Vector2 pivot,
             Vector2 pos,
             float hitSide,
-            Sprite visualSprite,
             string glyph,
             Action onClick)
         {
             RectTransform rt = Ui.Panel(name, parent, anchor, anchor, pivot, pos, new Vector2(hitSide, hitSide));
             Image hitImg = rt.gameObject.AddComponent<Image>();
-            hitImg.color = Color.clear; // transparent >= 48 dp hit catcher
+            hitImg.color = Color.clear;
 
-            RectTransform faceRt = Ui.Panel("Face", rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(50f, 50f));
-            Image faceImg = Ui.MakeSliced("Disc", faceRt, visualSprite, Color.white, raycast: false);
+            RectTransform faceRt = Ui.Panel("Face", rt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(46f, 46f));
+            Image faceImg = MakeGlassPanel("Disc", faceRt, ObsidianCard, TitaniumBorderStrong, Color.clear, cornerCut: 6f, accentW: 0f);
 
             Button btn = rt.gameObject.AddComponent<Button>();
             btn.targetGraphic = faceImg;
+            btn.transition = Selectable.Transition.None;
             btn.onClick.AddListener(() => onClick?.Invoke());
-            Ui.AddPressFeel(rt, 0.93f);
+            UiShaders.AttachPressSpring(btn, 0.92f, 2f);
 
-            Text txt = MakeFittedText("Label", faceRt, glyph, 26, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Text txt = MakeFittedText("Label", faceRt, glyph, 24, Paper, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(txt);
             Stretch(txt.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             return rt;
         }
@@ -1205,22 +1210,20 @@ namespace Kalyeah.Game
             Action<int> setter)
         {
             float minTouch = ScreenFitMetrics.DpToCanvasPx(ScreenFitMetrics.MinTouchDp, _canvas);
-            float rowH = Mathf.Max(100f, minTouch + 4f);
+            float rowH = Mathf.Max(98f, minTouch + 2f);
             RectTransform row = CreateRowContainer(parent, name, rowH, out LayoutElement rowLe, out Text titleText);
-            titleText.rectTransform.anchorMax = new Vector2(0.36f, 1f);
+            titleText.rectTransform.anchorMax = new Vector2(0.31f, 1f);
 
-            RectTransform group = Ui.Panel("Choices", row, new Vector2(0.36f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
-            group.offsetMin = new Vector2(8f, 2f);
-            group.offsetMax = new Vector2(-14f, -2f);
+            RectTransform group = Ui.Panel("Choices", row, new Vector2(0.31f, 0f), new Vector2(1f, 1f), new Vector2(1f, 0.5f), Vector2.zero, Vector2.zero);
+            group.offsetMin = new Vector2(6f, 2f);
+            group.offsetMax = new Vector2(-12f, -2f);
             var h = group.gameObject.AddComponent<HorizontalLayoutGroup>();
-            h.spacing = 8f;
+            h.spacing = 6f;
             h.childControlWidth = true;
             h.childControlHeight = true;
             h.childForceExpandWidth = true;
             h.childForceExpandHeight = true;
 
-            Sprite activeSprite = MenuArt.CtaGold(10);
-            Sprite idleSprite = MenuArt.CtaGhost(10);
             var bgs = new Image[optionsEn.Length];
             var labels = new Text[optionsEn.Length];
             var choiceLayouts = new LayoutElement[optionsEn.Length];
@@ -1231,10 +1234,10 @@ namespace Kalyeah.Game
                 var optGo = new GameObject($"Choice_{i}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
                 optGo.transform.SetParent(group, false);
                 var hitImg = optGo.GetComponent<Image>();
-                hitImg.color = Color.clear; // transparent >= 48 dp hit catcher
+                hitImg.color = Color.clear;
 
-                RectTransform pillRt = Ui.Panel("Visual", optGo.transform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 52f));
-                Image visualImg = Ui.MakeSliced("Plate", pillRt, idleSprite, Color.white, raycast: false);
+                RectTransform pillRt = Ui.Panel("Visual", optGo.transform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 48f));
+                Image visualImg = MakeGlassPanel("Plate", pillRt, ObsidianCard, TitaniumBorder, Color.clear, cornerCut: 5f, accentW: 0f);
 
                 var cle = optGo.GetComponent<LayoutElement>();
                 cle.minWidth = minTouch;
@@ -1243,11 +1246,13 @@ namespace Kalyeah.Game
 
                 var btn = optGo.GetComponent<Button>();
                 btn.targetGraphic = visualImg;
+                btn.transition = Selectable.Transition.None;
                 btn.onClick.AddListener(() => setter(idx));
-                Ui.AddPressFeel(optGo, 0.96f);
+                UiShaders.AttachPressSpring(btn, 0.95f, 2f);
 
-                Text lbl = MakeFittedText("Label", pillRt, optionsEn[i], 18, MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-                Stretch(lbl.rectTransform, Vector2.zero, Vector2.one, new Vector2(8f, 2f), new Vector2(-8f, -2f));
+                Text lbl = MakeFittedText("Label", pillRt, optionsEn[i], 17, Paper, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+                Ui.ClearOutline(lbl);
+                Stretch(lbl.rectTransform, Vector2.zero, Vector2.one, new Vector2(6f, 2f), new Vector2(-6f, -2f));
 
                 bgs[i] = visualImg;
                 labels[i] = lbl;
@@ -1273,32 +1278,33 @@ namespace Kalyeah.Game
                     bool active = i == selected;
                     if (optionsFil != null && i < optionsFil.Length)
                         labels[i].text = fil ? optionsFil[i] : optionsEn[i];
-                    bgs[i].sprite = active ? activeSprite : idleSprite;
-                    bgs[i].color = Color.white;
-                    Ui.SetTextColor(labels[i], active ? Ink : MenuArt.Cream);
+                    if (active)
+                        ApplyGlassSurface(bgs[i], Vermilion, Color.clear, Color.clear, cornerCut: 5f, accentW: 0f);
+                    else
+                        ApplyGlassSurface(bgs[i], ObsidianCard, TitaniumBorder, Color.clear, cornerCut: 5f, accentW: 0f);
+                    Ui.SetTextColor(labels[i], active ? Paper : Muted);
+                    Ui.ClearOutline(labels[i]);
                 }
             });
         }
 
-        static RectTransform CreateRowContainer(RectTransform parent, string name, float rowH, out LayoutElement le, out Text titleText, Color? railColor = null)
+        // Hairline-divided row (no heavy box-per-row!)
+        static RectTransform CreateRowContainer(RectTransform parent, string name, float rowH, out LayoutElement le, out Text titleText)
         {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            var go = new GameObject(name, typeof(RectTransform), typeof(LayoutElement));
             go.transform.SetParent(parent, false);
-            var img = go.GetComponent<Image>();
-            img.sprite = MenuArt.ChamferCard(RowTop, RowBottom, RowBorder, 10, 1, 0.20f);
-            img.type = Image.Type.Sliced;
-            img.color = Color.white;
-            img.raycastTarget = false;
 
             le = go.GetComponent<LayoutElement>();
             le.minHeight = rowH;
             le.preferredHeight = rowH;
 
             var rt = go.GetComponent<RectTransform>();
-            Ui.MakeAccentRail("RowRail", rt, railColor ?? RowRailIdle, width: 3f, verticalInset: 16f);
+            Image bottomRule = Ui.MakeImage("Hairline", rt, HairlineColor, round: false, raycast: false);
+            Stretch(bottomRule.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(12f, 0f), new Vector2(-12f, 1f));
 
-            titleText = MakeFittedText("Title", rt, "", 20, MenuArt.Cream, TextAnchor.MiddleLeft);
-            Stretch(titleText.rectTransform, new Vector2(0f, 0f), new Vector2(0.58f, 1f), new Vector2(22f, 6f), new Vector2(-8f, -6f));
+            titleText = MakeFittedText("Title", rt, "", 19, Paper, TextAnchor.MiddleLeft);
+            Ui.ClearOutline(titleText);
+            Stretch(titleText.rectTransform, new Vector2(0f, 0f), new Vector2(0.58f, 1f), new Vector2(14f, 6f), new Vector2(-8f, -6f));
             return rt;
         }
 
@@ -1316,46 +1322,91 @@ namespace Kalyeah.Game
         {
             RectTransform rt = Ui.Panel(name, parent, anchor, anchor, pivot, pos, size);
             Image hitImg = rt.gameObject.AddComponent<Image>();
-            hitImg.color = Color.clear; // transparent >= 48 dp hit catcher
+            hitImg.color = Color.clear;
 
-            RectTransform visualRt = Ui.Panel("Visual", rt, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 52f));
-            Sprite plateSprite = isReset
-                ? MenuArt.ChamferCard(ResetTop, ResetBottom, ResetBorder, 12, 2, 0.22f)
-                : MenuArt.CtaGhost(12);
-            Image visualBg = Ui.MakeSliced("Plate", visualRt, plateSprite, Color.white, raycast: false);
+            RectTransform visualRt = Ui.Panel("Visual", rt, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 48f));
+            Image visualBg = MakeGlassPanel(
+                "Plate",
+                visualRt,
+                isReset ? ResetFill : ObsidianCard,
+                isReset ? ResetBorder : TitaniumBorderStrong,
+                Color.clear,
+                cornerCut: 6f,
+                accentW: 0f);
 
             Button btn = rt.gameObject.AddComponent<Button>();
             btn.targetGraphic = visualBg;
+            btn.transition = Selectable.Transition.None;
             if (onClick != null) btn.onClick.AddListener(() => onClick());
-            Ui.AddPressFeel(rt, 0.95f);
+            UiShaders.AttachPressSpring(btn, 0.95f, 2f);
 
             float textLeft = 10f;
             if (!isReset)
             {
-                Image chev = Ui.MakeImage("Chevron", visualRt, MenuArt.GoldLight, round: false, raycast: false);
+                Image chev = Ui.MakeImage("Chevron", visualRt, Paper, round: false, raycast: false);
                 chev.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Chevron);
                 RectTransform cr = chev.rectTransform;
                 cr.anchorMin = cr.anchorMax = new Vector2(0f, 0.5f);
                 cr.pivot = new Vector2(0.5f, 0.5f);
-                cr.anchoredPosition = new Vector2(22f, 0f);
-                cr.sizeDelta = new Vector2(16f, 16f);
+                cr.anchoredPosition = new Vector2(20f, 0f);
+                cr.sizeDelta = new Vector2(15f, 15f);
                 cr.localEulerAngles = new Vector3(0f, 0f, 180f);
-                textLeft = 34f;
+                textLeft = 32f;
             }
 
-            label = MakeFittedText("Label", visualRt, text, isReset ? 18 : 20, isReset ? ResetText : MenuArt.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            label = MakeFittedText("Label", visualRt, text, isReset ? 17 : 19, isReset ? ResetText : Paper, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Ui.ClearOutline(label);
             Stretch(label.rectTransform, Vector2.zero, Vector2.one, new Vector2(textLeft, 4f), new Vector2(-10f, -4f));
             return rt;
         }
 
+        static Image MakeGlassPanel(string name, Transform parent, Color fill, Color border, Color leftAccent, float cornerCut = 6f, float accentW = 0f)
+        {
+            Image img = Ui.MakeImage(name, parent, Color.white, round: false, raycast: false);
+            Stretch(img.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            ApplyGlassSurface(img, fill, border, leftAccent, cornerCut, accentW);
+            return img;
+        }
+
+        static Image MakeCtaPanel(string name, Transform parent, Color top, Color bottom, float cornerCut = 8f)
+        {
+            Image img = Ui.MakeImage(name, parent, top, round: false, raycast: false);
+            Stretch(img.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            Material mat = UiShaders.CreateMetallicCta(top, bottom, cornerCut);
+            if (mat != null && mat != Graphic.defaultGraphicMaterial)
+            {
+                img.material = mat;
+                img.color = Color.white;
+            }
+            return img;
+        }
+
+        static void ApplyGlassSurface(Image img, Color fill, Color border, Color leftAccent, float cornerCut, float accentW)
+        {
+            if (img == null) return;
+            img.sprite = null;
+            img.type = Image.Type.Simple;
+            Material mat = UiShaders.CreateTacticalGlass(fill, border, leftAccent, cornerCut, accentW, topHighlight: 0.14f);
+            if (mat != null && mat != Graphic.defaultGraphicMaterial)
+            {
+                img.material = mat;
+                img.color = Color.white;
+            }
+            else
+            {
+                img.material = null;
+                img.color = fill;
+            }
+        }
+
         static Text MakeFittedText(string name, Transform parent, string text, int maxSize, Color color, TextAnchor align, Font font = null)
         {
-            Text t = Ui.MakeText(name, parent, text, Mathf.Max(18, maxSize), color, align, font);
+            Text t = Ui.MakeText(name, parent, text, Mathf.Max(16, maxSize), color, align, font);
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
             t.verticalOverflow = VerticalWrapMode.Truncate;
             t.resizeTextForBestFit = true;
-            t.resizeTextMinSize = 12;
-            t.resizeTextMaxSize = Mathf.Max(18, maxSize);
+            t.resizeTextMinSize = 10;
+            t.resizeTextMaxSize = Mathf.Max(16, maxSize);
             return t;
         }
 
