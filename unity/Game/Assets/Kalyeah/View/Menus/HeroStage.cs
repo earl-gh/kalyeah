@@ -447,7 +447,7 @@ namespace Kalyeah.Game
 
         Material CreateSunlitLitMaterial(string name, Color color, float smoothness = 0.08f, float metallic = 0f)
         {
-            Material src = Resources.Load<Material>("KalyeahMaterials/Lit");
+            Material src = Resources.Load<Material>("KalyeahMaterials/Ground");
             Shader fallback = src == null
                 ? (Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Universal Render Pipeline/Simple Lit") ?? Shader.Find("Universal Render Pipeline/Unlit"))
                 : null;
