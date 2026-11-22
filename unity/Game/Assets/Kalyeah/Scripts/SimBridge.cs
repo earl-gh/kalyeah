@@ -623,6 +623,8 @@ namespace Kalyeah.Game
         public IReadOnlyList<BaseObjectiveSnapshot> Bases => _bases;
         public IReadOnlyList<RescueObjectiveSnapshot> Rescues => _rescues;
         public IReadOnlyList<WeaponInfo> AllWeapons => _allWeapons;
+        /// <summary>Live authoritative BarangayNeutrals state (Mang Taho, Fishball, Selecta, Crocodile, Eagle) when SpecKits are active; null otherwise.</summary>
+        public BarangayNeutrals Neutrals => ActiveSim?.Neutrals;
 
         // Events raised during Step (or mirror snapshot sync)
         public event Action<int, int> Tagged;
@@ -652,6 +654,13 @@ namespace Kalyeah.Game
         public event Action<int, int, RevealMarkerKind, bool> PlayerRevealed;
         public event Action<int> TiradorReloadStarted;
         public event Action<int> WaterInsufficient;
+
+        // Live BarangayNeutrals events (forwarded zero-GC when SpecKits are active)
+        public event Action<int, string> VendorUsed;
+        public event Action<string> VendorRestocked;
+        public event Action<int, int> SelectaClaimed;
+        public event Action<NeutralBossKind, NeutralBossState, NeutralBossState> NeutralBossStateChanged;
+        public event Action<NeutralBossKind, int, int> NeutralBossDefeated;
 
         public SimBridge(DataSource data, long seed, string localCharacter)
             : this(data, new MatchSetup { Seed = seed, LocalCharacter = localCharacter })
@@ -830,6 +839,11 @@ namespace Kalyeah.Game
             PlayerRevealed?.Invoke(targetId, viewerTeam, (RevealMarkerKind)(int)kind, knownAlert);
         void OnSimTiradorReloadStarted(int playerId) => TiradorReloadStarted?.Invoke(playerId);
         void OnSimWaterInsufficient(int playerId) => WaterInsufficient?.Invoke(playerId);
+        void OnNeutralVendorUsed(int playerId, string vendorId) => VendorUsed?.Invoke(playerId, vendorId);
+        void OnNeutralVendorRestocked(string vendorId) => VendorRestocked?.Invoke(vendorId);
+        void OnNeutralSelectaClaimed(int playerId, int team) => SelectaClaimed?.Invoke(playerId, team);
+        void OnNeutralBossStateChanged(NeutralBossKind kind, NeutralBossState from, NeutralBossState to) => NeutralBossStateChanged?.Invoke(kind, from, to);
+        void OnNeutralBossDefeated(NeutralBossKind kind, int killerId, int killerTeam) => NeutralBossDefeated?.Invoke(kind, killerId, killerTeam);
 
         void OnSimConeWinding(int owner, WeaponDef def, Vec2 origin, Vec2 dir) =>
             ConeTriggered?.Invoke(owner, def.Id, new Vector2(origin.X, origin.Y), new Vector2(dir.X, dir.Y), true);
@@ -865,6 +879,14 @@ namespace Kalyeah.Game
             sim.WaterInsufficient += OnSimWaterInsufficient;
             sim.Weapons.ConeWinding += OnSimConeWinding;
             sim.Weapons.ConeStruck += OnSimConeStruck;
+            if (sim.Neutrals != null)
+            {
+                sim.Neutrals.VendorUsed += OnNeutralVendorUsed;
+                sim.Neutrals.VendorRestocked += OnNeutralVendorRestocked;
+                sim.Neutrals.SelectaClaimed += OnNeutralSelectaClaimed;
+                sim.Neutrals.NeutralBossStateChanged += OnNeutralBossStateChanged;
+                sim.Neutrals.NeutralBossDefeated += OnNeutralBossDefeated;
+            }
         }
 
         void UnbindSim()
@@ -895,6 +917,14 @@ namespace Kalyeah.Game
             sim.WaterInsufficient -= OnSimWaterInsufficient;
             sim.Weapons.ConeWinding -= OnSimConeWinding;
             sim.Weapons.ConeStruck -= OnSimConeStruck;
+            if (sim.Neutrals != null)
+            {
+                sim.Neutrals.VendorUsed -= OnNeutralVendorUsed;
+                sim.Neutrals.VendorRestocked -= OnNeutralVendorRestocked;
+                sim.Neutrals.SelectaClaimed -= OnNeutralSelectaClaimed;
+                sim.Neutrals.NeutralBossStateChanged -= OnNeutralBossStateChanged;
+                sim.Neutrals.NeutralBossDefeated -= OnNeutralBossDefeated;
+            }
         }
 
         public void Dispose()

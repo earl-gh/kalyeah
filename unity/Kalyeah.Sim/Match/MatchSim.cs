@@ -58,6 +58,12 @@ namespace Kalyeah.Sim
         public const double Epsilon = 0.00001;
         /// <summary>Mixed into the match seed for the trip rolls' own generator.</summary>
         public const long TripSeedMix = 0x7121B;
+        /// <summary>Mixed into the match seed for deterministic BarangayNeutrals spawns/flee angles.</summary>
+        public const long NeutralsSeedMix = 0x5EED42;
+        /// <summary>Water restored immediately on Mang Taho / Fishball vendor pickup under SpecKits.</summary>
+        public const double VendorWaterRestore = 35.0;
+        /// <summary>HP restored immediately on Mang Taho / Fishball vendor pickup under SpecKits.</summary>
+        public const int VendorInstantHeal = 30;
         public const int PowerupNone = 0;
         public const int PowerupPalamig = 1;
         public const int PowerupTeks = 2;
@@ -85,6 +91,7 @@ namespace Kalyeah.Sim
         public MapLayout Layout;
         public GodotRng Rng = new GodotRng();
         readonly GodotRng _tripRng = new GodotRng();
+        readonly GodotRng _neutralsRng = new GodotRng();
         public int Tick;
         /// <summary>id to state, in insertion order (stepping order is deterministic).</summary>
         public OrderedDict<int, PlayerState> Players = new OrderedDict<int, PlayerState>();
@@ -122,6 +129,8 @@ namespace Kalyeah.Sim
         /// <summary>How every point was won, in order: (team that scored, CaptureKind).</summary>
         public List<Vec2I> PointLog = new List<Vec2I>();
         public List<Powerup> Powerups = new List<Powerup>();
+        /// <summary>Live Barangay living-world vendors, Selecta bike, Crocodile &amp; Eagle (active strictly when Rules.UsesSpecKits() is true).</summary>
+        public BarangayNeutrals Neutrals { get; private set; }
         /// <summary>A timed street game in place of Agawang Base's rescues and captures; null for Agawang Base.</summary>
         public IStreetMode Mode;
 
@@ -148,6 +157,7 @@ namespace Kalyeah.Sim
             Layout = layout;
             Rng.Seed = seed;
             _tripRng.Seed = seed ^ TripSeedMix;
+            _neutralsRng.Seed = seed ^ NeutralsSeedMix;
             Obstacles = layout.ObstacleRects();
             _walkObstacles.AddRange(layout.WalkObstacleRects());
             _street = layout.LaneRect();
@@ -167,6 +177,68 @@ namespace Kalyeah.Sim
             RescueReadyLeft = new[] { ready, ready };
             BarrierLeft = rules.BarrierSeconds;
             ResetPowerups();
+            if (rules != null && rules.UsesSpecKits() && layout != null)
+            {
+                Neutrals = new BarangayNeutrals(layout, rules);
+                ConfigureLiveVendors(Neutrals);
+                BindNeutrals(Neutrals);
+            }
+        }
+
+        static void ConfigureLiveVendors(BarangayNeutrals neutrals)
+        {
+            if (neutrals == null) return;
+            IReadOnlyList<VendorState> vendors = neutrals.Vendors;
+            for (int i = 0; i < vendors.Count; i++)
+            {
+                // Instant +30 HP + +35 Water applied on pickup in OnNeutralVendorUsed; retain 30 s restock & eating slow window.
+                vendors[i].HealAmount = 0;
+            }
+        }
+
+        void BindNeutrals(BarangayNeutrals neutrals)
+        {
+            if (neutrals == null) return;
+            neutrals.VendorUsed += OnNeutralVendorUsed;
+            neutrals.SelectaClaimed += OnNeutralSelectaClaimed;
+            neutrals.NeutralBossRetaliated += OnNeutralBossRetaliated;
+        }
+
+        void UnbindNeutrals()
+        {
+            if (Neutrals == null) return;
+            Neutrals.VendorUsed -= OnNeutralVendorUsed;
+            Neutrals.SelectaClaimed -= OnNeutralSelectaClaimed;
+            Neutrals.NeutralBossRetaliated -= OnNeutralBossRetaliated;
+        }
+
+        void OnNeutralVendorUsed(int playerId, string _)
+        {
+            if (!Players.TryGetValue(playerId, out PlayerState state) || state.Tagged) return;
+            if (Rules != null && Rules.UsesSpecKits())
+            {
+                state.Water = GMath.Minf(Rules.WaterMax, state.Water + VendorWaterRestore);
+                Heal(playerId, VendorInstantHeal);
+            }
+        }
+
+        void OnNeutralSelectaClaimed(int playerId, int _)
+        {
+            if (Neutrals != null && Neutrals.Selecta.InstantHeal > 0)
+                PlayerHealed?.Invoke(playerId, Neutrals.Selecta.InstantHeal);
+        }
+
+        void OnNeutralBossRetaliated(NeutralBossKind _, int targetId, int applied)
+        {
+            if (applied > 0)
+                PlayerDamaged?.Invoke(targetId, applied);
+        }
+
+        /// <summary>Applies damage directly to Crocodile (Dragon) or Philippine Eagle (Baron) when live neutrals are active.</summary>
+        public bool DamageNeutral(NeutralBossKind kind, int damage, int attackerId, int attackerTeam, bool isDamageSkillOrStone = true)
+        {
+            if (Neutrals == null || Mode != null) return false;
+            return Neutrals.DamageNeutral(kind, damage, attackerId, attackerTeam, isDamageSkillOrStone, _neutralsRng);
         }
 
         void IndexCharactersAndSkills()
@@ -373,6 +445,8 @@ namespace Kalyeah.Sim
         public void StartMode(IStreetMode mode)
         {
             Mode = mode;
+            UnbindNeutrals();
+            Neutrals = null;
             Powerups.Clear();
             Obstacles.Clear();
             _walkObstacles.Clear();
@@ -786,9 +860,21 @@ namespace Kalyeah.Sim
                 PlayerState src = Players[by];
                 if (src.BuffType == PowerupTeks && src.BuffLeft > 0.0)
                     finalAmount = GMath.Maxi(1, GMath.Roundi(finalAmount * (1.0 + Rules.TeksDamageBonus)));
+                if (Neutrals != null)
+                {
+                    double dmgMult = Neutrals.GetDamageMultiplier(src.Team, src.CharacterId);
+                    if (dmgMult > 1.0 + Epsilon)
+                        finalAmount = GMath.Maxi(1, GMath.Roundi(finalAmount * dmgMult));
+                }
             }
             if (state.BuffType == PowerupTuron && state.BuffLeft > 0.0)
                 finalAmount = GMath.Maxi(1, GMath.Roundi(finalAmount * (1.0 - Rules.TuronDamageReduction)));
+            if (Neutrals != null)
+            {
+                double takenMult = Neutrals.GetDamageTakenMultiplier(state.Team, state.CharacterId);
+                if (takenMult < 1.0 - Epsilon)
+                    finalAmount = GMath.Maxi(1, GMath.Roundi(finalAmount * takenMult));
+            }
 
             // docs/KITS.md: No single skill tags a full-HP kid alone.
             if (isSkill && state.Hp >= Rules.PlayerMaxHp && finalAmount >= Rules.PlayerMaxHp)
@@ -954,10 +1040,67 @@ namespace Kalyeah.Sim
             else
             {
                 StepPowerups(dt);
+                if (Neutrals != null) StepNeutrals(dt);
                 Objectives.CheckRescues(this, dt);
                 StepCapturesWithPalosebo(dt);
             }
             Tick += 1;
+        }
+
+        void StepNeutrals(double dt)
+        {
+            Neutrals.Step(dt, Players, _neutralsRng);
+            StepNeutralBossProjectiles(Neutrals.Dragon);
+            StepNeutralBossProjectiles(Neutrals.Baron);
+        }
+
+        void StepNeutralBossProjectiles(NeutralBossInstance boss)
+        {
+            if (boss == null || !boss.CanBeDamaged) return;
+            List<WeaponSystem.Projectile> projectiles = Weapons.Projectiles;
+            if (projectiles.Count == 0) return;
+
+            int syntheticHitId = -100 - (int)boss.Kind;
+            for (int i = projectiles.Count - 1; i >= 0; i--)
+            {
+                WeaponSystem.Projectile pr = projectiles[i];
+                int dmg = pr.DamageOverride > 0
+                    ? pr.DamageOverride
+                    : (pr.Skill != null ? pr.Skill.Damage : (pr.Def != null ? pr.Def.Damage : 0));
+                if (dmg <= 0) continue;
+
+                double reach = boss.HitRadius + pr.HitRadius;
+                if (pr.Position.DistanceSquaredTo(boss.Position) > reach * reach) continue;
+
+                bool pierces = (pr.Skill != null && pr.Skill.Mechanic == SkillMechanic.TsinelasBagsik)
+                    || (pr.Def != null && (pr.Def.Shape == WeaponDef.WeaponShape.Boomerang || pr.Def.Shape == WeaponDef.WeaponShape.Spinner));
+                if (pierces && !pr.HitIds.Add(syntheticHitId)) continue;
+
+                bool damaged = Neutrals.DamageNeutral(boss.Kind, dmg, pr.OwnerId, pr.Team, isDamageSkillOrStone: true, rng: _neutralsRng);
+                if (!damaged) continue;
+
+                bool defeated = boss.State == NeutralBossState.Fleeing;
+                if (pr.OwnerId >= 0 && Players.TryGetValue(pr.OwnerId, out PlayerState hitter))
+                {
+                    var ev = new HitConfirmEvent
+                    {
+                        Tick = Tick,
+                        AttackerId = pr.OwnerId,
+                        TargetId = -(int)boss.Kind - 1,
+                        WeaponId = pr.EffectId ?? "",
+                        Damage = dmg,
+                        IsHeadshot = false,
+                        IsTag = defeated,
+                        WorldPos = boss.Position,
+                    };
+                    hitter.LastHitEvent = ev;
+                    HitConfirmed?.Invoke(ev);
+                }
+
+                if (!pierces)
+                    projectiles.RemoveAt(i);
+                if (!boss.CanBeDamaged) break;
+            }
         }
 
         void StepCapturesWithPalosebo(double dt)
@@ -997,8 +1140,15 @@ namespace Kalyeah.Sim
 
         void TickCooldowns(PlayerState state, double dt)
         {
+            double cdDt = dt;
+            if (Neutrals != null && state.UsingSpecKit)
+            {
+                double cdMult = Neutrals.GetCooldownMultiplier(state.Team, state.CharacterId);
+                if (cdMult > Epsilon && cdMult < 1.0 - Epsilon)
+                    cdDt = dt / cdMult;
+            }
             for (int slot = 0; slot < state.WeaponCooldowns.Count; slot++)
-                state.WeaponCooldowns[slot] = GMath.Maxf(0.0, state.WeaponCooldowns[slot] - dt);
+                state.WeaponCooldowns[slot] = GMath.Maxf(0.0, state.WeaponCooldowns[slot] - cdDt);
             state.PrimaryCd = GMath.Maxf(0.0, state.PrimaryCd - dt);
             state.DashCd = GMath.Maxf(0.0, state.DashCd - dt);
             state.JumpCd = GMath.Maxf(0.0, state.JumpCd - dt);
@@ -1012,9 +1162,11 @@ namespace Kalyeah.Sim
 
         void TickSpecWaterAndCharges(PlayerState state, double dt)
         {
-            // Water mana: 2/s passive in street, 25/s in own home base fountain.
+            // Water mana: 2/s passive in street, 25/s in own home base fountain, plus Selecta team regen bonus when active.
             state.InHomeFountain = !state.Tagged && Mode == null && Layout.InBase(SideForTeam(state.Team), state.Position);
             double rate = state.InHomeFountain ? Rules.WaterFountainRegenPerS : Rules.WaterRegenPerS;
+            if (Neutrals != null && Mode == null)
+                rate += Neutrals.GetTeamWaterRegenBonus(state.Team);
             state.Water = GMath.Minf(Rules.WaterMax, state.Water + rate * dt);
 
             // Multi-charge S1 regeneration (Narda Luksong Tinik 2 charges).
@@ -1577,10 +1729,12 @@ namespace Kalyeah.Sim
             if (_tripRng.Randf() < Rules.TripChance) ApplyEffect(state.Id, StatusEffects.Type.Tripped, Rules.TripSeconds, 0.0);
         }
 
-        /// <summary>Spawns or resets the merienda power-up stands (circular map, no street mode).</summary>
+        /// <summary>Spawns or resets the merienda power-up stands (circular map, no street mode) and live BarangayNeutrals.</summary>
         public void ResetPowerups()
         {
             Powerups.Clear();
+            if (Neutrals != null && Mode == null)
+                Neutrals.ResetRound();
             if (Layout == null || !Layout.IsCircular() || Mode != null) return;
             var spots = new List<Vec2>(Layout.PowerupSpots);
             if (spots.Count == 0) spots.AddRange(DefaultPowerupSpots);
@@ -2015,6 +2169,8 @@ namespace Kalyeah.Sim
             if (state.StiltsLeft > 0.0) speed *= 0.80; // Inggo Tiyakad: -20% speed
             if (state.SackRaceLeft > 0.0) speed *= 1.15; // Paeng Sack Race: +15% hop speed
             if (state.SpeedBoostLeft > 0.0 && state.SpeedBoostRatio > 0.0) speed *= 1.0 + state.SpeedBoostRatio;
+            if (Neutrals != null && Mode == null)
+                speed *= Neutrals.GetPlayerMoveSpeedMultiplier(state.Id, state.Team, state.CharacterId, state.Position);
             speed *= state.Effects.SpeedMultiplier(Rules.PolymorphSpeedScale);
             bool wantsMove = stickLen > 0.0 || state.HasMoveTarget;
             bool canRun = wantsMove && !state.Walking && !state.Crouching && !state.AimingDown && Rules.SprintEnabled

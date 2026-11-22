@@ -236,6 +236,10 @@ namespace Kalyeah.Game
         static readonly Color GenericAura = new Color(1.00f, 0.88f, 0.45f, 1f);
 
         static Material s_outlineMaterial;
+        static Mesh s_tiradorWoodMesh;
+        static Mesh s_tiradorBandMesh;
+        static Material s_tiradorWoodMat;
+        static Material s_tiradorBandMat;
         static Camera s_activeCamera;
         static HitboxCapsuleSpec[] s_hitboxJsonSpecs;
         static bool s_hitboxJsonLoaded;
@@ -359,11 +363,16 @@ namespace Kalyeah.Game
         public FaceBlendShapeBinding FaceShapes => _faceShapes;
         public IReadOnlyList<HitboxCapsuleEntry> HitboxCapsules => _hitboxCapsules;
         public int MaterialBlockApplyCount { get; private set; }
+        public bool HasHeldTirador => _heldTirador != null;
+        public bool IsHeldTiradorVisible => _heldTirador != null && _heldTirador.activeSelf;
+        /// <summary>Optional zero-GC hook invoked on grounded running footsteps, slide skids, hard stops, and jump landings.</summary>
+        public Action<Vector3, float> OnDustPuff { get; set; }
 
         readonly float _viewScale;
         readonly float _modelUniformScale = 1f;
         readonly Transform _bodyPivot;
         readonly GameObject _model;
+        readonly GameObject _heldTirador;
         readonly Transform _canPivot;
         readonly Transform _blobShadowTransform;
         readonly Renderer _blobShadowRenderer;
@@ -475,10 +484,18 @@ namespace Kalyeah.Game
         bool _hiddenNearCamera;
         bool _kidRenderersVisible = true;
         bool _canRenderersVisible;
+        bool _tiradorVisible = true;
         bool _lastVisibleToCamera = true;
         float _lastCamDistance = 5f;
         Vector3 _lastLatePosWS;
         bool _hasLastLatePos;
+
+        // Grounding footstep / skid / landing dust state (zero GC).
+        float _dustStrideAccum;
+        float _skidDustTimer;
+        bool _wasSlidingForDust;
+        Vector3 _prevMoveDirWS;
+        float _prevGroundSpeedMps;
 
         // Smooth runtime IK / push-out / aim / face state (zero GC).
         Vector3 _aimTargetWS;
@@ -651,6 +668,13 @@ namespace Kalyeah.Game
             CollectAndAttachOutlines(_model, outlineMat, _kidBaseRenderers, _kidOutlineRenderers);
             CollectAndAttachOutlines(_canPivot.gameObject, outlineMat, _canBaseRenderers, _canOutlineRenderers);
 
+            // Stylized procedural wooden Y-fork Filipino Tirador slingshot attached to right hand (or _bodyPivot fallback).
+            _heldTirador = BuildHeldTirador();
+            _wasTagged = kid.Tagged;
+            _tiradorVisible = !kid.Tagged;
+            if (_heldTirador != null)
+                _heldTirador.SetActive(_tiradorVisible);
+
             // Bind optional LOD1 & LOD2 meshes directly onto LOD0's live skeleton (zero duplicate skeletons/animations).
             BuildLodBindings(resolvedModelId);
 
@@ -740,6 +764,203 @@ namespace Kalyeah.Game
                 canStandIn.transform.localPosition = Vector3.up * (targetHeight * 0.5f);
             }
             return pivot;
+        }
+
+        GameObject BuildHeldTirador()
+        {
+            EnsureTiradorAssets();
+            if (s_tiradorWoodMesh == null || s_tiradorBandMesh == null) return null;
+
+            var root = new GameObject("HeldTirador");
+            Transform tr = root.transform;
+
+            if (_bRHand.Valid)
+            {
+                tr.SetParent(_bRHand.Transform, false);
+                Vector3 lossy = _bRHand.Transform.lossyScale;
+                float avgParentScale = (Mathf.Abs(lossy.x) + Mathf.Abs(lossy.y) + Mathf.Abs(lossy.z)) / 3f;
+                float invParent = avgParentScale > 0.0001f ? (1f / avgParentScale) : 1f;
+                float scale = _viewScale * 1.15f * invParent;
+                tr.localScale = new Vector3(scale, scale, scale);
+                tr.localPosition = new Vector3(0f, 0.055f * _viewScale * invParent, 0.018f * _viewScale * invParent);
+                tr.localRotation = Quaternion.Euler(78f, 0f, -12f);
+            }
+            else
+            {
+                // Fallback on _bodyPivot: model faces -Z, kid's right is -X.
+                tr.SetParent(_bodyPivot, false);
+                float scale = _viewScale * 1.15f;
+                tr.localScale = new Vector3(scale, scale, scale);
+                tr.localPosition = new Vector3(-0.26f * _viewScale, 0.98f * _viewScale, -0.32f * _viewScale);
+                tr.localRotation = Quaternion.Euler(8f, 180f, 0f);
+            }
+
+            AttachTiradorPart(tr, "WoodFork", s_tiradorWoodMesh, s_tiradorWoodMat);
+            AttachTiradorPart(tr, "RubberBands", s_tiradorBandMesh, s_tiradorBandMat);
+            return root;
+        }
+
+        static void AttachTiradorPart(Transform parent, string name, Mesh mesh, Material mat)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var mf = go.AddComponent<MeshFilter>();
+            mf.sharedMesh = mesh;
+            var mr = go.AddComponent<MeshRenderer>();
+            if (mat != null) mr.sharedMaterial = mat;
+            mr.shadowCastingMode = ShadowCastingMode.On;
+            mr.receiveShadows = true;
+            mr.lightProbeUsage = LightProbeUsage.BlendProbes;
+            mr.reflectionProbeUsage = ReflectionProbeUsage.Off;
+        }
+
+        static void EnsureTiradorAssets()
+        {
+            if (s_tiradorWoodMesh == null)
+                s_tiradorWoodMesh = BuildTiradorWoodMesh();
+            if (s_tiradorBandMesh == null)
+                s_tiradorBandMesh = BuildTiradorBandMesh();
+            if (s_tiradorWoodMat == null)
+                s_tiradorWoodMat = CreateTiradorMaterial("TiradorWood_Mat", new Color(0.486f, 0.282f, 0.157f, 1f), 0.22f);
+            if (s_tiradorBandMat == null)
+                s_tiradorBandMat = CreateTiradorMaterial("TiradorBand_Mat", new Color(0.847f, 0.659f, 0.361f, 1f), 0.14f);
+        }
+
+        static Material CreateTiradorMaterial(string name, Color color, float smoothness)
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit")
+                ?? Shader.Find("Universal Render Pipeline/Simple Lit")
+                ?? Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("Sprites/Default");
+            if (shader == null) return null;
+
+            var mat = new Material(shader)
+            {
+                name = name,
+                hideFlags = HideFlags.HideAndDontSave,
+                enableInstancing = true,
+            };
+            if (mat.HasProperty(BaseColorId)) mat.SetColor(BaseColorId, color);
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
+            if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
+            return mat;
+        }
+
+        static Mesh BuildTiradorWoodMesh()
+        {
+            var verts = new List<Vector3>(96);
+            var norms = new List<Vector3>(96);
+            var cols = new List<Color32>(96);
+            var tris = new List<int>(192);
+
+            Color32 gripDark = new Color32(148, 102, 74, 255);
+            Color32 woodMid = new Color32(215, 162, 118, 255);
+            Color32 woodLight = new Color32(242, 198, 152, 255);
+
+            // Stylized chunky Filipino wooden Y-fork (+Z forward, +Y upright, 6-sided hand-carved silhouette).
+            AppendTaperedPrism(verts, norms, cols, tris, new Vector3(0f, -0.075f, 0f), new Vector3(0f, 0.055f, 0.005f), 0.017f, 0.019f, 6, gripDark, woodMid);
+            AppendTaperedPrism(verts, norms, cols, tris, new Vector3(-0.006f, 0.045f, 0.004f), new Vector3(-0.068f, 0.168f, 0.014f), 0.015f, 0.013f, 6, woodMid, woodLight);
+            AppendTaperedPrism(verts, norms, cols, tris, new Vector3(0.006f, 0.045f, 0.004f), new Vector3(0.068f, 0.168f, 0.014f), 0.015f, 0.013f, 6, woodMid, woodLight);
+
+            var mesh = new Mesh { name = "ProceduralTiradorWood", hideFlags = HideFlags.HideAndDontSave };
+            mesh.SetVertices(verts);
+            mesh.SetNormals(norms);
+            mesh.SetColors(cols);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        static Mesh BuildTiradorBandMesh()
+        {
+            var verts = new List<Vector3>(64);
+            var norms = new List<Vector3>(64);
+            var cols = new List<Color32>(64);
+            var tris = new List<int>(128);
+
+            Color32 bandTan = new Color32(246, 214, 150, 255);
+            Color32 pouchBrown = new Color32(118, 74, 48, 255);
+
+            // Twin rubber straps from fork tips drawn slightly back to the leather stone pouch.
+            Vector3 pouchCenter = new Vector3(0f, 0.145f, -0.088f);
+            AppendTaperedPrism(verts, norms, cols, tris, new Vector3(-0.065f, 0.158f, 0.012f), pouchCenter + new Vector3(-0.014f, 0f, 0.004f), 0.0065f, 0.0055f, 4, bandTan, bandTan);
+            AppendTaperedPrism(verts, norms, cols, tris, new Vector3(0.065f, 0.158f, 0.012f), pouchCenter + new Vector3(0.014f, 0f, 0.004f), 0.0065f, 0.0055f, 4, bandTan, bandTan);
+            AppendTaperedPrism(verts, norms, cols, tris, pouchCenter + new Vector3(-0.020f, 0f, 0f), pouchCenter + new Vector3(0.020f, 0f, 0f), 0.015f, 0.015f, 6, pouchBrown, pouchBrown);
+
+            var mesh = new Mesh { name = "ProceduralTiradorBands", hideFlags = HideFlags.HideAndDontSave };
+            mesh.SetVertices(verts);
+            mesh.SetNormals(norms);
+            mesh.SetColors(cols);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        static void AppendTaperedPrism(
+            List<Vector3> verts,
+            List<Vector3> norms,
+            List<Color32> cols,
+            List<int> tris,
+            Vector3 a,
+            Vector3 b,
+            float radiusA,
+            float radiusB,
+            int sides,
+            Color32 colA,
+            Color32 colB)
+        {
+            Vector3 span = b - a;
+            if (span.sqrMagnitude < 1e-8f) return;
+            Vector3 axis = span.normalized;
+            Vector3 refUp = Mathf.Abs(Vector3.Dot(axis, Vector3.up)) < 0.92f ? Vector3.up : Vector3.right;
+            Vector3 tangent = Vector3.Cross(refUp, axis).normalized;
+            Vector3 bitangent = Vector3.Cross(axis, tangent).normalized;
+
+            int ringStart = verts.Count;
+            for (int i = 0; i < sides; i++)
+            {
+                float ang = (i / (float)sides) * Mathf.PI * 2f;
+                Vector3 radial = tangent * Mathf.Cos(ang) + bitangent * Mathf.Sin(ang);
+                verts.Add(a + radial * radiusA);
+                norms.Add(radial);
+                cols.Add(colA);
+
+                verts.Add(b + radial * radiusB);
+                norms.Add(radial);
+                cols.Add(colB);
+            }
+
+            // Side quads (Unity clockwise front-face winding -> outward normal).
+            for (int i = 0; i < sides; i++)
+            {
+                int next = (i + 1) % sides;
+                int a0 = ringStart + i * 2;
+                int b0 = a0 + 1;
+                int a1 = ringStart + next * 2;
+                int b1 = a1 + 1;
+
+                tris.Add(a0); tris.Add(b1); tris.Add(b0);
+                tris.Add(a0); tris.Add(a1); tris.Add(b1);
+            }
+
+            // End caps.
+            int capA = verts.Count;
+            verts.Add(a); norms.Add(-axis); cols.Add(colA);
+            int capB = verts.Count;
+            verts.Add(b); norms.Add(axis); cols.Add(colB);
+
+            for (int i = 0; i < sides; i++)
+            {
+                int next = (i + 1) % sides;
+                int a0 = ringStart + i * 2;
+                int b0 = a0 + 1;
+                int a1 = ringStart + next * 2;
+                int b1 = a1 + 1;
+
+                tris.Add(capA); tris.Add(a1); tris.Add(a0);
+                tris.Add(capB); tris.Add(b0); tris.Add(b1);
+            }
         }
 
         void BuildBlobShadow(out Transform shadowTr, out Renderer shadowRend)
@@ -2216,7 +2437,8 @@ namespace Kalyeah.Game
 
             bool blocked = tagged || isStun || isStatusAir || isPolymorph || isTripped;
             bool jumping = !blocked && airY > 0.01f;
-            if (_wasJumping && !jumping && !blocked && dt > 0f) _landTimer = LandDuration;
+            bool landedThisFrame = _wasJumping && !jumping && !blocked && dt > 0f;
+            if (landedThisFrame) _landTimer = LandDuration;
             else if (blocked) _landTimer = 0f;
             _wasJumping = jumping;
             _lastJumping = jumping;
@@ -2228,6 +2450,8 @@ namespace Kalyeah.Game
             bool slideActive = !blocked && !jumping && sliding;
             bool dashActive = !blocked && dashing;
             _lastSliding = slideActive;
+
+            UpdateGroundingDust(targetWorld, speed01, jumping, landedThisFrame, slideActive, crouchActive, blocked, dt);
 
             if (!Application.isPlaying || dt <= 0f)
             {
@@ -3492,6 +3716,105 @@ namespace Kalyeah.Game
                 SetRendererGroupEnabled(_canBaseRenderers, showCan);
                 SetRendererGroupEnabled(_canOutlineRenderers, showCan && showOutline);
             }
+            bool showTirador = showKid && !_wasTagged && !_isPolymorphed;
+            if (_heldTirador != null && showTirador != _tiradorVisible)
+            {
+                _tiradorVisible = showTirador;
+                _heldTirador.SetActive(showTirador);
+            }
+        }
+
+        void UpdateGroundingDust(
+            Vector3 feetWorld,
+            float speed01,
+            bool jumping,
+            bool landedThisFrame,
+            bool slideActive,
+            bool crouchActive,
+            bool blocked,
+            float dt)
+        {
+            if (dt <= 0f) return;
+            _skidDustTimer = Mathf.Max(0f, _skidDustTimer - dt);
+
+            if (blocked || _wasTagged || _isPolymorphed)
+            {
+                _dustStrideAccum = 0f;
+                _wasSlidingForDust = false;
+                _prevGroundSpeedMps = 0f;
+                return;
+            }
+
+            if (landedThisFrame)
+                EmitDustPuff(feetWorld, 1.05f);
+
+            if (slideActive)
+            {
+                if (!_wasSlidingForDust)
+                {
+                    EmitDustPuff(feetWorld, 1.00f);
+                    _skidDustTimer = 0.085f;
+                }
+                else if (_skidDustTimer <= 0f)
+                {
+                    EmitDustPuff(feetWorld, 0.82f);
+                    _skidDustTimer = 0.095f;
+                }
+            }
+            else if (!jumping && !crouchActive)
+            {
+                float curSpeed = Mathf.Max(_smoothedGroundSpeedMps, Mathf.Clamp01(speed01) * BaseRunSpeedMps);
+                Vector3 curDir = _smoothedVelWS;
+                curDir.y = 0f;
+                bool hasDir = curDir.sqrMagnitude > 0.25f;
+                if (hasDir) curDir.Normalize();
+
+                if (_prevGroundSpeedMps >= 4.2f && curSpeed < 1.2f && _skidDustTimer <= 0f)
+                {
+                    EmitDustPuff(feetWorld, 0.85f);
+                    _skidDustTimer = 0.26f;
+                }
+                else if (hasDir && _prevMoveDirWS.sqrMagnitude > 0.5f && _prevGroundSpeedMps >= 3.8f && curSpeed >= 3.0f
+                    && Vector3.Dot(_prevMoveDirWS, curDir) < -0.35f && _skidDustTimer <= 0f)
+                {
+                    EmitDustPuff(feetWorld, 0.88f);
+                    _skidDustTimer = 0.24f;
+                }
+
+                if (speed01 >= WalkRunSplit)
+                {
+                    _dustStrideAccum += curSpeed * dt;
+                    if (_dustStrideAccum >= 1.85f)
+                    {
+                        _dustStrideAccum -= 1.85f;
+                        EmitDustPuff(feetWorld, speed01 >= SprintSpeedSplit ? 0.72f : 0.56f);
+                    }
+                }
+                else
+                {
+                    _dustStrideAccum = 0f;
+                }
+
+                if (hasDir) _prevMoveDirWS = curDir;
+                _prevGroundSpeedMps = curSpeed;
+            }
+            else
+            {
+                _dustStrideAccum = 0f;
+            }
+
+            _wasSlidingForDust = slideActive;
+        }
+
+        void EmitDustPuff(Vector3 feetWorld, float scale)
+        {
+            if (OnDustPuff != null)
+            {
+                OnDustPuff(feetWorld, scale);
+                return;
+            }
+            if (Application.isPlaying)
+                FxPool.ActiveInstance?.SpawnDustPuff(feetWorld, scale);
         }
 
         static void SetRendererGroupEnabled(List<Renderer> list, bool enabled)
