@@ -280,7 +280,7 @@ namespace Kalyeah.Game
         public bool HasCustomIdPhoto => _hasCustomIdPhoto && _customPhotoTex != null;
 
         public Texture CurrentIdTexture { get; private set; }
-        public Rect CurrentIdUvRect { get; private set; } = AvatarCropUv;
+        public Rect CurrentIdUvRect { get; private set; } = FullUv;
 
         public InputField ProfileNameInput => _profileNameInput;
         public Button ProfileSaveButton => _saveProfileButton;
