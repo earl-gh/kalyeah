@@ -1452,7 +1452,7 @@
       "deformBones": 64,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4857
+      "fileSizeKb": 4747
     },
     "lod1": {
       "asset": "models/characters/inggo_lod1",
@@ -1460,7 +1460,7 @@
       "deformBones": 44,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 909
+      "fileSizeKb": 907
     },
     "lod2": {
       "asset": "models/characters/inggo_lod2",
@@ -1468,14 +1468,15 @@
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 285
+      "fileSizeKb": 283
     }
   },
   "textures": {
     "baseColorEmbedded": true,
     "normal": "models/characters/inggo_2",
     "orm": "models/characters/inggo_orm",
-    "ormChannels": "R=AO,G=Roughness,B=Metallic"
+    "ormChannels": "R=AO,G=Roughness,B=Metallic",
+    "stylizedPolishVersion": 2
   },
   "log": [
     "removed 4 path-breaking bones",
@@ -1484,5 +1485,11 @@
     "rebound to reference rest; added 12 twist/helper bones",
     "stray influences removed: 6609",
     "cross-side influences removed: 0"
+  ],
+  "facialShapes": [
+    "Blink",
+    "Smile",
+    "Determined",
+    "Talk_Open"
   ]
 }

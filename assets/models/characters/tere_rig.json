@@ -1448,11 +1448,11 @@
   "lods": {
     "lod0": {
       "asset": "models/characters/tere",
-      "tris": 16637,
+      "tris": 16632,
       "deformBones": 64,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4879
+      "fileSizeKb": 4512
     },
     "lod1": {
       "asset": "models/characters/tere_lod1",
@@ -1460,7 +1460,7 @@
       "deformBones": 44,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 815
+      "fileSizeKb": 814
     },
     "lod2": {
       "asset": "models/characters/tere_lod2",
@@ -1475,7 +1475,8 @@
     "baseColorEmbedded": true,
     "normal": "models/characters/tere_2",
     "orm": "models/characters/tere_orm",
-    "ormChannels": "R=AO,G=Roughness,B=Metallic"
+    "ormChannels": "R=AO,G=Roughness,B=Metallic",
+    "stylizedPolishVersion": 2
   },
   "log": [
     "removed 0 path-breaking bones",
@@ -1484,5 +1485,11 @@
     "rebound to reference rest; added 12 twist/helper bones",
     "stray influences removed: 35390",
     "cross-side influences removed: 733"
+  ],
+  "facialShapes": [
+    "Blink",
+    "Smile",
+    "Determined",
+    "Talk_Open"
   ]
 }

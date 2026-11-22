@@ -786,6 +786,16 @@ namespace Kalyeah.Game
                     "_SpecIndirectShadow",
                     "_AmbientMin",
                     "_AmbientMax",
+                    "_SkyBounceColor",
+                    "_GroundBounceColor",
+                    "_SunRimColor",
+                    "_SunRimStrength",
+                    "_SunRimPower",
+                    "_TeamRimColor",
+                    "_TeamRimStrength",
+                    "_VertGradMin",
+                    "_VertGradMax",
+                    "_VertGradStrength",
                     "_FresnelUpWeight",
                     "_FresnelHeightMin",
                     "_FresnelHeightMax",
@@ -798,6 +808,13 @@ namespace Kalyeah.Game
                     "_DepthEnd",
                     "_DepthBrightenMax",
                     "_DepthFresnelBoost",
+                    "_HitFlash",
+                    "_DecayTint",
+                    "_BlindDesat",
+                    "_StealthAlpha",
+                    "_StealthRim",
+                    "_UltGlow",
+                    "_RevealPulse",
                 });
 
             AssertClarityShader(
@@ -814,6 +831,9 @@ namespace Kalyeah.Game
                     "_MaxDistance",
                     "_HitFlash",
                     "_AuraColor",
+                    "_RevealPulse",
+                    "_UltGlow",
+                    "_StealthAlpha",
                 });
 
             AssertClarityShader(
@@ -870,6 +890,287 @@ namespace Kalyeah.Game
                     "_Tint",
                     "_Phase",
                 });
+        }
+
+        [Test]
+        public void Phase5_KidAndOutlineShaders_StencilMaskAndSrpBatcherCbufferAreConsistent()
+        {
+            string kidPath = Path.Combine(Application.dataPath, "Kalyeah", "Shaders", "KalyeahKid.shader");
+            string outlinePath = Path.Combine(Application.dataPath, "Kalyeah", "Shaders", "TeamOutline.shader");
+            Assert.IsTrue(File.Exists(kidPath), "KalyeahKid.shader must exist");
+            Assert.IsTrue(File.Exists(outlinePath), "TeamOutline.shader must exist");
+
+            string kidSrc = File.ReadAllText(kidPath);
+            string outlineSrc = File.ReadAllText(outlinePath);
+
+            // Stencil Ref 4 write on Kalyeah/Kid and NotEqual mask on Kalyeah/TeamOutline prevent interior face/ear bleed.
+            Assert.IsTrue(kidSrc.Contains("Ref 4"), "KalyeahKid.shader must write Stencil Ref 4");
+            Assert.IsTrue(kidSrc.Contains("Comp Always"), "KalyeahKid.shader Stencil must use Comp Always");
+            Assert.IsTrue(kidSrc.Contains("Pass Replace"), "KalyeahKid.shader Stencil must use Pass Replace");
+
+            Assert.IsTrue(outlineSrc.Contains("Ref 4"), "TeamOutline.shader must test Stencil Ref 4");
+            Assert.IsTrue(outlineSrc.Contains("Comp NotEqual"), "TeamOutline.shader Stencil must reject Ref 4 via Comp NotEqual");
+
+            // Verify every Phase 5 gameplay state & clarity uniform lives inside CBUFFER_START(UnityPerMaterial).
+            int cbStart = kidSrc.IndexOf("CBUFFER_START(UnityPerMaterial)", StringComparison.Ordinal);
+            int cbEnd = kidSrc.IndexOf("CBUFFER_END", cbStart >= 0 ? cbStart : 0, StringComparison.Ordinal);
+            Assert.Greater(cbStart, 0, "KalyeahKid.shader must declare UnityPerMaterial CBUFFER");
+            Assert.Greater(cbEnd, cbStart, "KalyeahKid.shader must close UnityPerMaterial CBUFFER");
+            string kidCbuffer = kidSrc.Substring(cbStart, cbEnd - cbStart);
+
+            string[] requiredCbufferUniforms =
+            {
+                "_SkyBounceColor",
+                "_GroundBounceColor",
+                "_SunRimColor",
+                "_SunRimStrength",
+                "_TeamRimColor",
+                "_TeamRimStrength",
+                "_VertGradMin",
+                "_VertGradMax",
+                "_VertGradStrength",
+                "_HitFlash",
+                "_DecayTint",
+                "_BlindDesat",
+                "_StealthAlpha",
+                "_StealthRim",
+                "_UltGlow",
+                "_RevealPulse",
+            };
+            for (int i = 0; i < requiredCbufferUniforms.Length; i++)
+            {
+                Assert.IsTrue(
+                    kidCbuffer.Contains(requiredCbufferUniforms[i]),
+                    $"KalyeahKid.shader UnityPerMaterial CBUFFER missing '{requiredCbufferUniforms[i]}'");
+            }
+        }
+
+        [Test]
+        public void Phase5_KidView_SetCombatVisualStatesIsDirtyOnlyAndContactShadowPersistsOnAllTiers()
+        {
+            var snap = new KidSnapshot
+            {
+                Id = 11,
+                Team = 0,
+                CharacterId = "narda",
+                Position = new SVector2(0f, 0f),
+                Facing = new SVector2(0f, -1f),
+                Hp = 100,
+            };
+
+            var kid = new KidView(_testRoot.transform, snap, 0.82f, new Color(0.22f, 0.56f, 0.98f, 1f), null);
+
+            // Grounded contact shadow must stay active on ALL four quality tiers (0.26 with RT shadows, 0.42 on Low/airborne).
+            kid.ApplyGraphicsProfile(GraphicsTierProfile.High, cameraDistanceMeters: 6f, visible: true);
+            kid.SyncState(snap.Position, 0f, snap.Facing, 0f, false, false, false, 0, false, 0f, "", false, 0.016f);
+            Assert.IsTrue(kid.IsContactShadowVisible, "Contact shadow must remain visible on High tier");
+            Assert.AreEqual(KidView.ContactShadowAlphaRt, kid.ActiveContactShadowAlpha, 0.001f);
+
+            kid.ApplyGraphicsProfile(GraphicsTierProfile.Medium, cameraDistanceMeters: 6f, visible: true);
+            Assert.IsTrue(kid.IsContactShadowVisible, "Contact shadow must remain visible on Medium tier");
+            Assert.AreEqual(KidView.ContactShadowAlphaRt, kid.ActiveContactShadowAlpha, 0.001f);
+
+            kid.ApplyGraphicsProfile(GraphicsTierProfile.Ultra, cameraDistanceMeters: 6f, visible: true);
+            Assert.IsTrue(kid.IsContactShadowVisible, "Contact shadow must remain visible on Ultra tier");
+            Assert.AreEqual(KidView.ContactShadowAlphaRt, kid.ActiveContactShadowAlpha, 0.001f);
+
+            // Airborne bumps alpha to 0.42 even on High/Ultra
+            kid.SyncState(snap.Position, 0.45f, snap.Facing, 0f, false, false, false, 0, false, 0f, "", false, 0.016f);
+            Assert.IsTrue(kid.IsContactShadowVisible);
+            Assert.AreEqual(KidView.ContactShadowAlphaBlob, kid.ActiveContactShadowAlpha, 0.001f);
+
+            // Low tier grounded also uses 0.42 blob shadow
+            kid.ApplyGraphicsProfile(GraphicsTierProfile.Low, cameraDistanceMeters: 6f, visible: true);
+            kid.SyncState(snap.Position, 0f, snap.Facing, 0f, false, false, false, 0, false, 0f, "", false, 0.016f);
+            Assert.IsTrue(kid.IsContactShadowVisible, "Contact shadow must remain visible on Low tier");
+            Assert.AreEqual(KidView.ContactShadowAlphaBlob, kid.ActiveContactShadowAlpha, 0.001f);
+
+            // Dirty-only zero-GC SetCombatVisualStates: first change applies once, repeated identical calls apply zero times.
+            Color decay = new Color(0.46f, 0.36f, 0.68f, 0.55f);
+            int before = kid.MaterialBlockApplyCount;
+            kid.SetCombatVisualStates(0.6f, 0.25f, 0.4f, 0.75f, 0.5f, decay);
+            int afterFirst = kid.MaterialBlockApplyCount;
+            Assert.AreEqual(before + 1, afterFirst, "First state change must apply MaterialPropertyBlock once");
+
+            for (int i = 0; i < 64; i++)
+                kid.SetCombatVisualStates(0.6f, 0.25f, 0.4f, 0.75f, 0.5f, decay);
+            Assert.AreEqual(afterFirst, kid.MaterialBlockApplyCount, "Identical calls must skip redundant MaterialPropertyBlock updates");
+
+            // Clearing back to neutral ally defaults applies once and restores clean fast-path.
+            kid.SetCombatVisualStates(0f, 0f, 0f, 0f, 0f, Color.clear);
+            Assert.AreEqual(afterFirst + 1, kid.MaterialBlockApplyCount);
+        }
+
+        [Test]
+        public void Phase5_FacialBlendShapesAndHeroStageStudioRig_MissingSafeAndDeterministic()
+        {
+            // Missing-safe lookup on null / empty / zero-blendshape mesh never throws.
+            Assert.IsFalse(KidView.TryFindFaceBlendShapes((GameObject)null, out FaceBlendShapeBinding nullBind));
+            Assert.IsFalse(nullBind.HasAnyShape);
+
+            var emptyGo = new GameObject("NoBlendShapes");
+            emptyGo.transform.SetParent(_testRoot.transform, false);
+            Assert.IsFalse(KidView.TryFindFaceBlendShapes(emptyGo, out _));
+
+            // Synthetic mesh with Phase 5 glTF morph targets: Blink, Smile, Determined, Talk_Open.
+            var faceGo = new GameObject("SyntheticFace");
+            faceGo.transform.SetParent(_testRoot.transform, false);
+            SkinnedMeshRenderer smr = faceGo.AddComponent<SkinnedMeshRenderer>();
+            var mesh = new Mesh { name = "SyntheticFaceMesh" };
+            mesh.vertices = new[] { Vector3.zero, Vector3.right, Vector3.up };
+            mesh.triangles = new[] { 0, 1, 2 };
+            Vector3[] dv = { Vector3.zero, new Vector3(0f, 0.01f, 0f), Vector3.zero };
+            mesh.AddBlendShapeFrame("Blink", 100f, dv, null, null);
+            mesh.AddBlendShapeFrame("Smile", 100f, dv, null, null);
+            mesh.AddBlendShapeFrame("Determined", 100f, dv, null, null);
+            mesh.AddBlendShapeFrame("Talk_Open", 100f, dv, null, null);
+            smr.sharedMesh = mesh;
+
+            Assert.IsTrue(KidView.TryFindFaceBlendShapes(faceGo, out FaceBlendShapeBinding found));
+            Assert.IsTrue(found.HasAnyShape);
+            Assert.IsTrue(found.HasBlink);
+            Assert.AreEqual(0, found.Blink);
+            Assert.AreEqual(1, found.Smile);
+            Assert.AreEqual(2, found.Determined);
+            Assert.AreEqual(3, found.TalkOpen);
+
+            KidView.SetFaceShapeWeightSafe(in found, found.Smile, 35f);
+            Assert.AreEqual(35f, smr.GetBlendShapeWeight(found.Smile), 0.01f);
+            // Out-of-range index is a safe no-op
+            KidView.SetFaceShapeWeightSafe(in found, 99, 50f);
+            KidView.SetFaceShapeWeightSafe(in found, -1, 50f);
+
+            // HeroStage studio rig: 1 Directional Key + 1 Spot Rim + 1 Point Fill (zero dead multi-directional bug).
+            var prevAmbientMode = RenderSettings.ambientMode;
+            Color prevSky = RenderSettings.ambientSkyColor;
+            Color prevEq = RenderSettings.ambientEquatorColor;
+            Color prevGround = RenderSettings.ambientGroundColor;
+            try
+            {
+                using (var stage = new HeroStage())
+                {
+                    Assert.IsNotNull(stage.StageRoot);
+                    Light[] lights = stage.StageRoot.GetComponentsInChildren<Light>(true);
+                    int dirCount = 0;
+                    int spotCount = 0;
+                    int pointCount = 0;
+                    for (int i = 0; i < lights.Length; i++)
+                    {
+                        if (lights[i].type == LightType.Directional) dirCount++;
+                        else if (lights[i].type == LightType.Spot) spotCount++;
+                        else if (lights[i].type == LightType.Point) pointCount++;
+                    }
+                    Assert.AreEqual(1, dirCount, "HeroStage must use exactly 1 Directional Key light in URP");
+                    Assert.AreEqual(1, spotCount, "HeroStage must include 1 cool Spot Rim light");
+                    Assert.AreEqual(1, pointCount, "HeroStage must include 1 warm Point Fill light");
+
+                    stage.SetKid("narda");
+                    SettingsStore.Current.ReduceMotion = true;
+                    stage.Tick(0.10f);
+                    SettingsStore.Current.ReduceMotion = false;
+                    stage.Tick(0.10f);
+                    Assert.AreEqual(0f, stage.OrbitYaw, 0.001f, "EditMode HeroStage.Tick must keep deterministic front pose");
+                }
+            }
+            finally
+            {
+                RenderSettings.ambientMode = prevAmbientMode;
+                RenderSettings.ambientSkyColor = prevSky;
+                RenderSettings.ambientEquatorColor = prevEq;
+                RenderSettings.ambientGroundColor = prevGround;
+            }
+
+            KalyeahResources.Kill(mesh);
+        }
+
+        [Test]
+        public void Phase5_KidView_CompetitiveHitboxCapsules_CoverAllZonesZeroPhysicsAndParseJson()
+        {
+            Assert.AreEqual(1.5f, KidView.GetHitboxZoneMultiplier(HitboxZone.Head), 0.001f);
+            Assert.AreEqual(1.0f, KidView.GetHitboxZoneMultiplier(HitboxZone.Chest), 0.001f);
+            Assert.AreEqual(1.0f, KidView.GetHitboxZoneMultiplier(HitboxZone.Stomach), 0.001f);
+            Assert.AreEqual(0.85f, KidView.GetHitboxZoneMultiplier(HitboxZone.Limb), 0.001f);
+
+            var snap = new KidSnapshot
+            {
+                Id = 19,
+                Team = 1,
+                CharacterId = "narda",
+                Position = new SVector2(0f, 0f),
+                Facing = new SVector2(0f, -1f),
+                Hp = 100,
+            };
+
+            var kid = new KidView(_testRoot.transform, snap, 0.82f, new Color(0.95f, 0.25f, 0.25f, 1f), null);
+
+            // Zero runtime Physics Collider overhead on KidView hierarchy.
+            Collider[] colliders = kid.Root.GetComponentsInChildren<Collider>(true);
+            Assert.AreEqual(0, colliders.Length, "Hitbox registry must attach zero runtime Unity Colliders");
+
+            Assert.IsNotNull(kid.HitboxCapsules);
+            Assert.GreaterOrEqual(kid.HitboxCapsules.Count, 4);
+
+            bool hasHead = false, hasChest = false, hasStomach = false, hasLimb = false;
+            Vector3 headCenter = Vector3.zero;
+            for (int i = 0; i < kid.HitboxCapsules.Count; i++)
+            {
+                HitboxCapsuleEntry cap = kid.HitboxCapsules[i];
+                Assert.IsTrue(cap.IsValid, $"Hitbox capsule '{cap.Name}' must be valid");
+                Assert.AreEqual(KidView.GetHitboxZoneMultiplier(cap.Zone), cap.DamageMultiplier, 0.001f);
+                if (cap.Zone == HitboxZone.Head)
+                {
+                    hasHead = true;
+                    cap.TryGetWorldSegment(out Vector3 a, out Vector3 b);
+                    headCenter = (a + b) * 0.5f;
+                }
+                else if (cap.Zone == HitboxZone.Chest) hasChest = true;
+                else if (cap.Zone == HitboxZone.Stomach) hasStomach = true;
+                else if (cap.Zone == HitboxZone.Limb) hasLimb = true;
+            }
+            Assert.IsTrue(hasHead, "Hitbox registry must include Head zone");
+            Assert.IsTrue(hasChest, "Hitbox registry must include Chest zone");
+            Assert.IsTrue(hasStomach, "Hitbox registry must include Stomach zone");
+            Assert.IsTrue(hasLimb, "Hitbox registry must include Limb zones");
+
+            // Analytic ray query directly through head center resolves Head with 1.5x multiplier.
+            Vector3 rayOrigin = headCenter + Vector3.back * 3f;
+            Assert.IsTrue(kid.RaycastHitboxes(rayOrigin, Vector3.forward, 6f, out HitboxZone hitZone, out float hitDist, out float hitMult));
+            Assert.AreEqual(HitboxZone.Head, hitZone);
+            Assert.AreEqual(1.5f, hitMult, 0.001f);
+            Assert.Greater(hitDist, 0f);
+            Assert.Less(hitDist, 4f);
+
+            // Optional rig__hitbox_capsules.json parsing against synthetic mixamorig bones + malformed fallback.
+            var mockRig = new GameObject("MockMixamoRig");
+            mockRig.transform.SetParent(_testRoot.transform, false);
+            var bHead = new GameObject("mixamorig:Head");
+            bHead.transform.SetParent(mockRig.transform, false);
+            bHead.transform.localPosition = new Vector3(0f, 1.38f, 0f);
+            var bChest = new GameObject("mixamorig:Spine2");
+            bChest.transform.SetParent(mockRig.transform, false);
+            bChest.transform.localPosition = new Vector3(0f, 1.05f, 0f);
+
+            const string sampleHitboxJson = @"{
+              ""data"": {
+                ""coordSpace"": ""gltf_yup"",
+                ""multipliers"": { ""Head"": 1.5, ""Chest"": 1.0, ""Stomach"": 1.0, ""Limb"": 0.85 },
+                ""capsules"": [
+                  { ""name"": ""Head"", ""zone"": ""Head"", ""bone"": ""mixamorig:Head"", ""a"": [0, 1.32, 0], ""b"": [0, 1.50, 0], ""radius"": 0.12 },
+                  { ""name"": ""Chest"", ""zone"": ""Chest"", ""bone"": ""mixamorig:Spine2"", ""a"": [0, 0.95, 0], ""b"": [0, 1.24, 0], ""radius"": 0.15 }
+                ]
+              }
+            }";
+
+            HitboxCapsuleEntry[] parsed = KidView.BuildHitboxCapsulesFromJson(mockRig.transform, mockRig.transform, sampleHitboxJson);
+            Assert.AreEqual(2, parsed.Length);
+            Assert.AreEqual(HitboxZone.Head, parsed[0].Zone);
+            Assert.AreEqual(1.5f, parsed[0].DamageMultiplier, 0.001f);
+            Assert.AreEqual(HitboxZone.Chest, parsed[1].Zone);
+            Assert.AreEqual(1.0f, parsed[1].DamageMultiplier, 0.001f);
+
+            // Malformed JSON safely falls back to deterministic bone capsules without throwing.
+            HitboxCapsuleEntry[] fallback = KidView.BuildHitboxCapsulesFromJson(mockRig.transform, mockRig.transform, "{broken");
+            Assert.GreaterOrEqual(fallback.Length, 2);
         }
 
         static float ColorRgbDistance(Color a, Color b)

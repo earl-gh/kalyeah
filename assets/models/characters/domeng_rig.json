@@ -1389,34 +1389,6 @@
       "fullAngleDeg": 85.0
     },
     {
-      "shape": "corr_LeftForeArm_Squash",
-      "kind": "squash",
-      "bone": "mixamorig:LeftForeArm",
-      "parent": "mixamorig:LeftArm",
-      "axis": [
-        -0.64285,
-        -0.76599,
-        0.0
-      ],
-      "restAngleDeg": 4.72,
-      "startAngleDeg": 104.72,
-      "fullAngleDeg": 139.72
-    },
-    {
-      "shape": "corr_RightForeArm_Squash",
-      "kind": "squash",
-      "bone": "mixamorig:RightForeArm",
-      "parent": "mixamorig:RightArm",
-      "axis": [
-        -0.64285,
-        0.76599,
-        -0.0
-      ],
-      "restAngleDeg": 4.72,
-      "startAngleDeg": 104.72,
-      "fullAngleDeg": 139.72
-    },
-    {
       "shape": "corr_LeftLeg_Squash",
       "kind": "squash",
       "bone": "mixamorig:LeftLeg",
@@ -1443,6 +1415,34 @@
       "restAngleDeg": 3.07,
       "startAngleDeg": 73.07,
       "fullAngleDeg": 108.07
+    },
+    {
+      "shape": "corr_LeftForeArm_Squash",
+      "kind": "squash",
+      "bone": "mixamorig:LeftForeArm",
+      "parent": "mixamorig:LeftArm",
+      "axis": [
+        -0.64285,
+        -0.76599,
+        0.0
+      ],
+      "restAngleDeg": 4.72,
+      "startAngleDeg": 104.72,
+      "fullAngleDeg": 139.72
+    },
+    {
+      "shape": "corr_RightForeArm_Squash",
+      "kind": "squash",
+      "bone": "mixamorig:RightForeArm",
+      "parent": "mixamorig:RightArm",
+      "axis": [
+        -0.64285,
+        0.76599,
+        -0.0
+      ],
+      "restAngleDeg": 4.72,
+      "startAngleDeg": 104.72,
+      "fullAngleDeg": 139.72
     }
   ],
   "lods": {
@@ -1452,7 +1452,7 @@
       "deformBones": 64,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4001
+      "fileSizeKb": 3790
     },
     "lod1": {
       "asset": "models/characters/domeng_lod1",
@@ -1460,7 +1460,7 @@
       "deformBones": 44,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 689
+      "fileSizeKb": 697
     },
     "lod2": {
       "asset": "models/characters/domeng_lod2",
@@ -1468,14 +1468,15 @@
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 217
+      "fileSizeKb": 216
     }
   },
   "textures": {
     "baseColorEmbedded": true,
     "normal": "models/characters/domeng_2",
     "orm": "models/characters/domeng_orm",
-    "ormChannels": "R=AO,G=Roughness,B=Metallic"
+    "ormChannels": "R=AO,G=Roughness,B=Metallic",
+    "stylizedPolishVersion": 2
   },
   "log": [
     "removed 4 path-breaking bones",
@@ -1484,5 +1485,11 @@
     "rebound to reference rest; added 12 twist/helper bones",
     "stray influences removed: 8232",
     "cross-side influences removed: 0"
+  ],
+  "facialShapes": [
+    "Blink",
+    "Smile",
+    "Determined",
+    "Talk_Open"
   ]
 }

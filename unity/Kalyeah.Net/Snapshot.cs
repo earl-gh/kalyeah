@@ -7,6 +7,7 @@ namespace Kalyeah.Net
     /// Turns the server's MatchSim into plain wire data (the SNAPSHOT message) and writes that data into a client's mirror MatchSim,
     /// which the match views read (port of snapshot.gd). Player floats are snapped to 0.01 and default fields are left out (and put
     /// back to their defaults in `Apply`), exactly as the Godot server does, so the bytes are the same.
+    /// Spec kit fields (docs/KITS.md) are emitted ONLY when `sim.Rules.UsesSpecKits()` is true so all recorded goldens stay byte-identical.
     /// </summary>
     public static class Snapshot
     {
@@ -15,6 +16,7 @@ namespace Kalyeah.Net
 
         public static GDict Capture(MatchSim sim, OrderedDict<int, int> acks)
         {
+            bool specKits = sim.Rules.UsesSpecKits();
             var players = new GArray(VariantType.Dictionary);
             foreach (var pair in sim.Players)
             {
@@ -70,11 +72,32 @@ namespace Kalyeah.Net
                 if (p.SlideCd > 0.0) entry["scd"] = Snap(p.SlideCd);
                 if (p.BuffType != 0) entry["bt"] = (long)p.BuffType;
                 if (p.BuffLeft > 0.0) entry["bl"] = Snap(p.BuffLeft);
+
+                if (specKits)
+                {
+                    if (p.UsingSpecKit) entry["kit"] = true;
+                    if (p.BlurLeft > 0.0) entry["blr"] = Snap(p.BlurLeft);
+                    if (p.RevealedOutlineLeft > 0.0) entry["rev"] = Snap(p.RevealedOutlineLeft);
+                    if (p.RevealAlertLeft > 0.0) entry["ra"] = Snap(p.RevealAlertLeft);
+                    if (p.KnownRevealAlert) entry["ral"] = true;
+                    if (p.InvisibleLeft > 0.0) entry["inv"] = Snap(p.InvisibleLeft);
+                    if (p.StiltsLeft > 0.0) entry["stl"] = Snap(p.StiltsLeft);
+                    if (p.SackRaceLeft > 0.0) entry["sk"] = Snap(p.SackRaceLeft);
+                    if (p.LuksongBakaLeft > 0.0) entry["bk"] = Snap(p.LuksongBakaLeft);
+                    if (p.TrumpoSpinLeft > 0.0) entry["spn"] = Snap(p.TrumpoSpinLeft);
+                    if (p.SungkaAbsorbLeft > 0.0) entry["sgk"] = Snap(p.SungkaAbsorbLeft);
+                    if (p.ShieldHp > 0.0) entry["shd"] = Snap(p.ShieldHp);
+                    if (p.ShieldHpLeft > 0.0) entry["shdl"] = Snap(p.ShieldHpLeft);
+                    if (p.LangitLeft > 0.0) entry["lng"] = Snap(p.LangitLeft);
+                    if (p.TayaCountLeft > 0.0) entry["tya"] = Snap(p.TayaCountLeft);
+                    if (p.EmpoweredTiradorBonus > 0.0 && p.EmpoweredTiradorLeft > 0.0) entry["emp"] = Snap(p.EmpoweredTiradorBonus);
+                    if (p.SpeedBoostLeft > 0.0) entry["sbl"] = Snap(p.SpeedBoostLeft);
+                }
                 players.Add(entry);
             }
             var projectiles = new GArray(VariantType.Dictionary);
             foreach (WeaponSystem.Projectile projectile in sim.Weapons.Projectiles)
-                projectiles.Add(GDict.Of("id", (long)projectile.Id, "w", new StringName(projectile.Def.Id), "pos", projectile.Position, "team", (long)projectile.Team));
+                projectiles.Add(GDict.Of("id", (long)projectile.Id, "w", new StringName(projectile.EffectId), "pos", projectile.Position, "team", (long)projectile.Team));
             var zones = new GArray(VariantType.Dictionary);
             foreach (WeaponSystem.Zone zone in sim.Weapons.Zones)
                 zones.Add(GDict.Of("id", (long)zone.Id, "w", new StringName(zone.Def.Id), "k", (long)zone.Kind, "c", zone.Center, "r", zone.Radius, "team", (long)zone.Team));
@@ -110,7 +133,69 @@ namespace Kalyeah.Net
                 }
                 output["pu"] = wire;
             }
+            if (specKits) CaptureSpecWorldEntities(sim, output);
             return output;
+        }
+
+        static void CaptureSpecWorldEntities(MatchSim sim, GDict output)
+        {
+            if (sim.Weapons.Walls.Count > 0)
+            {
+                var arr = new GArray(VariantType.Dictionary);
+                foreach (WeaponSystem.DestructibleWall w in sim.Weapons.Walls)
+                    arr.Add(GDict.Of("id", (long)w.Id, "o", (long)w.OwnerId, "t", (long)w.Team, "s", new StringName(w.SkillId),
+                        "c", SnapVec(w.Center), "al", SnapVec(w.Along), "hw", Snap(w.HalfWidth),
+                        "hp", (long)w.Hp, "mhp", (long)w.MaxHp, "tl", Snap(w.TimeLeft), "d", Snap(w.Duration)));
+                output["walls"] = arr;
+            }
+            if (sim.Weapons.Traps.Count > 0)
+            {
+                var arr = new GArray(VariantType.Dictionary);
+                foreach (WeaponSystem.HiddenTrap tr in sim.Weapons.Traps)
+                {
+                    var d = GDict.Of("id", (long)tr.Id, "o", (long)tr.OwnerId, "t", (long)tr.Team, "s", new StringName(tr.SkillId),
+                        "m", (long)tr.Mechanic, "p", SnapVec(tr.Position), "r", Snap(tr.TriggerRadius));
+                    if (tr.Armed) d["ar"] = true;
+                    if (tr.RevealedToEnemy) d["rv"] = true;
+                    arr.Add(d);
+                }
+                output["traps"] = arr;
+            }
+            if (sim.Weapons.Sentries.Count > 0)
+            {
+                var arr = new GArray(VariantType.Dictionary);
+                foreach (WeaponSystem.Sentry s in sim.Weapons.Sentries)
+                    arr.Add(GDict.Of("id", (long)s.Id, "o", (long)s.OwnerId, "t", (long)s.Team, "s", new StringName(s.SkillId),
+                        "p", SnapVec(s.Position), "r", Snap(s.Radius), "tl", Snap(s.TimeLeft), "d", Snap(s.Duration),
+                        "pt", Snap(s.PingTimer), "pi", Snap(s.PingInterval), "hp", (long)s.Hp));
+                output["sentries"] = arr;
+            }
+            if (sim.Weapons.Tethers.Count > 0)
+            {
+                var arr = new GArray(VariantType.Dictionary);
+                foreach (WeaponSystem.AllyTether te in sim.Weapons.Tethers)
+                    arr.Add(GDict.Of("id", (long)te.Id, "o", (long)te.OwnerId, "a", (long)te.AllyId, "t", (long)te.Team,
+                        "s", new StringName(te.SkillId), "mr", Snap(te.MaxRange), "tl", Snap(te.TimeLeft), "d", Snap(te.Duration)));
+                output["tethers"] = arr;
+            }
+            if (sim.Weapons.SkillZones.Count > 0)
+            {
+                var arr = new GArray(VariantType.Dictionary);
+                foreach (WeaponSystem.SkillZone z in sim.Weapons.SkillZones)
+                    arr.Add(GDict.Of("id", (long)z.Id, "o", (long)z.OwnerId, "t", (long)z.Team, "s", new StringName(z.SkillId),
+                        "k", (long)z.Kind, "p", SnapVec(z.Position), "ep", SnapVec(z.EndPosition), "dir", SnapVec(z.Direction),
+                        "al", SnapVec(z.Along), "r", Snap(z.Radius), "hw", Snap(z.HalfWidth), "ang", Snap(z.AngleDegrees),
+                        "cnt", (long)z.Count, "sp", Snap(z.Spacing), "tl", Snap(z.TimeLeft), "d", Snap(z.Duration), "dl", Snap(z.DelayLeft)));
+                output["szones"] = arr;
+            }
+            if (sim.Weapons.RevealMarkers.Count > 0)
+            {
+                var arr = new GArray(VariantType.Dictionary);
+                foreach (WeaponSystem.RevealMarker m in sim.Weapons.RevealMarkers)
+                    arr.Add(GDict.Of("id", (long)m.Id, "t", (long)m.Team, "tg", (long)m.TargetId, "s", new StringName(m.SkillId),
+                        "p", SnapVec(m.Position), "tl", Snap(m.TimeLeft), "d", Snap(m.Duration)));
+                output["rmarks"] = arr;
+            }
         }
 
         /// <summary>status_effects.gd `snapshot()`: {type: time left, ..., "slow": magnitude}.</summary>
@@ -123,8 +208,8 @@ namespace Kalyeah.Net
         }
 
         /// <summary>
-        /// The part only `id`'s own phone gets (merged into its copy as "me"): its elixir, stamina and move target. Nobody else learns
-        /// where a kid is walking or how much elixir it has.
+        /// The part only `id`'s own phone gets (merged into its copy as "me"): its elixir, stamina, move target, and (under spec kits)
+        /// water, Tirador ammo/reload/charge, S1 charges, recast window, and home fountain status.
         /// </summary>
         public static GDict PrivateFor(MatchSim sim, int id)
         {
@@ -136,43 +221,120 @@ namespace Kalyeah.Net
                 mine["mt"] = SnapVec(p.MoveTarget);
             }
             if (p.StuckTime > 0.0) mine["stk"] = Snap(p.StuckTime);
+            if (sim.Rules.UsesSpecKits())
+            {
+                mine["wat"] = Snap(p.Water);
+                mine["ammo"] = (long)p.TiradorAmmo;
+                if (p.TiradorReloadLeft > 0.0) mine["rld"] = Snap(p.TiradorReloadLeft);
+                if (p.TiradorChargeTime >= 0.0) mine["chg"] = Snap(p.TiradorChargeTime);
+                mine["c0"] = (long)p.S1Charges;
+                if (p.S1ChargeRegenLeft > 0.0) mine["c0t"] = Snap(p.S1ChargeRegenLeft);
+                if (p.SyatoRecastLeft > 0.0)
+                {
+                    mine["rcst"] = Snap(p.SyatoRecastLeft);
+                    mine["rctg"] = (long)p.SyatoTargetId;
+                }
+                if (p.InHomeFountain) mine["fnt"] = true;
+            }
             return GDict.Of("me", mine);
         }
 
         /// <summary>
-        /// `message` (a snapshot for `viewer`'s phone) without what that phone may not know: in Langit Lupa's brownout, where the kids
-        /// out of its sight are ("hid", the middle of the street) and their mounds. `message` itself when nothing is hidden.
+        /// `message` (a snapshot for `viewer`'s phone) without what that phone may not know: Langit Lupa brownout hidden kids,
+        /// plus (under spec kits) invisible enemies (Tago!) and hidden enemy traps outside 3m/unrevealed.
         /// </summary>
         public static GDict HideFor(MatchSim sim, int viewer, GDict message)
         {
-            if (!(sim.Mode is StreetMode mode)) return message;
-            List<int> hidden = mode.HiddenFrom(sim, viewer);
-            if (hidden.Count == 0) return message;
-            GDict output = message.Duplicate();
-            var players = new GArray(VariantType.Dictionary);
+            if (sim.Mode is StreetMode mode)
+            {
+                List<int> hidden = mode.HiddenFrom(sim, viewer);
+                if (hidden.Count == 0) return message;
+                GDict output = message.Duplicate();
+                var players = new GArray(VariantType.Dictionary);
+                foreach (object raw in message.GetArr("players"))
+                {
+                    if (!(raw is GDict entry)) continue;
+                    if (hidden.Contains(entry.GetInt("id", -1)))
+                    {
+                        GDict blank = entry.Duplicate();
+                        blank["pos"] = Vec2.Zero;
+                        blank["hid"] = true;
+                        foreach (string key in new[] { "wlk", "cr", "ay", "vy", "sll", "sld" }) blank.Remove(key);
+                        players.Add(blank);
+                    }
+                    else
+                    {
+                        players.Add(entry);
+                    }
+                }
+                output["players"] = players;
+                GDict modeData = StreetWire.FilterFor(mode, message.GetDict("mode"), hidden);
+                var unseen = new GArray();
+                foreach (int id in hidden) unseen.Add((long)id);
+                modeData["unseen"] = unseen;
+                output["mode"] = modeData;
+                return output;
+            }
+
+            if (!sim.Rules.UsesSpecKits() || !sim.Players.TryGetValue(viewer, out PlayerState vp)) return message;
+            int viewerTeam = vp.Team;
+            bool needFilter = false;
+            foreach (var pair in sim.Players)
+                if (pair.Value.Team != viewerTeam && !sim.IsEnemyVisibleToTeam(pair.Value, viewerTeam)) { needFilter = true; break; }
+            if (!needFilter && sim.Weapons.Traps.Count > 0)
+            {
+                for (int i = 0; i < sim.Weapons.Traps.Count; i++)
+                    if (sim.Weapons.Traps[i].Team != viewerTeam && !sim.IsTrapVisibleToTeam(sim.Weapons.Traps[i], viewerTeam)) { needFilter = true; break; }
+            }
+            if (!needFilter && sim.Weapons.RevealMarkers.Count > 0)
+            {
+                for (int i = 0; i < sim.Weapons.RevealMarkers.Count; i++)
+                    if (sim.Weapons.RevealMarkers[i].Team != viewerTeam) { needFilter = true; break; }
+            }
+            if (!needFilter) return message;
+
+            GDict filtered = message.Duplicate();
+            var filteredPlayers = new GArray(VariantType.Dictionary);
             foreach (object raw in message.GetArr("players"))
             {
                 if (!(raw is GDict entry)) continue;
-                if (hidden.Contains(entry.GetInt("id", -1)))
+                int pid = entry.GetInt("id", -1);
+                if (sim.Players.TryGetValue(pid, out PlayerState target) && !sim.IsEnemyVisibleToTeam(target, viewerTeam))
                 {
                     GDict blank = entry.Duplicate();
                     blank["pos"] = Vec2.Zero;
                     blank["hid"] = true;
-                    foreach (string key in new[] { "wlk", "cr", "ay", "vy", "sll", "sld" }) blank.Remove(key);
-                    players.Add(blank);
+                    filteredPlayers.Add(blank);
                 }
                 else
                 {
-                    players.Add(entry);
+                    filteredPlayers.Add(entry);
                 }
             }
-            output["players"] = players;
-            GDict modeData = StreetWire.FilterFor(mode, message.GetDict("mode"), hidden);
-            var unseen = new GArray();
-            foreach (int id in hidden) unseen.Add((long)id);
-            modeData["unseen"] = unseen;
-            output["mode"] = modeData;
-            return output;
+            filtered["players"] = filteredPlayers;
+
+            if (message.Has("traps"))
+            {
+                var visibleTraps = new GArray(VariantType.Dictionary);
+                foreach (object raw in message.GetArr("traps"))
+                {
+                    if (!(raw is GDict td)) continue;
+                    int trapId = td.GetInt("id", -1);
+                    WeaponSystem.HiddenTrap found = null;
+                    for (int i = 0; i < sim.Weapons.Traps.Count; i++)
+                        if (sim.Weapons.Traps[i].Id == trapId) { found = sim.Weapons.Traps[i]; break; }
+                    if (found == null || sim.IsTrapVisibleToTeam(found, viewerTeam)) visibleTraps.Add(td);
+                }
+                filtered["traps"] = visibleTraps;
+            }
+            if (message.Has("rmarks"))
+            {
+                var teamMarkers = new GArray(VariantType.Dictionary);
+                foreach (object raw in message.GetArr("rmarks"))
+                    if (raw is GDict rd && rd.GetInt("t", -1) == viewerTeam) teamMarkers.Add(rd);
+                filtered["rmarks"] = teamMarkers;
+            }
+            return filtered;
         }
 
         /// <summary>Writes `data` into `sim`. `localId`'s position is left to the caller (prediction).</summary>
@@ -225,6 +387,24 @@ namespace Kalyeah.Net
                 p.SlideDir = slideLeft > 0.0 ? e.GetVec2("sld", Vec2.Zero) : Vec2.Zero;
                 p.BuffType = e.GetInt("bt");
                 p.BuffLeft = e.GetFloat("bl");
+                p.UsingSpecKit = e.GetBool("kit");
+                p.BlurLeft = e.GetFloat("blr");
+                p.RevealedOutlineLeft = e.GetFloat("rev");
+                p.RevealAlertLeft = e.GetFloat("ra");
+                p.KnownRevealAlert = e.GetBool("ral");
+                p.InvisibleLeft = e.GetFloat("inv");
+                p.StiltsLeft = e.GetFloat("stl");
+                p.SackRaceLeft = e.GetFloat("sk");
+                p.LuksongBakaLeft = e.GetFloat("bk");
+                p.TrumpoSpinLeft = e.GetFloat("spn");
+                p.SungkaAbsorbLeft = e.GetFloat("sgk");
+                p.ShieldHp = e.GetFloat("shd");
+                p.ShieldHpLeft = e.GetFloat("shdl");
+                p.LangitLeft = e.GetFloat("lng");
+                p.TayaCountLeft = e.GetFloat("tya");
+                p.EmpoweredTiradorBonus = e.GetFloat("emp");
+                p.EmpoweredTiradorLeft = p.EmpoweredTiradorBonus > 0.0 ? 0.5 : 0.0;
+                p.SpeedBoostLeft = e.GetFloat("sbl");
                 RestoreEffects(p.Effects, e.GetDict("fx"));
             }
             ApplyPrivate(sim, data.GetDict("me"), localId);
@@ -289,7 +469,7 @@ namespace Kalyeah.Net
             effects.Restore(restored);
         }
 
-        /// <summary>The recipient's own elixir, stamina and move target (absent from an old server: the mirror keeps its own).</summary>
+        /// <summary>The recipient's own elixir, stamina, move target, and spec kit resources (absent from an old server: mirror keeps its own).</summary>
         static void ApplyPrivate(MatchSim sim, GDict mine, int localId)
         {
             if (mine.IsEmpty || mine.GetInt("id", -1) != localId || !sim.Players.TryGetValue(localId, out PlayerState p)) return;
@@ -299,6 +479,15 @@ namespace Kalyeah.Net
             p.HasMoveTarget = mine.GetBool("hmt");
             p.MoveTarget = mine.GetVec2("mt", Vec2.Zero);
             p.StuckTime = mine.GetFloat("stk");
+            if (mine.Has("wat")) p.Water = mine.GetFloat("wat", p.Water);
+            if (mine.Has("ammo")) p.TiradorAmmo = mine.GetInt("ammo", p.TiradorAmmo);
+            p.TiradorReloadLeft = mine.GetFloat("rld");
+            p.TiradorChargeTime = mine.Has("chg") ? mine.GetFloat("chg") : -1.0;
+            if (mine.Has("c0")) p.S1Charges = mine.GetInt("c0", p.S1Charges);
+            p.S1ChargeRegenLeft = mine.GetFloat("c0t");
+            p.SyatoRecastLeft = mine.GetFloat("rcst");
+            p.SyatoTargetId = mine.Has("rctg") ? mine.GetInt("rctg", -1) : -1;
+            p.InHomeFountain = mine.GetBool("fnt");
         }
 
         static void ApplyPowerups(MatchSim sim, GDict data)
@@ -334,10 +523,14 @@ namespace Kalyeah.Net
             system.Projectiles.Clear();
             foreach (object raw in data.GetArr("projectiles"))
             {
-                if (!(raw is GDict e) || !sim.WeaponDefs.TryGetValue(SName(e, "w"), out WeaponDef def)) continue;
+                if (!(raw is GDict e)) continue;
+                string wid = SName(e, "w");
+                sim.WeaponDefs.TryGetValue(wid, out WeaponDef def);
+                sim.SkillDefs.TryGetValue(wid, out SkillDef skill);
+                if (def == null && skill == null) continue;
                 system.Projectiles.Add(new WeaponSystem.Projectile
                 {
-                    Id = e.GetInt("id"), Def = def, Position = e.GetVec2("pos", Vec2.Zero), Team = e.GetInt("team"),
+                    Id = e.GetInt("id"), Def = def, Skill = skill, Position = e.GetVec2("pos", Vec2.Zero), Team = e.GetInt("team"),
                 });
             }
             system.Zones.Clear();
@@ -367,6 +560,73 @@ namespace Kalyeah.Net
                 shield.PrevCenter = shield.Center;
                 shield.PrevHalfWidth = shield.HalfWidth;
                 system.Shields.Add(shield);
+            }
+
+            system.Walls.Clear();
+            foreach (object raw in data.GetArr("walls"))
+            {
+                if (!(raw is GDict e)) continue;
+                system.Walls.Add(new WeaponSystem.DestructibleWall
+                {
+                    Id = e.GetInt("id"), OwnerId = e.GetInt("o"), Team = e.GetInt("t"), SkillId = SName(e, "s"),
+                    Center = e.GetVec2("c", Vec2.Zero), Along = e.GetVec2("al", new Vec2(1.0, 0.0)), HalfWidth = e.GetFloat("hw"),
+                    Hp = e.GetInt("hp"), MaxHp = e.GetInt("mhp"), TimeLeft = e.GetFloat("tl"), Duration = e.GetFloat("d"),
+                });
+            }
+            system.Traps.Clear();
+            foreach (object raw in data.GetArr("traps"))
+            {
+                if (!(raw is GDict e)) continue;
+                system.Traps.Add(new WeaponSystem.HiddenTrap
+                {
+                    Id = e.GetInt("id"), OwnerId = e.GetInt("o"), Team = e.GetInt("t"), SkillId = SName(e, "s"),
+                    Mechanic = (SkillMechanic)e.GetInt("m"), Position = e.GetVec2("p", Vec2.Zero), TriggerRadius = e.GetFloat("r"),
+                    Armed = e.GetBool("ar"), RevealedToEnemy = e.GetBool("rv"), TimeLeft = 9999.0,
+                });
+            }
+            system.Sentries.Clear();
+            foreach (object raw in data.GetArr("sentries"))
+            {
+                if (!(raw is GDict e)) continue;
+                system.Sentries.Add(new WeaponSystem.Sentry
+                {
+                    Id = e.GetInt("id"), OwnerId = e.GetInt("o"), Team = e.GetInt("t"), SkillId = SName(e, "s"),
+                    Position = e.GetVec2("p", Vec2.Zero), Radius = e.GetFloat("r"), TimeLeft = e.GetFloat("tl"),
+                    Duration = e.GetFloat("d"), PingTimer = e.GetFloat("pt"), PingInterval = e.GetFloat("pi", 1.0), Hp = e.GetInt("hp", 1),
+                });
+            }
+            system.Tethers.Clear();
+            foreach (object raw in data.GetArr("tethers"))
+            {
+                if (!(raw is GDict e)) continue;
+                system.Tethers.Add(new WeaponSystem.AllyTether
+                {
+                    Id = e.GetInt("id"), OwnerId = e.GetInt("o"), AllyId = e.GetInt("a"), Team = e.GetInt("t"),
+                    SkillId = SName(e, "s"), MaxRange = e.GetFloat("mr"), TimeLeft = e.GetFloat("tl"), Duration = e.GetFloat("d"),
+                });
+            }
+            system.SkillZones.Clear();
+            foreach (object raw in data.GetArr("szones"))
+            {
+                if (!(raw is GDict e)) continue;
+                system.SkillZones.Add(new WeaponSystem.SkillZone
+                {
+                    Id = e.GetInt("id"), OwnerId = e.GetInt("o"), Team = e.GetInt("t"), SkillId = SName(e, "s"),
+                    Kind = (SkillZoneKind)e.GetInt("k"), Position = e.GetVec2("p", Vec2.Zero), EndPosition = e.GetVec2("ep", Vec2.Zero),
+                    Direction = e.GetVec2("dir", Vec2.Zero), Along = e.GetVec2("al", new Vec2(1.0, 0.0)), Radius = e.GetFloat("r"),
+                    HalfWidth = e.GetFloat("hw"), AngleDegrees = e.GetFloat("ang"), Count = e.GetInt("cnt", 1), Spacing = e.GetFloat("sp"),
+                    TimeLeft = e.GetFloat("tl"), Duration = e.GetFloat("d"), DelayLeft = e.GetFloat("dl"),
+                });
+            }
+            system.RevealMarkers.Clear();
+            foreach (object raw in data.GetArr("rmarks"))
+            {
+                if (!(raw is GDict e)) continue;
+                system.RevealMarkers.Add(new WeaponSystem.RevealMarker
+                {
+                    Id = e.GetInt("id"), Team = e.GetInt("t"), TargetId = e.GetInt("tg"), SkillId = SName(e, "s"),
+                    Position = e.GetVec2("p", Vec2.Zero), TimeLeft = e.GetFloat("tl"), Duration = e.GetFloat("d"),
+                });
             }
         }
 
