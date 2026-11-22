@@ -354,6 +354,10 @@ namespace Kalyeah.Game
 
             SyncZones(sim, localTeam, ownSide, stepDt, reduceMotion);
 
+            BarangayNeutrals liveNeutrals = sim.Neutrals;
+            if (liveNeutrals != null && !ReferenceEquals(_neutrals, liveNeutrals))
+                BindNeutrals(liveNeutrals);
+
             if (_ownsNeutrals && _neutrals != null && sim.Phase == MatchPhaseKind.Playing && stepDt > 0f)
                 _neutrals.Step(stepDt, (OrderedDict<int, PlayerState>)null, null);
             Environment?.SyncLivingWorld(_neutrals, sim.ClockSeconds, reduceMotion);

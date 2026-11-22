@@ -150,7 +150,7 @@ namespace Kalyeah.Game
             ["brgy_tabi_cluster_b"] = new[] { "house_2", "vulcanizing", "house_1" },
             ["brgy_house_two_storey"] = new[] { "house_2", "house_3", "house_1" },
             ["brgy_shophouse_row"] = new[] { "barber_shop", "nena_store", "vulcanizing" },
-            ["brgy_bakery_oven"] = new[] { "karinderya", "nena_store" },
+            ["brgy_bakery_oven"] = new[] { "nena_store", "barber_shop" },
             ["brgy_palengke_stall"] = new[] { "rooster_tent", "nena_store" },
             ["brgy_toda_shed"] = new[] { "tricycle_terminal" },
             ["brgy_waiting_shed"] = new[] { "tricycle_terminal" },

@@ -1,52 +1,60 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Home (docs/SPEC.md §8, owner layout read like CODM and Wild Rift; 1280x720 reference, SafeArea-pinned, hit areas &gt;= 48 dp).
-    /// The selected kid stands in 3D (<see cref="HeroStage"/>) in front of a rendered Palengke stall (<c>ui/home/stall</c>, shot
-    /// through the hero camera so both share one perspective), with dust drifting in the light. Profile (name only: rank shows
-    /// only where Ranked is chosen) top left, currencies and settings top right; sleek mission rail top left; frosted bottom nav
-    /// dock; grounded tactical hero pedestal nameplate at the kid's feet; and an esports queue mode card over a luminous gold PLAY.
-    /// Only real content plus the owner-approved sample panels (pass, event, daily gift, currencies, store, friends) that announce
-    /// themselves when tapped (§12). The connection check runs before home (<see cref="CheckConnectionAtLaunch"/>) and on PLAY;
-    /// offline is never a mode on Home.
+    /// Locked Option A1 Main Lobby (1280x720 reference, SafeArea-pinned, all active buttons &gt;= 48 dp):
+    /// L1 full-bleed live 10:30 AM sunlit 3D Manila Barangay street corner (<see cref="HeroStage.ShowManilaStreetStage"/>)
+    /// with zero sky watermarks and zero hero nameplate; L3 cardless top-left circular kid bust + bottom-rim level badge +
+    /// bare condensed IGN strictly matched to L4's <see cref="TopBarHeight"/> (<c>56 cpx</c>) and shared centerline;
+    /// L4 flat smoked-obsidian currency strip + square Settings gear; L5 three slim smoked-obsidian mission slivers with
+    /// crisp Paper-White left accent ticks; L6 flat rectangular bottom-left nav rail (KIDS · STORE · FRIENDS);
+    /// L7 high-contrast Paper-White mode pill; and L8 chamfered Signal Vermilion PLAY CTA.
+    /// Offline is never a mode on Home: the connection check runs at launch (<see cref="CheckConnectionAtLaunch"/>) and on PLAY.
     /// </summary>
     public sealed class HomeScreenView : IDisposable
     {
-        static readonly Color Ink = MenuArt.Ink;
-        static readonly Color Cream = MenuArt.Cream;
-        static readonly Color Gold = MenuArt.Gold;
+        static readonly Color ObsidianGlass = MenuArt.ObsidianGlass;
+        static readonly Color ObsidianSolid = MenuArt.ObsidianSolid;
+        static readonly Color PaperWhite = MenuArt.PaperWhite;
+        static readonly Color SignalVermilion = MenuArt.SignalVermilion;
+        static readonly Color SignalVermilionDeep = MenuArt.SignalVermilionDeep;
+        static readonly Color TitaniumRim = MenuArt.TitaniumRim;
         static readonly Color Muted = MenuArt.MutedText;
         static readonly Color Clear = new Color(0f, 0f, 0f, 0f);
-        static readonly Color PressTint = new Color(0.84f, 0.86f, 0.90f, 1f);
-        static readonly Color Shade = new Color(0.02f, 0.035f, 0.07f, 1f);
-        static readonly Color EventCrimson = new Color(0.92f, 0.27f, 0.34f, 1f);
+        static readonly Color PressTint = new Color(0.86f, 0.88f, 0.92f, 1f);
+        static readonly Color SkyFallback = new Color(0.620f, 0.816f, 0.949f, 1f);      // #9ED0F2
+        static readonly Color AvatarWellBg = new Color(0.11f, 0.15f, 0.21f, 1f);
+        static readonly Color GlassHairline = new Color(TitaniumRim.r, TitaniumRim.g, TitaniumRim.b, 0.22f);
+        static readonly Color SoftShadowInk = new Color(0.055f, 0.075f, 0.102f, 0.80f);
+        static readonly Color OfflineSkyTop = new Color(0.08f, 0.12f, 0.18f, 1f);
 
-        const float TopBarHeight = 104f;
+        /// <summary>Locked shared visual height (<c>56 cpx</c> on 720p) for both L3 cardless profile and L4 currency/settings bar.</summary>
+        public const float TopBarHeight = 56f;
+
         const float HitSize = 96f;
+        const float TopBandHeight = HitSize;
         const float Gutter = 20f;
-        const float PlayHeight = 116f;
-        const float ModeHeight = 166f;
-        const float ModeToPlayGap = 16f;
+        const float PlayHitHeight = HitSize;
+        const float PlayVisualHeight = 84f;
+        const float ModeHitHeight = HitSize;
+        const float ModeVisualHeight = 44f;
+        const float ModeToPlayHitGap = 2f;
         const float ColumnGap = 16f;
         const float NavItemWidth = 98f;
         const float NavItemGap = 2f;
-        const float NavDockPadX = 4f;
-        const float BottomNavWidth = NavItemWidth * 3f + NavItemGap * 2f + NavDockPadX * 2f; // 306f
-        const float DefaultLeftWidth = 300f;
-        const float CardHeight = HitSize;
-        const float CardGap = 4f;
-        const float NavHeight = HitSize;
+        const float NavDockPadX = 2f;
+        const float BottomNavWidth = NavItemWidth * 3f + NavItemGap * 2f + NavDockPadX * 2f; // 302f
+        const float NavVisualHeight = 54f;
+        const float DefaultLeftWidth = 324f;
+        const float CardHitHeight = HitSize;
+        const float CardVisualHeight = 40f;
+        const float CardGap = 2f;
         const float WeaveTile = 96f;
-        const int MoteCount = 18;
-
-        // the stall plate is rendered through HeroStage's camera opened from 26 to 40 degrees tall, at 2400 by 1000
-        const float PlateOverHero = 1.5765f; // tan(20 deg) / tan(13 deg)
-        const float PlateAspect = 2.4f;
 
         static readonly string[] Difficulties = { "easy", "medium", "hard" };
 
@@ -65,25 +73,19 @@ namespace Kalyeah.Game
         readonly Action<GameMode> _onLaunchMatch;
         readonly AudioHub _audio;
         readonly HeroStage _stage;
+        readonly List<Material> _ownedMaterials = new List<Material>(8);
 
         Canvas _canvas;
         SafeArea _safeArea;
         bool _subscribed;
         bool _disposed;
-        float _time;
 
-        // the scene behind the UI
-        RawImage _stall;
-        RectTransform _stallRect;
-        RectTransform _heroImageRect;
-        RectTransform _heroShadowRect;
-        RectTransform _shadeLeft;
-        RectTransform _shadeRight;
-        readonly RectTransform[] _moteRects = new RectTransform[MoteCount];
-        readonly Image[] _moteImages = new Image[MoteCount];
-        Vector2 _areaSize = new Vector2(1280f, 720f);
+        // Live 3D sunlit Manila street stage
+        RectTransform _stageHost;
+        RawImage _heroImage;
+        AspectRatioFitter _heroFitter;
 
-        // bars and columns
+        // Bars and columns
         RectTransform _topBar;
         RectTransform _hubBody;
         RectTransform _bottomNav;
@@ -94,12 +96,10 @@ namespace Kalyeah.Game
         RectTransform _kidPlate;
         RectTransform _leftColumn;
 
-        RawImage _heroImage;
-        RawImage _avatarImage;
+        Image _avatarBustImage;
+        RawImage _avatarPhotoRaw;
         Text _playerName;
-        Text _kidMeta;
-        Text _kidName;
-        Image _kidRoleIcon;
+        Text _levelText;
 
         RectTransform _offlinePrompt;
         RectTransform _offlineHubBackdrop;
@@ -113,6 +113,11 @@ namespace Kalyeah.Game
         public Button ProfileButton { get; private set; }
         public Button KidButton { get; private set; }
         public Button PlayButton { get; private set; }
+        public RectTransform ProfileVisualRect { get; private set; }
+        public RectTransform CurrencyStripVisualRect { get; private set; }
+        public RectTransform SettingsVisualRect { get; private set; }
+        public bool IsHeroPlateVisible => _kidPlate != null && _kidPlate.gameObject.activeInHierarchy;
+        public bool IsManilaStreetStageActive => _stage != null && _stage.ShowManilaStreetStage;
         public bool OfflinePromptOpen => _offlinePrompt != null && _offlinePrompt.gameObject.activeSelf;
         /// <summary>The hero stage's texture and state line (capture diagnostics).</summary>
         public Texture HeroTexture => _stage?.Texture;
@@ -144,14 +149,13 @@ namespace Kalyeah.Game
             _onLaunchMatch = onLaunchMatch;
             _audio = audio;
             _canvas = parent.GetComponentInParent<Canvas>();
-            _stage = new HeroStage();
+            _stage = new HeroStage { ShowManilaStreetStage = true };
 
             ScreenFitMetrics.EnsureEnhancedTouch();
 
             Root = Ui.Fill("HomeScreen", parent);
             BuildBackdrop(Root);
-            BuildHero(Root);
-            BuildShades(Root);
+            BuildHeroStageLayer(Root);
 
             SafeArea parentSafe = parent.GetComponentInParent<SafeArea>();
             if (parentSafe != null)
@@ -226,11 +230,10 @@ namespace Kalyeah.Game
             RefreshLayout();
         }
 
-        // entry: the five HUD clusters ease in smoothly in Play mode, then the Palengke stall drifts subtly behind the kid
+        // Play-mode staggered entrance for the HUD clusters (EditMode stays fully visible at alpha 1)
         float _entry;
         bool _entryDone;
         CanvasGroup[] _groups;
-        Vector2 _stallBase;
 
         static CanvasGroup Group(RectTransform rect)
         {
@@ -240,25 +243,21 @@ namespace Kalyeah.Game
 
         void AnimateEntry(float dt)
         {
+            if (_entryDone) return;
             bool still = SettingsStore.Current.ReduceMotion;
-            if (!_entryDone)
+            if (_groups == null) _groups = new[] { Group(_topBar), Group(_leftColumn), Group(_bottomNav), Group(_modeColumn) };
+            _entry = still ? 10f : _entry + dt;
+            bool allDone = true;
+            for (int i = 0; i < _groups.Length; i++)
             {
-                if (_groups == null) _groups = new[] { Group(_topBar), Group(_leftColumn), Group(_bottomNav), Group(_modeColumn), Group(_heroZone) };
-                _entry = still ? 10f : _entry + dt;
-                bool allDone = true;
-                for (int i = 0; i < _groups.Length; i++)
-                {
-                    if (_groups[i] == null) continue;
-                    float t = Mathf.Clamp01((_entry - 0.08f - 0.09f * i) / 0.36f);
-                    if (t < 1f) allDone = false;
-                    float eased = t >= 1f ? 1f : 1f - (1f - t) * (1f - t) * (1f - t);
-                    _groups[i].alpha = eased;
-                    _groups[i].transform.localScale = t >= 1f ? Vector3.one : Vector3.one * (0.96f + 0.04f * eased);
-                }
-                if (allDone) _entryDone = true;
+                if (_groups[i] == null) continue;
+                float t = Mathf.Clamp01((_entry - 0.06f - 0.07f * i) / 0.30f);
+                if (t < 1f) allDone = false;
+                float eased = t >= 1f ? 1f : 1f - (1f - t) * (1f - t) * (1f - t);
+                _groups[i].alpha = eased;
+                _groups[i].transform.localScale = t >= 1f ? Vector3.one : Vector3.one * (0.97f + 0.03f * eased);
             }
-            if (!still && _stallRect != null)
-                _stallRect.anchoredPosition = _stallBase + new Vector2(Mathf.Sin(_time * 0.2f) * 12f, Mathf.Sin(_time * 0.13f) * 5f);
+            if (allDone) _entryDone = true;
         }
 
         void OnDisabled()
@@ -278,11 +277,8 @@ namespace Kalyeah.Game
         {
             if (_disposed || !Application.isPlaying) return;
             _stage?.Tick(dt);
-            _time += dt;
             if (_toast != null && _toast.gameObject.activeSelf && Time.unscaledTime > _toastUntil) _toast.gameObject.SetActive(false);
             AnimateEntry(dt);
-            if (SettingsStore.Current.ReduceMotion) return;
-            PlaceMotes();
         }
 
         public void Dispose()
@@ -297,365 +293,204 @@ namespace Kalyeah.Game
                 Sheets.Dispose();
                 Sheets = null;
             }
+            for (int i = 0; i < _ownedMaterials.Count; i++)
+            {
+                if (_ownedMaterials[i] != null) KalyeahResources.Kill(_ownedMaterials[i]);
+            }
+            _ownedMaterials.Clear();
             _stage?.Dispose();
             if (Root != null) KalyeahResources.Kill(Root.gameObject);
         }
 
-        // ---------------------------------------------------------------- the scene
+        // ---------------------------------------------------------------- L1 live sunlit 3D Manila stage
 
         void BuildBackdrop(RectTransform parent)
         {
+            // Full-bleed sunlit tropical sky fallback behind the live 16:9 3D Manila street stage (retires legacy ui/home/stall)
             RectTransform bg = Ui.Fill("Backdrop", parent);
-            Image floor = bg.gameObject.AddComponent<Image>();
-            floor.color = Shade;
-            floor.raycastTarget = false;
-
-            // the Palengke stall: Karding's chalk map on the roll-up shutter, sun through the tin roof (docs/MAPS.md)
-            _stall = MakeRaw("Stall", bg, KalyeahResources.Texture("ui/home/stall"));
-            _stallRect = _stall.rectTransform;
-            _stallRect.anchorMin = _stallRect.anchorMax = Vector2.zero;
-            _stallRect.pivot = new Vector2(0.5f, 0.5f);
-            _stall.enabled = _stall.texture != null;
-
-            // dust in the light: small cream motes drifting down (a fixed frame when motion is reduced)
-            RectTransform dust = Ui.Fill("Dust", bg);
-            dust.gameObject.AddComponent<RectMask2D>();
-            for (int i = 0; i < MoteCount; i++)
-            {
-                Image mote = Ui.MakeImage("Mote" + i, dust, Cream, round: true);
-                float size = 3f + (i * 7 % 4);
-                mote.rectTransform.sizeDelta = new Vector2(size, size);
-                AnchorLowerLeft(mote.rectTransform);
-                _moteRects[i] = mote.rectTransform;
-                _moteImages[i] = mote;
-            }
+            Image sky = bg.gameObject.AddComponent<Image>();
+            sky.color = SkyFallback;
+            sky.raycastTarget = false;
         }
 
-        static void AnchorLowerLeft(RectTransform rect)
+        void BuildHeroStageLayer(RectTransform parent)
         {
-            rect.anchorMin = rect.anchorMax = Vector2.zero;
-            rect.pivot = new Vector2(0.5f, 0.5f);
+            _stageHost = Ui.Fill("StageHost", parent);
+            _stageHost.gameObject.AddComponent<RectMask2D>();
+
+            _heroImage = MakeRaw("Hero", _stageHost, _stage.Texture);
+            _heroFitter = _heroImage.gameObject.AddComponent<AspectRatioFitter>();
+            _heroFitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            _heroFitter.aspectRatio = (float)HeroStage.StreetTextureWidth / HeroStage.StreetTextureHeight;
+            _stage.AttachOrbitDrag(_heroImage.rectTransform, 0.45f);
         }
 
-        void BuildHero(RectTransform parent)
-        {
-            Image shadow = Ui.MakeImage("HeroShadow", parent, new Color(1f, 1f, 1f, 0.52f));
-            shadow.sprite = MenuArt.PedestalGlow();
-            _heroShadowRect = shadow.rectTransform;
-            AnchorLowerLeft(_heroShadowRect);
-            _heroShadowRect.sizeDelta = new Vector2(360f, 76f);
-
-            _heroImage = MakeRaw("Hero", parent, _stage.Texture);
-            _heroImageRect = _heroImage.rectTransform;
-            _heroImageRect.anchorMin = _heroImageRect.anchorMax = new Vector2(0f, 0f);
-            _heroImageRect.pivot = new Vector2(0.5f, 0f);
-            _stage.AttachOrbitDrag(_heroImageRect, 0.45f);
-        }
-
-        /// <summary>Readability comes from light falling off toward the edges, leaving the center chalk map and 3D kid luminous.</summary>
-        void BuildShades(RectTransform parent)
-        {
-            RectTransform shades = Ui.Fill("Shades", parent);
-            // Ramp's first row is its bottom (dark there, clear at the top): flip it for the top shade
-            RawImage top = MakeRaw("Top", shades, Ramp(false));
-            top.color = new Color(Shade.r, Shade.g, Shade.b, 0.74f);
-            top.uvRect = new Rect(0f, 1f, 1f, -1f);
-            Stretch(top.rectTransform, new Vector2(0f, 0.78f), Vector2.one);
-            RawImage bottom = MakeRaw("Bottom", shades, Ramp(false));
-            bottom.color = new Color(Shade.r, Shade.g, Shade.b, 0.90f);
-            Stretch(bottom.rectTransform, Vector2.zero, new Vector2(1f, 0.34f));
-            RawImage left = MakeRaw("Left", shades, Ramp(true));
-            left.color = new Color(Shade.r, Shade.g, Shade.b, 0.54f);
-            _shadeLeft = left.rectTransform;
-            Stretch(_shadeLeft, Vector2.zero, new Vector2(0f, 1f));
-            _shadeLeft.pivot = new Vector2(0f, 0.5f);
-            RawImage right = MakeRaw("Right", shades, Ramp(true));
-            right.color = new Color(Shade.r, Shade.g, Shade.b, 0.84f);
-            right.uvRect = new Rect(1f, 0f, -1f, 1f);
-            _shadeRight = right.rectTransform;
-            Stretch(_shadeRight, new Vector2(1f, 0f), Vector2.one);
-            _shadeRight.pivot = new Vector2(1f, 0.5f);
-        }
-
-        // ---------------------------------------------------------------- bars
+        // ---------------------------------------------------------------- L3 + L4 shared top bar (exact 56 cpx height & centerline)
 
         void BuildTopBar(RectTransform parent)
         {
-            _topBar = Ui.Panel("TopBar", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, TopBarHeight));
+            _topBar = Ui.Panel("TopBar", parent, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, TopBandHeight));
 
-            // 1. Profile badge (one >= 48 dp hit button: framed gold-rim avatar + level crest medallion + uppercase IGN + edit cue; NO rank per SPEC §8)
-            RectTransform profile = Ui.Panel("Profile", _topBar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(Gutter, 0f), new Vector2(340f, HitSize));
+            // L3: Custom Cardless Profile (NO backing card/box/pill; exact 56 cpx height matching L4 on shared centerline)
+            RectTransform profile = Ui.Panel("Profile", _topBar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(Gutter, 0f), new Vector2(260f, HitSize));
             Image profileHit = profile.gameObject.AddComponent<Image>();
             profileHit.color = Clear;
             profileHit.raycastTarget = true;
 
-            RectTransform profilePlateHost = Ui.Fill("PlateHost", profile);
-            profilePlateHost.offsetMin = new Vector2(22f, 11f);
-            profilePlateHost.offsetMax = new Vector2(0f, -11f);
-            Image profilePlate = Ui.MakeSliced("Plate", profilePlateHost, MenuArt.ChamferGlass(12), Color.white);
-            Image profileCue = Ui.MakeImage("EditCue", profilePlateHost, new Color(Gold.r, Gold.g, Gold.b, 0.72f));
-            profileCue.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Chevron);
-            Place(profileCue.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-12f, 0f), new Vector2(18f, 18f));
-            profileCue.rectTransform.pivot = new Vector2(1f, 0.5f);
+            ProfileVisualRect = Ui.Panel("Visual", profile, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(0f, TopBarHeight));
 
-            RectTransform avatar = Ui.Panel("Avatar", profile, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(78f, 78f));
-            Image outerInk = Ui.MakeImage("OuterInk", avatar, Ink, round: true);
-            Stretch(outerInk.rectTransform, Vector2.zero, Vector2.one);
-            Image ring = Ui.MakeImage("Ring", avatar, MenuArt.GoldBorder, round: true);
-            Stretch(ring.rectTransform, Vector2.zero, Vector2.one);
-            ring.rectTransform.offsetMin = new Vector2(2f, 2f);
-            ring.rectTransform.offsetMax = new Vector2(-2f, -2f);
-            Image well = Ui.MakeImage("Well", avatar, MenuArt.NightMid, round: true);
+            RectTransform avatar = Ui.Panel("Avatar", ProfileVisualRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(TopBarHeight, TopBarHeight));
+            Image avatarRim = Ui.MakeImage("Rim", avatar, PaperWhite, round: true);
+            Stretch(avatarRim.rectTransform, Vector2.zero, Vector2.one);
+
+            Image well = Ui.MakeImage("Well", avatar, AvatarWellBg, round: true);
             Stretch(well.rectTransform, Vector2.zero, Vector2.one);
-            well.rectTransform.offsetMin = new Vector2(6f, 6f);
-            well.rectTransform.offsetMax = new Vector2(-6f, -6f);
+            well.rectTransform.offsetMin = new Vector2(2f, 2f);
+            well.rectTransform.offsetMax = new Vector2(-2f, -2f);
             well.gameObject.AddComponent<Mask>().showMaskGraphic = true;
-            _avatarImage = MakeRaw("Photo", well.rectTransform, null);
 
-            // level crest medallion tucked cleanly inside TopBar so it never collides with the left mission rail
-            RectTransform levelBadge = Ui.Panel("Level", avatar, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0.5f), new Vector2(-4f, 6f), new Vector2(34f, 34f));
-            Image levelRim = Ui.MakeImage("Rim", levelBadge, Ink, round: true);
-            Stretch(levelRim.rectTransform, Vector2.zero, Vector2.one);
-            Image levelCore = Ui.MakeImage("Core", levelBadge, Gold, round: true);
+            _avatarBustImage = Ui.MakeImage("Bust", well.rectTransform, Color.white);
+            _avatarBustImage.preserveAspect = true;
+            Place(_avatarBustImage.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -17f), new Vector2(96f, 128f));
+
+            _avatarPhotoRaw = MakeRaw("Photo", well.rectTransform, null);
+            _avatarPhotoRaw.enabled = false;
+
+            // Small 22x22 dark-obsidian circular level badge (#0E131A + 1.5 px white ring) overlapping bottom center rim
+            RectTransform levelBadge = Ui.Panel("Level", avatar, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0.5f), new Vector2(0f, 1f), new Vector2(22f, 22f));
+            Image levelRing = Ui.MakeImage("Ring", levelBadge, PaperWhite, round: true);
+            Stretch(levelRing.rectTransform, Vector2.zero, Vector2.one);
+            Image levelCore = Ui.MakeImage("Core", levelBadge, ObsidianSolid, round: true);
             Stretch(levelCore.rectTransform, Vector2.zero, Vector2.one);
-            levelCore.rectTransform.offsetMin = new Vector2(3f, 3f);
-            levelCore.rectTransform.offsetMax = new Vector2(-3f, -3f);
-            Text levelText = Label("Text", levelCore.rectTransform, "9", 18, Ink, TextAnchor.MiddleCenter, display: true, ink: false);
-            Stretch(levelText.rectTransform, Vector2.zero, Vector2.one);
+            levelCore.rectTransform.offsetMin = new Vector2(1.5f, 1.5f);
+            levelCore.rectTransform.offsetMax = new Vector2(-1.5f, -1.5f);
+            _levelText = Label("Text", levelCore.rectTransform, "9", 12, Color.white, TextAnchor.MiddleCenter, display: true, ink: false);
+            _levelText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _levelText.verticalOverflow = VerticalWrapMode.Overflow;
+            Stretch(_levelText.rectTransform, Vector2.zero, Vector2.one);
 
-            Text profileKicker = Label("Kicker", profile, "PROFILE", 14, Gold, TextAnchor.LowerLeft, display: true, ink: false);
-            Place(profileKicker.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(90f, 9f), new Vector2(-124f, 20f));
-            profileKicker.rectTransform.pivot = new Vector2(0f, 0f);
-            FitSingleLine(profileKicker, 9, 14);
+            // Bare uppercase condensed IGN directly to the right (10 cpx gap) at 24 px cap-height matching L4 currencies; zero rank badge
+            _playerName = Label("Name", ProfileVisualRect, AppSession.DefaultPlayerName, 26, Color.white, TextAnchor.MiddleLeft, display: true, ink: true, shadowAlpha: 0.78f);
+            Place(_playerName.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0f, 0.5f), new Vector2(TopBarHeight + 10f, 0f), new Vector2(-(TopBarHeight + 10f), 38f));
+            FitSingleLine(_playerName, 12, 26);
 
-            _playerName = Label("Name", profile, "", 30, Cream, TextAnchor.UpperLeft, display: true, ink: true);
-            Place(_playerName.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(90f, 8f), new Vector2(-124f, 38f));
-            _playerName.rectTransform.pivot = new Vector2(0f, 1f);
-            FitSingleLine(_playerName, 12, 30);
+            ProfileButton = AttachSpringButton(profile.gameObject, avatarRim, () => Navigate(MenuStack.ProfileId), 0.95f, 1.5f);
 
-            ProfileButton = AttachButton(profile.gameObject, profilePlate, () => Navigate(MenuStack.ProfileId), 0.96f);
-
-            // 2. Framed Settings button (Donate lives inside Settings, docs/SPEC.md §8)
-            RectTransform settings = Ui.Panel("Settings", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-Gutter, 0f), new Vector2(HitSize, HitSize));
+            // L4a: Square 56x56 smoked-obsidian Settings gear button centered inside 96x96 (>= 48 dp) hit area on exact top-bar centerline
+            RectTransform settings = Ui.Panel("Settings", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-2f, 0f), new Vector2(HitSize, HitSize));
             Image settingsHit = settings.gameObject.AddComponent<Image>();
             settingsHit.color = Clear;
             settingsHit.raycastTarget = true;
-            RectTransform settingsVisual = Ui.Panel("Visual", settings, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(72f, 72f));
-            Image settingsPlate = Ui.MakeSliced("Plate", settingsVisual, MenuArt.ChamferGlass(12), Color.white);
-            Ui.MakeCornerBrackets("Brackets", settingsVisual, new Color(Gold.r, Gold.g, Gold.b, 0.42f));
-            Image gear = Ui.MakeImage("Gear", settingsVisual, Cream);
-            gear.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Gear);
-            Place(gear.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(36f, 36f));
-            AttachButton(settings.gameObject, settingsPlate, () => Navigate(MenuStack.SettingsId), 0.92f);
 
-            // 3. Currencies (embossed Barya coin & faceted Diamond gem; sample balances until accounts/store exist, §12)
-            RectTransform chips = Ui.Panel("Currencies", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-(Gutter + HitSize + 12f), 0f), new Vector2(366f, HitSize));
-            MakeCurrencyChip(chips, 0, "12,450", MenuArt.BaryaCoin(), Gold, "barya", () => ComingSoon("Barya: earned in matches and tasks"));
-            MakeCurrencyChip(chips, 1, "80", MenuArt.DiamondGem(), MenuArt.DiamondCyan, "diamonds", () => ComingSoon("Diamonds: the shop opens with accounts"));
+            // Align visual right edge with Gutter (20 cpx from safe right edge -> -18 cpx inside settings hit rect)
+            SettingsVisualRect = Ui.Panel("Visual", settings, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-(Gutter - 2f), 0f), new Vector2(TopBarHeight, TopBarHeight));
+            Image settingsPlate = MakeTacticalGlassPlate("Plate", SettingsVisualRect, ObsidianGlass, GlassHairline, Clear, cornerCut: 3f, accentW: 0f, topHighlight: 0.14f);
+            Image gear = Ui.MakeImage("Gear", SettingsVisualRect, PaperWhite);
+            gear.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Gear);
+            Place(gear.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(28f, 28f));
+            AttachSpringButton(settings.gameObject, settingsPlate, () => Navigate(MenuStack.SettingsId), 0.92f, 1.5f);
+
+            // L4b: Unified flat 56 cpx smoked-obsidian Currency strip (Barya + Diamonds) on exact same centerline, 10 cpx visual gap to Settings
+            const float currencyStripHitW = 268f;
+            RectTransform currencies = Ui.Panel("Currencies", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-(HitSize + 6f), 0f), new Vector2(currencyStripHitW, HitSize));
+
+            // Single unified smoked-obsidian bar spanning smoothly to within 10 cpx of the square Settings button
+            CurrencyStripVisualRect = Ui.Panel("Visual", currencies, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(16f, TopBarHeight));
+            MakeTacticalGlassPlate("Plate", CurrencyStripVisualRect, ObsidianGlass, GlassHairline, Clear, cornerCut: 3f, accentW: 0f, topHighlight: 0.14f);
+
+            MakeCurrencyTapZone(currencies, 0f, 156f, "12,450", MenuArt.BaryaCoin(), "barya", () => ComingSoon("Barya: earned in matches and tasks"));
+            MakeCurrencyTapZone(currencies, 158f, 110f, "80", MenuArt.DiamondGem(), "diamonds", () => ComingSoon("Diamonds: the shop opens with accounts"));
         }
 
-        void MakeCurrencyChip(RectTransform row, int fromRight, string value, Sprite iconSprite, Color accent, string name, Action onClick)
+        void MakeCurrencyTapZone(RectTransform row, float xLeft, float width, string value, Sprite iconSprite, string name, Action onClick)
         {
-            float w = fromRight == 0 ? 186f : 162f;
-            float x = fromRight == 0 ? -(162f + 10f) : 0f;
-            // sleek 56 tall chamfered capsule centered inside a 96 tall (>= 48 dp) hit area
-            RectTransform chip = Ui.Panel("Chip_" + name, row, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(x, 0f), new Vector2(w, HitSize));
+            RectTransform chip = Ui.Panel("Chip_" + name, row, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(xLeft, 0f), new Vector2(width, HitSize));
             Image hit = chip.gameObject.AddComponent<Image>();
             hit.color = Clear;
             hit.raycastTarget = true;
 
-            RectTransform visual = Ui.Fill("Visual", chip);
-            visual.offsetMin = new Vector2(0f, 20f);
-            visual.offsetMax = new Vector2(0f, -20f);
-            Image plate = Ui.MakeSliced("Plate", visual, MenuArt.ChamferGlass(10), Color.white);
-            Ui.MakeAccentRail("Rail", visual, new Color(accent.r, accent.g, accent.b, 0.72f), width: 3f, verticalInset: 10f);
+            RectTransform content = Ui.Panel("Content", chip, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, TopBarHeight));
 
-            Image icon = Ui.MakeImage("Coin", visual, Color.white);
+            Image icon = Ui.MakeImage("Coin", content, Color.white);
             icon.sprite = iconSprite;
             icon.preserveAspect = true;
-            Place(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(14f, 0f), new Vector2(38f, 38f));
-            icon.rectTransform.pivot = new Vector2(0f, 0.5f);
+            Place(icon.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(14f, 0f), new Vector2(28f, 28f));
 
-            Text v = Label("Value", visual, value, 26, Cream, TextAnchor.MiddleLeft, display: true, ink: true);
+            Text v = Label("Value", content, value, 26, PaperWhite, TextAnchor.MiddleLeft, display: true, ink: true, shadowAlpha: 0.70f);
             Stretch(v.rectTransform, Vector2.zero, Vector2.one);
-            v.rectTransform.offsetMin = new Vector2(58f, 0f);
-            v.rectTransform.offsetMax = new Vector2(-12f, 0f);
+            v.rectTransform.offsetMin = new Vector2(50f, 0f);
+            v.rectTransform.offsetMax = new Vector2(-6f, 0f);
             FitSingleLine(v, 12, 26);
 
-            AttachButton(chip.gameObject, plate, onClick, 0.94f);
+            AttachSpringButton(chip.gameObject, icon, onClick, 0.94f, 1f);
         }
+
+        // ---------------------------------------------------------------- L5 + L6 + L7 + L8 hub body
 
         void BuildHub(RectTransform parent)
         {
             _hubBody = Ui.Fill("HubBody", parent);
 
-            // Child 0: Left Mission Rail (PASS · PASKO EVENT · DAY 3 GIFT) — sample panels until systems exist (§12)
-            _leftColumn = Ui.Panel("LeftColumn", _hubBody, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, -4f), new Vector2(DefaultLeftWidth, 3f * CardHeight + 2f * CardGap));
-            MakeLeftCard(0, "Pass", "PASS  ·  1/3", "Rescue 3 teammates", Gold, () => ComingSoon("The battle pass comes with accounts"));
-            MakeLeftCard(1, "Event", "PASKO EVENT", "Ends in 12 days", EventCrimson, () => ComingSoon("Events come with accounts"));
-            MakeLeftCard(2, "Daily", "DAY 3 GIFT", "100 barya", Gold, () => ComingSoon("Daily gifts come with accounts"));
+            // Child 0 (L5): Three ultra-slim airy smoked-obsidian slivers with crisp 3 px Paper-White left accent ticks
+            _leftColumn = Ui.Panel("LeftColumn", _hubBody, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(DefaultLeftWidth, 3f * CardHitHeight + 2f * CardGap));
+            MakeLeftSliver(0, "Pass", "PASS LV. 12 — Rescue 3 teammates", () => ComingSoon("The battle pass comes with accounts"));
+            MakeLeftSliver(1, "Event", "SUMMER SHOWDOWN", () => ComingSoon("Events come with accounts"));
+            MakeLeftSliver(2, "Daily", "DAY 3 GIFT — 100 Barya", () => ComingSoon("Daily gifts come with accounts"));
 
-            // Child 1: Bottom-Left Frosted Tactical Nav Dock (KIDS · STORE · FRIENDS)
-            _bottomNav = Ui.Panel("BottomNav", _hubBody, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(BottomNavWidth, NavHeight));
-            RectTransform dockVisual = Ui.Fill("DockVisual", _bottomNav);
-            dockVisual.offsetMin = new Vector2(0f, 6f);
-            dockVisual.offsetMax = new Vector2(0f, -6f);
-            Ui.MakeSliced("DockPlate", dockVisual, MenuArt.ChamferGlass(12), Color.white);
-            Image dockRule = Ui.MakeImage("DockRule", dockVisual, new Color(Gold.r, Gold.g, Gold.b, 0.42f));
-            Place(dockRule.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 2f), new Vector2(-24f, 2f));
-            dockRule.rectTransform.pivot = new Vector2(0.5f, 0f);
+            // Child 1 (L6): Sharp flat rectangular smoked-obsidian bottom-left navigation rail (KIDS · STORE · FRIENDS)
+            _bottomNav = Ui.Panel("BottomNav", _hubBody, Vector2.zero, Vector2.zero, Vector2.zero, Vector2.zero, new Vector2(BottomNavWidth, HitSize));
+            RectTransform dockVisual = Ui.Panel("DockVisual", _bottomNav, Vector2.zero, new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, NavVisualHeight));
+            MakeTacticalGlassPlate("DockPlate", dockVisual, ObsidianGlass, GlassHairline, Clear, cornerCut: 2f, accentW: 0f, topHighlight: 0.14f);
 
-            MakeNavItem(_bottomNav, 0, "Nav_Kids", "KIDS", MenuArt.GlyphKind.Kid, () => Navigate(MenuStack.KidsId));
-            MakeNavItem(_bottomNav, 1, "Nav_Store", "STORE", MenuArt.GlyphKind.Bag, () => ComingSoon("The store comes with accounts"));
-            MakeNavItem(_bottomNav, 2, "Nav_Friends", "FRIENDS", MenuArt.GlyphKind.People, () => ComingSoon("Friends and party come with accounts"), badge: "3");
+            MakeNavItem(_bottomNav, 0, "Nav_Kids", "KIDS", () => Navigate(MenuStack.KidsId));
+            MakeNavItem(_bottomNav, 1, "Nav_Store", "STORE", () => ComingSoon("The store comes with accounts"));
+            MakeNavItem(_bottomNav, 2, "Nav_Friends", "FRIENDS", () => ComingSoon("Friends and party come with accounts"));
 
-            // Child 2: Hero Zone — grounded tactical hero pedestal tag at the kid's feet (tap opens the kid page)
+            // Child 2: Open middle hero breathing column (zero visible hero nameplate on Home; KidButton kept inactive for API compatibility)
             _heroZone = Ui.Panel("HeroZone", _hubBody, Vector2.zero, new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
-            _kidPlate = Ui.Panel("KidPlate", _heroZone, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(320f, HitSize));
-            Image plateHit = _kidPlate.gameObject.AddComponent<Image>();
-            plateHit.color = Clear;
-            plateHit.raycastTarget = true;
+            _kidPlate = Ui.Panel("KidPlate", _heroZone, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(240f, HitSize));
+            Image hiddenHit = _kidPlate.gameObject.AddComponent<Image>();
+            hiddenHit.color = Clear;
+            hiddenHit.raycastTarget = false;
+            KidButton = AttachSpringButton(_kidPlate.gameObject, hiddenHit, () => Navigate(MenuStack.KidPageId), 0.96f, 0f);
+            _kidPlate.gameObject.SetActive(false);
 
-            RectTransform pill = Ui.Panel("Pill", _kidPlate, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(0f, 76f));
-            Image pillPlate = Ui.MakeSliced("Plate", pill, MenuArt.ChamferGlass(12), Color.white);
-            Ui.MakeCornerBrackets("Brackets", pill, new Color(Gold.r, Gold.g, Gold.b, 0.52f));
-            Image pedestalRule = Ui.MakeImage("PedestalRule", pill, new Color(Gold.r, Gold.g, Gold.b, 0.78f));
-            Place(pedestalRule.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 2f), new Vector2(-28f, 3f));
-            pedestalRule.rectTransform.pivot = new Vector2(0.5f, 0f);
-
-            // Role badge (neutral gold + ink shape icon — zero role colours per SPEC §10)
-            RectTransform roleWell = Ui.Panel("RoleDisc", pill, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(12f, 0f), new Vector2(44f, 44f));
-            Ui.MakeSliced("WellPlate", roleWell, MenuArt.ChamferCard(MenuArt.GoldLight, MenuArt.GoldDeep, MenuArt.GoldBorder, 8, 2, 0.45f), Color.white);
-            _kidRoleIcon = Ui.MakeImage("RoleIcon", roleWell, Ink);
-            Place(_kidRoleIcon.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(26f, 26f));
-
-            // Strictly bounded text block between role badge (x=66) and framed chevron (right-54) — zero overlap at 1024x768..21:9
-            RectTransform textBlock = Ui.Fill("NameBlock", pill);
-            textBlock.offsetMin = new Vector2(66f, 8f);
-            textBlock.offsetMax = new Vector2(-54f, -8f);
-
-            _kidMeta = Label("KidMeta", textBlock, "", 15, Gold, TextAnchor.LowerLeft, display: true, ink: false);
-            Place(_kidMeta.rectTransform, new Vector2(0f, 1f), Vector2.one, Vector2.zero, new Vector2(0f, 22f));
-            _kidMeta.rectTransform.pivot = new Vector2(0.5f, 1f);
-            FitSingleLine(_kidMeta, 8, 15);
-
-            _kidName = Label("KidName", textBlock, "", 32, Cream, TextAnchor.UpperLeft, display: true, ink: true);
-            Place(_kidName.rectTransform, Vector2.zero, new Vector2(1f, 0f), Vector2.zero, new Vector2(0f, 36f));
-            _kidName.rectTransform.pivot = new Vector2(0.5f, 0f);
-            FitSingleLine(_kidName, 12, 32);
-
-            RectTransform chevronBox = Ui.Panel("ChevronFrame", pill, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-12f, 0f), new Vector2(32f, 32f));
-            Ui.MakeSliced("BoxPlate", chevronBox, MenuArt.StatChip(6), Color.white);
-            Image chevron = Ui.MakeImage("Chevron", chevronBox, Gold);
-            chevron.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Chevron);
-            Place(chevron.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(16f, 16f));
-
-            KidButton = AttachButton(_kidPlate.gameObject, pillPlate, () => Navigate(MenuStack.KidPageId), 0.96f);
-
-            // Child 3: Right Queue Cluster (Esports Mode card over luminous beveled PLAY CTA)
-            _modeColumn = Ui.Panel("ModeColumn", _hubBody, new Vector2(1f, 0f), Vector2.one, new Vector2(1f, 0.5f), Vector2.zero, new Vector2(372f, 0f));
-            BuildModeCard(_modeColumn);
-            BuildPlay(_modeColumn);
+            // Child 3 (L7 + L8): Paper-White mode pill stacked cleanly above chamfered Signal Vermilion PLAY CTA
+            _modeColumn = Ui.Panel("ModeColumn", _hubBody, new Vector2(1f, 0f), Vector2.one, new Vector2(1f, 0.5f), Vector2.zero, new Vector2(340f, 0f));
+            BuildModePill(_modeColumn);
+            BuildPlayCta(_modeColumn);
 
             BuildToast(parent);
         }
 
-        /// <summary>One sleek tactical left-rail mission strip inside a &gt;= 48 dp hit-box.</summary>
-        void MakeLeftCard(int index, string name, string title, string line, Color accent, Action onClick)
+        /// <summary>One ultra-slim 40 cpx smoked-obsidian editorial sliver with 3 px Paper-White left tick inside a 96 cpx (&gt;= 48 dp) hit area.</summary>
+        void MakeLeftSliver(int index, string name, string copy, Action onClick)
         {
-            RectTransform card = Ui.Panel("Card_" + name, _leftColumn, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -index * (CardHeight + CardGap)), new Vector2(0f, CardHeight));
+            RectTransform card = Ui.Panel("Card_" + name, _leftColumn, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -index * (CardHitHeight + CardGap)), new Vector2(0f, CardHitHeight));
             Image hit = card.gameObject.AddComponent<Image>();
             hit.color = Clear;
             hit.raycastTarget = true;
 
+            // Evenly spaced 32 cpx airy gaps between the three 40 cpx visual slivers while keeping 96 cpx sibling hit rects 100% disjoint
+            float bottomOffset = index == 0 ? 2f : (index == 1 ? 28f : 54f);
+            float topOffset = CardHitHeight - CardVisualHeight - bottomOffset;
+
             RectTransform visual = Ui.Fill("Visual", card);
-            visual.offsetMin = new Vector2(0f, 8f);
-            visual.offsetMax = new Vector2(0f, -8f);
-            Image plate = Ui.MakeSliced("Plate", visual, MenuArt.ChamferGlass(12), Color.white);
+            visual.offsetMin = new Vector2(0f, bottomOffset);
+            visual.offsetMax = new Vector2(0f, -topOffset);
+            Image plate = MakeTacticalGlassPlate("Plate", visual, ObsidianGlass, GlassHairline, PaperWhite, cornerCut: 3f, accentW: 3f, topHighlight: 0.12f);
 
-            // soft left ambient accent glow nestled inside the strip + crisp glowing vertical accent rail
-            Image glow = Ui.MakeImage("AccentGlow", visual, new Color(accent.r, accent.g, accent.b, index == 2 ? 0.22f : 0.15f));
-            glow.sprite = MenuArt.Glow();
-            Place(glow.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(48f, 0f), new Vector2(90f, 74f));
-            Ui.MakeAccentRail("Rail", visual, accent, width: 4.5f, verticalInset: 10f);
+            Text label = Label("Line", visual, copy, 20, PaperWhite, TextAnchor.MiddleLeft, display: true, ink: false);
+            Stretch(label.rectTransform, Vector2.zero, Vector2.one);
+            label.rectTransform.offsetMin = new Vector2(16f, 0f);
+            label.rectTransform.offsetMax = new Vector2(-12f, 0f);
+            FitSingleLine(label, 9, 20);
 
-            RectTransform art = Ui.Panel("Art", visual, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(18f, 0f), new Vector2(54f, 54f));
-            if (index == 0)
-            {
-                // Battle Pass radial progress ring + crisp tier number
-                Image track = Ui.MakeImage("Track", art, new Color(1f, 1f, 1f, 0.14f));
-                track.sprite = KomiksUi.RingSprite(128, 8);
-                Stretch(track.rectTransform, Vector2.zero, Vector2.one);
-                Image arc = Ui.MakeImage("Arc", art, Gold);
-                arc.sprite = KomiksUi.RingSprite(128, 8);
-                arc.type = Image.Type.Filled;
-                arc.fillMethod = Image.FillMethod.Radial360;
-                arc.fillOrigin = (int)Image.Origin360.Top;
-                arc.fillClockwise = true;
-                arc.fillAmount = 0.4f;
-                Stretch(arc.rectTransform, Vector2.zero, Vector2.one);
-                Text level = Label("Level", art, "12", 22, Cream, TextAnchor.MiddleCenter, display: true, ink: true);
-                Stretch(level.rectTransform, Vector2.zero, Vector2.one);
-            }
-            else if (index == 1)
-            {
-                // Pasko Event crimson tactical emblem
-                Ui.MakeSliced("Badge", art, MenuArt.ChamferCard(new Color(0.95f, 0.34f, 0.38f, 1f), new Color(0.62f, 0.14f, 0.22f, 1f), new Color(1f, 0.68f, 0.70f, 0.75f), 10, 2, 0.35f), Color.white);
-                Image mark = Ui.MakeImage("Mark", art, Cream);
-                mark.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Star);
-                Place(mark.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(28f, 28f));
-            }
-            else
-            {
-                // Daily Gift warm amber claim highlight + embossed Barya coin
-                Ui.MakeSliced("Badge", art, MenuArt.ChamferCard(new Color(0.24f, 0.18f, 0.08f, 0.96f), new Color(0.11f, 0.08f, 0.04f, 0.98f), new Color(Gold.r, Gold.g, Gold.b, 0.72f), 10, 2, 0.3f), Color.white);
-                Image coin = Ui.MakeImage("Coin", art, Color.white);
-                coin.sprite = MenuArt.BaryaCoin();
-                coin.preserveAspect = true;
-                Place(coin.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(38f, 38f));
-                Ui.MakeSliced("ClaimRim", visual, MenuArt.ChamferOutline(new Color(Gold.r, Gold.g, Gold.b, 0.52f), 12, 2), Color.white);
-                Ui.AddPulse(glow, 0.14f, 0.28f, 2.2f, 0f);
-            }
-
-            float titleRightPad = index == 1 ? -34f : -14f;
-            Text t = Label("Title", visual, title, 20, index == 1 ? new Color(1f, 0.76f, 0.74f, 1f) : Gold, TextAnchor.LowerLeft, display: true, ink: true);
-            Place(t.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(82f, index == 0 ? 4f : 1f), new Vector2(titleRightPad - 82f, 26f));
-            t.rectTransform.pivot = new Vector2(0f, 0f);
-            FitSingleLine(t, 12, 20);
-
-            Text l = Label("Line", visual, line, 18, new Color(Cream.r, Cream.g, Cream.b, 0.92f), TextAnchor.UpperLeft, display: false, ink: false);
-            Place(l.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(82f, index == 0 ? 1f : -2f), new Vector2(-96f, 24f));
-            l.rectTransform.pivot = new Vector2(0f, 1f);
-            FitSingleLine(l, 10, 18);
-
-            if (index == 0)
-            {
-                // crisp thin progress bar along bottom of Pass text column
-                RectTransform barBg = Ui.Panel("ProgressTrack", visual, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(82f, 10f), new Vector2(-98f, 4f));
-                Image barBgImg = barBg.gameObject.AddComponent<Image>();
-                barBgImg.color = new Color(1f, 1f, 1f, 0.14f);
-                barBgImg.raycastTarget = false;
-                RectTransform barFill = Ui.Panel("ProgressFill", barBg, Vector2.zero, new Vector2(0.34f, 1f), Vector2.zero, Vector2.zero, Vector2.zero);
-                Image barFillImg = barFill.gameObject.AddComponent<Image>();
-                barFillImg.color = Gold;
-                barFillImg.raycastTarget = false;
-            }
-            else if (index == 1)
-            {
-                // live pulsing dot on Pasko Event strip (EditMode-inert)
-                Image halo = Ui.MakeImage("LiveHalo", visual, new Color(EventCrimson.r, EventCrimson.g, EventCrimson.b, 0.35f), round: true);
-                Place(halo.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-18f, -18f), new Vector2(18f, 18f));
-                Ui.AddPulse(halo, 0.15f, 0.55f, 3.0f, 0.18f);
-                Image dot = Ui.MakeImage("LiveDot", visual, EventCrimson, round: true);
-                Place(dot.rectTransform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-18f, -18f), new Vector2(9f, 9f));
-                Ui.AddPulse(dot, 0.55f, 1f, 3.0f, 0f);
-            }
-
-            AttachButton(card.gameObject, plate, onClick, 0.96f);
+            AttachSpringButton(card.gameObject, plate, onClick, 0.96f, 1.5f);
         }
 
-        /// <summary>One bottom-dock nav item (&gt;= 48 dp hit-box) seated on the frosted tactical dock plate.</summary>
-        void MakeNavItem(RectTransform bar, int index, string name, string title, MenuArt.GlyphKind glyph, Action onClick, string badge = null)
+        /// <summary>One uppercase condensed nav item (&gt;= 48 dp hit area) seated on the flat bottom-left smoked-obsidian rail.</summary>
+        void MakeNavItem(RectTransform bar, int index, string name, string title, Action onClick)
         {
             float x = NavDockPadX + index * (NavItemWidth + NavItemGap);
             RectTransform item = Ui.Panel(name, bar, Vector2.zero, new Vector2(0f, 1f), Vector2.zero, new Vector2(x, 0f), new Vector2(NavItemWidth, 0f));
@@ -663,105 +498,60 @@ namespace Kalyeah.Game
             hit.color = Clear;
             hit.raycastTarget = true;
 
-            Image icon = Ui.MakeImage("Icon", item, Cream);
-            icon.sprite = MenuArt.Glyph(glyph);
-            Place(icon.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -18f), new Vector2(34f, 34f));
-            icon.rectTransform.pivot = new Vector2(0.5f, 1f);
-
-            Text label = Label("Label", item, title, 18, Cream, TextAnchor.LowerCenter, display: true, ink: true);
-            Place(label.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 14f), new Vector2(-8f, 24f));
-            label.rectTransform.pivot = new Vector2(0.5f, 0f);
-            FitSingleLine(label, 10, 18);
+            Text label = Label("Label", item, title, 24, PaperWhite, TextAnchor.MiddleCenter, display: true, ink: false);
+            Place(label.rectTransform, Vector2.zero, new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(-8f, NavVisualHeight));
+            FitSingleLine(label, 12, 24);
 
             if (index > 0)
             {
-                Image divider = Ui.MakeImage("Divider", item, new Color(Cream.r, Cream.g, Cream.b, 0.16f));
-                Place(divider.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(-1f, 0f), new Vector2(1.5f, 44f));
-            }
-            if (badge != null)
-            {
-                RectTransform badgeHost = Ui.Panel("Badge", item, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), new Vector2(22f, -20f), new Vector2(30f, 26f));
-                Ui.MakeSliced("BadgeRim", badgeHost, MenuArt.RoundSolid(13), Ink);
-                RectTransform core = Ui.Fill("BadgeCore", badgeHost);
-                core.offsetMin = new Vector2(2f, 2f);
-                core.offsetMax = new Vector2(-2f, -2f);
-                Ui.MakeSliced("Fill", core, MenuArt.RoundSolid(11), MenuArt.SuccessGreen);
-                Text count = Label("Count", core, badge, 16, Ink, TextAnchor.MiddleCenter, display: true, ink: false);
-                Stretch(count.rectTransform, Vector2.zero, Vector2.one);
+                Image dot = Ui.MakeImage("Dot", item, new Color(PaperWhite.r, PaperWhite.g, PaperWhite.b, 0.55f), round: true);
+                Place(dot.rectTransform, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(-1f, NavVisualHeight * 0.5f), new Vector2(4f, 4f));
             }
 
-            AttachButton(item.gameObject, icon, onClick, 0.92f);
+            AttachSpringButton(item.gameObject, label, onClick, 0.94f, 1.5f);
         }
 
-        void BuildModeCard(RectTransform column)
+        /// <summary>L7: High-contrast Paper-White rounded mode pill with crisp dark charcoal ink (zero outline smudge), stacked directly over PLAY.</summary>
+        void BuildModePill(RectTransform column)
         {
-            _modeZone = Ui.Panel("ModeZone", column, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, PlayHeight + ModeToPlayGap), new Vector2(0f, ModeHeight));
-            Image plate = Ui.MakeSliced("Plate", _modeZone, MenuArt.ChamferGlass(14), Color.white, raycast: true);
-            Image spot = Ui.MakeImage("Spotlight", _modeZone, new Color(Gold.r, Gold.g, Gold.b, 0.08f));
-            spot.sprite = MenuArt.CardSpotlight();
-            Stretch(spot.rectTransform, Vector2.zero, Vector2.one);
-            Ui.MakeCornerBrackets("Brackets", _modeZone, new Color(Gold.r, Gold.g, Gold.b, 0.48f));
+            _modeZone = Ui.Panel("ModeZone", column, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, PlayHitHeight + ModeToPlayHitGap), new Vector2(0f, ModeHitHeight));
+            Image hit = _modeZone.gameObject.AddComponent<Image>();
+            hit.color = Clear;
+            hit.raycastTarget = true;
 
-            // crisp gold left accent bar marks the active queue selection
-            Ui.MakeAccentRail("Bar", _modeZone, Gold, width: 5f, verticalInset: 18f);
+            // Visual pill sits cleanly near bottom of its 96 cpx hit zone (16 cpx above the 84 cpx PLAY face)
+            RectTransform pill = Ui.Panel("Pill", _modeZone, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 2f), new Vector2(0f, ModeVisualHeight));
+            Image plate = Ui.MakeSliced("Plate", pill, MenuArt.RoundSolid(22), PaperWhite);
 
-            Text kicker = Label("Kicker", _modeZone, "QUEUE MODE", 18, Gold, TextAnchor.UpperLeft, display: true, ink: false);
-            Place(kicker.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -18f), new Vector2(-102f, 24f));
-            kicker.rectTransform.pivot = new Vector2(0f, 1f);
-            FitSingleLine(kicker, 11, 18);
+            _modeLabel = Label("ModeLabel", pill, "", 21, ObsidianSolid, TextAnchor.MiddleCenter, display: true, ink: false);
+            Ui.ClearOutline(_modeLabel);
+            Stretch(_modeLabel.rectTransform, Vector2.zero, Vector2.one);
+            _modeLabel.rectTransform.offsetMin = new Vector2(16f, 0f);
+            _modeLabel.rectTransform.offsetMax = new Vector2(-16f, 0f);
+            FitSingleLine(_modeLabel, 9, 21);
 
-            _modeName = Label("ModeName", _modeZone, "", 62, Cream, TextAnchor.MiddleLeft, display: true, ink: true);
-            Place(_modeName.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -44f), new Vector2(-102f, 68f));
-            _modeName.rectTransform.pivot = new Vector2(0f, 1f);
-            FitSingleLine(_modeName, 28, 62);
-
-            _modeDetail = Label("ModeDetail", _modeZone, "", 20, Muted, TextAnchor.UpperLeft, display: false, ink: false);
-            Place(_modeDetail.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(24f, -120f), new Vector2(-46f, 28f));
-            _modeDetail.rectTransform.pivot = new Vector2(0f, 1f);
-            FitSingleLine(_modeDetail, 11, 20);
-
-            // framed swap chevron visual (non-Selectable to avoid nested Selectables)
-            RectTransform chevronFrame = Ui.Panel("ChevronDisc", _modeZone, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-18f, 6f), new Vector2(48f, 48f));
-            Ui.MakeSliced("Frame", chevronFrame, MenuArt.CtaGhost(10), Color.white);
-            Image chevron = Ui.MakeImage("Chevron", chevronFrame, Gold);
-            chevron.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Chevron);
-            Place(chevron.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(22f, 22f));
-
-            ModeButton = AttachButton(_modeZone.gameObject, plate, CycleHomeMode, 0.97f);
+            ModeButton = AttachSpringButton(_modeZone.gameObject, plate, CycleHomeMode, 0.96f, 2f);
             ShowHomeMode();
         }
 
-        void BuildPlay(RectTransform column)
+        /// <summary>L8: Sharp chamfered Signal Vermilion PLAY CTA with GPU diagonal metallic sheen and tactile 3 px press spring.</summary>
+        void BuildPlayCta(RectTransform column)
         {
-            _playZone = Ui.Panel("PlayZone", column, Vector2.zero, new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, PlayHeight));
+            _playZone = Ui.Panel("PlayZone", column, Vector2.zero, new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, PlayHitHeight));
+            Image hit = _playZone.gameObject.AddComponent<Image>();
+            hit.color = Clear;
+            hit.raycastTarget = true;
 
-            // soft warm gold aura behind PLAY (EditMode-inert ambient pulse)
-            Image playGlow = Ui.MakeImage("Glow", _playZone, new Color(Gold.r, Gold.g, Gold.b, 0.30f));
-            playGlow.sprite = MenuArt.Glow();
-            Stretch(playGlow.rectTransform, Vector2.zero, Vector2.one);
-            playGlow.rectTransform.offsetMin = new Vector2(-34f, -26f);
-            playGlow.rectTransform.offsetMax = new Vector2(34f, 26f);
-            Ui.AddPulse(playGlow, 0.18f, 0.36f, 2.2f, 0f);
+            RectTransform visual = Ui.Panel("Visual", _playZone, Vector2.zero, new Vector2(1f, 0f), new Vector2(0.5f, 0f), Vector2.zero, new Vector2(0f, PlayVisualHeight));
+            Image plate = MakeMetallicCtaPlate("Plate", visual, SignalVermilion, SignalVermilionDeep, cornerCut: 10f);
 
-            Image plate = Ui.MakeSliced("Plate", _playZone, MenuArt.CtaGold(16), Color.white, raycast: true);
-
-            // clipped ambient diagonal sheen in Play mode (strictly inert in EditMode & ReduceMotion)
-            Ui.AddSheen(_playZone, period: 3.8f, sweepDuration: 0.78f, peakAlpha: 0.34f);
-
-            // centered icon + PLAY lockup lifted +3px above the bottom 3D press-lip bevel
-            RectTransform content = Ui.Panel("Content", _playZone, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 3f), new Vector2(236f, 68f));
-            Image triangle = Ui.MakeImage("Triangle", content, Ink);
-            triangle.sprite = MenuArt.Glyph(MenuArt.GlyphKind.Play);
-            Place(triangle.rectTransform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(12f, 0f), new Vector2(40f, 40f));
-            triangle.rectTransform.pivot = new Vector2(0f, 0.5f);
-
-            Text label = Label("Label", content, "PLAY", 64, Ink, TextAnchor.MiddleLeft, display: true, ink: false);
+            Text label = Label("Label", visual, "PLAY", 54, Color.white, TextAnchor.MiddleCenter, display: true, ink: true, shadowAlpha: 0.42f);
             Stretch(label.rectTransform, Vector2.zero, Vector2.one);
-            label.rectTransform.offsetMin = new Vector2(66f, 0f);
-            label.rectTransform.offsetMax = Vector2.zero;
-            FitSingleLine(label, 36, 64);
+            label.rectTransform.offsetMin = new Vector2(12f, 3f);
+            label.rectTransform.offsetMax = new Vector2(-12f, 0f);
+            FitSingleLine(label, 28, 54);
 
-            PlayButton = AttachButton(_playZone.gameObject, plate, PressPlay, 0.96f);
+            PlayButton = AttachSpringButton(_playZone.gameObject, plate, PressPlay, 0.95f, 3f);
         }
 
         // ---------------------------------------------------------------- toast
@@ -770,18 +560,16 @@ namespace Kalyeah.Game
         Text _toastText;
         float _toastUntil;
 
-        /// <summary>A sleek tactical notification strip at top centre (Wild Rift style) for panels whose systems arrive later.</summary>
+        /// <summary>A sleek smoked-obsidian notification strip at top centre for panels whose systems arrive later.</summary>
         void BuildToast(RectTransform parent)
         {
-            _toast = Ui.Panel("Toast", parent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -(TopBarHeight + 6f)), new Vector2(620f, 58f));
-            Ui.MakeSliced("Plate", _toast, MenuArt.ChamferGlass(12), Color.white);
-            Ui.MakeAccentRail("Rail", _toast, Gold, width: 4f, verticalInset: 10f);
-            Ui.MakeCornerBrackets("Brackets", _toast, new Color(Gold.r, Gold.g, Gold.b, 0.42f));
-            _toastText = Label("Text", _toast, "", 22, Cream, TextAnchor.MiddleCenter, display: false, ink: false);
+            _toast = Ui.Panel("Toast", parent, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -(TopBandHeight + 4f)), new Vector2(580f, 48f));
+            MakeTacticalGlassPlate("Plate", _toast, ObsidianSolid, GlassHairline, PaperWhite, cornerCut: 4f, accentW: 3f, topHighlight: 0.14f);
+            _toastText = Label("Text", _toast, "", 20, PaperWhite, TextAnchor.MiddleCenter, display: false, ink: false);
             Stretch(_toastText.rectTransform, Vector2.zero, Vector2.one);
-            _toastText.rectTransform.offsetMin = new Vector2(24f, 0f);
-            _toastText.rectTransform.offsetMax = new Vector2(-20f, 0f);
-            FitSingleLine(_toastText, 12, 22);
+            _toastText.rectTransform.offsetMin = new Vector2(20f, 0f);
+            _toastText.rectTransform.offsetMax = new Vector2(-16f, 0f);
+            FitSingleLine(_toastText, 12, 20);
             _toast.gameObject.SetActive(false);
         }
 
@@ -798,48 +586,40 @@ namespace Kalyeah.Game
             _toastUntil = Time.unscaledTime + 2.2f;
         }
 
-        // ---------------------------------------------------------------- offline
+        // ---------------------------------------------------------------- offline prompt & hub (Option A1 unified obsidian + vermilion)
 
         void BuildOfflinePrompt()
         {
             _offlinePrompt = Ui.Fill("OfflinePrompt", Root);
             Image scrim = _offlinePrompt.gameObject.AddComponent<Image>();
-            scrim.color = new Color(0.01f, 0.03f, 0.06f, 0.86f);
+            scrim.color = new Color(0.03f, 0.05f, 0.08f, 0.82f);
             scrim.raycastTarget = true;
 
-            RectTransform card = Ui.Panel("Card", _offlinePrompt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(620f, 320f));
-            Ui.MakeSliced("Plate", card, MenuArt.ChamferGlass(16), Color.white);
-            Ui.MakeCornerBrackets("Brackets", card, new Color(Gold.r, Gold.g, Gold.b, 0.56f));
-            Ui.MakeAccentRail("Rail", card, Gold, width: 5f, verticalInset: 24f);
+            RectTransform card = Ui.Panel("Card", _offlinePrompt, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(600f, 308f));
+            MakeTacticalGlassPlate("Plate", card, ObsidianSolid, GlassHairline, PaperWhite, cornerCut: 8f, accentW: 4f, topHighlight: 0.16f);
 
-            Text kicker = Label("Kicker", card, "CONNECTION CHECK", 18, Gold, TextAnchor.UpperLeft, display: true, ink: false);
-            Place(kicker.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(36f, -24f), new Vector2(-72f, 24f));
-            kicker.rectTransform.pivot = new Vector2(0f, 1f);
-            FitSingleLine(kicker, 14, 18);
+            Text kicker = Label("Kicker", card, "CONNECTION CHECK", 18, TitaniumRim, TextAnchor.UpperLeft, display: true, ink: false);
+            Place(kicker.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, 1f), new Vector2(36f, -24f), new Vector2(-72f, 24f));
+            FitSingleLine(kicker, 13, 18);
 
-            Text title = Label("Title", card, "YOU'RE OFFLINE", 46, Cream, TextAnchor.UpperLeft, display: true, ink: true);
-            Place(title.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(36f, -50f), new Vector2(-72f, 56f));
-            title.rectTransform.pivot = new Vector2(0f, 1f);
-            FitSingleLine(title, 30, 46);
+            Text title = Label("Title", card, "YOU'RE OFFLINE", 44, PaperWhite, TextAnchor.UpperLeft, display: true, ink: false);
+            Place(title.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, 1f), new Vector2(36f, -50f), new Vector2(-72f, 54f));
+            FitSingleLine(title, 28, 44);
 
-            Image rule = Ui.MakeImage("Rule", card, Gold);
-            Place(rule.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(36f, -110f), new Vector2(88f, 4f));
-            rule.rectTransform.pivot = new Vector2(0f, 1f);
+            Image rule = Ui.MakeImage("Rule", card, PaperWhite);
+            Place(rule.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(36f, -108f), new Vector2(72f, 3f));
 
-            Text body = Label("Body", card, "Play offline now, or retry once you are connected.", 21, Muted, TextAnchor.UpperLeft, display: false, ink: false);
-            Place(body.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(36f, -126f), new Vector2(-72f, 34f));
-            body.rectTransform.pivot = new Vector2(0f, 1f);
-            FitSingleLine(body, 12, 21);
+            Text body = Label("Body", card, "Play offline now, or retry once you are connected.", 20, Muted, TextAnchor.UpperLeft, display: false, ink: false);
+            Place(body.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, 1f), new Vector2(36f, -124f), new Vector2(-72f, 32f));
+            FitSingleLine(body, 12, 20);
 
-            RectTransform actions = Ui.Panel("Actions", card, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 28f), new Vector2(-72f, HitSize));
+            RectTransform actions = Ui.Panel("Actions", card, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 24f), new Vector2(-72f, HitSize));
             MakeActionButton(actions, "Retry", "RETRY", false, new Vector2(0f, 0f), new Vector2(0.42f, 1f), Retry);
-            Button goOffline = MakeActionButton(actions, "GoOffline", "PLAY OFFLINE", true, new Vector2(0.46f, 0f), new Vector2(1f, 1f), () =>
+            MakeActionButton(actions, "GoOffline", "PLAY OFFLINE", true, new Vector2(0.46f, 0f), new Vector2(1f, 1f), () =>
             {
                 CloseOfflinePrompt();
                 OpenOfflineHub();
             });
-            RectTransform goOfflineVisual = goOffline.transform.Find("Visual") as RectTransform;
-            Ui.AddSheen(goOfflineVisual ?? goOffline.GetComponent<RectTransform>(), period: 4.0f, sweepDuration: 0.72f, peakAlpha: 0.28f);
             _offlinePrompt.gameObject.SetActive(false);
         }
 
@@ -847,62 +627,58 @@ namespace Kalyeah.Game
         {
             _offlineHubBackdrop = Ui.Fill("OfflineHubBackdrop", Root);
             Image block = _offlineHubBackdrop.gameObject.AddComponent<Image>();
-            block.color = Clear;
+            block.color = OfflineSkyTop;
             block.raycastTarget = true;
-            MakeRaw("Sky", _offlineHubBackdrop, MenuArt.Sky());
             RawImage weave = MakeRaw("Weave", _offlineHubBackdrop, MenuArt.Weave());
-            weave.color = new Color(MenuArt.TealLight.r, MenuArt.TealLight.g, MenuArt.TealLight.b, 0.08f);
+            weave.color = new Color(PaperWhite.r, PaperWhite.g, PaperWhite.b, 0.04f);
             weave.uvRect = new Rect(0f, 0f, 1280f / WeaveTile, 720f / WeaveTile);
-            MakeRaw("Vignette", _offlineHubBackdrop, MenuArt.Vignette());
             _offlineHubBackdrop.gameObject.SetActive(false);
-            _offlineHubBackdrop.SetSiblingIndex(SafeRoot.GetSiblingIndex()); // behind the hub, over the hero and the stage
+            _offlineHubBackdrop.SetSiblingIndex(SafeRoot.GetSiblingIndex());
 
             _offlineHub = Ui.Fill("OfflineHub", SafeRoot);
-            RectTransform header = Ui.Panel("Header", _offlineHub, new Vector2(0f, 1f), Vector2.one, new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, TopBarHeight));
+            RectTransform header = Ui.Panel("Header", _offlineHub, new Vector2(0f, 1f), Vector2.one, new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, TopBandHeight));
             RectTransform back = Ui.Panel("Back", header, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(Gutter, 0f), new Vector2(140f, HitSize));
             Image backHit = back.gameObject.AddComponent<Image>();
             backHit.color = Clear;
             backHit.raycastTarget = true;
             RectTransform backVisual = Ui.Fill("Visual", back);
-            backVisual.offsetMin = new Vector2(0f, 14f);
-            backVisual.offsetMax = new Vector2(0f, -14f);
-            Image backPlate = Ui.MakeSliced("Plate", backVisual, MenuArt.CtaGhost(12), Color.white);
-            Text backLabel = Label("Label", backVisual, "BACK", 24, Cream, TextAnchor.MiddleCenter, display: true, ink: true);
+            backVisual.offsetMin = new Vector2(0f, 20f);
+            backVisual.offsetMax = new Vector2(0f, -20f);
+            Image backPlate = MakeTacticalGlassPlate("Plate", backVisual, ObsidianGlass, GlassHairline, PaperWhite, cornerCut: 4f, accentW: 3f, topHighlight: 0.14f);
+            Text backLabel = Label("Label", backVisual, "BACK", 24, PaperWhite, TextAnchor.MiddleCenter, display: true, ink: false);
             Stretch(backLabel.rectTransform, Vector2.zero, Vector2.one);
-            AttachButton(back.gameObject, backPlate, CloseOfflineHub, 0.94f);
+            AttachSpringButton(back.gameObject, backPlate, CloseOfflineHub, 0.94f, 1.5f);
 
-            Text hubKicker = Label("Kicker", header, "LOCAL & PRACTICE", 16, Gold, TextAnchor.LowerLeft, display: true, ink: false);
-            Place(hubKicker.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(Gutter + 140f + 24f, 16f), new Vector2(-(Gutter + 140f + 24f) - Gutter, 20f));
-            hubKicker.rectTransform.pivot = new Vector2(0f, 0f);
-            FitSingleLine(hubKicker, 13, 16);
+            Text hubKicker = Label("Kicker", header, "LOCAL & PRACTICE", 16, TitaniumRim, TextAnchor.LowerLeft, display: true, ink: false);
+            Place(hubKicker.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0f, 0f), new Vector2(Gutter + 140f + 24f, 14f), new Vector2(-(Gutter + 140f + 24f) - Gutter, 20f));
+            FitSingleLine(hubKicker, 12, 16);
 
-            Text title = Label("Title", header, "OFFLINE", 48, Cream, TextAnchor.UpperLeft, display: true, ink: true);
-            Place(title.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(Gutter + 140f + 24f, 14f), new Vector2(-(Gutter + 140f + 24f) - Gutter, 52f));
-            title.rectTransform.pivot = new Vector2(0f, 1f);
-            FitSingleLine(title, 32, 48);
+            Text title = Label("Title", header, "OFFLINE", 44, PaperWhite, TextAnchor.UpperLeft, display: true, ink: false);
+            Place(title.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0f, 1f), new Vector2(Gutter + 140f + 24f, 12f), new Vector2(-(Gutter + 140f + 24f) - Gutter, 48f));
+            FitSingleLine(title, 28, 44);
 
             RectTransform cards = Ui.Fill("Cards", _offlineHub);
             cards.offsetMin = new Vector2(Gutter, 20f);
-            cards.offsetMax = new Vector2(-Gutter, -(TopBarHeight + 8f));
+            cards.offsetMax = new Vector2(-Gutter, -(TopBandHeight + 8f));
 
-            RectTransform hotspot = MakeOfflineCard(cards, "Hotspot", 0, "HOTSPOT", "Play over phone hotspot", "hotspot", MenuArt.Teal);
+            RectTransform hotspot = MakeOfflineCard(cards, "Hotspot", 0, "HOTSPOT", "Play over phone hotspot", "hotspot", MenuArt.WaterCyan);
             RectTransform hotspotRow = ActionRow(hotspot);
             MakeActionButton(hotspotRow, "Host", "HOST", true, Vector2.zero, new Vector2(0.48f, 1f), () => OpenHotspotFlow(true));
             MakeActionButton(hotspotRow, "Join", "JOIN", false, new Vector2(0.52f, 0f), Vector2.one, () => OpenHotspotFlow(false));
 
-            RectTransform ai = MakeOfflineCard(cards, "PracticeAi", 1, "PRACTICE VS AI", "Fight bots at your pace", "ai", Gold);
+            RectTransform ai = MakeOfflineCard(cards, "PracticeAi", 1, "PRACTICE VS AI", "Fight bots at your pace", "ai", PaperWhite);
             RectTransform aiRow = ActionRow(ai);
             Button diff = MakeActionButton(aiRow, "Difficulty", "MEDIUM", false, Vector2.zero, new Vector2(0.48f, 1f), CycleDifficulty);
             _difficultyLabel = diff.GetComponentInChildren<Text>(true);
             MakeActionButton(aiRow, "Play", "PLAY", true, new Vector2(0.52f, 0f), Vector2.one, () => LaunchMode(GameMode.Practice));
 
-            RectTransform solo = MakeOfflineCard(cards, "PracticeSolo", 2, "PRACTICE SOLO", "Free movement and aim", "solo", MenuArt.Coral);
+            RectTransform solo = MakeOfflineCard(cards, "PracticeSolo", 2, "PRACTICE SOLO", "Free movement and aim", "solo", SignalVermilion);
             MakeActionButton(ActionRow(solo), "Play", "PLAY", true, Vector2.zero, Vector2.one, () => LaunchMode(GameMode.Training));
 
             _offlineHub.gameObject.SetActive(false);
         }
 
-        /// <summary>Hotspot, Practice vs AI, Practice solo (Explore joins when it is built: only real content, docs/SPEC.md §8).</summary>
+        /// <summary>Hotspot, Practice vs AI, Practice solo (only real built modes, docs/SPEC.md §8).</summary>
         const int OfflineCardCount = 3;
 
         RectTransform MakeOfflineCard(RectTransform cards, string name, int index, string title, string subtitle, string glyph, Color accent)
@@ -912,37 +688,16 @@ namespace Kalyeah.Game
             RectTransform card = Ui.Panel(name, cards, new Vector2(index * share, 0f), new Vector2((index + 1) * share, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             card.offsetMin = new Vector2(index == 0 ? 0f : gap * 0.5f, 8f);
             card.offsetMax = new Vector2(index == OfflineCardCount - 1 ? 0f : -gap * 0.5f, 0f);
-            Ui.MakeSliced("Plate", card, MenuArt.ChamferGlass(16), Color.white);
-            Ui.MakeCornerBrackets("Brackets", card, new Color(accent.r, accent.g, accent.b, 0.45f));
+            MakeTacticalGlassPlate("Plate", card, ObsidianSolid, GlassHairline, accent, cornerCut: 8f, accentW: 3f, topHighlight: 0.14f);
 
-            // top accent bar across the card crown
-            Image topRule = Ui.MakeImage("TopBar", card, accent);
-            Place(topRule.rectTransform, new Vector2(0f, 1f), Vector2.one, new Vector2(0f, -2f), new Vector2(-44f, 4f));
-            topRule.rectTransform.pivot = new Vector2(0.5f, 1f);
-
-            // framed deep-tinted art bay with spotlight, weave and crisp icon glyph
             RectTransform art = Ui.Panel("Art", card, new Vector2(0f, 0.44f), Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             art.offsetMin = new Vector2(14f, 0f);
             art.offsetMax = new Vector2(-14f, -16f);
-            Color bayTop = Color.Lerp(MenuArt.PanelTop, accent, 0.42f);
-            Color bayBot = Color.Lerp(MenuArt.PanelBottom, accent, 0.18f);
-            Ui.MakeSliced("Colour", art, MenuArt.ChamferCard(bayTop, bayBot, new Color(accent.r, accent.g, accent.b, 0.48f), 12, 2, 0.30f), Color.white);
-            RectTransform clip = Ui.Fill("Clip", art);
-            clip.offsetMin = new Vector2(4f, 4f);
-            clip.offsetMax = new Vector2(-4f, -4f);
-            clip.gameObject.AddComponent<RectMask2D>();
-            RawImage weave = MakeRaw("Weave", clip, MenuArt.Weave());
-            weave.color = new Color(1f, 1f, 1f, 0.10f);
-            weave.uvRect = new Rect(0f, 0f, 4f, 2f);
-            Image spot = Ui.MakeImage("Spot", clip, new Color(accent.r, accent.g, accent.b, 0.24f));
-            spot.sprite = MenuArt.CardSpotlight();
-            Stretch(spot.rectTransform, Vector2.zero, Vector2.one);
-            Image bottomFade = Ui.MakeImage("Scrim", clip, new Color(1f, 1f, 1f, 0.65f));
-            bottomFade.sprite = MenuArt.BottomScrim();
-            Stretch(bottomFade.rectTransform, Vector2.zero, new Vector2(1f, 0.55f));
+            Color bayBg = Color.Lerp(ObsidianSolid, accent, 0.18f);
+            MakeTacticalGlassPlate("Colour", art, new Color(bayBg.r, bayBg.g, bayBg.b, 0.90f), new Color(accent.r, accent.g, accent.b, 0.35f), Clear, cornerCut: 6f, accentW: 0f, topHighlight: 0.10f);
             BuildCardGlyph(art, glyph, accent);
 
-            Text label = Label("Title", card, title, 30, Cream, TextAnchor.LowerLeft, display: true, ink: true);
+            Text label = Label("Title", card, title, 30, PaperWhite, TextAnchor.LowerLeft, display: true, ink: false);
             Stretch(label.rectTransform, new Vector2(0f, 0.31f), new Vector2(1f, 0.42f));
             label.rectTransform.offsetMin = new Vector2(20f, 0f);
             label.rectTransform.offsetMax = new Vector2(-18f, 0f);
@@ -958,32 +713,32 @@ namespace Kalyeah.Game
 
         static void BuildCardGlyph(RectTransform art, string glyph, Color accent)
         {
-            Color cream = new Color(Cream.r, Cream.g, Cream.b, 0.96f);
+            Color tint = new Color(PaperWhite.r, PaperWhite.g, PaperWhite.b, 0.94f);
             switch (glyph)
             {
                 case "hotspot":
                     for (int i = 0; i < 3; i++)
                     {
-                        Image ring = Ui.MakeImage("Ring" + i, art, new Color(cream.r, cream.g, cream.b, 0.95f - 0.26f * i));
+                        Image ring = Ui.MakeImage("Ring" + i, art, new Color(tint.r, tint.g, tint.b, 0.90f - 0.24f * i));
                         ring.sprite = KomiksUi.RingSprite(256, 12);
-                        Place(ring.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (56f + i * 50f));
+                        Place(ring.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (54f + i * 48f));
                     }
                     Image dot = Ui.MakeImage("Dot", art, accent, round: true);
-                    Place(dot.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(22f, 22f));
+                    Place(dot.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(20f, 20f));
                     break;
                 case "ai":
-                    Text vs = Label("Vs", art, "VS", 86, cream, TextAnchor.MiddleCenter, display: true, ink: true);
+                    Text vs = Label("Vs", art, "VS", 82, tint, TextAnchor.MiddleCenter, display: true, ink: false);
                     Stretch(vs.rectTransform, Vector2.zero, Vector2.one);
                     break;
                 default:
                     for (int i = 0; i < 2; i++)
                     {
-                        Image ring = Ui.MakeImage("Ring" + i, art, new Color(cream.r, cream.g, cream.b, 0.92f - 0.25f * i));
+                        Image ring = Ui.MakeImage("Ring" + i, art, new Color(tint.r, tint.g, tint.b, 0.88f - 0.24f * i));
                         ring.sprite = KomiksUi.RingSprite(256, 14);
-                        Place(ring.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (138f - i * 58f));
+                        Place(ring.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.one * (132f - i * 54f));
                     }
                     Image core = Ui.MakeImage("Core", art, accent, round: true);
-                    Place(core.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(28f, 28f));
+                    Place(core.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(26f, 26f));
                     break;
             }
         }
@@ -1001,18 +756,22 @@ namespace Kalyeah.Game
             hit.raycastTarget = true;
 
             RectTransform visual = Ui.Fill("Visual", rect);
-            visual.offsetMin = new Vector2(0f, 10f);
-            visual.offsetMax = new Vector2(0f, -10f);
-            Image plate = Ui.MakeSliced("Plate", visual, primary ? MenuArt.CtaGold(12) : MenuArt.CtaGhost(12), Color.white);
-            Text label = Label("Label", visual, title, 25, primary ? Ink : Cream, TextAnchor.MiddleCenter, display: true, ink: !primary);
+            visual.offsetMin = new Vector2(0f, 16f);
+            visual.offsetMax = new Vector2(0f, -16f);
+
+            Image plate = primary
+                ? MakeMetallicCtaPlate("Plate", visual, SignalVermilion, SignalVermilionDeep, cornerCut: 8f)
+                : MakeTacticalGlassPlate("Plate", visual, ObsidianGlass, GlassHairline, Clear, cornerCut: 6f, accentW: 0f, topHighlight: 0.14f);
+
+            Text label = Label("Label", visual, title, 24, primary ? Color.white : PaperWhite, TextAnchor.MiddleCenter, display: true, ink: false);
             Stretch(label.rectTransform, Vector2.zero, Vector2.one);
             label.rectTransform.offsetMin = new Vector2(8f, primary ? 2f : 0f);
             label.rectTransform.offsetMax = new Vector2(-8f, 0f);
-            FitSingleLine(label, 15, 25);
-            return AttachButton(rect.gameObject, plate, onClick, 0.95f);
+            FitSingleLine(label, 14, 24);
+            return AttachSpringButton(rect.gameObject, plate, onClick, 0.95f, primary ? 3f : 1.5f);
         }
 
-        // ---------------------------------------------------------------- refresh
+        // ---------------------------------------------------------------- refresh & responsive layout
 
         public void Refresh()
         {
@@ -1027,46 +786,56 @@ namespace Kalyeah.Game
                 Sheets.Close();
 
             if (_playerName != null)
-                _playerName.text = string.IsNullOrWhiteSpace(session.PlayerName) ? "PLAYER" : session.PlayerName.Trim().ToUpperInvariant();
+                _playerName.text = string.IsNullOrWhiteSpace(session.PlayerName) ? AppSession.DefaultPlayerName : session.PlayerName.Trim().ToUpperInvariant();
+
+            if (_levelText != null)
+            {
+                int accountLevel = session.TotalMatches > 0 ? 1 + (session.TotalMatches / 2) : 9;
+                _levelText.text = accountLevel.ToString(CultureInfo.InvariantCulture);
+            }
 
             string kidId = string.IsNullOrWhiteSpace(session.SelectedCharacter) ? AppSession.DefaultCharacter : session.SelectedCharacter;
-            if (_avatarImage != null && Sheets != null)
-            {
+            if (Sheets != null)
                 Sheets.SyncFromSession();
-                if (Sheets.HasCustomIdPhoto)
-                {
-                    _avatarImage.texture = Sheets.CurrentIdTexture;
-                    _avatarImage.uvRect = Sheets.CurrentIdUvRect;
-                }
-                else
-                {
-                    _avatarImage.texture = KalyeahResources.Texture("portraits/faces/" + kidId);
-                    _avatarImage.uvRect = new Rect(0f, 0f, 1f, 1f);
-                }
-                _avatarImage.enabled = _avatarImage.texture != null;
-            }
-            string description = ReadCharacterField(kidId, "description");
-            string role = ParseRole(description);
-            string purok = ParsePurok(description);
-            if (_kidMeta != null)
+
+            bool useCustomPhoto = Sheets != null && Sheets.HasCustomIdPhoto && Sheets.CurrentIdTexture != null;
+            if (_avatarPhotoRaw != null)
             {
-                if (!string.IsNullOrEmpty(role) && !string.IsNullOrEmpty(purok))
-                    _kidMeta.text = role + " · " + purok;
-                else if (!string.IsNullOrEmpty(role))
-                    _kidMeta.text = role;
-                else
-                    _kidMeta.text = "KID";
+                _avatarPhotoRaw.texture = useCustomPhoto ? Sheets.CurrentIdTexture : null;
+                _avatarPhotoRaw.uvRect = useCustomPhoto ? Sheets.CurrentIdUvRect : new Rect(0f, 0f, 1f, 1f);
+                _avatarPhotoRaw.enabled = useCustomPhoto;
             }
-            if (_kidName != null)
-                _kidName.text = (ReadCharacterField(kidId, "display_name") ?? Capitalize(kidId)).ToUpperInvariant();
-            if (_kidRoleIcon != null)
-                _kidRoleIcon.sprite = MenuArt.Glyph(RoleGlyph(role));
+            if (_avatarBustImage != null)
+            {
+                if (useCustomPhoto)
+                {
+                    _avatarBustImage.enabled = false;
+                }
+                else
+                {
+                    Sprite bust = KalyeahResources.KidBustSprite(kidId);
+                    _avatarBustImage.sprite = bust;
+                    _avatarBustImage.enabled = bust != null;
+                    if (bust != null && bust.rect.width > 1f)
+                    {
+                        // Transparent 3:4 full-body/bust renders zoom cleanly onto head+shoulders; square fallback faces fill 1:1
+                        bool isPortraitBust = (bust.rect.height / bust.rect.width) > 1.15f;
+                        _avatarBustImage.rectTransform.sizeDelta = isPortraitBust ? new Vector2(96f, 128f) : new Vector2(54f, 54f);
+                        _avatarBustImage.rectTransform.anchoredPosition = isPortraitBust ? new Vector2(0f, -17f) : Vector2.zero;
+                    }
+                }
+            }
+
             _stage.SetKid(kidId);
+            if (_heroImage != null) _heroImage.texture = _stage.Texture;
             _stage.RenderNow();
-            RefreshLayout(); // the kid's feet height changes with the kid
+            RefreshLayout();
 
             if (_difficultyLabel != null)
                 _difficultyLabel.text = SettingsStore.NormalizeDifficulty(session.BotDifficulty).ToUpperInvariant();
+
+            for (int i = 0; i < _ownedMaterials.Count; i++)
+                UiShaders.SyncReduceMotion(_ownedMaterials[i]);
         }
 
         /// <summary>The role's icon: no role colours (docs/SPEC.md §10), only the shape tells them apart.</summary>
@@ -1089,23 +858,9 @@ namespace Kalyeah.Game
             return from > 0 ? description.Substring(0, from).Trim().ToUpperInvariant() : "";
         }
 
-        /// <summary>Parses the purok name after " from " up to the first period in a kid description.</summary>
-        static string ParsePurok(string description)
-        {
-            if (string.IsNullOrWhiteSpace(description)) return "";
-            int from = description.IndexOf(" from ", StringComparison.Ordinal);
-            if (from < 0) return "";
-            int start = from + 6;
-            if (start >= description.Length) return "";
-            int dot = description.IndexOf('.', start);
-            string raw = dot > start ? description.Substring(start, dot - start) : description.Substring(start);
-            return raw.Trim().ToUpperInvariant();
-        }
-
         /// <summary>
-        /// Lays out the top bar, the hub columns (left rail / bottom dock, hero zone, mode column) and the scene.
-        /// Guarantees zero overlap and &gt;= 48 dp touch targets across 1280x720 (16:9), 844x390 (notched 19.5:9),
-        /// 934x400 (21:9), and 1024x768 (4:3 tablet).
+        /// Lays out the shared L3/L4 top bar, hub columns (L5 mission stack, L6 nav rail, open center hero column, L7/L8 queue cluster),
+        /// and full-bleed 16:9 Manila street stage across 1280x720 (16:9), 844x390 (notched 19.5:9), 934x400 (21:9), and 1024x768 (4:3).
         /// </summary>
         public void RefreshLayout()
         {
@@ -1115,25 +870,24 @@ namespace Kalyeah.Game
                 return;
             }
             if (_topBar == null || _hubBody == null) return;
+
             Rect safe = SafeRoot.rect;
-            Rect full = Root.rect;
             float width = safe.width;
-            _areaSize = new Vector2(Mathf.Max(1f, full.width), Mathf.Max(1f, full.height));
 
             _hubBody.offsetMin = new Vector2(Gutter, 16f);
-            _hubBody.offsetMax = new Vector2(-Gutter, -(TopBarHeight + 8f));
+            _hubBody.offsetMax = new Vector2(-Gutter, -(TopBandHeight + 4f));
 
             float bodyWidth = Mathf.Max(0f, width - 2f * Gutter);
-            float leftWidth = Mathf.Clamp(bodyWidth * 0.245f, 284f, 304f);
-            float rightWidth = Mathf.Clamp(bodyWidth * 0.30f, 326f, 376f);
+            float leftWidth = Mathf.Clamp(bodyWidth * 0.275f, 268f, 336f);
+            float rightWidth = Mathf.Clamp(bodyWidth * 0.295f, 280f, 340f);
             float leftSpan = Mathf.Max(leftWidth, BottomNavWidth);
 
             if (_leftColumn != null)
-                _leftColumn.sizeDelta = new Vector2(leftWidth, 3f * CardHeight + 2f * CardGap);
+                _leftColumn.sizeDelta = new Vector2(leftWidth, 3f * CardHitHeight + 2f * CardGap);
             if (_bottomNav != null)
             {
                 _bottomNav.anchoredPosition = Vector2.zero;
-                _bottomNav.sizeDelta = new Vector2(BottomNavWidth, NavHeight);
+                _bottomNav.sizeDelta = new Vector2(BottomNavWidth, HitSize);
             }
             if (_modeColumn != null)
                 _modeColumn.sizeDelta = new Vector2(rightWidth, 0f);
@@ -1146,78 +900,11 @@ namespace Kalyeah.Game
                 _heroZone.anchoredPosition = new Vector2(heroLeft, 0f);
                 _heroZone.sizeDelta = new Vector2(zoneWidth, 0f);
             }
-            if (_kidPlate != null)
+
+            if (_heroFitter != null)
             {
-                float plateWidth = zoneWidth > 4f ? Mathf.Min(320f, Mathf.Max(Mathf.Min(220f, zoneWidth), zoneWidth - 4f)) : 252f;
-                _kidPlate.anchoredPosition = Vector2.zero;
-                _kidPlate.sizeDelta = new Vector2(plateWidth, HitSize);
-            }
-
-            // the kid: thigh-up framing on phones (feet below the screen), grounded cleanly over the pedestal tag on 4:3 tablet
-            const float KidInTexture = 0.755f, HeadTop = 0.93f, VisibleKid = 0.67f / 0.6f;
-            float heroHeight = full.height * VisibleKid / KidInTexture * Mathf.Clamp(zoneWidth / 520f, 0.72f, 1f);
-            float heroWidth = heroHeight * 0.75f;
-            if (_heroImageRect != null && _heroZone != null)
-            {
-                Vector3 zoneCentre = Root.InverseTransformPoint(_heroZone.TransformPoint(_heroZone.rect.center));
-                float heroCentre = zoneCentre.x - full.xMin;
-                float feetY = HeadTop * full.height - KidInTexture * heroHeight;
-                _heroImageRect.sizeDelta = new Vector2(heroWidth, heroHeight);
-                _heroImageRect.anchoredPosition = new Vector2(heroCentre, feetY - heroHeight * _stage.FeetViewportY);
-            }
-            PlaceScene();
-            PlaceMotes();
-        }
-
-        /// <summary>The stall plate follows the kid's picture; the pedestal shadow sits under the feet; the side shades frame the UI.</summary>
-        void PlaceScene()
-        {
-            if (_heroImageRect == null) return;
-            Vector2 size = _heroImageRect.sizeDelta;
-            Vector2 pos = _heroImageRect.anchoredPosition;
-            Vector2 centre = new Vector2(pos.x, pos.y + size.y * 0.5f);
-
-            if (_stallRect != null)
-            {
-                float plateH = size.y * PlateOverHero;
-                plateH = Mathf.Max(plateH, 2f * Mathf.Max(centre.y, _areaSize.y - centre.y));
-                float plateW = plateH * PlateAspect;
-                float needW = 2f * Mathf.Max(centre.x, _areaSize.x - centre.x);
-                if (plateW < needW) { plateW = needW; plateH = plateW / PlateAspect; }
-                _stallBase = centre;
-                SetRect(_stallRect, centre, new Vector2(plateW, plateH));
-            }
-            if (_heroShadowRect != null)
-                SetRect(_heroShadowRect, new Vector2(pos.x, pos.y + size.y * _stage.FeetViewportY), new Vector2(size.x * 0.48f, size.x * 0.095f));
-            if (_shadeLeft != null) _shadeLeft.sizeDelta = new Vector2(_areaSize.x * 0.40f, 0f);
-            if (_shadeRight != null) _shadeRight.sizeDelta = new Vector2(_areaSize.x * 0.44f, 0f);
-        }
-
-        static void SetRect(RectTransform rect, Vector2 position, Vector2 size)
-        {
-            if (rect == null) return;
-            rect.anchoredPosition = position;
-            rect.sizeDelta = size;
-        }
-
-        // ---------------------------------------------------------------- motion
-
-        static readonly float[] MoteSeed = { 0.07f, 0.31f, 0.52f, 0.76f, 0.18f, 0.64f, 0.93f, 0.41f, 0.27f, 0.85f, 0.58f, 0.12f, 0.71f, 0.46f, 0.36f, 0.88f, 0.03f, 0.67f };
-
-        /// <summary>Dust drifting slowly down through the light, by the clock (a fixed frame when motion is reduced or nothing ticks).</summary>
-        void PlaceMotes()
-        {
-            bool still = !Application.isPlaying || SettingsStore.Current.ReduceMotion;
-            for (int i = 0; i < MoteCount; i++)
-            {
-                if (_moteRects[i] == null) continue;
-                float fall = Mathf.Repeat(MoteSeed[i] + (still ? 0f : _time * (0.006f + 0.003f * (i % 3))), 1f);
-                float x = (0.3f + 0.4f * Mathf.Repeat(MoteSeed[(i + 7) % MoteCount] * 1.9f + i * 0.113f, 1f)) * _areaSize.x;
-                x += still ? 0f : Mathf.Sin(_time * 0.4f + i) * 10f;
-                _moteRects[i].anchoredPosition = new Vector2(x, (1f - fall) * _areaSize.y);
-                Color c = _moteImages[i].color;
-                c.a = Mathf.Sin(fall * Mathf.PI) * 0.45f;
-                _moteImages[i].color = c;
+                _heroFitter.SetLayoutHorizontal();
+                _heroFitter.SetLayoutVertical();
             }
         }
 
@@ -1227,14 +914,13 @@ namespace Kalyeah.Game
         enum HomeMode { Blitz, Quick }
 
         HomeMode _homeMode;
-        Text _modeName;
-        Text _modeDetail;
+        Text _modeLabel;
 
         /// <summary>Switches between Blitz and Quick.</summary>
         public Button ModeButton { get; private set; }
 
-        /// <summary>The mode's line on the card: how it feels, never team size, scoring or map rules (owner rule).</summary>
-        public string ModeLine => _modeDetail != null ? _modeDetail.text : "";
+        /// <summary>The mode's line on the pill: how it feels, never team size, scoring or map rules (owner rule).</summary>
+        public string ModeLine => _homeMode == HomeMode.Blitz ? "Short rounds, fast wins" : "The full match";
 
         void CycleHomeMode()
         {
@@ -1247,9 +933,11 @@ namespace Kalyeah.Game
         void ShowHomeMode()
         {
             _homeMode = AppSession.Current.FirstTo >= 5 ? HomeMode.Quick : HomeMode.Blitz;
-            if (_modeName != null) _modeName.text = _homeMode.ToString().ToUpperInvariant();
-            if (_modeDetail != null)
-                _modeDetail.text = _homeMode == HomeMode.Blitz ? "Short rounds, fast wins" : "The full match";
+            if (_modeLabel != null)
+            {
+                string title = _homeMode == HomeMode.Blitz ? "BLITZ" : "QUICK";
+                _modeLabel.text = title + " — " + ModeLine;
+            }
         }
 
         /// <summary>
@@ -1377,22 +1065,44 @@ namespace Kalyeah.Game
             _audio?.PlayUiTap(false);
         }
 
-        string ReadCharacterField(string kidId, string field)
+        // ---------------------------------------------------------------- Option A1 surface & control builders
+
+        static Image MakeTacticalGlassPlate(string name, Transform parent, Color fill, Color border, Color leftAccent, float cornerCut, float accentW, float topHighlight)
         {
-            if (_data == null || string.IsNullOrWhiteSpace(kidId)) return null;
-            try
+            Image img = Ui.MakeImage(name, parent, Color.white);
+            Stretch(img.rectTransform, Vector2.zero, Vector2.one);
+            Material mat = UiShaders.CreateTacticalGlass(fill, border, leftAccent, cornerCut, accentW, topHighlight);
+            if (mat != null && mat != Graphic.defaultGraphicMaterial && mat != Canvas.GetDefaultCanvasMaterial())
             {
-                Dictionary<string, object> p = _data.Props("characters__" + kidId);
-                if (p != null && p.TryGetValue(field, out object value) && value is string s && !string.IsNullOrWhiteSpace(s))
-                    return s;
+                img.material = mat;
+                img.color = Color.white;
             }
-            catch { }
-            return null;
+            else
+            {
+                img.color = fill;
+            }
+            return img;
         }
 
-        // ---------------------------------------------------------------- small builders
+        Image MakeMetallicCtaPlate(string name, Transform parent, Color top, Color bottom, float cornerCut)
+        {
+            Image img = Ui.MakeImage(name, parent, Color.white);
+            Stretch(img.rectTransform, Vector2.zero, Vector2.one);
+            Material mat = UiShaders.CreateMetallicCta(top, bottom, cornerCut);
+            if (mat != null && mat != Graphic.defaultGraphicMaterial && mat != Canvas.GetDefaultCanvasMaterial())
+            {
+                _ownedMaterials.Add(mat);
+                img.material = mat;
+                img.color = Color.white;
+            }
+            else
+            {
+                img.color = top;
+            }
+            return img;
+        }
 
-        static Text Label(string name, Transform parent, string text, int size, Color color, TextAnchor align, bool display = false, bool ink = false)
+        static Text Label(string name, Transform parent, string text, int size, Color color, TextAnchor align, bool display = false, bool ink = false, float shadowAlpha = 0.85f)
         {
             Text label = Ui.MakeText(name, parent, text, size, color, align, display ? KalyeahResources.DisplayFont() : null);
             Outline outline = label.GetComponent<Outline>();
@@ -1402,8 +1112,8 @@ namespace Kalyeah.Game
                 outline.enabled = allowOutline;
                 if (allowOutline)
                 {
-                    outline.effectColor = new Color(Ink.r, Ink.g, Ink.b, 0.92f);
-                    outline.effectDistance = new Vector2(2f, -2f);
+                    outline.effectColor = new Color(SoftShadowInk.r, SoftShadowInk.g, SoftShadowInk.b, shadowAlpha);
+                    outline.effectDistance = new Vector2(1.5f, -1.5f);
                 }
             }
             return label;
@@ -1446,34 +1156,16 @@ namespace Kalyeah.Game
             rect.sizeDelta = size;
         }
 
-        static Texture2D s_rampV;
-        static Texture2D s_rampH;
-
-        /// <summary>A code-drawn alpha ramp for shading washes: 1 at the bottom row to 0 at the top, or 1 at the left to 0 at the right.</summary>
-        static Texture2D Ramp(bool horizontal)
+        static void Place(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 position, Vector2 size)
         {
-            Texture2D cached = horizontal ? s_rampH : s_rampV;
-            if (cached != null) return cached;
-            const int n = 64;
-            var tex = new Texture2D(horizontal ? n : 1, horizontal ? 1 : n, TextureFormat.RGBA32, false)
-            {
-                name = horizontal ? "KalyeahRampH" : "KalyeahRampV",
-                wrapMode = TextureWrapMode.Clamp,
-                hideFlags = HideFlags.HideAndDontSave,
-            };
-            for (int i = 0; i < n; i++)
-            {
-                float t = i / (n - 1f);
-                var c = new Color(1f, 1f, 1f, Mathf.SmoothStep(0f, 1f, 1f - t));
-                if (horizontal) tex.SetPixel(i, 0, c);
-                else tex.SetPixel(0, i, c);
-            }
-            tex.Apply(false, true);
-            if (horizontal) s_rampH = tex; else s_rampV = tex;
-            return tex;
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.pivot = pivot;
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
         }
 
-        static Button AttachButton(GameObject host, Graphic targetGraphic, Action onClick, float pressedScale = 0.95f)
+        static Button AttachSpringButton(GameObject host, Graphic targetGraphic, Action onClick, float pressedScale = 0.95f, float lipDipPx = 1.5f)
         {
             Button btn = host.GetComponent<Button>() ?? host.AddComponent<Button>();
             btn.targetGraphic = targetGraphic;
@@ -1483,17 +1175,10 @@ namespace Kalyeah.Game
             cb.selectedColor = Color.white;
             cb.pressedColor = PressTint;
             btn.colors = cb;
-            Ui.AddPressFeel(host, pressedScale);
+            UiShaders.AttachPressSpring(btn, pressedScale, lipDipPx);
             if (onClick != null)
                 btn.onClick.AddListener(() => onClick());
             return btn;
-        }
-
-        static string Capitalize(string raw)
-        {
-            if (string.IsNullOrWhiteSpace(raw)) return "";
-            string s = raw.Trim();
-            return s.Length == 1 ? s.ToUpperInvariant() : char.ToUpperInvariant(s[0]) + s.Substring(1);
         }
     }
 }

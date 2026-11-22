@@ -318,6 +318,9 @@ namespace Kalyeah.Game
             GameObject inst = Object.Instantiate(prefab, parent, false);
             inst.name = "Prop_" + propId;
             KalyeahResources.SanitizeModelMaterials(inst);
+            // Small street clutter props keep crisp shading without blowing mobile 2-cascade shadow triangle budgets
+            foreach (Renderer mr in inst.GetComponentsInChildren<Renderer>(true))
+                mr.shadowCastingMode = ShadowCastingMode.Off;
             foreach (Collider col in inst.GetComponentsInChildren<Collider>(true))
                 KalyeahResources.Kill(col);
 

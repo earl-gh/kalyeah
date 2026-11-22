@@ -5,9 +5,9 @@ using UnityEngine.UI;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Corner-pinned movement joystick (docs/GDD.md "Landscape layout", MoveStick): persistent pointerId lock, 12% dead zone, 0.62
-    /// walk/run dual-ring visual threshold, physical dp radius floor, 4:3 foldable height cap, and left-handed corner mirroring.
-    /// White only (owner): white outer rim, white 0.62 walk-threshold inner ring, faint white body, white thumb.
+    /// Corner-pinned movement joystick (docs/GDD.md "Landscape layout", MoveStick, Option A1 G6): persistent pointerId lock,
+    /// 12% dead zone, 0.62 walk/run dual-ring visual threshold, physical dp radius floor, 4:3 foldable height cap,
+    /// left-handed corner mirroring, and whisper-thin smoked-obsidian translucent styling (#0E131A @ 42% + 1.5 px titanium hairline).
     /// </summary>
     public sealed class VirtualJoystick : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
     {
@@ -20,10 +20,15 @@ namespace Kalyeah.Game
         const float ZoneTopAnchor = 0.72f;
         const int NoPointer = int.MinValue;
 
+        static readonly Color SmokedBaseIdle = new Color(14f / 255f, 19f / 255f, 26f / 255f, 0.42f);
+        static readonly Color SmokedBaseHeld = new Color(14f / 255f, 19f / 255f, 26f / 255f, 0.54f);
+        static readonly Color SmokedThumbIdle = new Color(14f / 255f, 19f / 255f, 26f / 255f, 0.68f);
+        static readonly Color SmokedThumbHeld = new Color(24f / 255f, 32f / 255f, 44f / 255f, 0.84f);
+
         static Sprite _ringSprite;
 
         RectTransform _zone, _base, _knob, _rimRect, _walkRingRect, _bodyRect;
-        Image _rimImage, _walkRingImage;
+        Image _bodyImage, _rimImage, _walkRingImage, _knobImage, _knobRimImage, _knobCoreImage;
         Vector2 _rest;
         float _effectiveRadius = Radius;
         int _pointer = NoPointer;
@@ -60,22 +65,38 @@ namespace Kalyeah.Game
             stick._zone = zone;
             stick._leftHanded = leftHanded;
 
-            Image body = Ui.MakeImage("Base", zone, new Color(1f, 1f, 1f, 0.12f), round: true);
+            Image body = Ui.MakeImage("Base", zone, SmokedBaseIdle, round: true);
+            stick._bodyImage = body;
             stick._base = body.rectTransform;
             stick._bodyRect = body.rectTransform;
 
-            Image rim = Ui.MakeImage("Rim", stick._base, new Color(1f, 1f, 1f, 0.72f));
+            Image rim = Ui.MakeImage("Rim", stick._base, new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.56f));
             rim.sprite = RingSprite();
             stick._rimImage = rim;
             stick._rimRect = rim.rectTransform;
 
-            Image walkRing = Ui.MakeImage("WalkRing", stick._base, new Color(1f, 1f, 1f, 0.18f));
+            Image walkRing = Ui.MakeImage("WalkRing", stick._base, new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.18f));
             walkRing.sprite = RingSprite();
             stick._walkRingImage = walkRing;
             stick._walkRingRect = walkRing.rectTransform;
 
-            Image knob = Ui.MakeImage("Thumb", stick._base, Color.white, round: true);
+            Image knob = Ui.MakeImage("Thumb", stick._base, SmokedThumbIdle, round: true);
+            stick._knobImage = knob;
             stick._knob = knob.rectTransform;
+
+            Image knobRim = Ui.MakeImage("ThumbRim", stick._knob, new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.68f));
+            knobRim.sprite = RingSprite();
+            knobRim.rectTransform.anchorMin = Vector2.zero;
+            knobRim.rectTransform.anchorMax = Vector2.one;
+            knobRim.rectTransform.offsetMin = Vector2.zero;
+            knobRim.rectTransform.offsetMax = Vector2.zero;
+            stick._knobRimImage = knobRim;
+
+            Image knobCore = Ui.MakeImage("ThumbCore", stick._knob, new Color(MenuArt.PaperWhite.r, MenuArt.PaperWhite.g, MenuArt.PaperWhite.b, 0.34f), round: true);
+            knobCore.rectTransform.anchorMin = knobCore.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            knobCore.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            knobCore.rectTransform.sizeDelta = new Vector2(14f, 14f);
+            stick._knobCoreImage = knobCore;
 
             stick.RefreshLayout();
             stick.UpdateRingVisuals();
@@ -223,13 +244,28 @@ namespace Kalyeah.Game
 
         void UpdateRingVisuals()
         {
+            bool held = _pointer != NoPointer;
             float mag = Value.magnitude;
             bool walking = mag > 0.001f && mag < WalkRunThreshold;
             bool running = mag >= WalkRunThreshold;
+            Color ti = MenuArt.TitaniumRim;
+            Color pw = MenuArt.PaperWhite;
+            if (_bodyImage != null)
+                _bodyImage.color = held ? SmokedBaseHeld : SmokedBaseIdle;
             if (_walkRingImage != null)
-                _walkRingImage.color = new Color(1f, 1f, 1f, walking ? 0.36f : 0.18f);
+                _walkRingImage.color = new Color(ti.r, ti.g, ti.b, walking ? 0.42f : 0.16f);
             if (_rimImage != null)
-                _rimImage.color = new Color(1f, 1f, 1f, running ? 0.92f : 0.68f);
+                _rimImage.color = running
+                    ? new Color(pw.r, pw.g, pw.b, 0.92f)
+                    : new Color(ti.r, ti.g, ti.b, held ? 0.74f : 0.54f);
+            if (_knobImage != null)
+                _knobImage.color = held ? SmokedThumbHeld : SmokedThumbIdle;
+            if (_knobRimImage != null)
+                _knobRimImage.color = running
+                    ? new Color(pw.r, pw.g, pw.b, 0.96f)
+                    : new Color(ti.r, ti.g, ti.b, held ? 0.86f : 0.64f);
+            if (_knobCoreImage != null)
+                _knobCoreImage.color = new Color(pw.r, pw.g, pw.b, held ? (running ? 0.82f : 0.56f) : 0.30f);
         }
 
         static Sprite RingSprite()
@@ -239,11 +275,13 @@ namespace Kalyeah.Game
             var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {
                 name = "KalyeahStickRing",
-                wrapMode = TextureWrapMode.Clamp
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+                hideFlags = HideFlags.HideAndDontSave,
             };
             var pixels = new Color32[size * size];
-            float r = size * 0.5f - 1f;
-            const float halfStroke = 2.2f;
+            float r = size * 0.5f - 1.5f;
+            const float halfStroke = 1.35f;
             for (int y = 0; y < size; y++)
             {
                 for (int x = 0; x < size; x++)
@@ -259,6 +297,7 @@ namespace Kalyeah.Game
             texture.Apply(false, true);
             _ringSprite = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
             _ringSprite.name = "KalyeahStickRing";
+            _ringSprite.hideFlags = HideFlags.HideAndDontSave;
             return _ringSprite;
         }
     }

@@ -11,7 +11,8 @@ namespace Kalyeah.Game
     public sealed class TitleScreen : MonoBehaviour
     {
         public const string SceneName = "Title";
-        static readonly Color Dusk = new Color(0.06f, 0.09f, 0.18f, 1f);
+        // Crisp 10:30 AM sunlit Manila sky clear color so Title transitions never flash dark mud.
+        static readonly Color SunlitSky = new Color(0.620f, 0.816f, 0.949f, 1f);
 
         DataSource _data;
         Canvas _canvas;
@@ -387,7 +388,7 @@ namespace Kalyeah.Game
         {
             if (camera == null) return;
             camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = Dusk;
+            camera.backgroundColor = SunlitSky;
             camera.orthographic = true;
         }
     }

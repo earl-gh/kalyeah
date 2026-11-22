@@ -141,7 +141,7 @@ namespace Kalyeah.Game
             name: "Medium",
             maxFpsCap: 60,
             usesDeviceRefreshCap: false,
-            renderScale: 0.95f,
+            renderScale: 1.00f,
             msaaSamples: 1,
             shadowTier: 2,
             shadowDistance: 32f,

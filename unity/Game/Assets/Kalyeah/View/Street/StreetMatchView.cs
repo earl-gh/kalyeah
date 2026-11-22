@@ -1196,6 +1196,7 @@ namespace Kalyeah.Game
                         Speed01 = kid.Speed01,
                     };
                     view = new KidView(Root, initSnap, _cameraRules.KidViewScale, roleColor, _transparentUnlit);
+                    view.SetTiradorEnabled(false);
                     _kids[kid.Id] = view;
                 }
                 else

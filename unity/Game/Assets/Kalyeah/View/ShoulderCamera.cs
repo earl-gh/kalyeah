@@ -130,6 +130,16 @@ namespace Kalyeah.Game
         public float OccluderOccludedAlpha = 0.18f;
         public float OccluderFadeRate = 8f;
 
+        // Tactile kinetic channels (strictly ReduceMotion-safe, EditMode-inert, zero GC).
+        public float RecoilReturnSmoothTime = 0.085f;
+        public float MaxRecoilPitchDeg = 6.5f;
+        public float MaxRecoilYawDeg = 2.2f;
+        public float SlideDutchRollDeg = 2.5f;
+        public float SlideRollSmoothTime = 0.085f;
+        public float LandDipMaxMeters = 0.14f;
+        public float LandDipReturnSmoothTime = 0.11f;
+        public float MaxHitStopSeconds = 0.065f;
+
         readonly RaycastHit[] _sphereHits = new RaycastHit[8];
         readonly List<OccluderEntry> _occluders = new List<OccluderEntry>();
         MaterialPropertyBlock _propBlock;
@@ -162,12 +172,48 @@ namespace Kalyeah.Game
         float _hitShakeDuration;
         float _hitShakeStrength;
         float _hitShakePhase;
+
+        float _recoilPitchDeg;
+        float _recoilPitchVel;
+        float _recoilYawDeg;
+        float _recoilYawVel;
+        bool _sliding;
+        float _slideRollSign = 1f;
+        float _slideRollDeg;
+        float _slideRollVel;
+        bool _wasAirborne;
+        float _airPeakY;
+        float _landDipOffset;
+        float _landDipVel;
+        float _hitStopLeft;
+        int _recoilSerial;
+        SimBridge _boundSim;
+
         /// <summary>0 = hip view, 1 = fully aimed down sight.</summary>
         public float AdsBlend => _adsBlend;
         /// <summary>0 = standard shoulder view, 1 = elevated tactical pull-back view for zone/wall skills.</summary>
         public float ZoomOutBlend => _zoomOutBlend;
         /// <summary>0 = standard shoulder view, 1 = elevated sky-cast view for map-wide skills (Kikay Saranggola).</summary>
         public float MapCastBlend => _mapCastBlend;
+        /// <summary>Transient upward recoil pitch offset in degrees (0 when ReduceMotion is enabled).</summary>
+        public float CurrentRecoilPitchDeg => ReduceMotion ? 0f : _recoilPitchDeg;
+        /// <summary>Transient horizontal recoil yaw jitter in degrees (0 when ReduceMotion is enabled).</summary>
+        public float CurrentRecoilYawDeg => ReduceMotion ? 0f : _recoilYawDeg;
+        /// <summary>Current slide Dutch roll tilt in degrees (0 when ReduceMotion is enabled).</summary>
+        public float CurrentSlideRollDeg => ReduceMotion ? 0f : _slideRollDeg;
+        /// <summary>Current jump-landing vertical spring dip in metres (negative on impact, 0 at rest).</summary>
+        public float CurrentLandDipOffset => ReduceMotion ? 0f : _landDipOffset;
+        /// <summary>True while a view-only local hit-stop window (45-50 ms) is active; never stalls the 30 Hz sim.</summary>
+        public bool IsInHitStop => !ReduceMotion && _hitStopLeft > 0f;
+        /// <summary>Remaining view-only local hit-stop duration in seconds.</summary>
+        public float HitStopTimeLeft => ReduceMotion ? 0f : _hitStopLeft;
+
+        /// <summary>Maps a raw frame delta into a view-only hit-stop scaled delta (never touches Time.timeScale).</summary>
+        public float EffectiveViewDeltaTime(float rawDt)
+        {
+            if (rawDt <= 0f) return 0f;
+            return IsInHitStop ? rawDt * 0.06f : rawDt;
+        }
 
         /// <summary>Maps SimBridge's <see cref="AimCameraKind"/> directly onto <see cref="SkillAimMode"/>.</summary>
         public void SetSkillAimMode(AimCameraKind kind)
@@ -250,6 +296,69 @@ namespace Kalyeah.Game
             _mapCastVelocity = 0f;
             _hitShakeTimer = 0f;
             _hitShakeStrength = 0f;
+            _recoilPitchDeg = 0f;
+            _recoilPitchVel = 0f;
+            _recoilYawDeg = 0f;
+            _recoilYawVel = 0f;
+            _sliding = false;
+            _slideRollSign = 1f;
+            _slideRollDeg = 0f;
+            _slideRollVel = 0f;
+            _wasAirborne = false;
+            _airPeakY = 0f;
+            _landDipOffset = 0f;
+            _landDipVel = 0f;
+            _hitStopLeft = 0f;
+        }
+
+        /// <summary>Subscribes to SimBridge local combat events for automatic recoil kicks, headshot/tag confirm shakes, and view-only hit-stop.</summary>
+        public void Bind(SimBridge sim)
+        {
+            if (ReferenceEquals(_boundSim, sim)) return;
+            Unbind();
+            _boundSim = sim;
+            if (_boundSim == null) return;
+            _boundSim.WeaponCast += OnSimWeaponCast;
+            _boundSim.HitConfirmed += OnSimHitConfirmed;
+            _boundSim.UltimateCast += OnSimUltimateCast;
+        }
+
+        public void Unbind()
+        {
+            if (_boundSim == null) return;
+            _boundSim.WeaponCast -= OnSimWeaponCast;
+            _boundSim.HitConfirmed -= OnSimHitConfirmed;
+            _boundSim.UltimateCast -= OnSimUltimateCast;
+            _boundSim = null;
+        }
+
+        void OnSimWeaponCast(int casterId, string weaponId)
+        {
+            if (_boundSim == null || casterId != _boundSim.LocalPlayerId) return;
+            _recoilSerial = (_recoilSerial + 1) & 0x7FFF;
+            float sign = (_recoilSerial & 1) == 0 ? 1f : -1f;
+            bool isTirador = string.IsNullOrEmpty(weaponId)
+                || string.Equals(weaponId, "tirador", StringComparison.OrdinalIgnoreCase);
+            float pitchKick = isTirador ? (AimingDown ? 1.15f : 1.65f) : 2.25f;
+            float yawJitter = sign * (isTirador ? 0.24f : 0.36f);
+            AddRecoilKick(pitchKick, yawJitter);
+        }
+
+        void OnSimHitConfirmed(HitConfirmInfo info)
+        {
+            if (_boundSim == null || info.AttackerId != _boundSim.LocalPlayerId || info.TargetId == info.AttackerId) return;
+            AddCombatConfirmShake(info.IsHeadshot, info.IsTag);
+            if (info.IsTag)
+                TriggerHitStop(0.050f);
+            else if (info.IsHeadshot)
+                TriggerHitStop(0.045f);
+        }
+
+        void OnSimUltimateCast(int casterId)
+        {
+            if (_boundSim == null || casterId != _boundSim.LocalPlayerId) return;
+            AddRecoilKick(2.8f, 0f);
+            TriggerHitStop(0.048f);
         }
 
         /// <summary>A drag of `screenPixels` (Unity screen pixels, y up) turns the view: right turns right, up looks up.</summary>
@@ -298,15 +407,110 @@ namespace Kalyeah.Game
             _hitShakePhase += 2.3f;
         }
 
-        /// <summary>Decoupled vertical posture settle for crouch/slide (-0.42 m), jump (+0.65 * airY), and stilt lift; never alters Yaw or Pitch.</summary>
+        /// <summary>
+        /// Applies a transient outgoing weapon recoil kick (upward pitch + subtle yaw jitter) with snappy spring recovery.
+        /// Strictly suppressed under <see cref="ReduceMotion"/> and never mutates persistent <see cref="Yaw"/> or <see cref="Pitch"/>.
+        /// </summary>
+        public void AddRecoilKick(float pitchDeg, float yawJitterDeg = 0f)
+        {
+            if (ReduceMotion)
+            {
+                _recoilPitchDeg = 0f;
+                _recoilPitchVel = 0f;
+                _recoilYawDeg = 0f;
+                _recoilYawVel = 0f;
+                return;
+            }
+            if (Mathf.Abs(pitchDeg) > 0.001f)
+            {
+                _recoilPitchDeg = Mathf.Clamp(_recoilPitchDeg + Mathf.Abs(pitchDeg), 0f, MaxRecoilPitchDeg);
+                _recoilPitchVel = 0f;
+            }
+            if (Mathf.Abs(yawJitterDeg) > 0.001f)
+            {
+                _recoilYawDeg = Mathf.Clamp(_recoilYawDeg + yawJitterDeg, -MaxRecoilYawDeg, MaxRecoilYawDeg);
+                _recoilYawVel = 0f;
+            }
+        }
+
+        /// <summary>Triggers a crisp outgoing combat-confirm micro-shake on body hit, headshot, or TAYA! tag (zeroed under ReduceMotion).</summary>
+        public void AddCombatConfirmShake(bool headshot, bool tag)
+        {
+            if (ReduceMotion)
+            {
+                _hitShakeTimer = 0f;
+                _hitShakeStrength = 0f;
+                return;
+            }
+            float dur = tag ? 0.135f : (headshot ? 0.11f : 0.075f);
+            float strength = tag ? 0.052f : (headshot ? 0.038f : 0.018f);
+            _hitShakeDuration = dur;
+            _hitShakeTimer = Mathf.Max(_hitShakeTimer, dur);
+            _hitShakeStrength = Mathf.Max(_hitShakeStrength, strength);
+            _hitShakePhase += 2.7f;
+            if (headshot || tag)
+                AddRecoilKick(tag ? 1.10f : 0.72f, 0f);
+        }
+
+        /// <summary>
+        /// Triggers a view-only local hit-stop (45-50 ms sweet spot on headshots/tags/ults) that briefly holds visual camera spring
+        /// motion for crisp impact feel without EVER touching <see cref="Time.timeScale"/> or stalling the 30 Hz authoritative sim.
+        /// </summary>
+        public void TriggerHitStop(float seconds = 0.048f)
+        {
+            if (ReduceMotion)
+            {
+                _hitStopLeft = 0f;
+                return;
+            }
+            if (seconds <= 0f) return;
+            float clamped = Mathf.Clamp(seconds, 0.015f, MaxHitStopSeconds);
+            if (clamped > _hitStopLeft) _hitStopLeft = clamped;
+        }
+
+        /// <summary>Sets active slide state for subtle 2.5 deg Dutch roll tilt (zeroed under ReduceMotion).</summary>
+        public void SetSliding(bool sliding, float lateralSign = 1f)
+        {
+            _sliding = sliding;
+            if (sliding && Mathf.Abs(lateralSign) > 0.01f)
+                _slideRollSign = lateralSign >= 0f ? 1f : -1f;
+            if (ReduceMotion)
+            {
+                _slideRollDeg = 0f;
+                _slideRollVel = 0f;
+            }
+        }
+
+        /// <summary>Decoupled vertical posture settle for crouch/slide (-0.42 m), jump (+0.65 * airY), landing dip, and stilt lift; never alters Yaw or Pitch.</summary>
         public void SyncPosture(bool crouchingOrSliding, float airY, float dt)
         {
+            if (airY > 0.05f)
+            {
+                _wasAirborne = true;
+                if (airY > _airPeakY) _airPeakY = airY;
+            }
+            else if (_wasAirborne && airY <= 0.01f)
+            {
+                _wasAirborne = false;
+                if (!ReduceMotion && dt > 0f)
+                {
+                    _landDipOffset = -Mathf.Clamp(_airPeakY * 0.18f, 0.045f, LandDipMaxMeters);
+                    _landDipVel = 0f;
+                }
+                _airPeakY = 0f;
+            }
+
             float target = (crouchingOrSliding ? CrouchPivotOffset : 0f)
                 + Mathf.Max(airY, 0f) * AirPivotShare
                 + Mathf.Max(ExtraPivotHeight, 0f);
             if (ReduceMotion || dt <= 0f || Mathf.Approximately(_verticalOffset, target))
             {
                 _verticalOffset = target;
+                if (ReduceMotion)
+                {
+                    _landDipOffset = 0f;
+                    _landDipVel = 0f;
+                }
                 return;
             }
             _verticalOffset = Mathf.Lerp(_verticalOffset, target, 1f - Mathf.Exp(-dt * PosturePivotLerp));
@@ -377,11 +581,21 @@ namespace Kalyeah.Game
             }
         }
 
-        /// <summary>One-call per-frame helper syncing sprint/dash FOV kick, crouch/jump vertical pivot, and auto-follow yaw.</summary>
+        /// <summary>One-call per-frame helper syncing sprint/dash FOV kick, crouch/jump vertical pivot, slide Dutch roll, and auto-follow yaw.</summary>
         public void SyncLocalKid(SVector2 facing, float speed01, bool sprintingOrDashing, bool crouchingOrSliding, float airY, float dt)
         {
             SetSpeedBoost(sprintingOrDashing);
             SyncPosture(crouchingOrSliding, airY, dt);
+            bool inferredSlide = crouchingOrSliding && speed01 >= 0.72f && airY <= 0.02f;
+            float rollSign = 1f;
+            if (inferredSlide && facing.LengthSquared() > 0.0001f)
+            {
+                var (camRight, _) = GodotSpace.GroundAxes(Yaw);
+                float rightDot = SVector2.Dot(facing, camRight);
+                if (Mathf.Abs(rightDot) > 0.15f)
+                    rollSign = rightDot > 0f ? -1f : 1f;
+            }
+            SetSliding(inferredSlide, rollSign);
             SyncBehindCharacter(facing, speed01 > 0.05f, dt, speed01);
         }
 
@@ -468,23 +682,63 @@ namespace Kalyeah.Game
         {
             if (camera == null) return;
             float stepDt = Mathf.Max(dt, 0f);
-            StepFovBoost(stepDt);
+            bool inHitStop = false;
+            if (ReduceMotion)
+            {
+                _hitStopLeft = 0f;
+                _recoilPitchDeg = 0f;
+                _recoilPitchVel = 0f;
+                _recoilYawDeg = 0f;
+                _recoilYawVel = 0f;
+                _slideRollDeg = 0f;
+                _slideRollVel = 0f;
+                _landDipOffset = 0f;
+                _landDipVel = 0f;
+            }
+            else if (stepDt > 0f)
+            {
+                if (_hitStopLeft > 0f)
+                {
+                    inHitStop = true;
+                    _hitStopLeft = Mathf.Max(0f, _hitStopLeft - stepDt);
+                }
+                float springDt = inHitStop ? stepDt * 0.08f : stepDt;
+                if (Mathf.Abs(_recoilPitchDeg) > 0.0005f || Mathf.Abs(_recoilPitchVel) > 0.0005f)
+                    _recoilPitchDeg = SmoothDampScalar(_recoilPitchDeg, 0f, ref _recoilPitchVel, RecoilReturnSmoothTime, 0f, springDt);
+                else { _recoilPitchDeg = 0f; _recoilPitchVel = 0f; }
+
+                if (Mathf.Abs(_recoilYawDeg) > 0.0005f || Mathf.Abs(_recoilYawVel) > 0.0005f)
+                    _recoilYawDeg = SmoothDampScalar(_recoilYawDeg, 0f, ref _recoilYawVel, RecoilReturnSmoothTime, 0f, springDt);
+                else { _recoilYawDeg = 0f; _recoilYawVel = 0f; }
+
+                float targetRoll = _sliding ? (SlideDutchRollDeg * _slideRollSign) : 0f;
+                if (Mathf.Abs(_slideRollDeg - targetRoll) > 0.0005f || Mathf.Abs(_slideRollVel) > 0.0005f)
+                    _slideRollDeg = SmoothDampScalar(_slideRollDeg, targetRoll, ref _slideRollVel, SlideRollSmoothTime, 0f, springDt);
+                else { _slideRollDeg = targetRoll; _slideRollVel = 0f; }
+
+                if (Mathf.Abs(_landDipOffset) > 0.0003f || Mathf.Abs(_landDipVel) > 0.0003f)
+                    _landDipOffset = SmoothDampScalar(_landDipOffset, 0f, ref _landDipVel, LandDipReturnSmoothTime, 0f, springDt);
+                else { _landDipOffset = 0f; _landDipVel = 0f; }
+            }
+
+            float motionDt = inHitStop ? stepDt * 0.08f : stepDt;
+            StepFovBoost(motionDt);
 
             if (!ThirdPerson)
             {
-                ApplyTopDownFallback(camera, feet, stepDt);
+                ApplyTopDownFallback(camera, feet, motionDt);
                 RestoreAllOccluders();
                 return;
             }
 
             camera.orthographic = false;
-            StepPivot(feet, stepDt);
+            StepPivot(feet, motionDt);
 
             bool wantMapCast = SkillAimMode == SkillAimCameraMode.MapCast;
             bool wantZoomOut = !wantMapCast && SkillAimMode == SkillAimCameraMode.ZoomOut;
             bool wantAds = !wantMapCast && !wantZoomOut && (AimingDown || SkillAimMode == SkillAimCameraMode.Ads);
 
-            if (ReduceMotion || stepDt <= 0f)
+            if (ReduceMotion || motionDt <= 0f)
             {
                 _adsBlend = wantAds ? 1f : 0f;
                 _zoomOutBlend = wantZoomOut ? 1f : 0f;
@@ -494,11 +748,11 @@ namespace Kalyeah.Game
             }
             else
             {
-                _adsBlend = Mathf.Lerp(_adsBlend, wantAds ? 1f : 0f, 1f - Mathf.Exp(-stepDt * AdsLerp));
+                _adsBlend = Mathf.Lerp(_adsBlend, wantAds ? 1f : 0f, 1f - Mathf.Exp(-motionDt * AdsLerp));
                 float zoomSmooth = wantZoomOut ? ZoomOutEnterSmoothTime : ZoomOutExitSmoothTime;
-                _zoomOutBlend = Mathf.Clamp01(SmoothDampScalar(_zoomOutBlend, wantZoomOut ? 1f : 0f, ref _zoomOutVelocity, zoomSmooth, 0f, stepDt));
+                _zoomOutBlend = Mathf.Clamp01(SmoothDampScalar(_zoomOutBlend, wantZoomOut ? 1f : 0f, ref _zoomOutVelocity, zoomSmooth, 0f, motionDt));
                 float mapSmooth = wantMapCast ? MapCastEnterSmoothTime : MapCastExitSmoothTime;
-                _mapCastBlend = Mathf.Clamp01(SmoothDampScalar(_mapCastBlend, wantMapCast ? 1f : 0f, ref _mapCastVelocity, mapSmooth, 0f, stepDt));
+                _mapCastBlend = Mathf.Clamp01(SmoothDampScalar(_mapCastBlend, wantMapCast ? 1f : 0f, ref _mapCastVelocity, mapSmooth, 0f, motionDt));
             }
 
             float targetZoomPitch = Mathf.Clamp(Pitch + ZoomOutPitchAddDeg, Rules.LookPitchMin, ZoomOutMaxPitchDeg);
@@ -509,8 +763,12 @@ namespace Kalyeah.Game
                 effectivePitch = Mathf.Lerp(effectivePitch, targetMapPitch, _mapCastBlend);
             }
 
-            float pivotY = Mathf.Max(0.35f, Rules.ShoulderHeight + _verticalOffset);
-            var (baseEyeS, forwardS) = ShoulderRig.Pose(Rules, _pivotGround, Yaw, effectivePitch);
+            // Transient upward recoil kick & micro-yaw jitter (never mutates persistent Yaw/Pitch).
+            float visualPitch = Rules.ClampPitch(effectivePitch - (ReduceMotion ? 0f : _recoilPitchDeg));
+            float visualYaw = Mathf.Repeat(Yaw + (ReduceMotion ? 0f : _recoilYawDeg), 360f);
+
+            float pivotY = Mathf.Max(0.35f, Rules.ShoulderHeight + _verticalOffset + (ReduceMotion ? 0f : _landDipOffset));
+            var (baseEyeS, forwardS) = ShoulderRig.Pose(Rules, _pivotGround, visualYaw, visualPitch);
             Vector3 forwardU = KalyeahResources.U(forwardS);
             Vector3 desiredEyeU = KalyeahResources.U(baseEyeS);
             desiredEyeU.y = Mathf.Max(0.5f, desiredEyeU.y + (pivotY - Rules.ShoulderHeight));
@@ -539,7 +797,7 @@ namespace Kalyeah.Game
                 softTargetT = Mathf.Lerp(softTargetT, 1f, _mapCastBlend);
                 hardMaxT = Mathf.Lerp(hardMaxT, 1f, _mapCastBlend);
             }
-            if (!_armReady || ReduceMotion || stepDt <= 0f)
+            if (!_armReady || ReduceMotion || motionDt <= 0f)
             {
                 _armT = softTargetT;
                 _armVelocity = 0f;
@@ -548,7 +806,7 @@ namespace Kalyeah.Game
             else
             {
                 float smoothTime = softTargetT < _armT ? PullInSmoothTime : EaseOutSmoothTime;
-                _armT = SmoothDampScalar(_armT, softTargetT, ref _armVelocity, smoothTime, 0f, stepDt);
+                _armT = SmoothDampScalar(_armT, softTargetT, ref _armVelocity, smoothTime, 0f, motionDt);
                 if (_armT > hardMaxT)
                 {
                     _armT = hardMaxT;
@@ -563,6 +821,8 @@ namespace Kalyeah.Game
             CurrentDistance = Vector3.Distance(eyeU, pivotU);
 
             Quaternion rot = Quaternion.LookRotation(forwardU, Vector3.up);
+            if (!ReduceMotion && Mathf.Abs(_slideRollDeg) > 0.001f)
+                rot = rot * Quaternion.Euler(0f, 0f, _slideRollDeg);
             if (!ReduceMotion && _hitShakeTimer > 0f)
             {
                 _hitShakeTimer = Mathf.Max(0f, _hitShakeTimer - stepDt);
