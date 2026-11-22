@@ -828,18 +828,26 @@ namespace Kalyeah.Game
 
         static Material CreateTiradorMaterial(string name, Color color, float smoothness)
         {
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit")
-                ?? Shader.Find("Universal Render Pipeline/Simple Lit")
-                ?? Shader.Find("Universal Render Pipeline/Unlit")
-                ?? Shader.Find("Sprites/Default");
-            if (shader == null) return null;
-
-            var mat = new Material(shader)
+            Material mat;
+            Material src = Resources.Load<Material>("KalyeahMaterials/Ground");
+            if (src != null)
             {
-                name = name,
-                hideFlags = HideFlags.HideAndDontSave,
-                enableInstancing = true,
-            };
+                mat = new Material(src);
+            }
+            else
+            {
+                Shader shader = Shader.Find("Universal Render Pipeline/Lit")
+                    ?? Shader.Find("Universal Render Pipeline/Simple Lit")
+                    ?? Shader.Find("Universal Render Pipeline/Unlit")
+                    ?? Shader.Find("Sprites/Default");
+                if (shader == null) return null;
+                mat = new Material(shader);
+            }
+
+            mat.name = name;
+            mat.hideFlags = HideFlags.HideAndDontSave;
+            mat.enableInstancing = true;
+            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", null);
             if (mat.HasProperty(BaseColorId)) mat.SetColor(BaseColorId, color);
             if (mat.HasProperty("_Color")) mat.SetColor("_Color", color);
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
