@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kalyeah.Sim;
 using UnityEngine;
 using UnityEngine.Rendering;
 using SVector2 = System.Numerics.Vector2;
@@ -8,18 +9,23 @@ using SVector3 = System.Numerics.Vector3;
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Builds and syncs the 3D barangay match arena: TropicalSky + sunlit afternoon lights, Estero canal + 3 footbridges + landmarks,
-    /// non-repeating BarangayGround + spaghetti wires + curbs/props + ObjectiveZonesView, placed barangay kit obstacles (recording
-    /// camera occluders), pooled FxPool, ProjectileViews, AimIndicatorView, and 10 interpolated KidView puppets.
+    /// Builds and syncs the 3D barangay match arena: Option A1 crisp 10:30 AM sunlit Manila light + TropicalSky, Estero canal +
+    /// 3 walkable footbridges + landmarks + living-world neutrals, baked-AO BarangayGround + lifted bronze wires + curbs/props +
+    /// ObjectiveZonesView, real textured Filipino .glb props with physics colliders, pooled FxPool, ProjectileViews, AimIndicatorView,
+    /// and 10 interpolated KidView puppets.
     /// </summary>
     public sealed class MatchView : IDisposable
     {
-        static readonly Vector2 SunAngles = new Vector2(48f, 38f);
-        static readonly Color SunColor = new Color(1f, 0.91f, 0.78f);
-        const float SunIntensity = 1.25f;
-        static readonly Vector2 FillAngles = new Vector2(34f, -142f);
-        static readonly Color FillColor = new Color(0.62f, 0.72f, 0.95f);
-        const float FillIntensity = 0.25f;
+        // Option A1 crisp 10:30 AM sunlit Manila directional sun (elev 44 deg, azim 60 deg cross-lighting N-S lanes).
+        static readonly Vector2 SunAngles = new Vector2(44f, 60f);
+        static readonly Color SunColor = new Color(1.00f, 0.957f, 0.871f);
+        const float SunIntensity = 1.38f;
+        const float SunShadowStrength = 0.56f;
+        static readonly Color ManilaAmbientSky = new Color(0.384f, 0.596f, 0.847f);
+        static readonly Color ManilaAmbientEquator = new Color(0.796f, 0.749f, 0.663f);
+        static readonly Color ManilaAmbientGround = new Color(0.490f, 0.431f, 0.361f);
+        static readonly Color ManilaHorizonFog = new Color(0.84f, 0.89f, 0.93f);
+        static readonly int PropKalyeahSunDir = Shader.PropertyToID("_KalyeahSunDir");
         const float HitFlashDuration = 0.18f;
 
         const int MaxWallSlots = 10;
@@ -160,7 +166,7 @@ namespace Kalyeah.Game
         readonly GameObject _wiresRoot;
         readonly GameObject _curbsRoot;
         readonly List<GameObject> _occluders = new List<GameObject>(128);
-        readonly Dictionary<string, Vector3> _naturalSizes = new Dictionary<string, Vector3>(24);
+        readonly Dictionary<string, Bounds> _naturalBounds = new Dictionary<string, Bounds>(32);
         readonly Dictionary<int, KidView> _kids = new Dictionary<int, KidView>(12);
         readonly Dictionary<int, SVector2> _previousPositions = new Dictionary<int, SVector2>(12);
         readonly Dictionary<int, Vector3> _worldFeet = new Dictionary<int, Vector3>(12);
@@ -185,7 +191,19 @@ namespace Kalyeah.Game
 
         AudioHub _audio;
         SimBridge _boundSim;
+        BarangayNeutrals _neutrals;
+        bool _ownsNeutrals;
         bool _disposed;
+
+        /// <summary>Active living-world neutral/vendor state driving <see cref="BarangayEnvironment.SyncLivingWorld"/>.</summary>
+        public BarangayNeutrals Neutrals => _neutrals;
+
+        /// <summary>Binds an authoritative <see cref="BarangayNeutrals"/> instance (replacing the local visual clock fallback).</summary>
+        public void BindNeutrals(BarangayNeutrals neutrals)
+        {
+            _neutrals = neutrals;
+            _ownsNeutrals = false;
+        }
 
         public MatchView(Transform parent, MapLayoutData layout, CameraRulesData camera)
             : this(parent, layout, camera, null)
@@ -223,9 +241,16 @@ namespace Kalyeah.Game
 
             BuildKits();
             if (_missingKits > 0)
-                Debug.LogWarning($"MatchView: {_missingKits} barangay kits are missing (run tools/unity_export/sync_assets.sh)");
+                Debug.LogWarning($"MatchView: {_missingKits} barangay kits fell back to BarangayBuilding stand-ins");
+
+            if (Layout.ArenaRadius > 0f)
+            {
+                _neutrals = new BarangayNeutrals(new MapLayout());
+                _ownsNeutrals = true;
+            }
 
             bool reduceMotion = SettingsStore.Current.ReduceMotion;
+            Environment?.SyncLivingWorld(_neutrals, 0f, reduceMotion);
             Fx = new FxPool(Root, FxPool.DefaultCapacity, reduceMotion);
             Projectiles = new ProjectileViews(Root, Fx, _audio, _camera.KidViewScale, reduceMotion);
             AimIndicator = new AimIndicatorView(Root, SettingsStore.Current.AimGuide, reduceMotion);
@@ -295,6 +320,12 @@ namespace Kalyeah.Game
 
             SyncKidsInternal(previous, current, SimBridge.LocalTeam, -1, cbMode, alpha, stepDt, false);
 
+            _combatClock += stepDt;
+            if (_ownsNeutrals && _neutrals != null && stepDt > 0f)
+                _neutrals.Step(stepDt, (OrderedDict<int, PlayerState>)null, null);
+            Environment?.SyncLivingWorld(_neutrals, _combatClock, reduceMotion);
+            Environment?.SyncBuffAuras(current, _neutrals, SimBridge.LocalTeam, cbMode);
+
             Zones.Tick(stepDt, reduceMotion);
             Fx.ReduceMotion = reduceMotion;
             Fx.Tick(stepDt);
@@ -303,7 +334,7 @@ namespace Kalyeah.Game
             AimIndicator.TickMoveMarker(stepDt);
         }
 
-        /// <summary>Full match sync driving objective zones, projectiles/zones, FX pool, aim move marker, and 10 KidView puppets.</summary>
+        /// <summary>Full match sync driving objective zones, living-world neutrals, projectiles/zones, FX pool, aim move marker, and 10 KidView puppets.</summary>
         public void Sync(
             IReadOnlyList<KidSnapshot> previous,
             SimBridge sim,
@@ -322,6 +353,11 @@ namespace Kalyeah.Game
             int cbMode = SettingsStore.Current.ColorblindMode;
 
             SyncZones(sim, localTeam, ownSide, stepDt, reduceMotion);
+
+            if (_ownsNeutrals && _neutrals != null && sim.Phase == MatchPhaseKind.Playing && stepDt > 0f)
+                _neutrals.Step(stepDt, (OrderedDict<int, PlayerState>)null, null);
+            Environment?.SyncLivingWorld(_neutrals, sim.ClockSeconds, reduceMotion);
+            Environment?.SyncBuffAuras(sim.Kids, _neutrals, localTeam, cbMode);
 
             Projectiles.ReduceMotion = reduceMotion;
             Projectiles.Sync(sim, stepDt, alpha);
@@ -592,6 +628,8 @@ namespace Kalyeah.Game
             HideAllCombatEntities();
             AimIndicator?.HideAim();
             AimIndicator?.ClearMoveMarker();
+            if (_ownsNeutrals && _neutrals != null)
+                _neutrals.ResetRound();
         }
 
         // ---- Lights & Barangay Kit Placement ------------------------------------------------------------------------------------
@@ -600,32 +638,36 @@ namespace Kalyeah.Game
         {
             BarangayEnvironmentBuilder.ApplySky();
 
+            // Single crisp 10:30 AM sunlit Manila Directional Light (elev 44 deg, azim 60 deg cross-lighting N-S lanes).
             var sun = new GameObject("Sun").AddComponent<Light>();
             sun.transform.SetParent(Root, false);
             sun.type = LightType.Directional;
             sun.color = SunColor;
             sun.intensity = SunIntensity;
             sun.shadows = LightShadows.Soft;
-            sun.shadowStrength = 0.45f;
+            sun.shadowStrength = SunShadowStrength;
+            sun.shadowBias = 0.04f;
+            sun.shadowNormalBias = 0.35f;
             sun.transform.rotation = Quaternion.LookRotation(KalyeahResources.U(GodotSpace.Forward(SunAngles.x, SunAngles.y)));
-
-            var fill = new GameObject("Fill").AddComponent<Light>();
-            fill.transform.SetParent(Root, false);
-            fill.type = LightType.Directional;
-            fill.color = FillColor;
-            fill.intensity = FillIntensity;
-            fill.shadows = LightShadows.None;
-            fill.transform.rotation = Quaternion.LookRotation(KalyeahResources.U(GodotSpace.Forward(FillAngles.x, FillAngles.y)));
 
             RenderSettings.sun = sun;
             RenderSettings.ambientMode = AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.72f, 0.80f, 0.95f);
-            RenderSettings.ambientEquatorColor = new Color(0.78f, 0.72f, 0.62f);
-            RenderSettings.ambientGroundColor = new Color(0.55f, 0.48f, 0.38f);
+            RenderSettings.ambientSkyColor = ManilaAmbientSky;
+            RenderSettings.ambientEquatorColor = ManilaAmbientEquator;
+            RenderSettings.ambientGroundColor = ManilaAmbientGround;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
-            RenderSettings.fogStartDistance = 76f;
-            RenderSettings.fogEndDistance = 260f;
+            RenderSettings.fogColor = ManilaHorizonFog;
+            RenderSettings.fogStartDistance = 82f;
+            RenderSettings.fogEndDistance = 275f;
+            DynamicGI.UpdateEnvironment();
+
+            Vector3 towardSun = -sun.transform.forward;
+            if (towardSun.sqrMagnitude > 1e-6f)
+            {
+                towardSun.Normalize();
+                Shader.SetGlobalVector(PropKalyeahSunDir, new Vector4(towardSun.x, towardSun.y, towardSun.z, 1f));
+            }
         }
 
         void BuildKits()
@@ -634,11 +676,32 @@ namespace Kalyeah.Game
             parent.SetParent(Root, false);
             foreach (KitPlacement kit in BarangayPlan.Build(Layout))
                 PlaceKit(parent, kit);
+            // Sync static world colliders immediately so EditMode & frame-0 Foot IK / whisker SphereCasts hit cleanly.
+            Physics.SyncTransforms();
         }
 
         void PlaceKit(Transform parent, KitPlacement kit)
         {
             GameObject prefab = KalyeahResources.Model("barangay", kit.Kit);
+            bool loadedFromProps = false;
+            string modelKey = "barangay/" + kit.Kit;
+
+            if (prefab == null)
+            {
+                string propId = !string.IsNullOrEmpty(kit.PropModel)
+                    ? kit.PropModel
+                    : BarangayPlan.ResolvePropModel(kit.Kit, kit.VariantIndex);
+                if (!string.IsNullOrEmpty(propId))
+                {
+                    prefab = KalyeahResources.Model("props", propId);
+                    if (prefab != null)
+                    {
+                        loadedFromProps = true;
+                        modelKey = "props/" + propId;
+                    }
+                }
+            }
+
             if (prefab == null)
             {
                 _missingKits++;
@@ -648,34 +711,55 @@ namespace Kalyeah.Game
             }
 
             GameObject model = UnityEngine.Object.Instantiate(prefab, parent, false);
-            model.name = kit.Kit;
+            model.name = loadedFromProps ? $"{kit.Kit}_{kit.PropModel ?? "prop"}" : kit.Kit;
+            model.layer = 0;
             KalyeahResources.SanitizeModelMaterials(model);
+            foreach (Collider rawCol in model.GetComponentsInChildren<Collider>(true))
+                KalyeahResources.Kill(rawCol);
+
             Transform t = model.transform;
-            Vector3 natural = NaturalSize(kit.Kit, model);
-            t.localScale = KalyeahResources.U(kit.ScaleFor(new SVector3(natural.x, natural.y, natural.z)));
+            Bounds natBounds = NaturalBounds(modelKey, model);
+            Vector3 natural = natBounds.size;
+            SVector3 natS = new SVector3(natural.x, natural.y, natural.z);
+            t.localScale = KalyeahResources.U(loadedFromProps ? kit.FitPropScale(natS) : kit.ScaleFor(natS));
             t.rotation = Quaternion.Euler(0f, GodotSpace.ModelYawDegrees(kit.GodotYawRad), 0f);
             Vector3 spot = KalyeahResources.World(kit.Ground);
             t.position = spot;
-            if (kit.Fit == KitFit.Footprint)
+            if (loadedFromProps || kit.Fit == KitFit.Footprint)
             {
                 Bounds placed = KalyeahResources.RenderBounds(model);
-                t.position += new Vector3(spot.x - placed.center.x, kit.Lift - placed.min.y, spot.z - placed.center.z);
+                if (placed.size.sqrMagnitude > 0.0001f)
+                    t.position += new Vector3(spot.x - placed.center.x, kit.Lift - placed.min.y, spot.z - placed.center.z);
+            }
+
+            // Oriented Default-layer BoxCollider directly on model (shear-free under rotation + non-uniform scale).
+            bool needsCollider = kit.Occluder
+                || kit.Kit == "brgy_chb_wall"
+                || kit.Kit == BarangayPlan.PostBlue
+                || kit.Kit == BarangayPlan.PostRed
+                || kit.Kit == BarangayPlan.PowerupStand;
+            if (needsCollider && natBounds.size.sqrMagnitude > 0.0001f)
+            {
+                var col = model.AddComponent<BoxCollider>();
+                col.center = natBounds.center;
+                col.size = natBounds.size;
+                col.isTrigger = false;
             }
 
             if (kit.Occluder && model != null)
                 _occluders.Add(model);
         }
 
-        Vector3 NaturalSize(string id, GameObject model)
+        Bounds NaturalBounds(string id, GameObject model)
         {
-            if (_naturalSizes.TryGetValue(id, out Vector3 size)) return size;
+            if (_naturalBounds.TryGetValue(id, out Bounds cached)) return cached;
             Transform t = model.transform;
             t.localScale = Vector3.one;
             t.rotation = Quaternion.identity;
             t.position = Vector3.zero;
-            size = KalyeahResources.RenderBounds(model).size;
-            _naturalSizes[id] = size;
-            return size;
+            Bounds bounds = KalyeahResources.RenderBounds(model);
+            _naturalBounds[id] = bounds;
+            return bounds;
         }
 
         public void Dispose()
@@ -684,6 +768,7 @@ namespace Kalyeah.Game
             _disposed = true;
 
             Unbind();
+            _neutrals = null;
             Projectiles?.Dispose();
             AimIndicator?.Dispose();
             Fx?.Dispose();

@@ -13,10 +13,14 @@ namespace Kalyeah.Game
         Footprint,
     }
 
-    /// <summary>One barangay kit (assets/models/barangay/&lt;Kit&gt;.glb) to put in the street.</summary>
+    /// <summary>One barangay kit (mapped to real textured .glb models in assets/models/props/ or assets/models/barangay/) to put in the street.</summary>
     public sealed class KitPlacement
     {
         public string Kit;
+        /// <summary>Optional real textured .glb prop model id under <c>assets/models/props/&lt;PropModel&gt;.glb</c>.</summary>
+        public string PropModel;
+        /// <summary>Deterministic variant index used for multi-house prop variation and Manila stucco palette variety.</summary>
+        public int VariantIndex;
         /// <summary>The spot, sim XZ.</summary>
         public Vector2 Ground;
         /// <summary>As the Godot view turns it; GodotSpace.ModelYawDegrees makes it a Unity yaw.</summary>
@@ -35,8 +39,8 @@ namespace Kalyeah.Game
         /// <summary>A building that may stand between the camera and your kid.</summary>
         public bool Occluder;
         /// <summary>
-        /// The grey-box stand-in's size in metres (model frame: X width, Y height, Z depth) before `Scale`, drawn when the kit's
-        /// .glb is not in the build (docs/GRAPHICS.md "Building and checking the art").
+        /// The stand-in's size in metres (model frame: X width, Y height, Z depth) before `Scale`, also used to fit unit-normalized
+        /// prop .glb models to exact real-world parcel and wall footprints.
         /// </summary>
         public Vector3 BlockSize;
 
@@ -50,14 +54,65 @@ namespace Kalyeah.Game
             if (AxisTarget.Z > 0f) s.Z = Math.Clamp(AxisTarget.Z / MathF.Max(natural.Z, 0.1f), AxisMin.Z, AxisMax.Z);
             return s;
         }
+
+        /// <summary>
+        /// Fits a textured <c>assets/models/props/*.glb</c> model (many of which are unit-normalized ~1 m Meshy exports)
+        /// cleanly into this placement's real-world meter bounds without overhanging navigation lanes or distorting silhouettes.
+        /// </summary>
+        public Vector3 FitPropScale(Vector3 natural)
+        {
+            float natX = MathF.Max(natural.X, 0.08f);
+            float natY = MathF.Max(natural.Y, 0.08f);
+            float natZ = MathF.Max(natural.Z, 0.08f);
+
+            // Base posts (`post_blue`, `post_red`) already specify exact UniformHeight + PostWidthShare.
+            if (UniformHeight > 0f)
+                return ScaleFor(natural);
+
+            // Perimeter walls (`plank_fence`) fit exact chord width, wall height, and sturdy depth.
+            if (Kit == "brgy_chb_wall")
+            {
+                float w = BlockSize.X > 0.1f ? BlockSize.X : 8f;
+                float h = BlockSize.Y > 0.1f ? BlockSize.Y : 2.25f;
+                float d = MathF.Max(BlockSize.Z, 0.28f);
+                return new Vector3(w / natX, h / natY, d / natZ);
+            }
+
+            // Compact standalone props (`ice_cream_cart`, `tricycle`, `crates`) scale uniformly to natural human height.
+            if (Kit == BarangayPlan.PowerupStand || Kit == "brgy_tricycle" || Kit == "brgy_cover_wall")
+            {
+                float targetH = BlockSize.Y > 0.1f ? BlockSize.Y * Scale.Y : 1.45f;
+                float u = Math.Clamp(targetH / natY, 0.25f, 3.2f);
+                return new Vector3(u, u, u);
+            }
+
+            // Houses, stores, terminals, and tents: fit strictly inside the sim parcel footprint (94% inset so eaves stay clear of lanes).
+            if (BlockSize.X > 0.1f && BlockSize.Y > 0.1f && BlockSize.Z > 0.1f)
+            {
+                float targetX = BlockSize.X * Scale.X * 0.94f;
+                float targetY = BlockSize.Y * Scale.Y;
+                float targetZ = BlockSize.Z * Scale.Z * 0.94f;
+
+                float sx = targetX / natX;
+                float sz = targetZ / natZ;
+                float sy = targetY / natY;
+
+                // Preserve clean architectural proportions on unit-normalized (~1 m) Meshy buildings.
+                float horiz = 0.5f * (sx + sz);
+                if (natY <= 1.6f)
+                    sy = Math.Clamp(sy, horiz * 0.58f, horiz * 1.25f);
+
+                return new Vector3(sx, sy, sz);
+            }
+
+            return ScaleFor(natural);
+        }
     }
 
     /// <summary>
-    /// Where the barangay's kits stand: a simplified but faithful copy of scripts/view/street_map.gd (_add_obstacle for the 32 building
-    /// parcels, _add_post for the two posts, the power-up stands, and _build_perimeter_skyline's wall, trees and two rings of houses). Left
-    /// out for this first pass: the creek and its bridges, the district landmarks, the electric wiring, the curbs and micro dressing, the
-    /// chalk zones (MatchView draws plain discs for the bases and rescue areas instead), and street_map.gd's procedural stand-ins for kits
-    /// it does not load from a .glb.
+    /// Where the barangay's kits stand: places the 32 building parcels, the two base posts, the merienda/power-up stands,
+    /// and the perimeter wall, trees, and two rings of neighborhood houses, mapping each slot to our real textured Filipino
+    /// <c>assets/models/props/*.glb</c> library with deterministic variant cycling.
     /// </summary>
     public static class BarangayPlan
     {
@@ -84,6 +139,44 @@ namespace Kalyeah.Game
             ["tent"] = "brgy_palengke_stall",
         };
 
+        /// <summary>
+        /// Maps each barangay kit id to one or more verified textured <c>.glb</c> prop ids synced from
+        /// <c>assets/models/props/</c> into Unity <c>Resources/models/props/</c>.
+        /// </summary>
+        public static readonly Dictionary<string, string[]> PropModelMap = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["brgy_sari_sari"] = new[] { "nena_store" },
+            ["brgy_tabi_cluster_a"] = new[] { "house_1", "barber_shop", "house_3" },
+            ["brgy_tabi_cluster_b"] = new[] { "house_2", "vulcanizing", "house_1" },
+            ["brgy_house_two_storey"] = new[] { "house_2", "house_3", "house_1" },
+            ["brgy_shophouse_row"] = new[] { "barber_shop", "nena_store", "vulcanizing" },
+            ["brgy_bakery_oven"] = new[] { "karinderya", "nena_store" },
+            ["brgy_palengke_stall"] = new[] { "rooster_tent", "nena_store" },
+            ["brgy_toda_shed"] = new[] { "tricycle_terminal" },
+            ["brgy_waiting_shed"] = new[] { "tricycle_terminal" },
+            ["brgy_tricycle"] = new[] { "tricycle" },
+            ["brgy_post_blue"] = new[] { "post_blue" },
+            ["brgy_post_red"] = new[] { "post_red" },
+            ["brgy_merienda_stand"] = new[] { "ice_cream_cart" },
+            ["brgy_sorbetes_cart"] = new[] { "ice_cream_cart" },
+            ["brgy_chb_wall"] = new[] { "plank_fence" },
+            ["brgy_cover_wall"] = new[] { "crates", "plank_fence" },
+            ["brgy_wooden_hoop"] = new[] { "basketball_pole" },
+            ["brgy_poster_cluster"] = new[] { "no_id_no_entry" },
+            ["brgy_bench"] = new[] { "bench" },
+            ["brgy_water_drum"] = new[] { "blue_water_drum" },
+        };
+
+        /// <summary>Resolves the deterministic <c>assets/models/props/&lt;id&gt;.glb</c> name for a kit, or null when procedural stand-in applies.</summary>
+        public static string ResolvePropModel(string kitId, int variantIndex = 0)
+        {
+            if (string.IsNullOrEmpty(kitId)) return null;
+            if (!PropModelMap.TryGetValue(kitId, out string[] variants) || variants == null || variants.Length == 0)
+                return null;
+            int idx = ((variantIndex % variants.Length) + variants.Length) % variants.Length;
+            return variants[idx];
+        }
+
         /// <summary>street_map.gd BUILTIN_SLAB_KITS: kits that bring their own slab (no 4.5 cm plinth lift).</summary>
         static readonly HashSet<string> SlabKits = new HashSet<string>
         {
@@ -96,6 +189,11 @@ namespace Kalyeah.Game
             "brgy_tabi_cluster_a", "brgy_house_two_storey",
         };
 
+        static readonly string[] PerimeterPropModels =
+        {
+            "house_1", "nena_store", "house_2", "barber_shop", "house_3", "vulcanizing", "house_1", "house_2",
+        };
+
         static readonly string[] TreeKits = { "brgy_mango_tree", "brgy_coconut_palm", "brgy_banana_clump" };
 
         public const string PostBlue = "brgy_post_blue";
@@ -105,16 +203,16 @@ namespace Kalyeah.Game
         static readonly Vector3 TreeBlock = new Vector3(2.4f, 6f, 2.4f);
         static readonly Vector3 HouseBlock = new Vector3(7f, 6f, 6f);
 
-        /// <summary>How tall a parcel's grey-box stand-in is, by what stands there (metres).</summary>
+        /// <summary>How tall a parcel's stand-in / target height is, by what stands there (metres).</summary>
         static float BlockHeight(string prop) => prop switch
         {
             "jeepney" or "owner_jeep" or "passenger_jeepney" => 2.4f,
             "tricycle" => 1.8f,
             "bench" => 0.9f,
             "poso_well" => 1.6f,
-            "waiting_shed" or "toda_shed" or "palengke_stall" or "tent" or "bakery_oven" => 3.2f,
+            "waiting_shed" or "toda_shed" or "palengke_stall" or "tent" or "bakery_oven" => 3.4f,
             "kapilya" => 7.5f,
-            _ => 5.5f,
+            _ => 5.6f,
         };
 
         public static List<KitPlacement> Build(MapLayoutData layout)
@@ -122,8 +220,20 @@ namespace Kalyeah.Game
             var result = new List<KitPlacement>();
             AddParcels(layout, result);
             AddPosts(layout, result);
+            int standIdx = 0;
             foreach (Vector2 spot in layout.PowerupSpots)
-                result.Add(new KitPlacement { Kit = PowerupStand, Ground = spot, Fit = KitFit.Footprint, BlockSize = new Vector3(1.6f, 1.4f, 1.0f) });
+            {
+                result.Add(new KitPlacement
+                {
+                    Kit = PowerupStand,
+                    PropModel = ResolvePropModel(PowerupStand, standIdx),
+                    VariantIndex = standIdx,
+                    Ground = spot,
+                    Fit = KitFit.Footprint,
+                    BlockSize = new Vector3(1.6f, 1.45f, 1.0f),
+                });
+                standIdx++;
+            }
             AddPerimeter(layout, result);
             return result;
         }
@@ -139,6 +249,8 @@ namespace Kalyeah.Game
                 result.Add(new KitPlacement
                 {
                     Kit = kit,
+                    PropModel = ResolvePropModel(kit, index),
+                    VariantIndex = index,
                     Ground = layout.ParcelRect(index).Center,
                     GodotYawRad = layout.HasOrientedParcels ? layout.ParcelYawRad(index) : 0f,
                     Scale = new Vector3(u, sy, u),
@@ -162,9 +274,12 @@ namespace Kalyeah.Game
             foreach (int side in new[] { MapLayoutData.SideOwn, MapLayoutData.SideEnemy })
             {
                 bool own = side == MapLayoutData.SideOwn;
+                string kitId = own ? PostBlue : PostRed;
                 result.Add(new KitPlacement
                 {
-                    Kit = own ? PostBlue : PostRed,
+                    Kit = kitId,
+                    PropModel = ResolvePropModel(kitId, 0),
+                    VariantIndex = own ? 0 : 1,
                     Ground = layout.PostPosition(side),
                     GodotYawRad = own ? MathF.PI : 0f,
                     UniformHeight = layout.PostHeight,
@@ -201,6 +316,8 @@ namespace Kalyeah.Game
                     result.Add(new KitPlacement
                     {
                         Kit = "brgy_chb_wall",
+                        PropModel = ResolvePropModel("brgy_chb_wall", i),
+                        VariantIndex = i,
                         Ground = pWall,
                         GodotYawRad = inwardYaw,
                         AxisTarget = new Vector3(wallChord, 2.25f, 0f),
@@ -214,6 +331,7 @@ namespace Kalyeah.Game
                         result.Add(new KitPlacement
                         {
                             Kit = TreeKits[(i / 2) % TreeKits.Length],
+                            VariantIndex = i / 2,
                             Ground = dir * (ringRadius + 3.9f + 1.8f * MathF.Abs(MathF.Cos(i * 1.9f))),
                             GodotYawRad = i * 1.1f,
                             Scale = new Vector3(ts),
@@ -234,6 +352,8 @@ namespace Kalyeah.Game
                     result.Add(new KitPlacement
                     {
                         Kit = PerimeterKits[i % PerimeterKits.Length],
+                        PropModel = PerimeterPropModels[i % PerimeterPropModels.Length],
+                        VariantIndex = i,
                         Ground = pos,
                         GodotYawRad = inwardYaw + 11.5f * MathF.Sin(i * 3.7f + 0.9f) * MathF.PI / 180f,
                         Scale = new Vector3(us),
@@ -255,6 +375,8 @@ namespace Kalyeah.Game
                 result.Add(new KitPlacement
                 {
                     Kit = PerimeterKits[(j + 2) % PerimeterKits.Length],
+                    PropModel = PerimeterPropModels[(j + 3) % PerimeterPropModels.Length],
+                    VariantIndex = j + 64,
                     Ground = dirO * rO,
                     GodotYawRad = MathF.Atan2(-dirO.X, -dirO.Y) + 12.5f * MathF.Cos(j * 2.9f) * MathF.PI / 180f,
                     Scale = new Vector3(uso),
@@ -267,6 +389,7 @@ namespace Kalyeah.Game
                     result.Add(new KitPlacement
                     {
                         Kit = TreeKits[(j + 1) % TreeKits.Length],
+                        VariantIndex = j + 100,
                         Ground = dirO * (rO + 8.5f),
                         GodotYawRad = j * 1.4f,
                         Scale = new Vector3(gs),
