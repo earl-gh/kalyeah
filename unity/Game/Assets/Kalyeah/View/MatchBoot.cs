@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
@@ -30,8 +31,11 @@ namespace Kalyeah.Game
         readonly bool _ownsAudio;
         readonly Volume _postVolume;
         readonly VolumeProfile _postVolumeProfile;
-        readonly Bloom _postBloom;
+        readonly Tonemapping _postTonemapping;
         readonly ColorAdjustments _postColorGrade;
+        readonly SplitToning _postSplitToning;
+        readonly Bloom _postBloom;
+        readonly Vignette _postVignette;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         readonly PcCombatInput _pcInput;
         public PcCombatInput PcInput => _pcInput;
@@ -101,20 +105,33 @@ namespace Kalyeah.Game
             var cameraObject = new GameObject("ShoulderCamera", typeof(Camera));
             if (root != null) cameraObject.transform.SetParent(root, false);
             cameraObject.tag = "MainCamera";
+            if (cameraObject.GetComponent<AudioListener>() == null && UnityEngine.Object.FindAnyObjectByType<AudioListener>() == null)
+                cameraObject.AddComponent<AudioListener>();
             Camera = cameraObject.GetComponent<Camera>();
             Camera.clearFlags = CameraClearFlags.Skybox;
             KidView.SetActiveCamera(Camera);
 
             _postVolume = cameraObject.AddComponent<Volume>();
             _postVolume.isGlobal = true;
-            _postVolume.priority = 1f;
+            _postVolume.priority = 10f;
             _postVolumeProfile = ScriptableObject.CreateInstance<VolumeProfile>();
             _postVolumeProfile.name = "KalyeahMatchPostProfile";
             _postVolumeProfile.hideFlags = HideFlags.DontSave;
-            _postBloom = _postVolumeProfile.Add<Bloom>(true);
+            _postTonemapping = _postVolumeProfile.Add<Tonemapping>(true);
             _postColorGrade = _postVolumeProfile.Add<ColorAdjustments>(true);
+            _postSplitToning = _postVolumeProfile.Add<SplitToning>(true);
+            _postBloom = _postVolumeProfile.Add<Bloom>(true);
+            _postVignette = _postVolumeProfile.Add<Vignette>(true);
             _postVolume.sharedProfile = _postVolumeProfile;
-            MatchBoot.ApplyCameraPostSettings(Camera, _postVolume, _postBloom, _postColorGrade, SettingsStore.Current.GraphicsProfile);
+            MatchBoot.ApplyCameraPostSettings(
+                Camera,
+                _postVolume,
+                _postTonemapping,
+                _postColorGrade,
+                _postSplitToning,
+                _postBloom,
+                _postVignette,
+                SettingsStore.Current.GraphicsProfile);
 
             View.Fx.ViewCamera = Camera;
 
@@ -294,7 +311,15 @@ namespace Kalyeah.Game
         void OnGraphicsProfileChanged(GraphicsTierProfile profile)
         {
             if (_disposed) return;
-            MatchBoot.ApplyCameraPostSettings(Camera, _postVolume, _postBloom, _postColorGrade, profile);
+            MatchBoot.ApplyCameraPostSettings(
+                Camera,
+                _postVolume,
+                _postTonemapping,
+                _postColorGrade,
+                _postSplitToning,
+                _postBloom,
+                _postVignette,
+                profile);
         }
 
         void SyncAudioSettings()
@@ -627,6 +652,12 @@ namespace Kalyeah.Game
         static readonly int AmbientMaxGlobalId = Shader.PropertyToID("_KalyeahAmbientMax");
         static readonly int EnemyHighlightColorGlobalId = Shader.PropertyToID("_KalyeahEnemyHighlightColor");
         static readonly int SunDirGlobalId = Shader.PropertyToID("_KalyeahSunDir");
+        static readonly PropertyInfo MainLightShadowResProp = typeof(UniversalRenderPipelineAsset).GetProperty(
+            "mainLightShadowmapResolution",
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        static readonly FieldInfo MainLightShadowResField = typeof(UniversalRenderPipelineAsset).GetField(
+            "m_MainLightShadowmapResolution",
+            BindingFlags.Instance | BindingFlags.NonPublic);
 
         /// <summary>Last applied 4-tier graphics profile (Low / Medium / High / Ultra).</summary>
         public static GraphicsTierProfile ActiveGraphicsProfile { get; private set; } = GraphicsTierProfile.Medium;
@@ -739,6 +770,7 @@ namespace Kalyeah.Game
                 urp.renderScale = profile.RenderScale;
                 urp.msaaSampleCount = profile.MsaaSamples;
                 urp.shadowDistance = profile.ShadowDistance;
+                ApplyMainLightShadowmapResolution(urp, profile.QualityIndex >= SettingsStore.GraphicsHigh ? 2048 : 1024);
             }
 
             QualitySettings.globalTextureMipmapLimit = profile.TextureMipmapLimit;
@@ -764,11 +796,37 @@ namespace Kalyeah.Game
             return profile;
         }
 
+        static void ApplyMainLightShadowmapResolution(UniversalRenderPipelineAsset urp, int resolution)
+        {
+            if (urp == null) return;
+            try
+            {
+                if (MainLightShadowResProp != null && MainLightShadowResProp.CanWrite)
+                {
+                    MainLightShadowResProp.SetValue(urp, resolution);
+                    return;
+                }
+                if (MainLightShadowResField != null)
+                {
+                    object value = MainLightShadowResField.FieldType.IsEnum
+                        ? Enum.ToObject(MainLightShadowResField.FieldType, resolution)
+                        : (object)resolution;
+                    MainLightShadowResField.SetValue(urp, value);
+                }
+            }
+            catch
+            {
+            }
+        }
+
         internal static void ApplyCameraPostSettings(
             Camera cam,
             Volume volume,
-            Bloom bloom,
+            Tonemapping tonemapping,
             ColorAdjustments grade,
+            SplitToning splitToning,
+            Bloom bloom,
+            Vignette vignette,
             GraphicsTierProfile profile)
         {
             if (cam != null)
@@ -777,33 +835,57 @@ namespace Kalyeah.Game
                 if (camData != null)
                 {
                     camData.renderPostProcessing = profile.PostProcessingEnabled;
-                    // docs/GRAPHICS.md: Low = none, Medium/High = cheap FXAA smoother, Ultra = 4x MSAA.
-                    camData.antialiasing = (profile.QualityIndex == SettingsStore.GraphicsMedium
-                        || profile.QualityIndex == SettingsStore.GraphicsHigh)
+                    camData.antialiasing = profile.MsaaSamples <= 1 && profile.PostProcessingEnabled
                         ? AntialiasingMode.FastApproximateAntialiasing
                         : AntialiasingMode.None;
+                    if (volume != null && (camData.volumeLayerMask.value & (1 << volume.gameObject.layer)) == 0)
+                        camData.volumeLayerMask |= 1 << volume.gameObject.layer;
                 }
             }
 
-            if (volume != null)
-                volume.enabled = profile.PostProcessingEnabled;
+            bool postOn = profile.PostProcessingEnabled;
+            bool highOrUltra = profile.QualityIndex >= SettingsStore.GraphicsHigh;
 
-            if (bloom != null)
+            if (volume != null)
+                volume.enabled = postOn;
+
+            if (tonemapping != null)
             {
-                bloom.active = profile.PostProcessingEnabled;
-                bloom.threshold.Override(profile.FullPostProcessing ? 0.88f : 0.94f);
-                bloom.intensity.Override(profile.FullPostProcessing ? 0.34f : 0.24f);
-                bloom.scatter.Override(profile.FullPostProcessing ? 0.66f : 0.58f);
+                tonemapping.active = postOn;
+                tonemapping.mode.Override(TonemappingMode.Neutral);
             }
 
             if (grade != null)
             {
-                // Preserve warm true Filipino skin tones across every map and preset (no heavy saturation/crush).
-                grade.active = profile.PostProcessingEnabled;
-                grade.postExposure.Override(0.04f);
-                grade.contrast.Override(profile.FullPostProcessing ? 7f : 4f);
-                grade.saturation.Override(profile.FullPostProcessing ? 5f : 3f);
-                grade.colorFilter.Override(new Color(1.00f, 0.99f, 0.97f, 1f));
+                grade.active = postOn;
+                grade.postExposure.Override(0.06f);
+                grade.contrast.Override(highOrUltra ? 10f : 8f);
+                grade.saturation.Override(highOrUltra ? 6f : 5f);
+                grade.colorFilter.Override(Color.white);
+            }
+
+            if (splitToning != null)
+            {
+                splitToning.active = postOn;
+                splitToning.highlights.Override(new Color(1.00f, 0.94f, 0.84f, 1f));
+                splitToning.shadows.Override(new Color(0.41f, 0.54f, 0.71f, 1f));
+                splitToning.balance.Override(5f);
+            }
+
+            if (bloom != null)
+            {
+                bloom.active = postOn;
+                bloom.threshold.Override(1.15f);
+                bloom.intensity.Override(highOrUltra ? 0.28f : 0.24f);
+                bloom.scatter.Override(0.58f);
+                bloom.highQualityFiltering.Override(highOrUltra);
+            }
+
+            if (vignette != null)
+            {
+                vignette.active = postOn;
+                vignette.intensity.Override(0.14f);
+                vignette.smoothness.Override(0.45f);
             }
         }
 

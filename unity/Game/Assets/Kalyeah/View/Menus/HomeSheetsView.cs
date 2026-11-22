@@ -295,6 +295,7 @@ namespace Kalyeah.Game
         public event Action HistoryRequested;
 
         Transform _homeParent;
+        bool _idCameraCloseOnExit;
 
         public HomeSheetsView(
             Transform parent,
@@ -380,6 +381,15 @@ namespace Kalyeah.Game
             PresentModal();
         }
 
+        /// <summary>Opens the ID selfie camera over another full-screen view (e.g. <see cref="ProfileScreenView"/>); saving or backing closes back to that host.</summary>
+        public void OpenIdCameraOver(Transform host)
+        {
+            if (!IsInteractive) return;
+            if (host != null && Root != null) Root.SetParent(host, false);
+            _idCameraCloseOnExit = true;
+            OpenIdCamera();
+        }
+
         public void OpenIdCamera()
         {
             if (!IsInteractive) return;
@@ -457,6 +467,7 @@ namespace Kalyeah.Game
                 Root.gameObject.SetActive(false);
             if (Root != null && _homeParent != null && Root.parent != _homeParent)
                 Root.SetParent(_homeParent, false);
+            _idCameraCloseOnExit = false;
             if (wasOpen)
             {
                 _audio?.PlayUiTap("cancel");
@@ -1701,7 +1712,10 @@ namespace Kalyeah.Game
             }
 
             StopCamera();
-            OpenProfile();
+            if (_idCameraCloseOnExit)
+                Close();
+            else
+                OpenProfile();
         }
 
         void OnCameraPrimaryClicked()
@@ -1866,7 +1880,10 @@ namespace Kalyeah.Game
                 _audio?.PlayUiTap("ready");
                 Haptics.LightTap();
                 ProfileChanged?.Invoke();
-                OpenProfile();
+                if (_idCameraCloseOnExit)
+                    Close();
+                else
+                    OpenProfile();
             }
             catch
             {

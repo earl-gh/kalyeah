@@ -197,6 +197,7 @@ def transfer_corrective_shapes(src_obj, dst_obj):
     transferred = 0
     for kb in corr_keys:
         dst_kb = dst_obj.shape_key_add(name=kb.name, from_mix=False)
+        dst_kb.value = 0.0
         deltas = [Vector((0, 0, 0)) for _ in range(len(dst_rest))]
         for vi, mp in enumerate(mapping):
             if mp is None:

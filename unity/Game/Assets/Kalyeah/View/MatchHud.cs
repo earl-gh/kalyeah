@@ -51,8 +51,11 @@ namespace Kalyeah.Game
         readonly Image _mapToggleRingIcon;
         readonly Text _mapToggleLabel;
         readonly Transform _introOverlay;
+        readonly AudioHub _audio;
         readonly List<RectTransform> _activeControlsScratch = new List<RectTransform>(16);
 
+        SimBridge _boundAudioSim;
+        int _lastLocalDamageHp = -1;
         bool _appliedLeftHanded;
         bool _minimapLayoutAssigned;
         bool _lastMapVisible;
@@ -80,6 +83,7 @@ namespace Kalyeah.Game
             Action onBackToHome = null)
         {
             Interactive = interactive;
+            _audio = audio;
             Canvas = Ui.MakeCanvas("MatchHud", parent, camera);
 
             var raycaster = Canvas.GetComponent<GraphicRaycaster>();
@@ -97,6 +101,7 @@ namespace Kalyeah.Game
             //    docs/SPEC.md §8)
             OverheadBars = new OverheadBarsView(SafeRoot, Canvas);
             Crosshair = CrosshairView.Build(SafeRoot);
+            Crosshair.Audio = audio;
             Minimap = new BarangayMinimapView(SafeRoot, null, Canvas, initialVisible: true);
             Minimap.SetLeftHanded(leftHanded);
 
@@ -167,6 +172,7 @@ namespace Kalyeah.Game
             Ads.ToggleMode = SettingsStore.Current.AdsToggle;
 
             AbilityArc = AbilityArcView.Build(SafeRoot, leftHanded);
+            AbilityArc.Audio = audio;
             CardHand = CardHandView.Build(SafeRoot, leftHanded, SettingsStore.Current.CardsTrayPlacement);
 
             UsingCardsTray = CardHandView.ShouldUseCardsTray(sim, SettingsStore.Current);
@@ -196,7 +202,10 @@ namespace Kalyeah.Game
             }
 
             if (sim != null)
+            {
                 Crosshair.Bind(sim);
+                BindAudioSim(sim);
+            }
 
             SettingsStore.Current.Changed += OnSettingsChanged;
             SafeArea.Changed += OnSafeAreaChanged;
@@ -308,6 +317,7 @@ namespace Kalyeah.Game
                 : (Canvas != null ? Canvas.worldCamera : null);
 
             SyncHandedness();
+            BindAudioSim(sim);
             RefreshHeader(sim);
 
             if (layout != null && !_minimapLayoutAssigned)
@@ -337,15 +347,36 @@ namespace Kalyeah.Game
 
             AbilityInputState abilityState = default;
             bool isAimingAbility = false;
+            AimCameraKind activeSkillAim = AimCameraKind.Normal;
             if (!hideCombatControls)
             {
                 if (UsingCardsTray)
                     CardHand.Sync(sim, stepDt, shoulder, effectiveCamera, layout);
                 else
+                {
                     AbilityArc.Sync(sim, stepDt, shoulder, effectiveCamera, layout);
+                    activeSkillAim = AbilityArc.ActiveAimCamera;
+                }
 
                 abilityState = UsingCardsTray ? CardHand.CurrentInput : AbilityArc.CurrentInput;
                 isAimingAbility = (AbilityArc != null && AbilityArc.IsDraggingAim) || abilityState.HeldSlot >= 0 || abilityState.IsDraggingAim;
+            }
+
+            if (shoulder != null)
+            {
+                shoulder.SetSkillAimMode(hideCombatControls ? AimCameraKind.Normal : activeSkillAim);
+                shoulder.ExtraPivotHeight = (!hideCombatControls && localKid.HasValue && localKid.Value.OnStilts) ? 0.95f : 0f;
+                if (localKid.HasValue && !localKid.Value.Tagged)
+                {
+                    int curHp = localKid.Value.Hp;
+                    if (_lastLocalDamageHp > 0 && curHp < _lastLocalDamageHp)
+                        shoulder.AddHitShake(Mathf.Clamp01((_lastLocalDamageHp - curHp) / 30f));
+                    _lastLocalDamageHp = curHp;
+                }
+                else
+                {
+                    _lastLocalDamageHp = -1;
+                }
             }
 
             if (Overlays.SuppressTakedownFeed != isAimingAbility)
@@ -357,12 +388,13 @@ namespace Kalyeah.Game
             }
 
             float camYaw = shoulder != null ? shoulder.Yaw : 0f;
+            float adsBlend = shoulder != null ? shoulder.AdsBlend : 0f;
             if (Crosshair != null && Crosshair.Root != null && Crosshair.Root.gameObject.activeSelf != !hideCombatControls)
                 Crosshair.Root.gameObject.SetActive(!hideCombatControls);
             if (!hideCombatControls)
             {
                 Crosshair.Bind(sim);
-                Crosshair.Sync(sim, stepDt, camYaw, isAimingAbility, abilityState.IsCancelHovered);
+                Crosshair.Sync(sim, stepDt, camYaw, isAimingAbility, abilityState.IsCancelHovered, effectiveCamera, adsBlend, layout);
             }
 
             OverheadBars.SetVisible(!modalBlocking);
@@ -409,6 +441,8 @@ namespace Kalyeah.Game
             AbilityInputState state = UsingCardsTray
                 ? CardHand.SampleInput(sim, shoulder, worldCamera, layout)
                 : AbilityArc.SampleInput(sim, shoulder, worldCamera, layout);
+            if (shoulder != null)
+                shoulder.SetSkillAimMode(UsingCardsTray ? AimCameraKind.Normal : AbilityArc.ActiveAimCamera);
             if (Ads != null)
             {
                 Ads.ToggleMode = SettingsStore.Current.AdsToggle;
@@ -796,11 +830,42 @@ namespace Kalyeah.Game
             RefreshLayout();
         }
 
+        void BindAudioSim(SimBridge sim)
+        {
+            if (ReferenceEquals(_boundAudioSim, sim)) return;
+            UnbindAudioSim();
+            _boundAudioSim = sim;
+            if (_boundAudioSim == null) return;
+            _boundAudioSim.TiradorReloadStarted += OnSimTiradorReloadStarted;
+            _boundAudioSim.WaterInsufficient += OnSimWaterInsufficient;
+        }
+
+        void UnbindAudioSim()
+        {
+            if (_boundAudioSim == null) return;
+            _boundAudioSim.TiradorReloadStarted -= OnSimTiradorReloadStarted;
+            _boundAudioSim.WaterInsufficient -= OnSimWaterInsufficient;
+            _boundAudioSim = null;
+        }
+
+        void OnSimTiradorReloadStarted(int playerId)
+        {
+            if (_boundAudioSim != null && playerId == _boundAudioSim.LocalPlayerId)
+                _audio?.PlayReloadClack();
+        }
+
+        void OnSimWaterInsufficient(int playerId)
+        {
+            if (_boundAudioSim != null && playerId == _boundAudioSim.LocalPlayerId)
+                _audio?.PlayWaterEmpty();
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
 
+            UnbindAudioSim();
             SettingsStore.Current.Changed -= OnSettingsChanged;
             if (SafeArea != null)
                 SafeArea.Changed -= OnSafeAreaChanged;

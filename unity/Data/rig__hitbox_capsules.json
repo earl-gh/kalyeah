@@ -1,0 +1,310 @@
+{
+  "source": "res://data/rig/hitbox_capsules.tres",
+  "class": "RigJointLimits",
+  "data": {
+    "$class": "HitboxCapsules",
+    "schemaVersion": 1,
+    "coordSpace": "bone_local_unity",
+    "standardizedHeightM": 1.7,
+    "matchKidHeightM": 1.85,
+    "matchViewScale": 0.82,
+    "matchEffectiveHeightM": 1.517,
+    "simPlayerRadiusM": 0.45,
+    "allKidsFitCylinderHitbox": true,
+    "damageMultipliers": {
+      "head": 1.5,
+      "torso": 1.0,
+      "limbs": 0.85
+    },
+    "capsules": {
+      "Head": {
+        "bone": "mixamorig:Head",
+        "zone": "head",
+        "damageMultiplier": 1.5,
+        "localOffset": [
+          0.0,
+          0.135,
+          0.012
+        ],
+        "radius": 0.132,
+        "height": 0.295,
+        "axis": "Y"
+      },
+      "Chest": {
+        "bone": "mixamorig:Spine2",
+        "zone": "torso",
+        "damageMultiplier": 1.0,
+        "localOffset": [
+          0.0,
+          0.075,
+          0.0
+        ],
+        "radius": 0.165,
+        "height": 0.34,
+        "axis": "Y"
+      },
+      "Stomach": {
+        "bone": "mixamorig:Spine",
+        "zone": "torso",
+        "damageMultiplier": 1.0,
+        "localOffset": [
+          0.0,
+          0.055,
+          0.0
+        ],
+        "radius": 0.155,
+        "height": 0.27,
+        "axis": "Y"
+      },
+      "UpperArm_L": {
+        "bone": "mixamorig:LeftArm",
+        "zone": "limbs",
+        "damageMultiplier": 0.85,
+        "localOffset": [
+          0.0,
+          0.105,
+          0.0
+        ],
+        "radius": 0.068,
+        "height": 0.24,
+        "axis": "Y"
+      },
+      "UpperArm_R": {
+        "bone": "mixamorig:RightArm",
+        "zone": "limbs",
+        "damageMultiplier": 0.85,
+        "localOffset": [
+          0.0,
+          0.105,
+          0.0
+        ],
+        "radius": 0.068,
+        "height": 0.24,
+        "axis": "Y"
+      },
+      "Forearm_L": {
+        "bone": "mixamorig:LeftForeArm",
+        "zone": "limbs",
+        "damageMultiplier": 0.85,
+        "localOffset": [
+          0.0,
+          0.11,
+          0.0
+        ],
+        "radius": 0.058,
+        "height": 0.24,
+        "axis": "Y"
+      },
+      "Forearm_R": {
+        "bone": "mixamorig:RightForeArm",
+        "zone": "limbs",
+        "damageMultiplier": 0.85,
+        "localOffset": [
+          0.0,
+          0.11,
+          0.0
+        ],
+        "radius": 0.058,
+        "height": 0.24,
+        "axis": "Y"
+      },
+      "Thigh_L": {
+        "bone": "mixamorig:LeftUpLeg",
+        "zone": "limbs",
+        "damageMultiplier": 0.85,
+        "localOffset": [
+          0.0,
+          0.17,
+          0.0
+        ],
+        "radius": 0.092,
+        "height": 0.36,
+        "axis": "Y"
+      },
+      "Thigh_R": {
+        "bone": "mixamorig:RightUpLeg",
+        "zone": "limbs",
+        "damageMultiplier": 0.85,
+        "localOffset": [
+          0.0,
+          0.17,
+          0.0
+        ],
+        "radius": 0.092,
+        "height": 0.36,
+        "axis": "Y"
+      },
+      "Calf_L": {
+        "bone": "mixamorig:LeftLeg",
+        "zone": "limbs",
+        "damageMultiplier": 0.85,
+        "localOffset": [
+          0.0,
+          0.18,
+          0.0
+        ],
+        "radius": 0.072,
+        "height": 0.38,
+        "axis": "Y"
+      },
+      "Calf_R": {
+        "bone": "mixamorig:RightLeg",
+        "zone": "limbs",
+        "damageMultiplier": 0.85,
+        "localOffset": [
+          0.0,
+          0.18,
+          0.0
+        ],
+        "radius": 0.072,
+        "height": 0.38,
+        "axis": "Y"
+      }
+    },
+    "rosterProportions": {
+      "domeng": {
+        "authoredHeightM": 1.7,
+        "matchHeightM": 1.517,
+        "headBaseRatio": 0.775,
+        "eyeLineRatio": 0.912,
+        "shoulderWidthM": 0.398,
+        "torsoRadiusM": 0.231,
+        "matchCoreRadiusM": 0.254,
+        "fitsPlayerCylinderRadius": true,
+        "springChains": []
+      },
+      "inggo": {
+        "authoredHeightM": 1.7,
+        "matchHeightM": 1.517,
+        "headBaseRatio": 0.752,
+        "eyeLineRatio": 0.89,
+        "shoulderWidthM": 0.332,
+        "torsoRadiusM": 0.146,
+        "matchCoreRadiusM": 0.199,
+        "fitsPlayerCylinderRadius": true,
+        "springChains": []
+      },
+      "jopay": {
+        "authoredHeightM": 1.7,
+        "matchHeightM": 1.517,
+        "headBaseRatio": 0.861,
+        "eyeLineRatio": 0.941,
+        "shoulderWidthM": 0.359,
+        "torsoRadiusM": 0.165,
+        "matchCoreRadiusM": 0.222,
+        "fitsPlayerCylinderRadius": true,
+        "springChains": []
+      },
+      "jumong": {
+        "authoredHeightM": 1.7,
+        "matchHeightM": 1.517,
+        "headBaseRatio": 0.807,
+        "eyeLineRatio": 0.916,
+        "shoulderWidthM": 0.332,
+        "torsoRadiusM": 0.155,
+        "matchCoreRadiusM": 0.224,
+        "fitsPlayerCylinderRadius": true,
+        "springChains": []
+      },
+      "karding": {
+        "authoredHeightM": 1.7,
+        "matchHeightM": 1.517,
+        "headBaseRatio": 0.787,
+        "eyeLineRatio": 0.867,
+        "shoulderWidthM": 0.319,
+        "torsoRadiusM": 0.144,
+        "matchCoreRadiusM": 0.185,
+        "fitsPlayerCylinderRadius": true,
+        "springChains": [
+          "cape_c",
+          "hair_c"
+        ]
+      },
+      "kikay": {
+        "authoredHeightM": 1.7,
+        "matchHeightM": 1.517,
+        "headBaseRatio": 0.795,
+        "eyeLineRatio": 0.894,
+        "shoulderWidthM": 0.279,
+        "torsoRadiusM": 0.139,
+        "matchCoreRadiusM": 0.196,
+        "fitsPlayerCylinderRadius": true,
+        "springChains": [
+          "skirt_l2",
+          "skirt_l",
+          "skirt_r2",
+          "skirt_r"
+        ]
+      },
+      "manoy": {
+        "authoredHeightM": 1.7,
+        "matchHeightM": 1.517,
+        "headBaseRatio": 0.814,
+        "eyeLineRatio": 0.917,
+        "shoulderWidthM": 0.332,
+        "torsoRadiusM": 0.171,
+        "matchCoreRadiusM": 0.207,
+        "fitsPlayerCylinderRadius": true,
+        "springChains": []
+      },
+      "narda": {
+        "authoredHeightM": 1.7,
+        "matchHeightM": 1.517,
+        "headBaseRatio": 0.834,
+        "eyeLineRatio": 0.914,
+        "shoulderWidthM": 0.305,
+        "torsoRadiusM": 0.186,
+        "matchCoreRadiusM": 0.212,
+        "fitsPlayerCylinderRadius": true,
+        "springChains": [
+          "skirt_l",
+          "skirt_r"
+        ]
+      },
+      "oriang": {
+        "authoredHeightM": 1.7,
+        "matchHeightM": 1.517,
+        "headBaseRatio": 0.771,
+        "eyeLineRatio": 0.875,
+        "shoulderWidthM": 0.319,
+        "torsoRadiusM": 0.163,
+        "matchCoreRadiusM": 0.213,
+        "fitsPlayerCylinderRadius": true,
+        "springChains": []
+      },
+      "paeng": {
+        "authoredHeightM": 1.7,
+        "matchHeightM": 1.517,
+        "headBaseRatio": 0.795,
+        "eyeLineRatio": 0.924,
+        "shoulderWidthM": 0.372,
+        "torsoRadiusM": 0.176,
+        "matchCoreRadiusM": 0.242,
+        "fitsPlayerCylinderRadius": true,
+        "springChains": []
+      },
+      "pamela": {
+        "authoredHeightM": 1.7,
+        "matchHeightM": 1.517,
+        "headBaseRatio": 0.795,
+        "eyeLineRatio": 0.901,
+        "shoulderWidthM": 0.305,
+        "torsoRadiusM": 0.163,
+        "matchCoreRadiusM": 0.199,
+        "fitsPlayerCylinderRadius": true,
+        "springChains": []
+      },
+      "tere": {
+        "authoredHeightM": 1.7,
+        "matchHeightM": 1.517,
+        "headBaseRatio": 0.799,
+        "eyeLineRatio": 0.95,
+        "shoulderWidthM": 0.356,
+        "torsoRadiusM": 0.12,
+        "matchCoreRadiusM": 0.235,
+        "fitsPlayerCylinderRadius": true,
+        "springChains": []
+      }
+    }
+  }
+}

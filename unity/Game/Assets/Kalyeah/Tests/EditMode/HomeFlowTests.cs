@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
@@ -152,6 +153,111 @@ namespace Kalyeah.Game
             retry.onClick.Invoke();
             Assert.IsTrue(_home.OfflinePromptOpen, "still offline: the prompt stays");
             Assert.IsNull(_navigated, "RETRY at launch checks the connection; it never opens the lobby");
+        }
+
+        [Test]
+        public void Home_ProfileButton_NavigatesToFullScreenProfile()
+        {
+            Transform profile = _home.SafeRoot.Find("TopBar/Profile");
+            Assert.IsNotNull(profile, "TopBar/Profile button");
+            profile.GetComponent<Button>().onClick.Invoke();
+            Assert.AreEqual(MenuStack.ProfileId, _navigated, "tapping Profile on Home opens the full-screen Profile hub, not a sheet modal");
+            Assert.IsFalse(_home.Sheets.IsOpen, "legacy profile sheet modal must stay closed");
+        }
+
+        [Test]
+        public void ProfileScreen_OverviewHistoryIdentity_WorksEndToEnd()
+        {
+            string savedName = AppSession.Current.PlayerName;
+            int savedAvatar = AppSession.Current.AvatarIndex;
+            bool hadAvatarPref = PlayerPrefs.HasKey(HomeSheetsView.AvatarPrefKey);
+            int savedAvatarPref = PlayerPrefs.GetInt(HomeSheetsView.AvatarPrefKey, 0);
+            bool hadCustomPref = PlayerPrefs.HasKey(HomeSheetsView.CustomPhotoPrefKey);
+            int savedCustomPref = PlayerPrefs.GetInt(HomeSheetsView.CustomPhotoPrefKey, 0);
+
+            string navTarget = null;
+            int sheetsProfileChanges = 0;
+            Action onSheetsChanged = () => sheetsProfileChanges++;
+            _home.Sheets.ProfileChanged += onSheetsChanged;
+
+            var profile = new ProfileScreenView(
+                _home.Root.parent,
+                LoadData(),
+                onBack: () => navTarget = "back",
+                onOpenHistory: () => navTarget = MenuStack.HistoryId,
+                onOpenKids: () => navTarget = MenuStack.KidsId,
+                sheets: _home.Sheets);
+            try
+            {
+                profile.Show();
+                Assert.AreEqual(ProfileScreenView.TabOverview, profile.ActiveTab);
+                foreach (Text text in profile.SafeRoot.GetComponentsInChildren<Text>(false))
+                    foreach (string rankWord in new[] { "KARTON", "KAHOY", "BAKAL", "PILAK", "GINTO", " LP" })
+                        StringAssert.DoesNotContain(rankWord, text.text.ToUpperInvariant(), "profile overview stays rank-free until Ranked exists");
+
+                profile.ChangeKidButton.onClick.Invoke();
+                Assert.AreEqual(MenuStack.KidsId, navTarget);
+
+                profile.HistoryButton.onClick.Invoke();
+                Assert.AreEqual(ProfileScreenView.TabHistory, profile.ActiveTab);
+                profile.FullHistoryButton.onClick.Invoke();
+                Assert.AreEqual(MenuStack.HistoryId, navTarget);
+
+                profile.EditIdentityButton.onClick.Invoke();
+                Assert.AreEqual(ProfileScreenView.TabIdentity, profile.ActiveTab);
+
+                // Header BackButton pops straight back to Home (matching Settings/Codex), while HandleBack unwinds tabs
+                profile.BackButton.onClick.Invoke();
+                Assert.AreEqual("back", navTarget);
+
+                Assert.IsTrue(profile.HandleBack(), "Back from Identity tab unwinds to Overview first");
+                Assert.AreEqual(ProfileScreenView.TabOverview, profile.ActiveTab);
+                Assert.IsFalse(profile.HandleBack(), "Back from Overview pops back to Home");
+
+                profile.SetActiveTab(ProfileScreenView.TabIdentity);
+                profile.PlayerNameInput.text = "kalyeah99";
+                Assert.IsTrue(profile.SavePlayerName());
+                Assert.AreEqual("KALYEAH99", AppSession.Current.PlayerName);
+
+                // Selecting avatar syncs through HomeSheetsView & fires ProfileChanged (including index 0)
+                profile.SelectAvatar(2);
+                Assert.AreEqual(2, AppSession.Current.AvatarIndex);
+                Assert.AreEqual(2, _home.Sheets.AvatarIndex);
+                Assert.GreaterOrEqual(sheetsProfileChanges, 1);
+
+                profile.SelectAvatar(0);
+                Assert.AreEqual(0, AppSession.Current.AvatarIndex);
+                Assert.AreEqual(0, _home.Sheets.AvatarIndex);
+
+                // Opening ID camera over Profile closes cleanly back to Profile without opening legacy ProfileSheet
+                profile.TakeSelfieButton.onClick.Invoke();
+                Assert.IsTrue(_home.Sheets.IsOpen);
+                Assert.AreEqual(HomeSheetsView.SheetKind.IdCamera, _home.Sheets.ActiveSheet);
+                Assert.AreSame(profile.Root, _home.Sheets.Root.parent);
+                Transform camBack = _home.Sheets.SafeRoot.Find("SheetCard/CardCreamFill/IdCameraSheet/Buttons/BackOrRetakeButton");
+                Assert.IsNotNull(camBack, "IdCamera BackOrRetakeButton");
+                camBack.GetComponent<Button>().onClick.Invoke();
+                Assert.IsFalse(_home.Sheets.IsOpen, "IdCamera back button closes cleanly instead of opening legacy ProfileSheet");
+                Assert.AreSame(_home.Root, _home.Sheets.Root.parent, "Sheets root returns to Home on close");
+
+                profile.TakeSelfieButton.onClick.Invoke();
+                Assert.IsTrue(_home.Sheets.IsOpen);
+                Assert.IsTrue(profile.HandleBack(), "HandleBack closes IdCamera modal first");
+                Assert.IsFalse(_home.Sheets.IsOpen);
+                Assert.AreEqual(ProfileScreenView.TabIdentity, profile.ActiveTab);
+            }
+            finally
+            {
+                _home.Sheets.ProfileChanged -= onSheetsChanged;
+                _home.Sheets.Close();
+                profile.Dispose();
+                AppSession.Current.PlayerName = savedName;
+                AppSession.Current.AvatarIndex = savedAvatar;
+                if (hadAvatarPref) PlayerPrefs.SetInt(HomeSheetsView.AvatarPrefKey, savedAvatarPref);
+                else PlayerPrefs.DeleteKey(HomeSheetsView.AvatarPrefKey);
+                if (hadCustomPref) PlayerPrefs.SetInt(HomeSheetsView.CustomPhotoPrefKey, savedCustomPref);
+                else PlayerPrefs.DeleteKey(HomeSheetsView.CustomPhotoPrefKey);
+            }
         }
 
         [Test]

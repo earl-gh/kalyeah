@@ -277,14 +277,15 @@ namespace Kalyeah.Game
     }
 
     /// <summary>
-    /// Builds the overhead barangay wire network (y >= 4.5 m, ShadowCastingMode.Off), individual occludable curbside utility poles,
-    /// and Pinoy canopy fiesta banderitas + sampayan laundry strips, tracking all procedural Mesh/Material/Texture2D assets for zero leaks.
+    /// Builds the overhead barangay wire network (y >= 5.5 m, ShadowCastingMode.Off), individual occludable curbside utility poles,
+    /// and sparse Pinoy canopy fiesta banderitas + sampayan laundry strips cleanly above the 0-25 deg combat throw horizon,
+    /// tracking all procedural Mesh/Material/Texture2D assets for zero leaks.
     /// </summary>
     public static class SpaghettiWiresBuilder
     {
-        const float MinWireHeight = 4.52f;
+        const float MinWireHeight = 5.55f;
 
-        static readonly Color WireCharcoal = new Color(0.13f, 0.11f, 0.13f, 1f);
+        static readonly Color WireBronze = new Color(0.22f, 0.20f, 0.19f, 1f);
         static readonly Color[] CanopyPalette =
         {
             new Color(0.44f, 0.42f, 0.39f), // 0: concrete utility pole shaft
@@ -362,31 +363,31 @@ namespace Kalyeah.Game
                 float[] feederZs = { -52f, -31f, -8.8f, 8.8f, 31f, 52f };
                 float[] centerZs = { -47.5f, -23.5f, -8.2f, 8.2f, 23.5f, 47.5f };
 
-                foreach (float z in feederZs) specs.Add(CurbPoleSpec(layout, -1, z, -1f, 9.2f)); // 0..5 West feeder
-                foreach (float z in centerZs) specs.Add(CurbPoleSpec(layout, 0, z, z > 0f ? -1f : 1f, 9.2f)); // 6..11 Center ave
-                foreach (float z in feederZs) specs.Add(CurbPoleSpec(layout, 1, z, 1f, 9.2f)); // 12..17 East feeder
+                foreach (float z in feederZs) specs.Add(CurbPoleSpec(layout, -1, z, -1f, 9.6f)); // 0..5 West feeder
+                foreach (float z in centerZs) specs.Add(CurbPoleSpec(layout, 0, z, z > 0f ? -1f : 1f, 9.6f)); // 6..11 Center ave
+                foreach (float z in feederZs) specs.Add(CurbPoleSpec(layout, 1, z, 1f, 9.6f)); // 12..17 East feeder
 
                 // 18..23 opposite-curb partner poles for two-ended fiesta banderitas
-                specs.Add(CurbPoleSpec(layout, -1, 31f, 1f, 9.0f));
-                specs.Add(CurbPoleSpec(layout, 0, 47.5f, 1f, 9.0f));
-                specs.Add(CurbPoleSpec(layout, 1, 31f, -1f, 9.0f));
-                specs.Add(CurbPoleSpec(layout, -1, -31f, 1f, 9.0f));
-                specs.Add(CurbPoleSpec(layout, 0, -47.5f, -1f, 9.0f));
-                specs.Add(CurbPoleSpec(layout, 1, -31f, -1f, 9.0f));
+                specs.Add(CurbPoleSpec(layout, -1, 31f, 1f, 9.4f));
+                specs.Add(CurbPoleSpec(layout, 0, 47.5f, 1f, 9.4f));
+                specs.Add(CurbPoleSpec(layout, 1, 31f, -1f, 9.4f));
+                specs.Add(CurbPoleSpec(layout, -1, -31f, 1f, 9.4f));
+                specs.Add(CurbPoleSpec(layout, 0, -47.5f, -1f, 9.4f));
+                specs.Add(CurbPoleSpec(layout, 1, -31f, -1f, 9.4f));
 
                 // 24..35 sparse outer perimeter utility ring (12 poles along r = arenaRadius - 0.55)
                 float ringR = layout.ArenaRadius - 0.55f;
                 for (int i = 0; i < 12; i++)
                 {
                     float ang = Mathf.PI * 2f * (i + 0.35f) / 12f;
-                    specs.Add((new SVector2(Mathf.Cos(ang) * ringR, Mathf.Sin(ang) * ringR), ang, 8.4f));
+                    specs.Add((new SVector2(Mathf.Cos(ang) * ringR, Mathf.Sin(ang) * ringR), ang, 8.9f));
                 }
             }
             else
             {
                 float[] rectZs = { -18f, -6f, 6f, 18f };
-                foreach (float z in rectZs) specs.Add((new SVector2(-10.8f, z), 0f, 8.8f));
-                foreach (float z in rectZs) specs.Add((new SVector2(10.8f, z), Mathf.PI, 8.8f));
+                foreach (float z in rectZs) specs.Add((new SVector2(-10.8f, z), 0f, 9.2f));
+                foreach (float z in rectZs) specs.Add((new SVector2(10.8f, z), Mathf.PI, 9.2f));
             }
 
             var poles = new List<PoleAnchor>(specs.Count);
@@ -402,10 +403,10 @@ namespace Kalyeah.Game
                 var poleBatch = new WorldMeshBatch(CanopyPalette.Length);
                 poleBatch.AddVerticalCylinder(Vector3.zero, 0.16f, 0.105f, h, 6, 0, 0);
 
-                float yUpper = h - 0.38f;
-                float yLower = h - 1.55f;
-                float yTelco = Mathf.Max(h - 2.35f, 5.65f);
-                float yBanner = Mathf.Max(h - 2.95f, 5.45f);
+                float yUpper = h - 0.35f;
+                float yLower = h - 1.30f;
+                float yTelco = Mathf.Max(h - 1.95f, 6.45f);
+                float yBanner = Mathf.Max(h - 2.25f, 6.25f);
 
                 Vector3 uLocal = rot * new Vector3(0f, yUpper, 0.12f);
                 Vector3 lLocal = rot * new Vector3(0f, yLower, 0.12f);
@@ -544,7 +545,7 @@ namespace Kalyeah.Game
                     SVector2 wallGround = center + ux * (sideSign * Mathf.Max(rect.W * 0.5f - 0.25f, 0.8f));
                     bestDist = d;
                     bestPole = p;
-                    bestWallPt = KalyeahResources.World(wallGround, 4.95f + (i % 3) * 0.28f);
+                    bestWallPt = KalyeahResources.World(wallGround, 5.95f + (i % 3) * 0.28f);
                 }
 
                 if (bestPole >= 0)
@@ -617,8 +618,8 @@ namespace Kalyeah.Game
                 if (BarangayLanes.InAnyNavigationLane(anchors[s], 0.8f) || BarangayLanes.InAnyNavigationLane(anchors[s + 1], 0.8f))
                     continue;
 
-                Vector3 a = KalyeahResources.World(anchors[s], 4.92f);
-                Vector3 b = KalyeahResources.World(anchors[s + 1], 4.88f);
+                Vector3 a = KalyeahResources.World(anchors[s], 6.15f);
+                Vector3 b = KalyeahResources.World(anchors[s + 1], 6.10f);
                 BuildSampayanPole(polesParent, poleMat, cleaner, outPoles, s, new Vector3(a.x, 0f, a.z), a.y + 0.08f);
                 BuildSampayanPole(polesParent, poleMat, cleaner, outPoles, s + 1, new Vector3(b.x, 0f, b.z), b.y + 0.08f);
                 AppendCatenaryRibbon(canopy, a, b, 0.14f, 0.015f, 5, 9);
@@ -707,7 +708,7 @@ namespace Kalyeah.Game
             Material mat = baseUnlit != null
                 ? new Material(baseUnlit) { name = "SpaghettiWireUnlit" }
                 : new Material(fallback) { name = "SpaghettiWireUnlit" };
-            mat.SetColor("_BaseColor", WireCharcoal);
+            mat.SetColor("_BaseColor", WireBronze);
             return mat;
         }
 

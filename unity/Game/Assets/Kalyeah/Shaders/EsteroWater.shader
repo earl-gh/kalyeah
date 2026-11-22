@@ -2,19 +2,19 @@ Shader "Kalyeah/EsteroWater"
 {
     Properties
     {
-        _ShallowColor ("Shallow Color", Color) = (0.23, 0.34, 0.24, 0.74)
-        _DeepColor ("Deep Color", Color) = (0.10, 0.22, 0.20, 0.86)
-        _FoamColor ("Foam Color", Color) = (0.62, 0.64, 0.58, 0.90)
-        _SiltTint ("Silt Tint", Color) = (0.31, 0.29, 0.22, 0.76)
+        _ShallowColor ("Shallow Turquoise Color", Color) = (0.34, 0.78, 0.77, 0.78)
+        _DeepColor ("Deep Tropical Teal Color", Color) = (0.12, 0.46, 0.52, 0.88)
+        _FoamColor ("Shoreline Foam Color", Color) = (0.90, 0.97, 0.97, 0.94)
+        _SiltTint ("Shallow Bank Aqua Tint", Color) = (0.48, 0.76, 0.72, 0.72)
         _CreekHalfWidth ("Creek Half Width", Float) = 3.75
         _CurveScale ("Canal Curve Scale", Float) = 1.0
-        _FlowSpeed ("Flow Speed", Float) = 0.50
-        _SunHotspotPower ("Sun Hotspot Power", Range(8.0, 96.0)) = 38.0
-        _SunHotspotStrength ("Sun Hotspot Strength", Range(0.0, 1.0)) = 0.42
-        _FresnelColor ("Edge Fresnel Sky Tint", Color) = (0.72, 0.84, 0.86, 1.0)
-        _FresnelStrength ("Edge Fresnel Strength", Range(0.0, 0.6)) = 0.24
-        _AmbientMin ("Ambient Clamp Min", Range(0.10, 0.60)) = 0.30
-        _AmbientMax ("Ambient Clamp Max", Range(0.60, 1.40)) = 0.96
+        _FlowSpeed ("Flow Speed", Float) = 0.55
+        _SunHotspotPower ("Sun Hotspot Power", Range(8.0, 96.0)) = 44.0
+        _SunHotspotStrength ("Sun Hotspot Strength", Range(0.0, 1.5)) = 0.68
+        _FresnelColor ("Edge Fresnel Sky Tint", Color) = (0.68, 0.89, 1.00, 1.0)
+        _FresnelStrength ("Edge Fresnel Strength", Range(0.0, 0.7)) = 0.30
+        _AmbientMin ("Ambient Clamp Min", Range(0.10, 0.60)) = 0.32
+        _AmbientMax ("Ambient Clamp Max", Range(0.60, 1.40)) = 1.05
     }
 
     SubShader
@@ -177,7 +177,7 @@ Shader "Kalyeah/EsteroWater"
             {
                 float2 simXZ = input.simXZ;
                 float edgeNorm = min(input.uv.y, 1.0 - input.uv.y) * 2.0;
-                float edgeFeather = smoothstep(0.0, 0.065, edgeNorm);
+                float edgeFeather = smoothstep(0.0, 0.055, edgeNorm);
                 if (edgeFeather < 0.02)
                 {
                     clip(-1.0);
@@ -188,63 +188,66 @@ Shader "Kalyeah/EsteroWater"
                 Light mainLight = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
 
                 #ifdef KALYEAH_QUALITY_LOW
-                // VALORANT Low water path: strip multi-wave normal perturbation, foam octaves & shimmer —
-                // keep clean painted translucent depth tint + static bank edge + simple Fresnel so wading kids pop.
+                // VALORANT Low water path: clean sunlit turquoise depth gradient + stepped shoreline foam + sky Fresnel.
                 float bankDist = max(edgeNorm * _CreekHalfWidth, 0.0);
-                float depthT = saturate(bankDist / max(_CreekHalfWidth * 0.68, 0.5));
-                float effDepth = depthT * (1.0 - fordMask * 0.46);
+                float depthT = saturate(bankDist / max(_CreekHalfWidth * 0.65, 0.5));
+                float effDepth = depthT * (1.0 - fordMask * 0.44);
 
-                float3 water = lerp(_SiltTint.rgb, _ShallowColor.rgb, smoothstep(0.02, 0.36, effDepth));
-                water = lerp(water, _DeepColor.rgb, smoothstep(0.24, 0.90, effDepth));
+                float3 water = lerp(_SiltTint.rgb, _ShallowColor.rgb, smoothstep(0.04, 0.34, effDepth));
+                water = lerp(water, _DeepColor.rgb, smoothstep(0.28, 0.88, effDepth));
 
-                float foamBody = 1.0 - smoothstep(0.28, 0.46, bankDist);
-                water = lerp(water, _FoamColor.rgb, foamBody * 0.52);
+                // Clean stepped shoreline foam
+                float foamBody = 1.0 - smoothstep(0.26, 0.40, bankDist);
+                water = lerp(water, _FoamColor.rgb, foamBody * 0.64);
 
                 float3 normalWS = float3(0.0, 1.0, 0.0);
                 float ndotl = saturate(dot(normalWS, mainLight.direction));
-                float shadowAtten = lerp(0.50, 1.0, mainLight.shadowAttenuation * mainLight.distanceAttenuation);
-                float ambMin = (_KalyeahAmbientMin > 0.001) ? _KalyeahAmbientMin : _AmbientMin;
+                float shadowAtten = lerp(0.56, 1.0, mainLight.shadowAttenuation * mainLight.distanceAttenuation);
+                float ambMin = (_KalyeahAmbientMin > 0.001) ? max(_KalyeahAmbientMin, _AmbientMin) : _AmbientMin;
                 float ambMax = max((_KalyeahAmbientMax > 0.001) ? _KalyeahAmbientMax : _AmbientMax, ambMin + 0.01);
-                float3 ambient = clamp(SampleSH(normalWS), ambMin, ambMax);
+                float3 skyFallback = _FresnelColor.rgb * (ambMin * 1.15);
+                float3 ambient = max(clamp(SampleSH(normalWS), ambMin, ambMax), skyFallback);
                 float3 irradiance = mainLight.color * (ndotl * shadowAtten) + ambient;
 
                 float ndotv = saturate(dot(normalWS, viewDirWS));
                 float f1 = 1.0 - ndotv;
-                float fresnel = (f1 * f1 * f1) * _FresnelStrength * (1.0 - foamBody * 0.60);
-                float3 litWater = water * lerp(irradiance, max(irradiance, 0.85), foamBody * 0.50) + _FresnelColor.rgb * fresnel;
+                float fresnel = (f1 * f1 * f1) * _FresnelStrength * (1.0 - foamBody * 0.55);
+                float3 litWater = water * lerp(irradiance, max(irradiance, 0.92), foamBody * 0.55) + _FresnelColor.rgb * fresnel;
                 litWater = MixFog(litWater, input.fogFactor);
 
                 float baseAlpha = lerp(_ShallowColor.a, _DeepColor.a, effDepth);
-                float alpha = clamp((baseAlpha - fordMask * 0.12 + foamBody * 0.08) * edgeFeather, 0.46, 0.86);
+                float alpha = clamp((baseAlpha - fordMask * 0.10 + foamBody * 0.12) * edgeFeather, 0.52, 0.88);
                 return half4(litWater, alpha);
                 #else
                 float t = GlslMod(_Time.y, 120.0);
                 float centerZ = CanalZ(simXZ.x);
                 float localZ = simXZ.y - centerZ;
 
-                float shoreWarp = (StrokeFbm(float2(simXZ.x * 0.28, input.uv.y * 2.4)) - 0.5) * 0.26;
+                float shoreWarp = (StrokeFbm(float2(simXZ.x * 0.30, input.uv.y * 2.6)) - 0.5) * 0.24;
                 float bankDist = max(edgeNorm * _CreekHalfWidth + shoreWarp, 0.0);
-                float depthT = saturate(bankDist / max(_CreekHalfWidth * 0.68, 0.5));
+                float depthT = saturate(bankDist / max(_CreekHalfWidth * 0.66, 0.5));
 
-                float2 flowUvA = float2(simXZ.x * 0.30 - t * _FlowSpeed * 0.36, localZ * 1.18);
-                float2 flowUvB = float2(simXZ.x * 0.48 + t * _FlowSpeed * 0.24 + 9.7, localZ * 1.85);
+                float2 flowUvA = float2(simXZ.x * 0.36 - t * _FlowSpeed * 0.38, localZ * 1.25);
+                float2 flowUvB = float2(simXZ.x * 0.54 + t * _FlowSpeed * 0.26 + 9.7, localZ * 1.92);
                 float s1 = StrokeFbm(flowUvA);
                 float s2 = StrokeFbm(flowUvB);
                 float brush = s1 * 0.58 + s2 * 0.42;
 
-                // _ShallowColor, _DeepColor, _FoamColor, _SiltTint are already Linear in ColorSpace.Linear.
-                float effDepth = depthT * (1.0 - fordMask * 0.46);
-                float3 water = lerp(_SiltTint.rgb, _ShallowColor.rgb, smoothstep(0.02, 0.36, effDepth));
-                water = lerp(water, _DeepColor.rgb, smoothstep(0.24, 0.90, effDepth));
+                // Crisp bright turquoise tropical canal water (linear color space)
+                float effDepth = depthT * (1.0 - fordMask * 0.44);
+                float3 water = lerp(_SiltTint.rgb, _ShallowColor.rgb, smoothstep(0.03, 0.34, effDepth));
+                water = lerp(water, _DeepColor.rgb, smoothstep(0.28, 0.88, effDepth));
 
-                float causticA = abs(s1 - s2);
-                float caustic = (1.0 - smoothstep(0.02, 0.12, causticA)) * (0.42 + 0.58 * fordMask) * (1.0 - effDepth * 0.34);
-                float midStroke = smoothstep(0.54, 0.68, brush);
-                float litRipple = smoothstep(0.74, 0.84, brush);
+                // Luminous sunlit underwater caustic web matching Option A1 Manila canal
+                float causticDelta = abs(s1 - s2);
+                float causticWeb = (1.0 - smoothstep(0.015, 0.095, causticDelta)) * (0.55 + 0.45 * fordMask) * (1.0 - effDepth * 0.28);
+                float causticHighlight = smoothstep(0.58, 0.78, causticWeb);
+                float midWave = smoothstep(0.54, 0.68, brush);
+                float crestRipple = smoothstep(0.76, 0.86, brush);
 
-                water = lerp(water, SrgbToLinear3(float3(0.28, 0.38, 0.28)), midStroke * 0.28);
-                water = lerp(water, SrgbToLinear3(float3(0.46, 0.49, 0.39)), caustic * 0.36);
-                water = lerp(water, _FoamColor.rgb, litRipple * 0.30);
+                water = lerp(water, SrgbToLinear3(float3(0.42, 0.84, 0.84)), midWave * 0.28);
+                water = lerp(water, SrgbToLinear3(float3(0.62, 0.96, 0.94)), causticWeb * 0.46);
+                water = lerp(water, _FoamColor.rgb, crestRipple * 0.36);
 
                 // Bridge / crossing ripple rings at West, Center, and East avenues
                 float xEast0 = 34.5 + 3.8 * sin(0.55);
@@ -255,27 +258,29 @@ Shader "Kalyeah/EsteroWater"
                 if (dFord < 6.2)
                 {
                     float ringWave = frac(dFord * 0.78 - t * 0.46);
-                    float wadeRing = (1.0 - smoothstep(0.04, 0.15, abs(ringWave - 0.5))) * (1.0 - smoothstep(1.8, 6.0, dFord));
-                    water = lerp(water, _FoamColor.rgb, wadeRing * 0.30);
+                    float wadeRing = (1.0 - smoothstep(0.03, 0.12, abs(ringWave - 0.5))) * (1.0 - smoothstep(1.8, 6.0, dFord));
+                    water = lerp(water, _FoamColor.rgb, wadeRing * 0.36);
                 }
 
-                // Scalloped animated bank edge foam & secondary echo line
-                float scallop = 0.40 + 0.13 * sin(simXZ.x * 1.35 + t * 1.35) + (s1 - 0.5) * 0.22;
-                float foamBody = 1.0 - smoothstep(scallop - 0.10, scallop + 0.08, bankDist);
-                float echoLine = (1.0 - smoothstep(0.025, 0.075, abs(bankDist - (scallop + 0.26)))) * step(0.48, s2);
-                float foamMask = saturate(foamBody * 0.58 + echoLine * 0.36);
+                // Stepped stylized shoreline foam hugging both concrete walls + secondary ripple ribbon
+                float scallop = 0.36 + 0.11 * sin(simXZ.x * 1.45 + t * 1.40) + (s1 - 0.5) * 0.18;
+                float foamInner = 1.0 - smoothstep(scallop - 0.04, scallop + 0.03, bankDist);
+                float foamStep = (1.0 - smoothstep(scallop + 0.12, scallop + 0.20, bankDist)) * (1.0 - foamInner) * 0.48;
+                float echoLine = (1.0 - smoothstep(0.02, 0.06, abs(bankDist - (scallop + 0.34)))) * step(0.46, s2) * 0.42;
+                float foamMask = saturate(foamInner * 0.86 + foamStep + echoLine);
                 water = lerp(water, _FoamColor.rgb, foamMask);
 
-                float3 normalWS = normalize(float3((s1 - 0.5) * 0.13, 1.0, -(s2 - 0.5) * 0.15));
+                float3 normalWS = normalize(float3((s1 - 0.5) * 0.16, 1.0, -(s2 - 0.5) * 0.18));
                 float ndotl = saturate(dot(normalWS, mainLight.direction));
-                float shadowAtten = lerp(0.48, 1.0, mainLight.shadowAttenuation * mainLight.distanceAttenuation);
-                float ambMin = (_KalyeahAmbientMin > 0.001) ? _KalyeahAmbientMin : _AmbientMin;
+                float shadowAtten = lerp(0.54, 1.0, mainLight.shadowAttenuation * mainLight.distanceAttenuation);
+                float ambMin = (_KalyeahAmbientMin > 0.001) ? max(_KalyeahAmbientMin, _AmbientMin) : _AmbientMin;
                 float ambMax = max((_KalyeahAmbientMax > 0.001) ? _KalyeahAmbientMax : _AmbientMax, ambMin + 0.01);
-                float3 ambient = clamp(SampleSH(normalWS), ambMin, ambMax);
+                float3 skyFallback = _FresnelColor.rgb * (ambMin * 1.15);
+                float3 ambient = max(clamp(SampleSH(normalWS), ambMin, ambMax), skyFallback);
                 float3 irradiance = mainLight.color * (ndotl * shadowAtten) + ambient;
 
-                // Riot panoramic sun-hotspot reflection aligned with primary sun (no planar/SSR mirror clutter)
-                float rough = lerp(0.18, 0.56, saturate(foamBody * 0.80 + fordMask * 0.18));
+                // Sunlit HDR glints (> 1.2 for gentle URP Bloom catch) + crisp sky Fresnel
+                float rough = lerp(0.14, 0.52, saturate(foamInner * 0.82 + fordMask * 0.15));
                 float invRough = saturate(1.0 - rough);
                 float3 sunDir = (_KalyeahSunDir.w > 0.5 && dot(_KalyeahSunDir.xyz, _KalyeahSunDir.xyz) > 0.01)
                     ? normalize(_KalyeahSunDir.xyz)
@@ -285,16 +290,17 @@ Shader "Kalyeah/EsteroWater"
                 float ndotv = saturate(dot(normalWS, viewDirWS));
                 float f1 = 1.0 - ndotv;
                 float fresnel = (f1 * f1 * f1) * _FresnelStrength;
-                float sunHotspot = pow(max(sunAlign, 1e-4), lerp(10.0, _SunHotspotPower, invRough)) * smoothstep(0.32, 0.96, sunAlign);
-                float3 panoRefl = _FresnelColor.rgb * (fresnel * (1.0 - foamMask * 0.65))
-                                + mainLight.color * (sunHotspot * invRough * _SunHotspotStrength * shadowAtten * (1.0 - foamMask * 0.75));
+                float sunHotspot = pow(max(sunAlign, 1e-4), lerp(12.0, _SunHotspotPower, invRough)) * smoothstep(0.35, 0.96, sunAlign);
+                float hdrGlint = (sunHotspot * _SunHotspotStrength + causticHighlight * crestRipple * 0.58) * shadowAtten * (1.0 - foamMask * 0.72);
+                float3 panoRefl = _FresnelColor.rgb * (fresnel * (1.0 - foamMask * 0.60))
+                                + mainLight.color * (hdrGlint * 1.48);
 
-                // Keep shoreline foam crisp even in bridge shade
-                float3 litWater = water * lerp(irradiance, max(irradiance, 0.85), foamMask * 0.65) + panoRefl;
+                // Keep shoreline foam bright and crisp even in bridge shade
+                float3 litWater = water * lerp(irradiance, max(irradiance, 0.95), foamMask * 0.68) + panoRefl;
                 litWater = MixFog(litWater, input.fogFactor);
 
                 float baseAlpha = lerp(_ShallowColor.a, _DeepColor.a, effDepth);
-                float alpha = clamp((baseAlpha - fordMask * 0.12 + foamBody * 0.10) * edgeFeather, 0.48, 0.90);
+                float alpha = clamp((baseAlpha - fordMask * 0.10 + foamInner * 0.14) * edgeFeather, 0.52, 0.92);
                 return half4(litWater, alpha);
                 #endif
             }

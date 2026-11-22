@@ -7,12 +7,22 @@ using SVector3 = System.Numerics.Vector3;
 
 namespace Kalyeah.Game
 {
+    /// <summary>Per-skill camera framing mode during ability drag-aim (docs/KITS.md L44-51).</summary>
+    public enum SkillAimCameraMode
+    {
+        Normal = 0,
+        Ads = 1,
+        ZoomOut = 2,
+        MapCast = 3,
+    }
+
     /// <summary>
     /// AAA third-person right-shoulder camera rig with orthographic top-down follow fallback
     /// (docs/GDD.md "Shoulder view"; scripts/view/arena_camera.gd &amp; camera_rules.gd).
     /// Owns whisker spring-arm wall pull-in (&lt;=40 ms pull-in, 150 ms critically-damped ease-out across both
     /// Physics.SphereCast and analytic MapLayoutData bounds), &lt;0.75 m kid-proximity flag, building Occluder
-    /// renderer fade, lateral-orbit auto-follow, sprint/dash FOV kick, and &gt;21.5:9 horizontal FOV fairness cap.
+    /// renderer fade, lateral-orbit auto-follow, sprint/dash FOV kick, skill-aiming ADS/ZoomOut transitions,
+    /// and &gt;21.5:9 horizontal FOV fairness cap.
     /// </summary>
     public sealed class ShoulderCamera
     {
@@ -99,7 +109,22 @@ namespace Kalyeah.Game
         public float SprintFovKick = 4.5f;
         /// <summary>Aiming down sight: the camera moves in along its view to `ads_distance` and narrows to `ads_fov`.</summary>
         public bool AimingDown;
+        /// <summary>Active skill aiming camera override (Normal, Ads, ZoomOut, MapCast per docs/KITS.md).</summary>
+        public SkillAimCameraMode SkillAimMode = SkillAimCameraMode.Normal;
+        /// <summary>Additional vertical pivot lift in metres (e.g. Inggo's Tiyakad stilts seeing over cover).</summary>
+        public float ExtraPivotHeight;
         public float AdsLerp = 14f;
+        public float ZoomOutBackMeters = 2.8f;
+        public float ZoomOutPitchAddDeg = 18f;
+        public float ZoomOutMaxPitchDeg = 54f;
+        public float ZoomOutFovAddDeg = 3.5f;
+        public float ZoomOutEnterSmoothTime = 0.14f;
+        public float ZoomOutExitSmoothTime = 0.085f;
+        public float MapCastBackMeters = 15.0f;
+        public float MapCastPitchDeg = 70f;
+        public float MapCastFovAddDeg = 5.0f;
+        public float MapCastEnterSmoothTime = 0.16f;
+        public float MapCastExitSmoothTime = 0.095f;
         public float SprintFovLerp = 8f;
 
         public float OccluderOccludedAlpha = 0.18f;
@@ -129,8 +154,26 @@ namespace Kalyeah.Game
         bool _speedBoosting;
         float _fovBoost;
         float _adsBlend;
+        float _zoomOutBlend;
+        float _zoomOutVelocity;
+        float _mapCastBlend;
+        float _mapCastVelocity;
+        float _hitShakeTimer;
+        float _hitShakeDuration;
+        float _hitShakeStrength;
+        float _hitShakePhase;
         /// <summary>0 = hip view, 1 = fully aimed down sight.</summary>
         public float AdsBlend => _adsBlend;
+        /// <summary>0 = standard shoulder view, 1 = elevated tactical pull-back view for zone/wall skills.</summary>
+        public float ZoomOutBlend => _zoomOutBlend;
+        /// <summary>0 = standard shoulder view, 1 = elevated sky-cast view for map-wide skills (Kikay Saranggola).</summary>
+        public float MapCastBlend => _mapCastBlend;
+
+        /// <summary>Maps SimBridge's <see cref="AimCameraKind"/> directly onto <see cref="SkillAimMode"/>.</summary>
+        public void SetSkillAimMode(AimCameraKind kind)
+        {
+            SkillAimMode = (SkillAimCameraMode)(int)kind;
+        }
 
         /// <summary>Current 3D distance (metres) from the camera socket to the kid's shoulder pivot.</summary>
         public float CurrentDistance { get; private set; }
@@ -200,6 +243,13 @@ namespace Kalyeah.Game
             _yawVelocity = 0f;
             _moveYawVelocity = 0f;
             _moveYawReady = false;
+            SkillAimMode = SkillAimCameraMode.Normal;
+            _zoomOutBlend = 0f;
+            _zoomOutVelocity = 0f;
+            _mapCastBlend = 0f;
+            _mapCastVelocity = 0f;
+            _hitShakeTimer = 0f;
+            _hitShakeStrength = 0f;
         }
 
         /// <summary>A drag of `screenPixels` (Unity screen pixels, y up) turns the view: right turns right, up looks up.</summary>
@@ -232,10 +282,28 @@ namespace Kalyeah.Game
             if (ReduceMotion) _fovBoost = 0f;
         }
 
-        /// <summary>Decoupled vertical posture settle for crouch/slide (-0.42 m) and jump (+0.65 * airY); never alters Yaw or Pitch.</summary>
+        /// <summary>Triggers a subtle positional hit impulse (strictly zeroed when ReduceMotion is true; never rolls camera or moves aim).</summary>
+        public void AddHitShake(float intensity01 = 0.6f)
+        {
+            if (ReduceMotion)
+            {
+                _hitShakeTimer = 0f;
+                return;
+            }
+            float clamped = Mathf.Clamp01(intensity01);
+            if (clamped <= 0.01f) return;
+            _hitShakeDuration = 0.12f;
+            _hitShakeTimer = _hitShakeDuration;
+            _hitShakeStrength = Mathf.Max(_hitShakeStrength, clamped * 0.055f);
+            _hitShakePhase += 2.3f;
+        }
+
+        /// <summary>Decoupled vertical posture settle for crouch/slide (-0.42 m), jump (+0.65 * airY), and stilt lift; never alters Yaw or Pitch.</summary>
         public void SyncPosture(bool crouchingOrSliding, float airY, float dt)
         {
-            float target = (crouchingOrSliding ? CrouchPivotOffset : 0f) + Mathf.Max(airY, 0f) * AirPivotShare;
+            float target = (crouchingOrSliding ? CrouchPivotOffset : 0f)
+                + Mathf.Max(airY, 0f) * AirPivotShare
+                + Mathf.Max(ExtraPivotHeight, 0f);
             if (ReduceMotion || dt <= 0f || Mathf.Approximately(_verticalOffset, target))
             {
                 _verticalOffset = target;
@@ -412,19 +480,65 @@ namespace Kalyeah.Game
             camera.orthographic = false;
             StepPivot(feet, stepDt);
 
+            bool wantMapCast = SkillAimMode == SkillAimCameraMode.MapCast;
+            bool wantZoomOut = !wantMapCast && SkillAimMode == SkillAimCameraMode.ZoomOut;
+            bool wantAds = !wantMapCast && !wantZoomOut && (AimingDown || SkillAimMode == SkillAimCameraMode.Ads);
+
+            if (ReduceMotion || stepDt <= 0f)
+            {
+                _adsBlend = wantAds ? 1f : 0f;
+                _zoomOutBlend = wantZoomOut ? 1f : 0f;
+                _zoomOutVelocity = 0f;
+                _mapCastBlend = wantMapCast ? 1f : 0f;
+                _mapCastVelocity = 0f;
+            }
+            else
+            {
+                _adsBlend = Mathf.Lerp(_adsBlend, wantAds ? 1f : 0f, 1f - Mathf.Exp(-stepDt * AdsLerp));
+                float zoomSmooth = wantZoomOut ? ZoomOutEnterSmoothTime : ZoomOutExitSmoothTime;
+                _zoomOutBlend = Mathf.Clamp01(SmoothDampScalar(_zoomOutBlend, wantZoomOut ? 1f : 0f, ref _zoomOutVelocity, zoomSmooth, 0f, stepDt));
+                float mapSmooth = wantMapCast ? MapCastEnterSmoothTime : MapCastExitSmoothTime;
+                _mapCastBlend = Mathf.Clamp01(SmoothDampScalar(_mapCastBlend, wantMapCast ? 1f : 0f, ref _mapCastVelocity, mapSmooth, 0f, stepDt));
+            }
+
+            float targetZoomPitch = Mathf.Clamp(Pitch + ZoomOutPitchAddDeg, Rules.LookPitchMin, ZoomOutMaxPitchDeg);
+            float effectivePitch = _zoomOutBlend > 0.0001f ? Mathf.Lerp(Pitch, targetZoomPitch, _zoomOutBlend) : Pitch;
+            if (_mapCastBlend > 0.0001f)
+            {
+                float targetMapPitch = Mathf.Clamp(MapCastPitchDeg, Rules.LookPitchMin, 74f);
+                effectivePitch = Mathf.Lerp(effectivePitch, targetMapPitch, _mapCastBlend);
+            }
+
             float pivotY = Mathf.Max(0.35f, Rules.ShoulderHeight + _verticalOffset);
-            var (baseEyeS, forwardS) = ShoulderRig.Pose(Rules, _pivotGround, Yaw, Pitch);
+            var (baseEyeS, forwardS) = ShoulderRig.Pose(Rules, _pivotGround, Yaw, effectivePitch);
+            Vector3 forwardU = KalyeahResources.U(forwardS);
             Vector3 desiredEyeU = KalyeahResources.U(baseEyeS);
             desiredEyeU.y = Mathf.Max(0.5f, desiredEyeU.y + (pivotY - Rules.ShoulderHeight));
+
             // ADS moves the eye forward along its own view, so the kid keeps their place just left of the crosshair
-            _adsBlend = ReduceMotion || stepDt <= 0f
-                ? (AimingDown ? 1f : 0f)
-                : Mathf.Lerp(_adsBlend, AimingDown ? 1f : 0f, 1f - Mathf.Exp(-stepDt * AdsLerp));
-            float adsPush = Mathf.Max(0f, Rules.ShoulderDistance - Rules.AdsDistance) * _adsBlend;
-            desiredEyeU += KalyeahResources.U(forwardS) * adsPush;
+            if (_adsBlend > 0.0001f)
+            {
+                float adsPush = Mathf.Max(0f, Rules.ShoulderDistance - Rules.AdsDistance) * _adsBlend;
+                desiredEyeU += forwardU * adsPush;
+            }
+
+            // ZoomOut pulls smoothly back along the elevated pitch axis for clear wall/zone placement without FOV sickness
+            if (_zoomOutBlend > 0.0001f)
+                desiredEyeU -= forwardU * (ZoomOutBackMeters * _zoomOutBlend);
+
+            // MapCast climbs high above the barangay lanes for sky-cast skills (docs/KITS.md L51: Kikay Saranggola)
+            if (_mapCastBlend > 0.0001f)
+                desiredEyeU -= forwardU * (MapCastBackMeters * _mapCastBlend);
+
             Vector3 pivotU = KalyeahResources.World(_pivotGround, pivotY);
 
             var (softTargetT, hardMaxT) = SolveWhiskerArm(pivotU, desiredEyeU);
+            if (_mapCastBlend > 0.01f)
+            {
+                // Sky-cast sits high above rooftops; ease off ground-level wall pull-in while keeping arena rim clamp
+                softTargetT = Mathf.Lerp(softTargetT, 1f, _mapCastBlend);
+                hardMaxT = Mathf.Lerp(hardMaxT, 1f, _mapCastBlend);
+            }
             if (!_armReady || ReduceMotion || stepDt <= 0f)
             {
                 _armT = softTargetT;
@@ -448,10 +562,24 @@ namespace Kalyeah.Game
 
             CurrentDistance = Vector3.Distance(eyeU, pivotU);
 
-            Vector3 forwardU = KalyeahResources.U(forwardS);
-            camera.transform.SetPositionAndRotation(eyeU, Quaternion.LookRotation(forwardU, Vector3.up));
+            Quaternion rot = Quaternion.LookRotation(forwardU, Vector3.up);
+            if (!ReduceMotion && _hitShakeTimer > 0f)
+            {
+                _hitShakeTimer = Mathf.Max(0f, _hitShakeTimer - stepDt);
+                float t = _hitShakeDuration > 0.001f ? (_hitShakeTimer / _hitShakeDuration) : 0f;
+                float amp = _hitShakeStrength * t * t;
+                Vector3 rightU = rot * Vector3.right;
+                Vector3 upU = rot * Vector3.up;
+                eyeU += rightU * (Mathf.Sin(_hitShakePhase + t * 28f) * amp)
+                      + upU * (Mathf.Cos(_hitShakePhase + t * 34f) * amp * 0.65f);
+                if (_hitShakeTimer <= 0f) _hitShakeStrength = 0f;
+            }
 
-            float desiredVerticalFov = Mathf.Lerp(Rules.ShoulderFov, Rules.AdsFov, _adsBlend) + CurrentFovBoost;
+            camera.transform.SetPositionAndRotation(eyeU, rot);
+
+            float sprintBoost = (_adsBlend > 0.05f || _zoomOutBlend > 0.05f || _mapCastBlend > 0.05f) ? 0f : CurrentFovBoost;
+            float zoomOutFov = ReduceMotion ? 0f : (ZoomOutFovAddDeg * _zoomOutBlend + MapCastFovAddDeg * _mapCastBlend);
+            float desiredVerticalFov = Mathf.Lerp(Rules.ShoulderFov, Rules.AdsFov, _adsBlend) + zoomOutFov + sprintBoost;
             camera.fieldOfView = ClampFairVerticalFov(desiredVerticalFov, camera.aspect, MaxFairAspect);
             camera.nearClipPlane = Rules.ShoulderNear;
             camera.farClipPlane = Far;

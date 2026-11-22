@@ -27,11 +27,13 @@ namespace Kalyeah.Game
             "sari_icebox",
             "street_trash_bin",
             "planted_tire",
-            "cinderblock_stack",
+            "drainage_cover",
             "crates",
             "sacks",
             "bench",
             "chicken_cage",
+            "dog",
+            "cat",
         };
 
         static readonly Color[] CurbPalette =
@@ -61,13 +63,16 @@ namespace Kalyeah.Game
             var batch = new WorldMeshBatch(CurbPalette.Length);
             var propsRoot = new GameObject("MicroProps").transform;
             propsRoot.SetParent(root.transform, false);
+            var collidersRoot = new GameObject("CurbAndPlinthColliders").transform;
+            collidersRoot.SetParent(root.transform, false);
 
-            AppendParcelPlinths(layout, batch);
-            AppendLaneCurbs(layout, batch);
+            AppendParcelPlinths(layout, batch, collidersRoot);
+            AppendLaneCurbs(layout, batch, collidersRoot);
             AppendTreePlanters(layout, batch);
             PlaceDeterministicMicroProps(layout, propsRoot, batch, outPoles);
 
             if (propsRoot.childCount == 0) KalyeahResources.Kill(propsRoot.gameObject);
+            if (collidersRoot.childCount == 0) KalyeahResources.Kill(collidersRoot.gameObject);
 
             if (batch.VertexCount > 0)
             {
@@ -86,7 +91,7 @@ namespace Kalyeah.Game
 
         public static void Dispose(GameObject root) => ProceduralAssetCleaner.DisposeRoot(root);
 
-        static void AppendParcelPlinths(MapLayoutData layout, WorldMeshBatch batch)
+        static void AppendParcelPlinths(MapLayoutData layout, WorldMeshBatch batch, Transform collidersRoot)
         {
             for (int i = 0; i < layout.ParcelCount; i++)
             {
@@ -97,11 +102,13 @@ namespace Kalyeah.Game
                 float godotYaw = layout.HasOrientedParcels ? layout.ParcelYawRad(i) : 0f;
                 Quaternion rot = Quaternion.Euler(0f, GodotSpace.ModelYawDegrees(godotYaw), 0f);
                 Vector3 center = KalyeahResources.World(r.Center, 0.048f);
-                batch.AddOrientedBox(center, new Vector3(r.W + 0.68f, 0.096f, r.H + 0.68f), rot, 0, 1);
+                Vector3 size = new Vector3(r.W + 0.68f, 0.096f, r.H + 0.68f);
+                batch.AddOrientedBox(center, size, rot, 0, 1);
+                AddBoxCollider(collidersRoot, "PlinthCol_" + i, center, rot, size);
             }
         }
 
-        static void AppendLaneCurbs(MapLayoutData layout, WorldMeshBatch batch)
+        static void AppendLaneCurbs(MapLayoutData layout, WorldMeshBatch batch, Transform collidersRoot)
         {
             if (layout.ArenaRadius > 0f)
             {
@@ -132,7 +139,10 @@ namespace Kalyeah.Game
                             Quaternion rot = Quaternion.LookRotation(chord / len, Vector3.up);
                             bool nearCrossing = Mathf.Abs(Mathf.Abs(zm) - 28f) < 6.5f || Mathf.Abs(zm - MapLayoutData.CanalZ(mid.X)) < 9.5f;
                             int topCol = (nearCrossing && (segIndex % 2 == 0)) ? 2 : 0;
-                            batch.AddOrientedBox((p0 + p1) * 0.5f, new Vector3(0.28f, 0.11f, len * 0.96f), rot, topCol, 1);
+                            Vector3 curbCenter = (p0 + p1) * 0.5f;
+                            Vector3 curbSize = new Vector3(0.28f, 0.11f, len * 0.96f);
+                            batch.AddOrientedBox(curbCenter, curbSize, rot, topCol, 1);
+                            AddBoxCollider(collidersRoot, $"CurbCol_{laneId}_{sideSign}_{segIndex}", curbCenter, rot, curbSize);
                         }
                     }
                 }
@@ -141,6 +151,8 @@ namespace Kalyeah.Game
             {
                 for (float sideSign = -1f; sideSign <= 1f; sideSign += 2f)
                 {
+                    Vector3 sideCenter = KalyeahResources.World(new SVector2(sideSign * 10.6f, 0f), 0.055f);
+                    AddBoxCollider(collidersRoot, sideSign < 0f ? "RectCurbCol_W" : "RectCurbCol_E", sideCenter, Quaternion.identity, new Vector3(0.28f, 0.11f, 40f));
                     for (float z = -20f; z < 20f; z += 4f)
                     {
                         Vector3 center = KalyeahResources.World(new SVector2(sideSign * 10.6f, z + 2f), 0.055f);
@@ -148,6 +160,19 @@ namespace Kalyeah.Game
                     }
                 }
             }
+        }
+
+        static void AddBoxCollider(Transform parent, string name, Vector3 worldCenter, Quaternion rot, Vector3 size)
+        {
+            if (parent == null) return;
+            var go = new GameObject(name);
+            go.layer = 0;
+            go.transform.SetParent(parent, false);
+            go.transform.position = worldCenter;
+            go.transform.rotation = rot;
+            var col = go.AddComponent<BoxCollider>();
+            col.size = size;
+            col.isTrigger = false;
         }
 
         static float SampleLaneEdgeX(int laneId, float z, float sideSign)
@@ -329,8 +354,11 @@ namespace Kalyeah.Game
                 case "sari_icebox": return 0.68f;
                 case "street_trash_bin": return 0.74f;
                 case "planted_tire": return 0.48f;
+                case "drainage_cover": return 0.08f;
                 case "cinderblock_stack": return 0.52f;
                 case "bench": return 0.56f;
+                case "dog": return 0.58f;
+                case "cat": return 0.36f;
                 default: return 0.64f;
             }
         }

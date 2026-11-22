@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Kalyeah.Sim;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
@@ -10,14 +11,24 @@ namespace Kalyeah.Game
 {
     /// <summary>
     /// Handles and references produced by <see cref="BarangayEnvironmentBuilder.Build"/> so MatchView and ShoulderCamera
-    /// can access the ground/water/sky materials, landmarks, and occludable buildings, and deterministically dispose all
-    /// procedural meshes and material instances on match teardown.
+    /// can access the ground/water/sky materials, Uptown/Riverside landmarks, living-world neutrals/vendors, foot buff auras,
+    /// and occludable buildings, and deterministically dispose all procedural meshes and material instances on match teardown.
     /// </summary>
     public sealed class BarangayEnvironment : IDisposable
     {
+        static readonly int PropBaseColorId = Shader.PropertyToID("_BaseColor");
+        static readonly int PropColorId = Shader.PropertyToID("_Color");
+        static readonly Color CrocIdleColor = new Color(0.32f, 0.56f, 0.34f, 1f);
+        static readonly Color CrocAngryColor = new Color(0.68f, 0.36f, 0.22f, 1f);
+        static readonly Color EagleIdleColor = new Color(0.46f, 0.34f, 0.24f, 1f);
+        static readonly Color EagleAngryColor = new Color(0.76f, 0.44f, 0.20f, 1f);
+        static readonly Color DragonAuraColor = new Color(0.32f, 0.86f, 0.48f, 0.52f);
+        static readonly Color BaronAuraColor = new Color(0.98f, 0.78f, 0.24f, 0.58f);
+        static readonly Color SelectaAuraColor = new Color(0.30f, 0.88f, 0.94f, 0.52f);
+
         readonly List<GameObject> _bridges = new List<GameObject>();
         readonly List<GameObject> _occluders = new List<GameObject>();
-        readonly List<Object> _ownedAssets = new List<Object>(32);
+        readonly List<Object> _ownedAssets = new List<Object>(48);
         bool _disposed;
 
         public GameObject Root { get; internal set; }
@@ -28,10 +39,34 @@ namespace Kalyeah.Game
         public GameObject SouthCoveredCourt { get; internal set; }
         public GameObject NorthBarangayHall { get; internal set; }
 
+        // Asymmetric Uptown vs Riverside landmarks & Living World handles (docs/MAPS.md, docs/GRAPHICS.md)
+        public GameObject WaterTower { get; internal set; }
+        public GameObject ChapelBellTower { get; internal set; }
+        public GameObject HallFlagpole { get; internal set; }
+        public GameObject SariSariRow { get; internal set; }
+        public GameObject LivingWorldRoot { get; internal set; }
+        public GameObject CrocodileVisual { get; internal set; }
+        public GameObject EagleVisual { get; internal set; }
+        public GameObject SelectaBikeVisual { get; internal set; }
+        public GameObject MangTahoVisual { get; internal set; }
+        public GameObject FishballCartVisual { get; internal set; }
+
         public Material GroundMaterial { get; internal set; }
         public Material CreekBedMaterial { get; internal set; }
         public Material WaterMaterial { get; internal set; }
         public Material SkyMaterial { get; internal set; }
+        public Texture2D ParcelAoTexture { get; internal set; }
+
+        internal GameObject TahoStockProp;
+        internal GameObject FishballStockProp;
+        internal Transform HallBannerTransform;
+        internal Transform SelectaBellTransform;
+        internal Material CrocBodyMat;
+        internal Material EagleBodyMat;
+        internal Transform[] BuffAuraTransforms;
+        internal MeshRenderer[] BuffAuraRenderers;
+        internal MaterialPropertyBlock BuffAuraMpb;
+        internal float EaglePerchHeight = 11.35f;
 
         public IReadOnlyList<GameObject> Bridges => _bridges;
         public IReadOnlyList<GameObject> Occluders => _occluders;
@@ -53,6 +88,161 @@ namespace Kalyeah.Game
                 _ownedAssets.Add(asset);
             }
             return asset;
+        }
+
+        /// <summary>
+        /// Updates living-world props with 0 B GC: Crocodile &amp; Philippine Eagle cute-to-angry-to-flee scale/tint transitions,
+        /// moving Selecta ice-cream bike along the river road, vendor restock empty states, and gentle Band-3 flagpole sway.
+        /// </summary>
+        public void SyncLivingWorld(BarangayNeutrals neutrals, float clockSeconds, bool reduceMotion = false)
+        {
+            if (_disposed) return;
+
+            // Band-3 civic hall flag gently sways above head height (never in Band-2 combat lane)
+            if (HallBannerTransform != null)
+            {
+                float sway = reduceMotion ? 0f : Mathf.Sin(clockSeconds * 2.6f) * 8f;
+                HallBannerTransform.localEulerAngles = new Vector3(0f, sway, 0f);
+            }
+
+            if (neutrals == null) return;
+
+            // Vendors: hide stock props while empty/restocking (30 s timer)
+            if (TahoStockProp != null && neutrals.Vendors.Count > 0)
+            {
+                bool ready = neutrals.Vendors[0].IsReady;
+                if (TahoStockProp.activeSelf != ready) TahoStockProp.SetActive(ready);
+            }
+            if (FishballStockProp != null && neutrals.Vendors.Count > 1)
+            {
+                bool ready = neutrals.Vendors[1].IsReady;
+                if (FishballStockProp.activeSelf != ready) FishballStockProp.SetActive(ready);
+            }
+
+            // Selecta Ice-Cream Bike patrol along river road
+            if (SelectaBikeVisual != null)
+            {
+                bool active = neutrals.Selecta.Active;
+                if (SelectaBikeVisual.activeSelf != active) SelectaBikeVisual.SetActive(active);
+                if (active)
+                {
+                    SVector2 pos = new SVector2(neutrals.Selecta.Position.X, neutrals.Selecta.Position.Y);
+                    float bob = reduceMotion ? 0f : Mathf.Abs(Mathf.Sin(clockSeconds * 8f)) * 0.04f;
+                    SelectaBikeVisual.transform.position = KalyeahResources.World(pos, bob);
+                    float yawRad = MathF.Atan2(neutrals.Selecta.Facing.X, neutrals.Selecta.Facing.Y);
+                    SelectaBikeVisual.transform.rotation = Quaternion.Euler(0f, GodotSpace.ModelYawDegrees(yawRad), 0f);
+                    if (SelectaBellTransform != null)
+                    {
+                        float bellTilt = reduceMotion ? 0f : Mathf.Sin((float)(neutrals.Selecta.BellPhase * Math.PI * 2.0)) * 18f;
+                        SelectaBellTransform.localEulerAngles = new Vector3(0f, 0f, bellTilt);
+                    }
+                }
+            }
+
+            // Crocodile (Dragon) on river sandbar under main bridge
+            SyncBossVisual(
+                CrocodileVisual,
+                CrocBodyMat,
+                neutrals.Dragon,
+                baseY: -0.04f,
+                idleColor: CrocIdleColor,
+                angryColor: CrocAngryColor,
+                clockSeconds: clockSeconds,
+                reduceMotion: reduceMotion,
+                hoverAmplitude: 0.03f);
+
+            // Philippine Eagle (Baron) perched on creek-bank water tower
+            SyncBossVisual(
+                EagleVisual,
+                EagleBodyMat,
+                neutrals.Baron,
+                baseY: EaglePerchHeight,
+                idleColor: EagleIdleColor,
+                angryColor: EagleAngryColor,
+                clockSeconds: clockSeconds,
+                reduceMotion: reduceMotion,
+                hoverAmplitude: 0.14f);
+        }
+
+        /// <summary>
+        /// Displays a soft wide foot aura ring around buffed kids (Dragon, Baron, or Selecta) so enemies can read who is buffed
+        /// at a glance (docs/GRAPHICS.md L148 &amp; L176), strictly 0 B per-frame GC.
+        /// </summary>
+        public void SyncBuffAuras(IReadOnlyList<KidSnapshot> kids, BarangayNeutrals neutrals, int localTeam, int colorblindMode)
+        {
+            if (_disposed || BuffAuraTransforms == null || BuffAuraRenderers == null) return;
+            int cap = BuffAuraTransforms.Length;
+            int cursor = 0;
+
+            if (kids != null && neutrals != null)
+            {
+                int n = kids.Count;
+                for (int i = 0; i < n && cursor < cap; i++)
+                {
+                    KidSnapshot kid = kids[i];
+                    if (kid.Tagged || !neutrals.HasFootAura(kid.Team)) continue;
+
+                    TeamBuffState buffs = neutrals.GetTeamBuffs(kid.Team);
+                    Color aura = buffs.HasBaron
+                        ? BaronAuraColor
+                        : (buffs.HasDragon ? DragonAuraColor : SelectaAuraColor);
+                    // Subtle team tint bias in colorblind modes while staying clearly distinct from team rings
+                    if (colorblindMode != 0 && kid.Team != localTeam)
+                        aura = Color.Lerp(aura, KomiksUi.TeamEnemyColor(colorblindMode), 0.25f);
+
+                    Transform auraT = BuffAuraTransforms[cursor];
+                    MeshRenderer auraMr = BuffAuraRenderers[cursor];
+                    if (!auraT.gameObject.activeSelf) auraT.gameObject.SetActive(true);
+                    auraT.position = KalyeahResources.World(kid.Position, 0.03f);
+                    if (BuffAuraMpb != null)
+                    {
+                        BuffAuraMpb.SetColor(PropBaseColorId, aura);
+                        BuffAuraMpb.SetColor(PropColorId, aura);
+                        auraMr.SetPropertyBlock(BuffAuraMpb);
+                    }
+                    cursor++;
+                }
+            }
+
+            for (int i = cursor; i < cap; i++)
+            {
+                if (BuffAuraTransforms[i] != null && BuffAuraTransforms[i].gameObject.activeSelf)
+                    BuffAuraTransforms[i].gameObject.SetActive(false);
+            }
+        }
+
+        static void SyncBossVisual(
+            GameObject visual,
+            Material bodyMat,
+            NeutralBossInstance boss,
+            float baseY,
+            Color idleColor,
+            Color angryColor,
+            float clockSeconds,
+            bool reduceMotion,
+            float hoverAmplitude)
+        {
+            if (visual == null || boss == null) return;
+            bool visible = boss.State != NeutralBossState.Dormant;
+            if (visual.activeSelf != visible) visual.SetActive(visible);
+            if (!visible) return;
+
+            float bob = reduceMotion
+                ? 0f
+                : Mathf.Sin(clockSeconds * (boss.State == NeutralBossState.Angry ? 6.5f : 2.2f)) * hoverAmplitude;
+            SVector2 pos = new SVector2(boss.Position.X, boss.Position.Y);
+            visual.transform.position = KalyeahResources.World(pos, baseY + bob);
+            float yawRad = MathF.Atan2(boss.Facing.X, boss.Facing.Y);
+            visual.transform.rotation = Quaternion.Euler(0f, GodotSpace.ModelYawDegrees(yawRad), 0f);
+            float s = Mathf.Clamp((float)boss.VisualScale, 0.35f, 1.8f);
+            visual.transform.localScale = new Vector3(s, s, s);
+
+            if (bodyMat != null)
+            {
+                Color tint = boss.State == NeutralBossState.Angry ? angryColor : idleColor;
+                if (bodyMat.HasProperty(PropBaseColorId)) bodyMat.SetColor(PropBaseColorId, tint);
+                if (bodyMat.HasProperty(PropColorId)) bodyMat.SetColor(PropColorId, tint);
+            }
         }
 
         public void Dispose()
@@ -85,10 +275,30 @@ namespace Kalyeah.Game
             Embankments = null;
             SouthCoveredCourt = null;
             NorthBarangayHall = null;
+            WaterTower = null;
+            ChapelBellTower = null;
+            HallFlagpole = null;
+            SariSariRow = null;
+            LivingWorldRoot = null;
+            CrocodileVisual = null;
+            EagleVisual = null;
+            SelectaBikeVisual = null;
+            MangTahoVisual = null;
+            FishballCartVisual = null;
+            TahoStockProp = null;
+            FishballStockProp = null;
+            HallBannerTransform = null;
+            SelectaBellTransform = null;
+            CrocBodyMat = null;
+            EagleBodyMat = null;
+            BuffAuraTransforms = null;
+            BuffAuraRenderers = null;
+            BuffAuraMpb = null;
             GroundMaterial = null;
             CreekBedMaterial = null;
             WaterMaterial = null;
             SkyMaterial = null;
+            ParcelAoTexture = null;
         }
     }
 
@@ -108,12 +318,13 @@ namespace Kalyeah.Game
         public const string SkyMaterialName = "TropicalSky";
         public const string SkyShaderName = "Kalyeah/TropicalSky";
 
-        // VALORANT clamped ambient readability bounds (soft bounce fill, zero pitch-black shadow pits).
-        public const float AmbientLuminanceMin = 0.24f;
-        public const float AmbientLuminanceMax = 0.92f;
+        // Option A1 10:30 AM sunlit Manila ambient readability bounds (cool sky bounce, zero pitch-black walls).
+        public const float AmbientLuminanceMin = 0.28f;
+        public const float AmbientLuminanceMax = 0.94f;
 
         const float OuterGroundMargin = 1200f;
         const float Deg2Rad = MathF.PI / 180f;
+        const int ParcelAoLutSize = 256;
 
         static readonly int PropArenaRadius = Shader.PropertyToID("_ArenaRadius");
         static readonly int PropArenaHalf = Shader.PropertyToID("_ArenaHalf");
@@ -130,6 +341,9 @@ namespace Kalyeah.Game
         static readonly int PropParcelCount = Shader.PropertyToID("_ParcelCount");
         static readonly int PropParcelPose = Shader.PropertyToID("_ParcelPose");
         static readonly int PropParcelHalf = Shader.PropertyToID("_ParcelHalf");
+        static readonly int PropParcelAoTex = Shader.PropertyToID("_ParcelAoTex");
+        static readonly int PropHasParcelAoTex = Shader.PropertyToID("_HasParcelAoTex");
+        static readonly int PropParcelAoBounds = Shader.PropertyToID("_ParcelAoBounds");
         static readonly int PropCreekHalfWidth = Shader.PropertyToID("_CreekHalfWidth");
         static readonly int PropCurveScale = Shader.PropertyToID("_CurveScale");
         static readonly int PropFlowSpeed = Shader.PropertyToID("_FlowSpeed");
@@ -138,12 +352,20 @@ namespace Kalyeah.Game
         static readonly int PropFresnelStrength = Shader.PropertyToID("_FresnelStrength");
         static readonly int PropSunDiscSize = Shader.PropertyToID("_SunDiscSize");
         static readonly int PropHorizonClarityBand = Shader.PropertyToID("_HorizonClarityBand");
+        static readonly int PropSkyZenith = Shader.PropertyToID("_SkyZenith");
+        static readonly int PropSkyMid = Shader.PropertyToID("_SkyMid");
+        static readonly int PropSkyHorizon = Shader.PropertyToID("_SkyHorizon");
+        static readonly int PropHorizonGlow = Shader.PropertyToID("_HorizonGlow");
 
-        // Warm afternoon haze & muted trilight bounce (keeps team red/blue out of the environment).
-        static readonly Color WarmHorizonFog = new Color(0.89f, 0.84f, 0.75f, 1f);
-        static readonly Color WarmSkyAmbient = new Color(0.72f, 0.79f, 0.88f, 1f);
-        static readonly Color WarmEquatorAmbient = new Color(0.78f, 0.73f, 0.65f, 1f);
-        static readonly Color WarmGroundBounce = new Color(0.54f, 0.48f, 0.40f, 1f);
+        // Crisp 10:30 AM sunlit Manila atmosphere & cool-sky / warm-earth Trilight bounce.
+        static readonly Color WarmHorizonFog = new Color(0.84f, 0.89f, 0.93f, 1f);
+        static readonly Color WarmSkyAmbient = new Color(0.384f, 0.596f, 0.847f, 1f);     // #6298D8 cool Manila azure sky
+        static readonly Color WarmEquatorAmbient = new Color(0.796f, 0.749f, 0.663f, 1f); // #CBBFA9 sunlit limestone equator
+        static readonly Color WarmGroundBounce = new Color(0.490f, 0.431f, 0.361f, 1f);   // #7D6E5C warm earth bounce
+        static readonly Color ManilaSkyZenith = new Color(0.31f, 0.62f, 0.90f, 1f);
+        static readonly Color ManilaSkyMid = new Color(0.58f, 0.80f, 0.95f, 1f);
+        static readonly Color ManilaSkyHorizon = new Color(0.86f, 0.92f, 0.96f, 1f);
+        static readonly Color ManilaHorizonGlow = new Color(0.97f, 0.95f, 0.89f, 1f);
         static Material s_fallbackSky;
 
         /// <summary>
@@ -168,12 +390,17 @@ namespace Kalyeah.Game
             }
 
             BuildLandmarks(rootGo.transform, layout, env, naturalSizes, litTemplate);
+            if (layout.ArenaRadius > 0f)
+            {
+                BuildAsymmetricLandmarksAndLivingWorld(rootGo.transform, layout, env, litTemplate);
+            }
             return env;
         }
 
         /// <summary>
-        /// Builds the non-repeating BarangayGround plane (carving the Estero canal slot when <c>layout.ArenaRadius &gt; 0</c>
-        /// and uploading all 32 oriented building parcel contact-AO footprints). Replaces MatchView's flat primitive Ground + Street cylinder.
+        /// Builds the non-repeating BarangayGround plane (carving the Estero canal slot when <c>layout.ArenaRadius &gt; 0</c>,
+        /// baking all 32 oriented parcel contact-AO footprints into a 256x256 LUT, and attaching a Default-layer ground collider
+        /// so 2-bone Foot IK hits the street cleanly).
         /// </summary>
         public static GameObject BuildGround(Transform parent, MapLayoutData layout, BarangayEnvironment env = null)
         {
@@ -183,12 +410,19 @@ namespace Kalyeah.Game
                 ?? MakeLitMaterial(env, ResolveLitTemplate(env), "BarangayGround_Fallback", new Color(0.55f, 0.50f, 0.43f), 0.14f, 0f);
 
             bool carveCreek = layout.ArenaRadius > 0f;
-            ConfigureGroundMaterial(groundMat, layout, carveCreekSlot: carveCreek, isCreekBed: false);
+            ConfigureGroundMaterial(groundMat, layout, carveCreekSlot: carveCreek, isCreekBed: false, env: env);
 
             float span = (layout.ArenaRadius > 0f ? layout.ArenaRadius * 2f : 48f) + OuterGroundMargin;
             Mesh groundMesh = CreateGridMesh("BarangayGroundMesh", span, span, 20, 20);
             if (env != null) env.Track(groundMesh);
             GameObject go = CreateMeshObject("BarangayGround", parent, groundMesh, groundMat, Vector3.zero, receiveShadows: true);
+            go.layer = 0;
+
+            // Walkable ground BoxCollider on Default layer so KidView.ProbeFootGround Foot IK always hits Y = 0.
+            var groundCol = go.AddComponent<BoxCollider>();
+            groundCol.center = new Vector3(0f, -0.5f, 0f);
+            groundCol.size = new Vector3(span, 1f, span);
+            groundCol.isTrigger = false;
 
             if (env != null)
             {
@@ -199,8 +433,8 @@ namespace Kalyeah.Game
         }
 
         /// <summary>
-        /// Applies the sunlit Philippine golden-hour <c>Kalyeah/TropicalSky</c> skybox, serene 0-25 deg horizon clarity,
-        /// warm provincial fog, and Valorant-clamped soft bounce ambient (zero pitch-black shadow pits).
+        /// Applies the crisp 10:30 AM sunlit Manila <c>Kalyeah/TropicalSky</c> skybox, serene 0-25 deg horizon clarity,
+        /// bright pale Manila horizon fog, clamped Trilight bounce, and immediately invokes <c>DynamicGI.UpdateEnvironment()</c>.
         /// </summary>
         public static Material ApplySky()
         {
@@ -216,18 +450,23 @@ namespace Kalyeah.Game
             }
             if (sky != null)
             {
-                if (sky.HasProperty(PropSunDiscSize)) sky.SetFloat(PropSunDiscSize, 0.9978f);
+                if (sky.HasProperty(PropSkyZenith)) sky.SetColor(PropSkyZenith, ManilaSkyZenith);
+                if (sky.HasProperty(PropSkyMid)) sky.SetColor(PropSkyMid, ManilaSkyMid);
+                if (sky.HasProperty(PropSkyHorizon)) sky.SetColor(PropSkyHorizon, ManilaSkyHorizon);
+                if (sky.HasProperty(PropHorizonGlow)) sky.SetColor(PropHorizonGlow, ManilaHorizonGlow);
+                if (sky.HasProperty(PropSunDiscSize)) sky.SetFloat(PropSunDiscSize, 0.9980f);
                 if (sky.HasProperty(PropHorizonClarityBand)) sky.SetFloat(PropHorizonClarityBand, 0.24f);
                 RenderSettings.skybox = sky;
             }
             RenderSettings.fogColor = WarmHorizonFog;
             EnsureClampedAmbient();
+            DynamicGI.UpdateEnvironment();
             return sky;
         }
 
         /// <summary>
-        /// Configures muted warm Valorant-style bounce lighting (soft sky + warm ground bounce, never pitch-black
-        /// shadow pits and free of saturated team red/blue).
+        /// Configures crisp 10:30 AM sunlit Manila Trilight bounce (cool azure sky #6298D8, sunlit equator #CBBFA9, warm earth #7D6E5C)
+        /// and refreshes ambient spherical harmonics immediately via <c>DynamicGI.UpdateEnvironment()</c>.
         /// </summary>
         public static void ApplyClampedAmbient(bool trilight = true)
         {
@@ -243,6 +482,7 @@ namespace Kalyeah.Game
                 RenderSettings.ambientMode = AmbientMode.Flat;
                 RenderSettings.ambientLight = ClampAmbientColor(WarmEquatorAmbient);
             }
+            DynamicGI.UpdateEnvironment();
         }
 
         /// <summary>Clamps an environment ambient color into [<see cref="AmbientLuminanceMin"/>, <see cref="AmbientLuminanceMax"/>].</summary>
@@ -273,10 +513,13 @@ namespace Kalyeah.Game
         }
 
         /// <summary>
-        /// Uploads arena bounds, base plaza centers, creek flags, Valorant ambient/detail clarity uniforms,
-        /// and 32 oriented building parcel OBB uniforms onto a BarangayGround material.
+        /// Uploads arena bounds, base plaza centers, creek flags, Option A1 ambient/detail clarity uniforms,
+        /// and 32 oriented building parcel footprints (plus a single baked 256x256 contact-AO LUT when <paramref name="env"/> is provided).
         /// </summary>
         public static void ConfigureGroundMaterial(Material mat, MapLayoutData layout, bool carveCreekSlot, bool isCreekBed)
+            => ConfigureGroundMaterial(mat, layout, carveCreekSlot, isCreekBed, env: null);
+
+        public static void ConfigureGroundMaterial(Material mat, MapLayoutData layout, bool carveCreekSlot, bool isCreekBed, BarangayEnvironment env)
         {
             if (mat == null || layout == null) return;
 
@@ -289,18 +532,17 @@ namespace Kalyeah.Game
             mat.SetVector(PropOwnBaseCenter, new Vector4(ownBase.X, ownBase.Y, 0f, 0f));
             mat.SetVector(PropEnemyBaseCenter, new Vector4(eneBase.X, eneBase.Y, 0f, 0f));
             mat.SetFloat(PropWear, 1f);
-            if (mat.HasProperty(PropShadowFloor)) mat.SetFloat(PropShadowFloor, 0.34f);
+            if (mat.HasProperty(PropShadowFloor)) mat.SetFloat(PropShadowFloor, 0.36f);
             if (mat.HasProperty(PropAmbientMin)) mat.SetFloat(PropAmbientMin, AmbientLuminanceMin);
             if (mat.HasProperty(PropAmbientMax)) mat.SetFloat(PropAmbientMax, AmbientLuminanceMax);
             if (mat.HasProperty(PropDetailStrength)) mat.SetFloat(PropDetailStrength, 0.72f);
-            if (mat.HasProperty(PropSpecStrength)) mat.SetFloat(PropSpecStrength, 0.12f);
+            if (mat.HasProperty(PropSpecStrength)) mat.SetFloat(PropSpecStrength, 0.14f);
             mat.SetFloat(PropCarveCreekSlot, carveCreekSlot ? 1f : 0f);
             mat.SetFloat(PropIsCreekBed, isCreekBed ? 1f : 0f);
 
             int count = Math.Min(layout.ParcelCount, 32);
             var poses = new Vector4[32];
             var halves = new Vector4[32];
-            var sizeCache = new Dictionary<string, Vector3>();
 
             for (int i = 0; i < count; i++)
             {
@@ -308,21 +550,8 @@ namespace Kalyeah.Game
                 SVector2 center = rect.Center;
                 float yaw = layout.HasOrientedParcels ? layout.ParcelYawRad(i) : 0f;
                 float u = Math.Clamp(layout.ParcelScale(i), 0.90f, 1.08f);
-
-                string prop = layout.ParcelProp(i);
-                string kitId = BarangayPlan.ObstacleKits.TryGetValue(prop, out string mapped) ? mapped : "brgy_cover_wall";
-                Vector2 half = new Vector2(rect.W * 0.5f, rect.H * 0.5f);
-
-                GameObject prefab = KalyeahResources.Model("barangay", kitId);
-                if (prefab != null)
-                {
-                    Vector3 nat = MeasurePrefabSize(kitId, prefab, sizeCache);
-                    if (nat.x > 0.2f && nat.z > 0.2f)
-                    {
-                        half = new Vector2(nat.x * u * 0.5f, nat.z * u * 0.5f);
-                    }
-                }
-
+                // Fitted prop buildings occupy 94% of parcel W x H scaled by u, matching KitPlacement.FitPropScale.
+                Vector2 half = new Vector2(rect.W * u * 0.47f, rect.H * u * 0.47f);
                 poses[i] = new Vector4(center.X, center.Y, MathF.Cos(yaw), MathF.Sin(yaw));
                 halves[i] = new Vector4(half.x, half.y, 0f, 0f);
             }
@@ -330,6 +559,105 @@ namespace Kalyeah.Game
             mat.SetFloat(PropParcelCount, count);
             mat.SetVectorArray(PropParcelPose, poses);
             mat.SetVectorArray(PropParcelHalf, halves);
+
+            if (mat.HasProperty(PropHasParcelAoTex))
+            {
+                if (count > 0 && env != null)
+                {
+                    float lutSpan = layout.ArenaRadius > 0f ? layout.ArenaRadius + 16f : 42f;
+                    float invSpan = 1f / (lutSpan * 2f);
+                    Vector4 lutBounds = new Vector4(-lutSpan, -lutSpan, invSpan, invSpan);
+                    if (env.ParcelAoTexture == null)
+                    {
+                        env.ParcelAoTexture = env.Track(BakeParcelAoLut(poses, halves, count, lutSpan));
+                    }
+                    if (mat.HasProperty(PropParcelAoTex)) mat.SetTexture(PropParcelAoTex, env.ParcelAoTexture);
+                    if (mat.HasProperty(PropParcelAoBounds)) mat.SetVector(PropParcelAoBounds, lutBounds);
+                    mat.SetFloat(PropHasParcelAoTex, 1f);
+                }
+                else
+                {
+                    mat.SetFloat(PropHasParcelAoTex, 0f);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Bakes all 32 oriented building parcel OBB contact shadows, plinth skirts, storefront aprons, and moss borders
+        /// into a single 256x256 linear RGBA32 LUT once per match, eliminating the expensive 32-iteration per-pixel loop on mobile GPUs.
+        /// </summary>
+        static Texture2D BakeParcelAoLut(Vector4[] poses, Vector4[] halves, int count, float halfSpan)
+        {
+            var tex = new Texture2D(ParcelAoLutSize, ParcelAoLutSize, TextureFormat.RGBA32, mipChain: false, linear: true)
+            {
+                name = "BarangayParcelAoLut_256",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+            };
+
+            var boundRadSq = new float[count];
+            for (int i = 0; i < count; i++)
+            {
+                float r = MathF.Sqrt(halves[i].x * halves[i].x + halves[i].y * halves[i].y) + 2.6f;
+                boundRadSq[i] = r * r;
+            }
+
+            var pixels = new Color32[ParcelAoLutSize * ParcelAoLutSize];
+            float fullSpan = halfSpan * 2f;
+            float invN = 1f / ParcelAoLutSize;
+
+            for (int py = 0; py < ParcelAoLutSize; py++)
+            {
+                float simZ = -halfSpan + (py + 0.5f) * invN * fullSpan;
+                int row = py * ParcelAoLutSize;
+                for (int px = 0; px < ParcelAoLutSize; px++)
+                {
+                    float simX = -halfSpan + (px + 0.5f) * invN * fullSpan;
+                    float minBldgD = 999f;
+                    float frontApron = 0f;
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        Vector4 pose = poses[i];
+                        float relX = simX - pose.x;
+                        float relY = simZ - pose.y;
+                        if (relX * relX + relY * relY > boundRadSq[i]) continue;
+
+                        float halfX = halves[i].x;
+                        float halfY = halves[i].y;
+                        float localX = relX * pose.z - relY * pose.w;
+                        float localY = relX * pose.w + relY * pose.z;
+
+                        float qx = MathF.Abs(localX) - halfX;
+                        float qy = MathF.Abs(localY) - halfY;
+                        float ox = qx > 0f ? qx : 0f;
+                        float oy = qy > 0f ? qy : 0f;
+                        float inside = MathF.Min(MathF.Max(qx, qy), 0f);
+                        float dObb = MathF.Sqrt(ox * ox + oy * oy) + inside;
+                        if (dObb < minBldgD) minBldgD = dObb;
+
+                        float inFrontX = 1f - SmoothBand(halfX - 0.2f, halfX + 0.5f, MathF.Abs(localX));
+                        float inFrontZ = SmoothBand(halfY - 0.15f, halfY + 0.15f, localY)
+                            * (1f - SmoothBand(halfY + 1.55f, halfY + 2.20f, localY));
+                        float apron = inFrontX * inFrontZ;
+                        if (apron > frontApron) frontApron = apron;
+                    }
+
+                    float wallAo = Mathf.Lerp(0.62f, 1f, SmoothBand(-0.05f, 1.45f, minBldgD));
+                    float skirtM = (1f - SmoothBand(1.15f, 2.05f, minBldgD)) * SmoothBand(-0.35f, 0.02f, minBldgD);
+                    float nearWall = 1f - SmoothBand(0f, 0.42f, MathF.Abs(minBldgD));
+
+                    pixels[row + px] = new Color32(
+                        (byte)Mathf.Clamp(Mathf.RoundToInt(wallAo * 255f), 0, 255),
+                        (byte)Mathf.Clamp(Mathf.RoundToInt(skirtM * 255f), 0, 255),
+                        (byte)Mathf.Clamp(Mathf.RoundToInt(frontApron * 255f), 0, 255),
+                        (byte)Mathf.Clamp(Mathf.RoundToInt(nearWall * 255f), 0, 255));
+                }
+            }
+
+            tex.SetPixels32(pixels);
+            tex.Apply(updateMipmaps: false, makeNoLongerReadable: true);
+            return tex;
         }
 
         // ---- Estero Canal, Riprap Banks & 3 Footbridges -------------------------------------------------------------------------
@@ -349,25 +677,25 @@ namespace Kalyeah.Game
             // 1. Sunken -0.30 m Tabing-Ilog channel bed stitched into BarangayGround (-6 mm vertical seat prevents rim Z-fighting)
             Material bedMat = CreateShaderMaterial(env, GroundMaterialName, GroundShaderName, "EsteroCreekBed_Instance")
                 ?? MakeLitMaterial(env, litTemplate, "EsteroCreekBed_Fallback", new Color(0.28f, 0.26f, 0.21f), 0.25f, 0f);
-            ConfigureGroundMaterial(bedMat, layout, carveCreekSlot: false, isCreekBed: true);
+            ConfigureGroundMaterial(bedMat, layout, carveCreekSlot: false, isCreekBed: true, env: env);
 
             Mesh bedMesh = env.Track(CreateGridMesh("TabingIlogChannelBedMesh", canalLen, 9.4f, 176, 32));
             env.CreekBed = CreateMeshObject("TabingIlogChannelBed", esteroRoot, bedMesh, bedMat, new Vector3(0f, -0.006f, 0f), receiveShadows: true);
             env.CreekBedMaterial = bedMat;
 
-            // 2. Animated sunlit olive-jade / aqua-tea Estero water with edge foam (Y = -0.12 m, strictly below Y = 0)
+            // 2. Animated crisp sunlit turquoise tropical Estero water with stepped shoreline foam & HDR caustics (Y = -0.12 m)
             Material waterMat = CreateShaderMaterial(env, WaterMaterialName, WaterShaderName, "EsteroWater_Instance")
-                ?? MakeLitMaterial(env, litTemplate, "EsteroWater_Fallback", new Color(0.18f, 0.31f, 0.24f, 0.80f), 0.72f, 0f);
+                ?? MakeLitMaterial(env, litTemplate, "EsteroWater_Fallback", new Color(0.24f, 0.66f, 0.68f, 0.84f), 0.78f, 0f);
             if (waterMat != null)
             {
                 if (waterMat.HasProperty(PropCreekHalfWidth)) waterMat.SetFloat(PropCreekHalfWidth, 3.75f);
                 if (waterMat.HasProperty(PropCurveScale)) waterMat.SetFloat(PropCurveScale, 1f);
-                if (waterMat.HasProperty(PropFlowSpeed)) waterMat.SetFloat(PropFlowSpeed, 0.50f);
-                if (waterMat.HasProperty(PropSunHotspotPower)) waterMat.SetFloat(PropSunHotspotPower, 38f);
-                if (waterMat.HasProperty(PropSunHotspotStrength)) waterMat.SetFloat(PropSunHotspotStrength, 0.42f);
-                if (waterMat.HasProperty(PropFresnelStrength)) waterMat.SetFloat(PropFresnelStrength, 0.24f);
-                if (waterMat.HasProperty(PropAmbientMin)) waterMat.SetFloat(PropAmbientMin, 0.30f);
-                if (waterMat.HasProperty(PropAmbientMax)) waterMat.SetFloat(PropAmbientMax, 0.96f);
+                if (waterMat.HasProperty(PropFlowSpeed)) waterMat.SetFloat(PropFlowSpeed, 0.55f);
+                if (waterMat.HasProperty(PropSunHotspotPower)) waterMat.SetFloat(PropSunHotspotPower, 44f);
+                if (waterMat.HasProperty(PropSunHotspotStrength)) waterMat.SetFloat(PropSunHotspotStrength, 0.68f);
+                if (waterMat.HasProperty(PropFresnelStrength)) waterMat.SetFloat(PropFresnelStrength, 0.30f);
+                if (waterMat.HasProperty(PropAmbientMin)) waterMat.SetFloat(PropAmbientMin, 0.32f);
+                if (waterMat.HasProperty(PropAmbientMax)) waterMat.SetFloat(PropAmbientMax, 1.05f);
             }
 
             Mesh waterMesh = env.Track(CreateGridMesh("EsteroWaterMesh", canalLen, 7.5f, 148, 12));
@@ -687,6 +1015,11 @@ namespace Kalyeah.Game
                 CreateMeshObject("SideCurbs", bridgeGo.transform, env.Track(curbBatch.ToMesh($"{names[laneIdx]}_Curbs")), curbMat, Vector3.zero, receiveShadows: true, castShadows: true);
                 CreateMeshObject("PipeRailings", bridgeGo.transform, env.Track(railBatch.ToMesh($"{names[laneIdx]}_Rails")), railMat, Vector3.zero, receiveShadows: true, castShadows: true);
 
+                // Walkable bridge deck collider (top Y = +0.012 m) + side curb colliders on Default layer for Foot IK
+                AddLocalBoxCollider(bridgeGo.transform, "DeckCollider", new Vector3(0f, -0.048f, 0f), new Vector3(totalW, 0.12f, spanLen + 1.0f));
+                AddLocalBoxCollider(bridgeGo.transform, "CurbColliderL", new Vector3(-railOffsetX, 0.095f, 0f), new Vector3(0.38f, 0.19f, 9.2f));
+                AddLocalBoxCollider(bridgeGo.transform, "CurbColliderR", new Vector3(railOffsetX, 0.095f, 0f), new Vector3(0.38f, 0.19f, 9.2f));
+
                 env.AddBridge(bridgeGo);
             }
         }
@@ -799,10 +1132,11 @@ namespace Kalyeah.Game
                 }
             }
 
-            // 4. NW & SE Rescue Patio Waiting Sheds framing the 5-slot tagged-player sidewalks
-            GameObject shedPrefab = KalyeahResources.Model("barangay", "brgy_waiting_shed");
+            // 4. NW & SE Rescue Patio Waiting Sheds framing the 5-slot tagged-player sidewalks (wired to props/tricycle_terminal.glb)
+            GameObject shedPrefab = FirstModelOrProp("brgy_waiting_shed", "tricycle_terminal");
             if (shedPrefab != null)
             {
+                bool shedIsProp = KalyeahResources.Model("barangay", "brgy_waiting_shed") == null;
                 int[] sides = { MapLayoutData.SideOwn, MapLayoutData.SideEnemy };
                 foreach (int side in sides)
                 {
@@ -812,45 +1146,84 @@ namespace Kalyeah.Game
                     float tagMidX = -side * MathF.Sqrt(MathF.Max(curbR * curbR - midY * midY, 0f));
                     float sx = tagMidX - side * 2.15f;
                     float yaw = side == MapLayoutData.SideOwn ? MathF.PI * 0.5f : -MathF.PI * 0.5f;
-                    GameObject shed = PlaceKit(
-                        landmarksRoot,
-                        shedPrefab,
-                        side == MapLayoutData.SideOwn ? "RescueWaitingShedOwn" : "RescueWaitingShedEnemy",
-                        new SVector2(sx, midY),
-                        0f,
-                        yaw,
-                        new Vector3(1.06f, 1.02f, 1.04f));
+                    GameObject shed = shedIsProp
+                        ? PlaceFittedProp(
+                            landmarksRoot,
+                            shedPrefab,
+                            side == MapLayoutData.SideOwn ? "RescueWaitingShedOwn" : "RescueWaitingShedEnemy",
+                            new SVector2(sx, midY),
+                            0f,
+                            yaw,
+                            new Vector3(5.6f, 3.2f, 3.8f),
+                            uniformHeightOnly: false,
+                            addSolidCollider: true)
+                        : PlaceKit(
+                            landmarksRoot,
+                            shedPrefab,
+                            side == MapLayoutData.SideOwn ? "RescueWaitingShedOwn" : "RescueWaitingShedEnemy",
+                            new SVector2(sx, midY),
+                            0f,
+                            yaw,
+                            new Vector3(1.06f, 1.02f, 1.04f));
                     env.AddOccluder(shed);
                 }
             }
 
-            // 5. Makeshift 90s wooden basketball hoops court-side at South & North plazas
-            GameObject hoopPrefab = KalyeahResources.Model("barangay", "brgy_wooden_hoop");
+            // 5. Makeshift 90s wooden basketball hoops court-side at South & North plazas (wired to props/basketball_pole.glb)
+            GameObject hoopPrefab = FirstModelOrProp("brgy_wooden_hoop", "basketball_pole");
             if (hoopPrefab != null)
             {
-                PlaceKit(landmarksRoot, hoopPrefab, "WoodenBasketballPostSouth", new SVector2(10.6f, 56.4f), 0f, -MathF.PI * 0.46f, Vector3.one * 0.98f);
-                PlaceKit(landmarksRoot, hoopPrefab, "WoodenBasketballPostNorth", new SVector2(-10.6f, -56.4f), 0f, MathF.PI * 0.54f, Vector3.one * 0.98f);
+                bool hoopIsProp = KalyeahResources.Model("barangay", "brgy_wooden_hoop") == null;
+                if (hoopIsProp)
+                {
+                    PlaceFittedProp(landmarksRoot, hoopPrefab, "WoodenBasketballPostSouth", new SVector2(10.6f, 56.4f), 0f, -MathF.PI * 0.46f, new Vector3(0f, 3.8f, 0f), uniformHeightOnly: true, addSolidCollider: true);
+                    PlaceFittedProp(landmarksRoot, hoopPrefab, "WoodenBasketballPostNorth", new SVector2(-10.6f, -56.4f), 0f, MathF.PI * 0.54f, new Vector3(0f, 3.8f, 0f), uniformHeightOnly: true, addSolidCollider: true);
+                }
+                else
+                {
+                    PlaceKit(landmarksRoot, hoopPrefab, "WoodenBasketballPostSouth", new SVector2(10.6f, 56.4f), 0f, -MathF.PI * 0.46f, Vector3.one * 0.98f);
+                    PlaceKit(landmarksRoot, hoopPrefab, "WoodenBasketballPostNorth", new SVector2(-10.6f, -56.4f), 0f, MathF.PI * 0.54f, Vector3.one * 0.98f);
+                }
             }
 
-            // 6. Plaza shade mango trees, Mamang Sorbetero carts, breeze-block walls & barrio poso wells
+            // 6. Plaza shade mango trees, Mamang Sorbetero carts, breeze-block/plank walls, nanay bystanders & barrio poso wells
             GameObject mangoPrefab = KalyeahResources.Model("barangay", "brgy_mango_tree");
-            GameObject cartPrefab = KalyeahResources.Model("barangay", "brgy_sorbetes_cart");
-            GameObject wallPrefab = KalyeahResources.Model("barangay", "brgy_cover_wall");
+            GameObject cartPrefab = FirstModelOrProp("brgy_sorbetes_cart", "ice_cream_cart");
+            bool cartIsProp = cartPrefab != null && KalyeahResources.Model("barangay", "brgy_sorbetes_cart") == null;
+            GameObject wallPrefab = FirstModelOrProp("brgy_cover_wall", "plank_fence");
+            bool wallIsProp = wallPrefab != null && KalyeahResources.Model("barangay", "brgy_cover_wall") == null;
             GameObject posoPrefab = KalyeahResources.Model("barangay", "brgy_poso_well");
+            GameObject nanayPrefab = KalyeahResources.Model("props", "nanay");
 
             float[] halfSigns = { 1f, -1f };
             foreach (float s in halfSigns)
             {
                 if (wallPrefab != null)
                 {
-                    PlaceKit(
-                        landmarksRoot,
-                        wallPrefab,
-                        s > 0f ? "PlazaBougainvilleaWallSouth" : "PlazaBougainvilleaWallNorth",
-                        new SVector2(14.2f * s, 77.4f * s),
-                        0f,
-                        (s > 0f ? -18f : 162f) * Deg2Rad,
-                        Vector3.one * 0.98f);
+                    if (wallIsProp)
+                    {
+                        PlaceFittedProp(
+                            landmarksRoot,
+                            wallPrefab,
+                            s > 0f ? "PlazaBougainvilleaWallSouth" : "PlazaBougainvilleaWallNorth",
+                            new SVector2(14.2f * s, 77.4f * s),
+                            0f,
+                            (s > 0f ? -18f : 162f) * Deg2Rad,
+                            new Vector3(4.2f, 1.45f, 0.35f),
+                            uniformHeightOnly: false,
+                            addSolidCollider: true);
+                    }
+                    else
+                    {
+                        PlaceKit(
+                            landmarksRoot,
+                            wallPrefab,
+                            s > 0f ? "PlazaBougainvilleaWallSouth" : "PlazaBougainvilleaWallNorth",
+                            new SVector2(14.2f * s, 77.4f * s),
+                            0f,
+                            (s > 0f ? -18f : 162f) * Deg2Rad,
+                            Vector3.one * 0.98f);
+                    }
                 }
                 if (mangoPrefab != null)
                 {
@@ -865,14 +1238,43 @@ namespace Kalyeah.Game
                 }
                 if (cartPrefab != null)
                 {
-                    PlaceKit(
+                    if (cartIsProp)
+                    {
+                        PlaceFittedProp(
+                            landmarksRoot,
+                            cartPrefab,
+                            s > 0f ? "SorbetesCartSouth" : "SorbetesCartNorth",
+                            new SVector2(12.8f * s, 61.6f * s),
+                            0f,
+                            (s > 0f ? -72f : 108f) * Deg2Rad,
+                            new Vector3(0f, 1.55f, 0f),
+                            uniformHeightOnly: true,
+                            addSolidCollider: true);
+                    }
+                    else
+                    {
+                        PlaceKit(
+                            landmarksRoot,
+                            cartPrefab,
+                            s > 0f ? "SorbetesCartSouth" : "SorbetesCartNorth",
+                            new SVector2(12.8f * s, 61.6f * s),
+                            0f,
+                            (s > 0f ? -72f : 108f) * Deg2Rad,
+                            Vector3.one * 0.96f);
+                    }
+                }
+                if (nanayPrefab != null)
+                {
+                    PlaceFittedProp(
                         landmarksRoot,
-                        cartPrefab,
-                        s > 0f ? "SorbetesCartSouth" : "SorbetesCartNorth",
-                        new SVector2(12.8f * s, 61.6f * s),
+                        nanayPrefab,
+                        s > 0f ? "BarrioNanaySouth" : "BarrioNanayNorth",
+                        new SVector2(14.4f * s, 59.8f * s),
                         0f,
-                        (s > 0f ? -72f : 108f) * Deg2Rad,
-                        Vector3.one * 0.96f);
+                        (s > 0f ? -115f : 65f) * Deg2Rad,
+                        new Vector3(0f, 1.54f, 0f),
+                        uniformHeightOnly: true,
+                        addSolidCollider: false);
                 }
                 if (posoPrefab != null)
                 {
@@ -887,10 +1289,11 @@ namespace Kalyeah.Game
                 }
             }
 
-            // 7. TODA tricycle terminal queue & curbside provincial jeepneys (parked clear of lanes)
-            GameObject trikePrefab = KalyeahResources.Model("barangay", "brgy_tricycle");
+            // 7. TODA tricycle terminal queue & curbside provincial jeepneys (wired to props/tricycle.glb, clear of lanes)
+            GameObject trikePrefab = FirstModelOrProp("brgy_tricycle", "tricycle");
             if (trikePrefab != null)
             {
+                bool trikeIsProp = KalyeahResources.Model("barangay", "brgy_tricycle") == null;
                 Vector4[] trikeSpecs =
                 {
                     new Vector4(-42.1f, 13.4f, 72f * Deg2Rad, 0.96f),
@@ -903,7 +1306,10 @@ namespace Kalyeah.Game
                 for (int i = 0; i < trikeSpecs.Length; i++)
                 {
                     Vector4 t = trikeSpecs[i];
-                    PlaceKit(landmarksRoot, trikePrefab, $"TodaTricycle_{i}", new SVector2(t.x, t.y), 0f, t.z, Vector3.one * t.w);
+                    if (trikeIsProp)
+                        PlaceFittedProp(landmarksRoot, trikePrefab, $"TodaTricycle_{i}", new SVector2(t.x, t.y), 0f, t.z, new Vector3(0f, 1.65f * t.w, 0f), uniformHeightOnly: true, addSolidCollider: true);
+                    else
+                        PlaceKit(landmarksRoot, trikePrefab, $"TodaTricycle_{i}", new SVector2(t.x, t.y), 0f, t.z, Vector3.one * t.w);
                 }
             }
 
@@ -929,10 +1335,11 @@ namespace Kalyeah.Game
                 }
             }
 
-            // 8. Standalone street-corner wayfinding notice posts
-            GameObject posterPrefab = KalyeahResources.Model("barangay", "brgy_poster_cluster");
+            // 8. Standalone street-corner wayfinding notice posts (wired to props/no_id_no_entry.glb)
+            GameObject posterPrefab = FirstModelOrProp("brgy_poster_cluster", "no_id_no_entry");
             if (posterPrefab != null)
             {
+                bool signIsProp = KalyeahResources.Model("barangay", "brgy_poster_cluster") == null;
                 SVector2[] corners =
                 {
                     new SVector2(-8.4f, 23.2f),
@@ -944,9 +1351,707 @@ namespace Kalyeah.Game
                 {
                     SVector2 cs = corners[i];
                     float yaw = MathF.Atan2(-cs.X, -cs.Y) + 18f * Deg2Rad;
-                    PlaceKit(landmarksRoot, posterPrefab, $"CornerWayfindingSign_{i}", cs, 0f, yaw, Vector3.one * 0.95f);
+                    if (signIsProp)
+                        PlaceFittedProp(landmarksRoot, posterPrefab, $"CornerWayfindingSign_{i}", cs, 0f, yaw, new Vector3(0f, 1.85f, 0f), uniformHeightOnly: true, addSolidCollider: false);
+                    else
+                        PlaceKit(landmarksRoot, posterPrefab, $"CornerWayfindingSign_{i}", cs, 0f, yaw, Vector3.one * 0.95f);
                 }
             }
+        }
+
+        // ---- Asymmetric Uptown vs Riverside Silhouettes & Living World Props (docs/MAPS.md, docs/GRAPHICS.md) ----------------
+
+        static void BuildAsymmetricLandmarksAndLivingWorld(
+            Transform parent,
+            MapLayoutData layout,
+            BarangayEnvironment env,
+            Material litTemplate)
+        {
+            var livingGo = new GameObject("BarangayLivingWorld");
+            livingGo.transform.SetParent(parent, false);
+            env.LivingWorldRoot = livingGo;
+            Transform root = livingGo.transform;
+
+            // Warm calm Filipino palette keeping saturated team red/blue out of the environment (docs/GRAPHICS.md L23)
+            Material cementMat = MakeLitMaterial(env, litTemplate, "UptownCement", new Color(0.68f, 0.67f, 0.63f), 0.14f, 0f);
+            Material sageTrimMat = MakeLitMaterial(env, litTemplate, "UptownSageTrim", new Color(0.45f, 0.54f, 0.53f), 0.24f, 0.08f);
+            Material steelMat = MakeLitMaterial(env, litTemplate, "TowerGalvSteel", new Color(0.52f, 0.54f, 0.52f), 0.42f, 0.35f);
+            Material creamStuccoMat = MakeLitMaterial(env, litTemplate, "RiversideStucco", new Color(0.82f, 0.76f, 0.65f), 0.14f, 0f);
+            Material terracottaMat = MakeLitMaterial(env, litTemplate, "RiversideTerracotta", new Color(0.64f, 0.43f, 0.32f), 0.22f, 0.05f);
+            Material narraWoodMat = MakeLitMaterial(env, litTemplate, "RiversideNarraWood", new Color(0.47f, 0.33f, 0.22f), 0.20f, 0f);
+            Material tinRoofMat = MakeLitMaterial(env, litTemplate, "RiversideTinAwning", new Color(0.56f, 0.55f, 0.51f), 0.44f, 0.30f);
+            Material ledgeTrimMat = MakeLitMaterial(env, litTemplate, "ClimbLedgeTrim", new Color(0.88f, 0.86f, 0.79f), 0.18f, 0f);
+            Material warmGoldMat = MakeLitMaterial(env, litTemplate, "CivicBannerGold", new Color(0.84f, 0.68f, 0.34f), 0.22f, 0.05f);
+            Material sandbarMat = MakeLitMaterial(env, litTemplate, "RiverSandbar", new Color(0.62f, 0.54f, 0.40f), 0.12f, 0f);
+            Material foliageMat = MakeLitMaterial(env, litTemplate, "TallCoverFoliageDeep", new Color(0.24f, 0.42f, 0.23f), 0.12f, 0f);
+            Material foliageSunlitMat = MakeLitMaterial(env, litTemplate, "TallCoverFoliageSunlit", new Color(0.39f, 0.59f, 0.29f), 0.16f, 0f);
+            Material laundryMat = MakeLitMaterial(env, litTemplate, "TallCoverLaundry", new Color(0.84f, 0.81f, 0.74f), 0.10f, 0f);
+            Material aluminumMat = MakeLitMaterial(env, litTemplate, "VendorAluminum", new Color(0.76f, 0.78f, 0.79f), 0.62f, 0.55f);
+            Material selectaCoolerMat = MakeLitMaterial(env, litTemplate, "SelectaCoolerCream", new Color(0.90f, 0.87f, 0.78f), 0.36f, 0.05f);
+            Material awningBlueMat = MakeLitMaterial(env, litTemplate, "VendorAwningBlue", new Color(0.30f, 0.48f, 0.66f), 0.16f, 0f);
+            Material wheelRubberMat = MakeLitMaterial(env, litTemplate, "CartWheelRubber", new Color(0.20f, 0.20f, 0.21f), 0.18f, 0f);
+
+            // 1. UPTOWN (-Z): Barangay Hall steps + tall civic flagpole (Band-3 banner > 4 m)
+            env.HallFlagpole = BuildUptownHallStepsAndFlagpole(root, env, layout, cementMat, sageTrimMat, steelMat, warmGoldMat);
+
+            // 2. UPTOWN CREEK-BANK FLANK: Water Tower landmark (Eagle's Baron perch — seen from anywhere!)
+            env.WaterTower = BuildCreekWaterTower(root, env, new SVector2(54f, -3.8f), steelMat, cementMat, sageTrimMat, ledgeTrimMat);
+            env.AddOccluder(env.WaterTower);
+
+            // 3. RIVERSIDE (+Z): Chapel Bell Tower landmark (opposing silhouette seen from anywhere!)
+            env.ChapelBellTower = BuildRiversideChapelBellTower(root, env, new SVector2(21.5f, 88.2f), GreyBoxKit.GetBarangayBuildingMaterial(0), terracottaMat, warmGoldMat);
+            env.AddOccluder(env.ChapelBellTower);
+
+            // 4. RIVERSIDE SARI-SARI ROW + 3 Climb-Spot lighter roof/ledge accents (docs/GRAPHICS.md L206)
+            env.SariSariRow = BuildSariSariAwningAndClimbAccents(root, env, narraWoodMat, tinRoofMat, creamStuccoMat, warmGoldMat, ledgeTrimMat);
+
+            // 5. MID-MAP SANDBAR under/beside Center Bridge + Crocodile (Dragon)
+            BuildRiverSandbar(root, env, new SVector2(-7f, 0f), sandbarMat);
+            env.CrocodileVisual = BuildCrocodileVisual(root, env, litTemplate, new SVector2(-7f, 0f), creamStuccoMat, warmGoldMat);
+
+            // 6. PHILIPPINE EAGLE (Baron) perched atop the Creek-Bank Water Tower
+            env.EagleVisual = BuildEagleVisual(root, env, litTemplate, new SVector2(54f, -3.8f), env.EaglePerchHeight, creamStuccoMat, warmGoldMat);
+
+            // 7. TWO EQUIDISTANT VENDORS (Mang Taho on left alley, Fishball Cart on creek bank)
+            env.MangTahoVisual = BuildMangTahoVendor(root, env, new SVector2(-42.5f, 2.6f), narraWoodMat, aluminumMat, warmGoldMat, awningBlueMat, cupCreamMat: creamStuccoMat);
+            env.FishballCartVisual = BuildFishballCartVendor(root, env, new SVector2(42.5f, -2.6f), narraWoodMat, steelMat, tinRoofMat, awningBlueMat, wheelRubberMat, warmGoldMat);
+
+            // 8. SELECTA ICE-CREAM BIKE patrolling the river road
+            env.SelectaBikeVisual = BuildSelectaBikeVisual(root, env, new SVector2(-36.5f, -6.2f), selectaCoolerMat, warmGoldMat, steelMat, wheelRubberMat);
+
+            // 9. TALL-COVER STEALTH CLUMPS (6 soft-cover zones with organic faceted foliage mounds & vertical AO tint)
+            BuildTallCoverClumps(root, env, narraWoodMat, laundryMat, foliageMat, foliageSunlitMat);
+
+            // 10. POOLED SOFT FOOT BUFF AURAS (10 zero-GC rings shown only on Dragon/Baron/Selecta-buffed kids)
+            BuildPooledBuffAuras(root, env);
+        }
+
+        static GameObject BuildUptownHallStepsAndFlagpole(
+            Transform parent,
+            BarangayEnvironment env,
+            MapLayoutData layout,
+            Material cementMat,
+            Material sageTrimMat,
+            Material steelMat,
+            Material bannerMat)
+        {
+            var go = new GameObject("UptownHallStepsAndFlagpole");
+            go.transform.SetParent(parent, false);
+            SVector2 hallBase = layout.BaseCenter(MapLayoutData.SideEnemy);
+
+            // 3 wide civic concrete steps facing south toward the plaza (+Z sim -> -Z Unity) + Foot IK colliders
+            var steps = new MeshBatchBuilder();
+            for (int k = 0; k < 3; k++)
+            {
+                float depth = 2.8f - k * 0.65f;
+                float y = 0.08f + k * 0.14f;
+                float zOff = -14.5f - k * 0.55f;
+                Vector3 stepWorld = KalyeahResources.World(new SVector2(hallBase.X, hallBase.Y + zOff), y);
+                Vector3 stepSize = new Vector3(11.6f - k * 0.6f, 0.16f, depth);
+                steps.AddChamferedBox(stepWorld, Quaternion.identity, stepSize, 0.03f);
+                AddLocalBoxCollider(go.transform, "HallStepCol_" + k, stepWorld, stepSize);
+            }
+            CreateMeshObject("HallCivicSteps", go.transform, env.Track(steps.ToMesh("HallCivicStepsMesh")), cementMat, Vector3.zero, receiveShadows: true, castShadows: true);
+
+            // Tall 10.8 m flagpole on the Uptown Hall plaza margin (Band-3 banner well above head height)
+            var polePivot = new GameObject("HallFlagpolePivot");
+            polePivot.transform.SetParent(go.transform, false);
+            polePivot.transform.position = KalyeahResources.World(new SVector2(8.6f, hallBase.Y - 12.2f), 0f);
+
+            var poleBatch = new MeshBatchBuilder();
+            poleBatch.AddChamferedBox(new Vector3(0f, 0.25f, 0f), Quaternion.identity, new Vector3(0.95f, 0.50f, 0.95f), 0.05f);
+            poleBatch.AddChamferedBox(new Vector3(0f, 5.45f, 0f), Quaternion.identity, new Vector3(0.14f, 10.6f, 0.14f), 0.025f);
+            CreateMeshObject("FlagpoleShaft", polePivot.transform, env.Track(poleBatch.ToMesh("HallFlagpoleShaftMesh")), steelMat, Vector3.zero, receiveShadows: true, castShadows: true);
+
+            var plinthBatch = new MeshBatchBuilder();
+            plinthBatch.AddChamferedBox(new Vector3(0f, 0.52f, 0f), Quaternion.identity, new Vector3(0.68f, 0.12f, 0.68f), 0.03f);
+            CreateMeshObject("FlagpoleTrim", polePivot.transform, env.Track(plinthBatch.ToMesh("HallFlagpoleTrimMesh")), sageTrimMat, Vector3.zero, receiveShadows: true);
+
+            var bannerPivot = new GameObject("HallBannerPivot");
+            bannerPivot.transform.SetParent(polePivot.transform, false);
+            bannerPivot.transform.localPosition = new Vector3(0f, 9.55f, 0f);
+            var bannerBatch = new MeshBatchBuilder();
+            bannerBatch.AddChamferedBox(new Vector3(1.15f, 0f, 0f), Quaternion.identity, new Vector3(2.25f, 1.15f, 0.08f), 0.02f);
+            CreateMeshObject("HallBanner", bannerPivot.transform, env.Track(bannerBatch.ToMesh("HallBannerMesh")), bannerMat, Vector3.zero, receiveShadows: false, castShadows: true);
+            env.HallBannerTransform = bannerPivot.transform;
+            return go;
+        }
+
+        static GameObject BuildCreekWaterTower(
+            Transform parent,
+            BarangayEnvironment env,
+            SVector2 ground,
+            Material steelMat,
+            Material cementMat,
+            Material sageTrimMat,
+            Material ledgeTrimMat)
+        {
+            var go = new GameObject("UptownWaterTower");
+            go.transform.SetParent(parent, false);
+            go.transform.position = KalyeahResources.World(ground, 0f);
+
+            var legs = new MeshBatchBuilder();
+            // Wide 2.55 m leg spread so kids fight the Philippine Eagle cleanly from below without leg snags
+            float legSpread = 2.55f;
+            for (int sx = -1; sx <= 1; sx += 2)
+            {
+                for (int sz = -1; sz <= 1; sz += 2)
+                {
+                    legs.AddChamferedBox(new Vector3(sx * legSpread, 3.7f, sz * legSpread), Quaternion.identity, new Vector3(0.32f, 7.4f, 0.32f), 0.04f);
+                }
+            }
+            // Mid & upper cross-braces cleanly above Band-2 combat height (Y = 3.2 m & 6.2 m)
+            float[] braceYs = { 3.2f, 6.2f };
+            for (int b = 0; b < braceYs.Length; b++)
+            {
+                float by = braceYs[b];
+                legs.AddChamferedBox(new Vector3(0f, by, legSpread), Quaternion.identity, new Vector3(legSpread * 2.05f, 0.22f, 0.22f), 0.03f);
+                legs.AddChamferedBox(new Vector3(0f, by, -legSpread), Quaternion.identity, new Vector3(legSpread * 2.05f, 0.22f, 0.22f), 0.03f);
+                legs.AddChamferedBox(new Vector3(legSpread, by, 0f), Quaternion.identity, new Vector3(0.22f, 0.22f, legSpread * 2.05f), 0.03f);
+                legs.AddChamferedBox(new Vector3(-legSpread, by, 0f), Quaternion.identity, new Vector3(0.22f, 0.22f, legSpread * 2.05f), 0.03f);
+            }
+
+            var tank = new MeshBatchBuilder();
+            tank.AddChamferedBox(new Vector3(0f, 7.55f, 0f), Quaternion.identity, new Vector3(5.9f, 0.35f, 5.9f), 0.06f);
+            tank.AddChamferedBox(new Vector3(0f, 9.40f, 0f), Quaternion.identity, new Vector3(4.2f, 3.35f, 4.2f), 0.35f);
+
+            var trim = new MeshBatchBuilder();
+            trim.AddChamferedBox(new Vector3(0f, 8.20f, 0f), Quaternion.identity, new Vector3(4.36f, 0.26f, 4.36f), 0.05f);
+            trim.AddChamferedBox(new Vector3(0f, 10.55f, 0f), Quaternion.identity, new Vector3(4.36f, 0.26f, 4.36f), 0.05f);
+
+            var cap = new MeshBatchBuilder();
+            cap.AddChamferedBox(new Vector3(0f, 11.18f, 0f), Quaternion.identity, new Vector3(4.55f, 0.28f, 4.55f), 0.08f);
+
+            CreateMeshObject("TowerSteelLegs", go.transform, env.Track(legs.ToMesh("WaterTowerLegsMesh")), steelMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("TowerConcreteTank", go.transform, env.Track(tank.ToMesh("WaterTowerTankMesh")), cementMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("TowerSageBands", go.transform, env.Track(trim.ToMesh("WaterTowerTrimMesh")), sageTrimMat, Vector3.zero, receiveShadows: true);
+            CreateMeshObject("TowerRoofRim", go.transform, env.Track(cap.ToMesh("WaterTowerCapMesh")), ledgeTrimMat, Vector3.zero, receiveShadows: true);
+            for (int sx = -1; sx <= 1; sx += 2)
+                for (int sz = -1; sz <= 1; sz += 2)
+                    AddLocalBoxCollider(go.transform, $"TowerLegCol_{sx}_{sz}", new Vector3(sx * legSpread, 3.7f, sz * legSpread), new Vector3(0.36f, 7.4f, 0.36f));
+            AddLocalBoxCollider(go.transform, "TowerTankCol", new Vector3(0f, 9.4f, 0f), new Vector3(5.9f, 3.9f, 5.9f));
+            return go;
+        }
+
+        static GameObject BuildRiversideChapelBellTower(
+            Transform parent,
+            BarangayEnvironment env,
+            SVector2 ground,
+            Material stuccoMat,
+            Material terracottaMat,
+            Material bellBrassMat)
+        {
+            var go = new GameObject("RiversideChapelBellTower");
+            go.transform.SetParent(parent, false);
+            go.transform.position = KalyeahResources.World(ground + new SVector2(-6.4f, -1.8f), 0f);
+
+            var body = new MeshBatchBuilder();
+            body.AddChamferedBox(new Vector3(0f, 4.2f, 0f), Quaternion.identity, new Vector3(3.4f, 8.4f, 3.4f), 0.09f);
+            // 4 belfry corner piers framing an open bell alcove (Y = 8.4..10.6 m)
+            for (int sx = -1; sx <= 1; sx += 2)
+                for (int sz = -1; sz <= 1; sz += 2)
+                    body.AddChamferedBox(new Vector3(sx * 1.22f, 9.5f, sz * 1.22f), Quaternion.identity, new Vector3(0.62f, 2.2f, 0.62f), 0.05f);
+
+            var roof = new MeshBatchBuilder();
+            roof.AddChamferedBox(new Vector3(0f, 10.85f, 0f), Quaternion.identity, new Vector3(4.1f, 0.55f, 4.1f), 0.12f);
+            roof.AddChamferedBox(new Vector3(0f, 11.65f, 0f), Quaternion.identity, new Vector3(2.8f, 1.05f, 2.8f), 0.25f);
+            roof.AddChamferedBox(new Vector3(0f, 12.35f, 0f), Quaternion.identity, new Vector3(1.2f, 0.55f, 1.2f), 0.16f);
+
+            var bell = new MeshBatchBuilder();
+            bell.AddChamferedBox(new Vector3(0f, 9.45f, 0f), Quaternion.identity, new Vector3(0.88f, 0.95f, 0.88f), 0.14f);
+
+            CreateMeshObject("BellTowerStucco", go.transform, env.Track(body.ToMesh("ChapelBellTowerStuccoMesh")), stuccoMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("BellTowerRoof", go.transform, env.Track(roof.ToMesh("ChapelBellTowerRoofMesh")), terracottaMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("ChapelBrassBell", go.transform, env.Track(bell.ToMesh("ChapelBellMesh")), bellBrassMat, Vector3.zero, receiveShadows: false, castShadows: true);
+            AddLocalBoxCollider(go.transform, "BellTowerCol", new Vector3(0f, 5.2f, 0f), new Vector3(3.4f, 10.4f, 3.4f));
+            return go;
+        }
+
+        static GameObject BuildSariSariAwningAndClimbAccents(
+            Transform parent,
+            BarangayEnvironment env,
+            Material woodMat,
+            Material tinMat,
+            Material creamMat,
+            Material goldMat,
+            Material ledgeTrimMat)
+        {
+            var go = new GameObject("RiversideSariSariAndClimbSpots");
+            go.transform.SetParent(parent, false);
+
+            // 1. Riverside Sari-Sari Roof climb spot (-9.8, 16.4): Band-3 wood/tin awning + lighter climbable roof trim
+            var sari = new GameObject("SariSariClimbAwning");
+            sari.transform.SetParent(go.transform, false);
+            sari.transform.position = KalyeahResources.World(new SVector2(-9.8f, 16.4f), 0f);
+
+            var woodBatch = new MeshBatchBuilder();
+            woodBatch.AddChamferedBox(new Vector3(-3.6f, 2.65f, 4.35f), Quaternion.identity, new Vector3(0.14f, 0.72f, 0.14f), 0.02f);
+            woodBatch.AddChamferedBox(new Vector3(3.6f, 2.65f, 4.35f), Quaternion.identity, new Vector3(0.14f, 0.72f, 0.14f), 0.02f);
+
+            var awningBatch = new MeshBatchBuilder();
+            awningBatch.AddChamferedBox(new Vector3(0f, 2.75f, 4.15f), Quaternion.Euler(12f, 0f, 0f), new Vector3(7.8f, 0.14f, 1.45f), 0.03f);
+
+            var trimBatch = new MeshBatchBuilder();
+            trimBatch.AddChamferedBox(new Vector3(0f, 3.12f, 0f), Quaternion.identity, new Vector3(8.1f, 0.10f, 8.2f), 0.03f);
+
+            CreateMeshObject("AwningStruts", sari.transform, env.Track(woodBatch.ToMesh("SariAwningStrutsMesh")), woodMat, Vector3.zero, receiveShadows: true);
+            CreateMeshObject("TinAwning", sari.transform, env.Track(awningBatch.ToMesh("SariTinAwningMesh")), tinMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("SariRoofClimbTrim", sari.transform, env.Track(trimBatch.ToMesh("SariRoofTrimMesh")), ledgeTrimMat, Vector3.zero, receiveShadows: true);
+
+            // 2. Uptown Backboard Stand climb accent (-10.6, -56.4): lighter climbable stand rim
+            var backboardTrim = new MeshBatchBuilder();
+            backboardTrim.AddChamferedBox(
+                KalyeahResources.World(new SVector2(-10.6f, -56.4f), 2.58f),
+                Quaternion.identity,
+                new Vector3(1.85f, 0.10f, 1.25f),
+                0.03f);
+            CreateMeshObject("BackboardClimbTrim", go.transform, env.Track(backboardTrim.ToMesh("BackboardClimbTrimMesh")), ledgeTrimMat, Vector3.zero, receiveShadows: true);
+
+            // 3. Mid-Map Parked Jeepney climb spot on dry bridge apron (5.5, 12.0 — >= 6 m clear of Selecta river-road loop!)
+            var jeep = new GameObject("BridgeClimbJeepney");
+            jeep.transform.SetParent(go.transform, false);
+            jeep.transform.position = KalyeahResources.World(new SVector2(5.5f, 12.0f), 0f);
+            jeep.transform.rotation = Quaternion.Euler(0f, -14f, 0f);
+
+            var bodyBatch = new MeshBatchBuilder();
+            bodyBatch.AddChamferedBox(new Vector3(0f, 1.15f, -0.35f), Quaternion.identity, new Vector3(1.92f, 1.75f, 3.65f), 0.08f);
+            bodyBatch.AddChamferedBox(new Vector3(0f, 0.85f, 2.05f), Quaternion.identity, new Vector3(1.74f, 1.15f, 1.35f), 0.08f);
+
+            var accentBatch = new MeshBatchBuilder();
+            accentBatch.AddChamferedBox(new Vector3(0f, 1.32f, -0.35f), Quaternion.identity, new Vector3(1.98f, 0.24f, 3.70f), 0.03f);
+
+            var jeepTop = new MeshBatchBuilder();
+            jeepTop.AddChamferedBox(new Vector3(0f, 2.18f, -0.35f), Quaternion.identity, new Vector3(1.96f, 0.14f, 3.68f), 0.04f);
+
+            CreateMeshObject("JeepneyBody", jeep.transform, env.Track(bodyBatch.ToMesh("BridgeJeepneyBodyMesh")), creamMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("JeepneyBand", jeep.transform, env.Track(accentBatch.ToMesh("BridgeJeepneyBandMesh")), goldMat, Vector3.zero, receiveShadows: true);
+            CreateMeshObject("JeepneyClimbRoof", jeep.transform, env.Track(jeepTop.ToMesh("BridgeJeepneyRoofMesh")), ledgeTrimMat, Vector3.zero, receiveShadows: true);
+            AddLocalBoxCollider(jeep.transform, "JeepneyCol", new Vector3(0f, 1.12f, 0.25f), new Vector3(1.96f, 2.24f, 5.0f));
+            env.AddOccluder(jeep);
+
+            return go;
+        }
+
+        static void BuildRiverSandbar(Transform parent, BarangayEnvironment env, SVector2 ground, Material sandbarMat)
+        {
+            var bar = new MeshBatchBuilder();
+            bar.AddChamferedBox(KalyeahResources.World(ground, -0.14f), Quaternion.Euler(0f, 14f, 0f), new Vector3(5.6f, 0.18f, 3.9f), 0.07f);
+            bar.AddChamferedBox(KalyeahResources.World(ground + new SVector2(-1.4f, 0.4f), -0.16f), Quaternion.Euler(0f, -18f, 0f), new Vector3(3.4f, 0.14f, 2.6f), 0.06f);
+            CreateMeshObject("DragonRiverSandbar", parent, env.Track(bar.ToMesh("DragonSandbarMesh")), sandbarMat, Vector3.zero, receiveShadows: true);
+        }
+
+        static GameObject BuildCrocodileVisual(
+            Transform parent,
+            BarangayEnvironment env,
+            Material litTemplate,
+            SVector2 ground,
+            Material bellyMat,
+            Material eyeGoldMat)
+        {
+            var go = new GameObject("CrocodileDragonVisual");
+            go.transform.SetParent(parent, false);
+            go.transform.position = KalyeahResources.World(ground, -0.04f);
+
+            Material crocBodyMat = MakeLitMaterial(env, litTemplate, "CrocodileBodyMat", new Color(0.32f, 0.56f, 0.34f), 0.24f, 0f);
+            env.CrocBodyMat = crocBodyMat;
+
+            var body = new MeshBatchBuilder();
+            // Chunky stylized body, stubby cute snout, tapered tail, 4 short legs (zero gore!)
+            body.AddChamferedBox(new Vector3(0f, 0.44f, 0f), Quaternion.identity, new Vector3(1.25f, 0.62f, 2.15f), 0.14f);
+            body.AddChamferedBox(new Vector3(0f, 0.48f, 1.48f), Quaternion.identity, new Vector3(0.84f, 0.44f, 1.05f), 0.11f);
+            body.AddChamferedBox(new Vector3(0f, 0.38f, -1.65f), Quaternion.identity, new Vector3(0.68f, 0.42f, 1.45f), 0.11f);
+            body.AddChamferedBox(new Vector3(-0.72f, 0.22f, 0.62f), Quaternion.identity, new Vector3(0.36f, 0.34f, 0.46f), 0.06f);
+            body.AddChamferedBox(new Vector3(0.72f, 0.22f, 0.62f), Quaternion.identity, new Vector3(0.36f, 0.34f, 0.46f), 0.06f);
+            body.AddChamferedBox(new Vector3(-0.72f, 0.22f, -0.68f), Quaternion.identity, new Vector3(0.36f, 0.34f, 0.46f), 0.06f);
+            body.AddChamferedBox(new Vector3(0.72f, 0.22f, -0.68f), Quaternion.identity, new Vector3(0.36f, 0.34f, 0.46f), 0.06f);
+
+            var belly = new MeshBatchBuilder();
+            belly.AddChamferedBox(new Vector3(0f, 0.22f, 0.1f), Quaternion.identity, new Vector3(1.06f, 0.22f, 2.05f), 0.05f);
+
+            var eyes = new MeshBatchBuilder();
+            eyes.AddChamferedBox(new Vector3(-0.34f, 0.76f, 1.15f), Quaternion.identity, new Vector3(0.20f, 0.18f, 0.22f), 0.04f);
+            eyes.AddChamferedBox(new Vector3(0.34f, 0.76f, 1.15f), Quaternion.identity, new Vector3(0.20f, 0.18f, 0.22f), 0.04f);
+
+            CreateMeshObject("CrocBody", go.transform, env.Track(body.ToMesh("CrocodileBodyMesh")), crocBodyMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("CrocBelly", go.transform, env.Track(belly.ToMesh("CrocodileBellyMesh")), bellyMat, Vector3.zero, receiveShadows: false);
+            CreateMeshObject("CrocEyes", go.transform, env.Track(eyes.ToMesh("CrocodileEyesMesh")), eyeGoldMat, Vector3.zero, receiveShadows: false);
+            return go;
+        }
+
+        static GameObject BuildEagleVisual(
+            Transform parent,
+            BarangayEnvironment env,
+            Material litTemplate,
+            SVector2 ground,
+            float perchY,
+            Material chestCreamMat,
+            Material crestGoldMat)
+        {
+            var go = new GameObject("PhilippineEagleBaronVisual");
+            go.transform.SetParent(parent, false);
+            go.transform.position = KalyeahResources.World(ground, perchY);
+
+            Material eagleBodyMat = MakeLitMaterial(env, litTemplate, "EagleBodyMat", new Color(0.46f, 0.34f, 0.24f), 0.22f, 0f);
+            env.EagleBodyMat = eagleBodyMat;
+
+            var wings = new MeshBatchBuilder();
+            wings.AddChamferedBox(new Vector3(0f, 0.85f, 0f), Quaternion.identity, new Vector3(1.10f, 1.25f, 1.05f), 0.18f);
+            wings.AddChamferedBox(new Vector3(-1.35f, 1.05f, -0.10f), Quaternion.Euler(0f, 0f, 16f), new Vector3(1.85f, 0.34f, 0.92f), 0.08f);
+            wings.AddChamferedBox(new Vector3(1.35f, 1.05f, -0.10f), Quaternion.Euler(0f, 0f, -16f), new Vector3(1.85f, 0.34f, 0.92f), 0.08f);
+            wings.AddChamferedBox(new Vector3(0f, 0.55f, -0.95f), Quaternion.Euler(-20f, 0f, 0f), new Vector3(0.85f, 0.22f, 0.95f), 0.05f);
+
+            var chest = new MeshBatchBuilder();
+            chest.AddChamferedBox(new Vector3(0f, 0.88f, 0.45f), Quaternion.identity, new Vector3(0.88f, 1.02f, 0.38f), 0.12f);
+            chest.AddChamferedBox(new Vector3(0f, 1.62f, 0.22f), Quaternion.identity, new Vector3(0.68f, 0.62f, 0.66f), 0.14f);
+
+            var crestAndBeak = new MeshBatchBuilder();
+            // Iconic Philippine Eagle golden crest plumes + curved beak
+            crestAndBeak.AddChamferedBox(new Vector3(0f, 2.02f, 0.05f), Quaternion.Euler(-18f, 0f, 0f), new Vector3(0.84f, 0.32f, 0.56f), 0.06f);
+            crestAndBeak.AddChamferedBox(new Vector3(0f, 1.54f, 0.72f), Quaternion.Euler(14f, 0f, 0f), new Vector3(0.24f, 0.28f, 0.46f), 0.05f);
+
+            CreateMeshObject("EagleWings", go.transform, env.Track(wings.ToMesh("EagleWingsMesh")), eagleBodyMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("EagleChest", go.transform, env.Track(chest.ToMesh("EagleChestMesh")), chestCreamMat, Vector3.zero, receiveShadows: true);
+            CreateMeshObject("EagleCrestAndBeak", go.transform, env.Track(crestAndBeak.ToMesh("EagleCrestMesh")), crestGoldMat, Vector3.zero, receiveShadows: false);
+            return go;
+        }
+
+        static GameObject BuildMangTahoVendor(
+            Transform parent,
+            BarangayEnvironment env,
+            SVector2 ground,
+            Material woodMat,
+            Material aluminumMat,
+            Material umbrellaOchreMat,
+            Material umbrellaBlueMat,
+            Material cupCreamMat)
+        {
+            var go = new GameObject("Vendor_MangTaho");
+            go.transform.SetParent(parent, false);
+            go.transform.position = KalyeahResources.World(ground, 0f);
+
+            var frame = new MeshBatchBuilder();
+            // Wooden street counter + bamboo carrying yoke + 4 corner canopy posts
+            frame.AddChamferedBox(new Vector3(0f, 0.44f, 0f), Quaternion.identity, new Vector3(1.88f, 0.86f, 0.86f), 0.04f);
+            frame.AddChamferedBox(new Vector3(0f, 0.90f, 0f), Quaternion.identity, new Vector3(2.02f, 0.08f, 0.96f), 0.02f);
+            frame.AddChamferedBox(new Vector3(0f, 0.52f, 0.56f), Quaternion.identity, new Vector3(1.72f, 0.08f, 0.10f), 0.02f);
+            for (int sx = -1; sx <= 1; sx += 2)
+                for (int sz = -1; sz <= 1; sz += 2)
+                    frame.AddChamferedBox(new Vector3(sx * 0.88f, 1.72f, sz * 0.38f), Quaternion.identity, new Vector3(0.08f, 1.72f, 0.08f), 0.015f);
+
+            var buckets = new MeshBatchBuilder();
+            // Twin cylindrical brushed-aluminum taho urns (zero Minecraft cube buckets!)
+            buckets.AddCylinder(new Vector3(-0.48f, 0.92f, 0f), 0.27f, 0.25f, 0.56f, 10);
+            buckets.AddCylinder(new Vector3(0.48f, 0.92f, 0f), 0.27f, 0.25f, 0.56f, 10);
+
+            // Pitched striped Manila market awning canopy (alternating warm ochre & slate-blue stripes)
+            var stripesWarm = new MeshBatchBuilder();
+            var stripesBlue = new MeshBatchBuilder();
+            const int stripeCount = 6;
+            float awningW = 2.38f;
+            float stripeW = awningW / stripeCount;
+            Quaternion tilt = Quaternion.Euler(14f, 0f, 0f);
+            for (int s = 0; s < stripeCount; s++)
+            {
+                float sx = -awningW * 0.5f + (s + 0.5f) * stripeW;
+                MeshBatchBuilder target = (s & 1) == 0 ? stripesWarm : stripesBlue;
+                target.AddChamferedBox(new Vector3(sx, 2.66f, 0.06f), tilt, new Vector3(stripeW * 0.98f, 0.09f, 1.56f), 0.015f);
+                target.AddChamferedBox(new Vector3(sx, 2.38f, 0.78f), Quaternion.identity, new Vector3(stripeW * 0.98f, 0.24f, 0.06f), 0.01f);
+            }
+
+            CreateMeshObject("TahoCounter", go.transform, env.Track(frame.ToMesh("TahoStandMesh")), woodMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("TahoAluminumUrns", go.transform, env.Track(buckets.ToMesh("TahoBucketsMesh")), aluminumMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("TahoAwningWarm", go.transform, env.Track(stripesWarm.ToMesh("TahoAwningWarmMesh")), umbrellaOchreMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("TahoAwningBlue", go.transform, env.Track(stripesBlue.ToMesh("TahoAwningBlueMesh")), umbrellaBlueMat, Vector3.zero, receiveShadows: true, castShadows: true);
+
+            // Stock cups/lids hidden while restocking (30 s empty indicator)
+            var stock = new MeshBatchBuilder();
+            stock.AddCylinder(new Vector3(-0.48f, 1.48f, 0f), 0.19f, 0.19f, 0.14f, 8);
+            stock.AddCylinder(new Vector3(0.48f, 1.48f, 0f), 0.19f, 0.19f, 0.14f, 8);
+            env.TahoStockProp = CreateMeshObject("TahoStockReady", go.transform, env.Track(stock.ToMesh("TahoStockMesh")), cupCreamMat, Vector3.zero, receiveShadows: false);
+            AddLocalBoxCollider(go.transform, "TahoVendorCol", new Vector3(0f, 1.32f, 0f), new Vector3(2.0f, 2.64f, 1.0f));
+            return go;
+        }
+
+        static GameObject BuildFishballCartVendor(
+            Transform parent,
+            BarangayEnvironment env,
+            SVector2 ground,
+            Material woodMat,
+            Material steelMat,
+            Material yeroRoofMat,
+            Material awningBlueMat,
+            Material wheelRubberMat,
+            Material stockGoldMat)
+        {
+            var go = new GameObject("Vendor_FishballCart");
+            go.transform.SetParent(parent, false);
+            go.transform.position = KalyeahResources.World(ground, 0f);
+
+            var cart = new MeshBatchBuilder();
+            // Wooden pushcart counter + corner struts + push handles
+            cart.AddChamferedBox(new Vector3(0f, 0.68f, 0f), Quaternion.identity, new Vector3(1.94f, 0.72f, 1.04f), 0.05f);
+            cart.AddChamferedBox(new Vector3(0f, 1.08f, 0f), Quaternion.identity, new Vector3(2.08f, 0.08f, 1.16f), 0.02f);
+            for (int sx = -1; sx <= 1; sx += 2)
+                for (int sz = -1; sz <= 1; sz += 2)
+                    cart.AddChamferedBox(new Vector3(sx * 0.90f, 1.84f, sz * 0.44f), Quaternion.identity, new Vector3(0.08f, 1.54f, 0.08f), 0.015f);
+            cart.AddChamferedBox(new Vector3(1.18f, 0.96f, -0.36f), Quaternion.identity, new Vector3(0.46f, 0.07f, 0.07f), 0.015f);
+            cart.AddChamferedBox(new Vector3(1.18f, 0.96f, 0.36f), Quaternion.identity, new Vector3(0.46f, 0.07f, 0.07f), 0.015f);
+
+            var steel = new MeshBatchBuilder();
+            // Cylindrical frying wok + wheel hubs + axle + front sneeze frame
+            steel.AddCylinder(new Vector3(-0.40f, 1.08f, 0f), 0.36f, 0.42f, 0.18f, 10);
+            steel.AddHorizontalCylinder(new Vector3(-0.68f, 0.34f, 0.56f), 0.14f, 0.16f, 10, alongZ: true);
+            steel.AddHorizontalCylinder(new Vector3(0.68f, 0.34f, 0.56f), 0.14f, 0.16f, 10, alongZ: true);
+            steel.AddHorizontalCylinder(new Vector3(-0.68f, 0.34f, -0.56f), 0.14f, 0.16f, 10, alongZ: true);
+            steel.AddHorizontalCylinder(new Vector3(0.68f, 0.34f, -0.56f), 0.14f, 0.16f, 10, alongZ: true);
+
+            var wheels = new MeshBatchBuilder();
+            // Four crisp cylindrical rubber pushcart wheels
+            wheels.AddHorizontalCylinder(new Vector3(-0.68f, 0.34f, 0.56f), 0.33f, 0.11f, 12, alongZ: true);
+            wheels.AddHorizontalCylinder(new Vector3(0.68f, 0.34f, 0.56f), 0.33f, 0.11f, 12, alongZ: true);
+            wheels.AddHorizontalCylinder(new Vector3(-0.68f, 0.34f, -0.56f), 0.33f, 0.11f, 12, alongZ: true);
+            wheels.AddHorizontalCylinder(new Vector3(0.68f, 0.34f, -0.56f), 0.33f, 0.11f, 12, alongZ: true);
+
+            // Pitched galvanized yero roof + striped awning valence
+            var roof = new MeshBatchBuilder();
+            roof.AddPitchedRoof(new Vector3(0f, 2.58f, 0f), 2.48f, 0.46f, 1.62f);
+
+            var valence = new MeshBatchBuilder();
+            valence.AddChamferedBox(new Vector3(0f, 2.46f, 0.78f), Quaternion.identity, new Vector3(2.40f, 0.24f, 0.06f), 0.015f);
+            valence.AddChamferedBox(new Vector3(0f, 2.46f, -0.78f), Quaternion.identity, new Vector3(2.40f, 0.24f, 0.06f), 0.015f);
+
+            CreateMeshObject("FishballCartBody", go.transform, env.Track(cart.ToMesh("FishballCartMesh")), woodMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("FishballWokAndHubs", go.transform, env.Track(steel.ToMesh("FishballWokMesh")), steelMat, Vector3.zero, receiveShadows: true);
+            CreateMeshObject("FishballWheels", go.transform, env.Track(wheels.ToMesh("FishballWheelsMesh")), wheelRubberMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("FishballYeroRoof", go.transform, env.Track(roof.ToMesh("FishballCanopyMesh")), yeroRoofMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("FishballAwningValence", go.transform, env.Track(valence.ToMesh("FishballValenceMesh")), awningBlueMat, Vector3.zero, receiveShadows: true);
+
+            // Golden fishball tray + cylindrical sauce jars hidden while restocking
+            var stock = new MeshBatchBuilder();
+            stock.AddChamferedBox(new Vector3(0.45f, 1.18f, 0f), Quaternion.identity, new Vector3(0.58f, 0.16f, 0.52f), 0.04f);
+            stock.AddCylinder(new Vector3(0.28f, 1.24f, 0.24f), 0.07f, 0.07f, 0.20f, 8);
+            stock.AddCylinder(new Vector3(0.56f, 1.24f, 0.24f), 0.07f, 0.07f, 0.20f, 8);
+            env.FishballStockProp = CreateMeshObject("FishballStockReady", go.transform, env.Track(stock.ToMesh("FishballStockMesh")), stockGoldMat, Vector3.zero, receiveShadows: false);
+            AddLocalBoxCollider(go.transform, "FishballVendorCol", new Vector3(0f, 1.40f, 0f), new Vector3(2.1f, 2.80f, 1.2f));
+            return go;
+        }
+
+        static GameObject BuildSelectaBikeVisual(
+            Transform parent,
+            BarangayEnvironment env,
+            SVector2 startGround,
+            Material coolerMat,
+            Material goldTrimMat,
+            Material steelMat,
+            Material wheelRubberMat)
+        {
+            var go = new GameObject("SelectaIceCreamBike");
+            go.transform.SetParent(parent, false);
+            go.transform.position = KalyeahResources.World(startGround, 0f);
+
+            GameObject cartGlb = KalyeahResources.Model("props", "ice_cream_cart");
+            if (cartGlb != null)
+            {
+                GameObject inst = Object.Instantiate(cartGlb, go.transform, false);
+                inst.name = "SelectaCartGlb";
+                KalyeahResources.SanitizeModelMaterials(inst);
+                foreach (Collider col in inst.GetComponentsInChildren<Collider>(true))
+                    KalyeahResources.Kill(col);
+                Bounds natB = KalyeahResources.RenderBounds(inst);
+                float u = 1.62f / Mathf.Max(natB.size.y, 0.15f);
+                inst.transform.localScale = Vector3.one * Mathf.Clamp(u, 0.35f, 3.5f);
+                Bounds placedB = KalyeahResources.RenderBounds(inst);
+                inst.transform.position += new Vector3(
+                    go.transform.position.x - placedB.center.x,
+                    go.transform.position.y - placedB.min.y,
+                    go.transform.position.z - placedB.center.z);
+            }
+            else
+            {
+                var cooler = new MeshBatchBuilder();
+                cooler.AddChamferedBox(new Vector3(0f, 0.72f, 0.35f), Quaternion.identity, new Vector3(1.05f, 0.78f, 1.25f), 0.08f);
+
+                var trim = new MeshBatchBuilder();
+                trim.AddChamferedBox(new Vector3(0f, 1.15f, 0.35f), Quaternion.identity, new Vector3(1.12f, 0.14f, 1.32f), 0.04f);
+                trim.AddPitchedRoof(new Vector3(0f, 2.28f, 0.20f), 1.72f, 0.26f, 1.68f);
+
+                var bike = new MeshBatchBuilder();
+                bike.AddChamferedBox(new Vector3(0f, 0.56f, -0.78f), Quaternion.identity, new Vector3(0.18f, 0.52f, 1.08f), 0.04f);
+                bike.AddCylinder(new Vector3(0f, 0.90f, 0.20f), 0.045f, 0.045f, 1.42f, 8);
+
+                var wheels = new MeshBatchBuilder();
+                wheels.AddHorizontalCylinder(new Vector3(-0.62f, 0.34f, 0.35f), 0.34f, 0.10f, 12, alongZ: false);
+                wheels.AddHorizontalCylinder(new Vector3(0.62f, 0.34f, 0.35f), 0.34f, 0.10f, 12, alongZ: false);
+                wheels.AddHorizontalCylinder(new Vector3(0f, 0.34f, -0.95f), 0.34f, 0.10f, 12, alongZ: false);
+
+                CreateMeshObject("SelectaCooler", go.transform, env.Track(cooler.ToMesh("SelectaCoolerMesh")), coolerMat, Vector3.zero, receiveShadows: true, castShadows: true);
+                CreateMeshObject("SelectaGoldTrim", go.transform, env.Track(trim.ToMesh("SelectaTrimMesh")), goldTrimMat, Vector3.zero, receiveShadows: true, castShadows: true);
+                CreateMeshObject("SelectaFrame", go.transform, env.Track(bike.ToMesh("SelectaFrameMesh")), steelMat, Vector3.zero, receiveShadows: true);
+                CreateMeshObject("SelectaWheels", go.transform, env.Track(wheels.ToMesh("SelectaWheelsMesh")), wheelRubberMat, Vector3.zero, receiveShadows: true);
+            }
+
+            var bellPivot = new GameObject("SelectaBell");
+            bellPivot.transform.SetParent(go.transform, false);
+            bellPivot.transform.localPosition = new Vector3(0.32f, 1.28f, 0.72f);
+            var bell = new MeshBatchBuilder();
+            bell.AddCylinder(new Vector3(0f, -0.08f, 0f), 0.09f, 0.04f, 0.16f, 8);
+            CreateMeshObject("BellCup", bellPivot.transform, env.Track(bell.ToMesh("SelectaBellMesh")), goldTrimMat, Vector3.zero, receiveShadows: false);
+            env.SelectaBellTransform = bellPivot.transform;
+
+            go.SetActive(false); // Starts dormant until 0:30 spawn
+            return go;
+        }
+
+        static void BuildTallCoverClumps(
+            Transform parent,
+            BarangayEnvironment env,
+            Material woodMat,
+            Material laundryMat,
+            Material foliageDeepMat,
+            Material foliageSunlitMat)
+        {
+            IReadOnlyList<Rect2> zones = MapLayout.DefaultBarangayTallCoverZones();
+            var poles = new MeshBatchBuilder();
+            var cloths = new MeshBatchBuilder();
+            var leavesLower = new MeshBatchBuilder();
+            var leavesCrown = new MeshBatchBuilder();
+
+            for (int i = 0; i < zones.Count; i++)
+            {
+                Rect2 r = zones[i];
+                Vec2 c = r.GetCenter();
+                bool isLaundry = c.x < -20.0;
+                if (isLaundry)
+                {
+                    // Left-alley sampayan soft cover: bamboo poles + spaced hanging cream sheets with visible gaps
+                    float halfW = (float)r.Size.x * 0.42f;
+                    poles.AddCylinder(KalyeahResources.World(new SVector2((float)c.x - halfW, (float)c.y), 0f), 0.07f, 0.055f, 2.15f, 6);
+                    poles.AddCylinder(KalyeahResources.World(new SVector2((float)c.x + halfW, (float)c.y), 0f), 0.07f, 0.055f, 2.15f, 6);
+                    for (int s = -1; s <= 1; s++)
+                    {
+                        float sx = (float)c.x + s * (halfW * 0.62f);
+                        cloths.AddChamferedBox(
+                            KalyeahResources.World(new SVector2(sx, (float)c.y + (s % 2) * 0.45f), 1.12f),
+                            Quaternion.Euler(0f, s * 12f, 0f),
+                            new Vector3(1.15f, 1.48f, 0.12f),
+                            0.03f);
+                    }
+                }
+                else
+                {
+                    // Clustered faceted organic tropical foliage mounds (vertical AO base/crown split — zero Minecraft cubes!)
+                    float rxSpan = (float)r.Size.x * 0.30f;
+                    float rzSpan = (float)r.Size.y * 0.28f;
+                    Vector3 centerW = KalyeahResources.World(new SVector2((float)c.x, (float)c.y), 0f);
+                    leavesLower.AddFoliageMound(centerW, rxSpan * 1.15f, 1.10f, rzSpan * 1.15f, i * 0.7f, 7);
+                    leavesCrown.AddFoliageMound(centerW + Vector3.up * 0.52f, rxSpan * 0.88f, 1.24f, rzSpan * 0.88f, i * 0.7f + 0.45f, 7);
+
+                    for (int k = 0; k < 5; k++)
+                    {
+                        float ang = (k / 5f) * MathF.PI * 2f + i * 0.9f;
+                        float ox = MathF.Cos(ang) * rxSpan * 0.92f;
+                        float oz = MathF.Sin(ang) * rzSpan * 0.92f;
+                        float subR = 0.72f + (k % 3) * 0.16f;
+                        float subH = 0.95f + (k % 2) * 0.30f;
+                        Vector3 lobeBase = KalyeahResources.World(new SVector2((float)c.x + ox, (float)c.y + oz), 0f);
+                        leavesLower.AddFoliageMound(lobeBase, subR * 1.08f, subH * 0.72f, subR * 0.98f, ang, 6);
+                        leavesCrown.AddFoliageMound(lobeBase + Vector3.up * (subH * 0.34f), subR * 0.82f, subH * 0.88f, subR * 0.78f, ang + 0.52f, 6);
+                    }
+                }
+            }
+
+            if (!poles.IsEmpty)
+                CreateMeshObject("TallCoverPoles", parent, env.Track(poles.ToMesh("TallCoverPolesMesh")), woodMat, Vector3.zero, receiveShadows: true);
+            if (!cloths.IsEmpty)
+                CreateMeshObject("TallCoverSampayan", parent, env.Track(cloths.ToMesh("TallCoverLaundryMesh")), laundryMat, Vector3.zero, receiveShadows: true);
+            if (!leavesLower.IsEmpty)
+                CreateMeshObject("TallCoverFoliageBase", parent, env.Track(leavesLower.ToMesh("TallCoverFoliageBaseMesh")), foliageDeepMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            if (!leavesCrown.IsEmpty)
+                CreateMeshObject("TallCoverFoliageCrown", parent, env.Track(leavesCrown.ToMesh("TallCoverFoliageCrownMesh")), foliageSunlitMat, Vector3.zero, receiveShadows: true, castShadows: true);
+        }
+
+        static void BuildPooledBuffAuras(Transform parent, BarangayEnvironment env)
+        {
+            const int poolSize = 10;
+            Mesh ringMesh = env.Track(CreateFlatRingMesh("BuffAuraRingMesh", 0.72f, 1.02f, 28));
+
+            Material template = Resources.Load<Material>("KalyeahMaterials/Unlit");
+            Shader fallbackShader = template == null
+                ? (Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default"))
+                : null;
+            Material auraMat = template != null
+                ? new Material(template) { name = "BuffFootAuraMat", enableInstancing = true }
+                : (fallbackShader != null ? new Material(fallbackShader) { name = "BuffFootAuraMat", enableInstancing = true } : null);
+            if (auraMat != null)
+            {
+                if (auraMat.HasProperty("_Surface")) auraMat.SetFloat("_Surface", 1f);
+                if (auraMat.HasProperty("_SrcBlend")) auraMat.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+                if (auraMat.HasProperty("_DstBlend")) auraMat.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+                if (auraMat.HasProperty("_ZWrite")) auraMat.SetFloat("_ZWrite", 0f);
+                auraMat.renderQueue = (int)RenderQueue.Transparent;
+                env.Track(auraMat);
+            }
+
+            var auraRoot = new GameObject("BuffFootAuras").transform;
+            auraRoot.SetParent(parent, false);
+            env.BuffAuraTransforms = new Transform[poolSize];
+            env.BuffAuraRenderers = new MeshRenderer[poolSize];
+            env.BuffAuraMpb = new MaterialPropertyBlock();
+
+            for (int i = 0; i < poolSize; i++)
+            {
+                GameObject ringGo = CreateMeshObject($"BuffAura_{i}", auraRoot, ringMesh, auraMat, Vector3.zero, receiveShadows: false, castShadows: false);
+                ringGo.SetActive(false);
+                env.BuffAuraTransforms[i] = ringGo.transform;
+                env.BuffAuraRenderers[i] = ringGo.GetComponent<MeshRenderer>();
+            }
+        }
+
+        static Mesh CreateFlatRingMesh(string name, float innerR, float outerR, int segments)
+        {
+            int vertCount = (segments + 1) * 2;
+            var verts = new Vector3[vertCount];
+            var normals = new Vector3[vertCount];
+            var uvs = new Vector2[vertCount];
+            var tris = new int[segments * 6];
+
+            for (int i = 0; i <= segments; i++)
+            {
+                float u = i / (float)segments;
+                float ang = u * MathF.PI * 2f;
+                float ca = MathF.Cos(ang);
+                float sa = MathF.Sin(ang);
+                int vi = i * 2;
+                verts[vi] = new Vector3(ca * innerR, 0f, sa * innerR);
+                verts[vi + 1] = new Vector3(ca * outerR, 0f, sa * outerR);
+                normals[vi] = Vector3.up;
+                normals[vi + 1] = Vector3.up;
+                uvs[vi] = new Vector2(u, 0f);
+                uvs[vi + 1] = new Vector2(u, 1f);
+            }
+
+            int ti = 0;
+            for (int i = 0; i < segments; i++)
+            {
+                int a = i * 2;
+                int b = a + 1;
+                int c = a + 2;
+                int d = a + 3;
+                tris[ti++] = a;
+                tris[ti++] = c;
+                tris[ti++] = b;
+                tris[ti++] = b;
+                tris[ti++] = c;
+                tris[ti++] = d;
+            }
+
+            var mesh = new Mesh { name = name };
+            mesh.vertices = verts;
+            mesh.normals = normals;
+            mesh.uv = uvs;
+            mesh.triangles = tris;
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         // ---- Procedural Landmark Stand-ins (when .glb assets are absent in unit tests) ------------------------------------------
@@ -960,16 +2065,28 @@ namespace Kalyeah.Game
 
             var pillars = new MeshBatchBuilder();
             var roof = new MeshBatchBuilder();
+            var fascia = new MeshBatchBuilder();
             for (int sx = -1; sx <= 1; sx += 2)
+            {
                 for (int sz = -1; sz <= 1; sz += 2)
-                    pillars.AddChamferedBox(new Vector3(sx * 7.2f, 3.1f, sz * 6.4f), Quaternion.identity, new Vector3(0.55f, 6.2f, 0.55f), 0.05f);
+                {
+                    Vector3 pPos = new Vector3(sx * 7.2f, 3.1f, sz * 6.4f);
+                    pillars.AddChamferedBox(pPos, Quaternion.identity, new Vector3(0.62f, 6.2f, 0.62f), 0.05f);
+                    AddLocalBoxCollider(go.transform, $"CourtPillarCol_{sx}_{sz}", pPos, new Vector3(0.62f, 6.2f, 0.62f));
+                }
+            }
 
-            roof.AddChamferedBox(new Vector3(0f, 6.45f, 0f), Quaternion.identity, new Vector3(16.2f, 1.35f, 14.6f), 0.12f);
+            // Pitched galvanized yero arched covered-court roof + warm terracotta fascia trim
+            roof.AddPitchedRoof(new Vector3(0f, 6.25f, 0f), 16.8f, 2.15f, 15.2f);
+            fascia.AddChamferedBox(new Vector3(0f, 6.20f, 7.65f), Quaternion.identity, new Vector3(16.9f, 0.42f, 0.24f), 0.04f);
+            fascia.AddChamferedBox(new Vector3(0f, 6.20f, -7.65f), Quaternion.identity, new Vector3(16.9f, 0.42f, 0.24f), 0.04f);
 
-            Material pillarMat = MakeLitMaterial(env, litTemplate, "CourtPillarFallback", new Color(0.56f, 0.43f, 0.28f), 0.16f, 0f);
-            Material roofMat = MakeLitMaterial(env, litTemplate, "CourtRoofFallback", new Color(0.58f, 0.40f, 0.28f), 0.36f, 0.20f);
+            Material pillarMat = GreyBoxKit.GetBarangayBuildingMaterial(3); // Aged ochre Manila stucco + plinth
+            Material roofMat = GreyBoxKit.GetRoofYeroMaterial();
+            Material fasciaMat = MakeLitMaterial(env, litTemplate, "CourtFasciaTerracotta", new Color(0.769f, 0.549f, 0.447f), 0.20f, 0f);
             CreateMeshObject("Pillars", go.transform, env.Track(pillars.ToMesh("CourtPillarsFallback")), pillarMat, Vector3.zero, receiveShadows: true, castShadows: true);
-            CreateMeshObject("ArchRoof", go.transform, env.Track(roof.ToMesh("CourtRoofFallback")), roofMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("YeroRoof", go.transform, env.Track(roof.ToMesh("CourtRoofFallback")), roofMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("CourtFascia", go.transform, env.Track(fascia.ToMesh("CourtFasciaFallback")), fasciaMat, Vector3.zero, receiveShadows: true, castShadows: true);
             return go;
         }
 
@@ -981,15 +2098,41 @@ namespace Kalyeah.Game
             go.transform.rotation = Quaternion.Euler(0f, GodotSpace.ModelYawDegrees(godotYaw), 0f);
 
             var facade = new MeshBatchBuilder();
-            var trim = new MeshBatchBuilder();
-            facade.AddChamferedBox(new Vector3(0f, 3.4f, 0f), Quaternion.identity, new Vector3(14.8f, 6.8f, 8.6f), 0.08f);
-            trim.AddChamferedBox(new Vector3(0f, 7.1f, 0f), Quaternion.identity, new Vector3(15.6f, 0.95f, 9.4f), 0.08f);
-            trim.AddChamferedBox(new Vector3(0f, 3.6f, 4.6f), Quaternion.identity, new Vector3(4.8f, 0.45f, 1.8f), 0.05f);
+            var roof = new MeshBatchBuilder();
+            var awningWarm = new MeshBatchBuilder();
+            var awningBlue = new MeshBatchBuilder();
+            var columns = new MeshBatchBuilder();
 
-            Material facadeMat = MakeLitMaterial(env, litTemplate, "HallFacadeFallback", new Color(0.52f, 0.58f, 0.56f), 0.15f, 0f);
-            Material trimMat = MakeLitMaterial(env, litTemplate, "HallTealFallback", new Color(0.32f, 0.46f, 0.44f), 0.28f, 0.10f);
+            // Sunlit Manila Barangay Hall rendered with Kalyeah/BarangayBuilding (plinth, smooth sage stucco, upper jalousies)
+            facade.AddChamferedBox(new Vector3(0f, 3.4f, 0f), Quaternion.identity, new Vector3(14.8f, 6.8f, 8.6f), 0.08f);
+            // Pitched galvanized yero gable roof with overhanging eaves
+            roof.AddPitchedRoof(new Vector3(0f, 6.82f, 0f), 16.0f, 1.85f, 9.8f);
+
+            // Recessed front civic entrance porch columns + striped Manila market awning above 2.6 m
+            columns.AddChamferedBox(new Vector3(-2.4f, 1.8f, 4.75f), Quaternion.identity, new Vector3(0.46f, 3.6f, 0.46f), 0.04f);
+            columns.AddChamferedBox(new Vector3(2.4f, 1.8f, 4.75f), Quaternion.identity, new Vector3(0.46f, 3.6f, 0.46f), 0.04f);
+            columns.AddChamferedBox(new Vector3(0f, 6.86f, 0f), Quaternion.identity, new Vector3(15.6f, 0.34f, 9.3f), 0.05f);
+
+            const int hallStripes = 6;
+            float awW = 5.4f;
+            float sw = awW / hallStripes;
+            Quaternion tilt = Quaternion.Euler(14f, 0f, 0f);
+            for (int s = 0; s < hallStripes; s++)
+            {
+                float sx = -awW * 0.5f + (s + 0.5f) * sw;
+                MeshBatchBuilder target = (s & 1) == 0 ? awningWarm : awningBlue;
+                target.AddChamferedBox(new Vector3(sx, 3.35f, 5.10f), tilt, new Vector3(sw * 0.98f, 0.12f, 1.75f), 0.02f);
+            }
+
+            Material facadeMat = GreyBoxKit.GetBarangayBuildingMaterial(2); // Pale sage Manila stucco #97AA9B
+            Material roofMat = GreyBoxKit.GetRoofYeroMaterial();
+            Material colMat = MakeLitMaterial(env, litTemplate, "HallPorchCream", new Color(0.875f, 0.824f, 0.745f), 0.14f, 0f);
             CreateMeshObject("Facade", go.transform, env.Track(facade.ToMesh("HallFacadeFallback")), facadeMat, Vector3.zero, receiveShadows: true, castShadows: true);
-            CreateMeshObject("TealTrim", go.transform, env.Track(trim.ToMesh("HallTrimFallback")), trimMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("YeroGableRoof", go.transform, env.Track(roof.ToMesh("HallYeroRoofFallback")), roofMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("PorchColumns", go.transform, env.Track(columns.ToMesh("HallPorchFallback")), colMat, Vector3.zero, receiveShadows: true, castShadows: true);
+            CreateMeshObject("HallAwningWarm", go.transform, env.Track(awningWarm.ToMesh("HallAwningWarmFallback")), GreyBoxKit.GetAwningMaterial(0), Vector3.zero, receiveShadows: true);
+            CreateMeshObject("HallAwningBlue", go.transform, env.Track(awningBlue.ToMesh("HallAwningBlueFallback")), GreyBoxKit.GetAwningMaterial(1), Vector3.zero, receiveShadows: true);
+            AddLocalBoxCollider(go.transform, "HallBuildingCol", new Vector3(0f, 3.5f, 0f), new Vector3(14.8f, 7.0f, 8.6f));
             return go;
         }
 
@@ -1026,6 +2169,81 @@ namespace Kalyeah.Game
         {
             GameObject primary = KalyeahResources.Model(folder, primaryId);
             return primary != null ? primary : KalyeahResources.Model(folder, fallbackId);
+        }
+
+        static GameObject FirstModelOrProp(string barangayId, string propId)
+        {
+            GameObject primary = KalyeahResources.Model("barangay", barangayId);
+            return primary != null ? primary : KalyeahResources.Model("props", propId);
+        }
+
+        static GameObject PlaceFittedProp(
+            Transform parent,
+            GameObject prefab,
+            string name,
+            SVector2 ground,
+            float y,
+            float godotYawRad,
+            Vector3 targetSize,
+            bool uniformHeightOnly,
+            bool addSolidCollider)
+        {
+            GameObject inst = Object.Instantiate(prefab, parent, false);
+            inst.name = name;
+            inst.layer = 0;
+            KalyeahResources.SanitizeModelMaterials(inst);
+            foreach (Collider c in inst.GetComponentsInChildren<Collider>(true))
+                KalyeahResources.Kill(c);
+
+            Transform t = inst.transform;
+            t.localScale = Vector3.one;
+            t.rotation = Quaternion.identity;
+            t.position = Vector3.zero;
+            Bounds natBounds = KalyeahResources.RenderBounds(inst);
+            Vector3 nat = natBounds.size;
+
+            if (uniformHeightOnly)
+            {
+                float s = Mathf.Clamp(targetSize.y / Mathf.Max(nat.y, 0.08f), 0.25f, 8.0f);
+                t.localScale = new Vector3(s, s, s);
+            }
+            else
+            {
+                t.localScale = new Vector3(
+                    Mathf.Clamp(targetSize.x / Mathf.Max(nat.x, 0.08f), 0.25f, 12.0f),
+                    Mathf.Clamp(targetSize.y / Mathf.Max(nat.y, 0.08f), 0.25f, 12.0f),
+                    Mathf.Clamp(targetSize.z / Mathf.Max(nat.z, 0.08f), 0.25f, 12.0f));
+            }
+
+            t.rotation = Quaternion.Euler(0f, GodotSpace.ModelYawDegrees(godotYawRad), 0f);
+            Vector3 spot = KalyeahResources.World(ground, y);
+            t.position = spot;
+            Bounds placed = KalyeahResources.RenderBounds(inst);
+            if (placed.size.sqrMagnitude > 0.0001f)
+            {
+                t.position += new Vector3(spot.x - placed.center.x, y - placed.min.y, spot.z - placed.center.z);
+            }
+            if (addSolidCollider && natBounds.size.sqrMagnitude > 0.0001f)
+            {
+                var col = inst.AddComponent<BoxCollider>();
+                col.center = natBounds.center;
+                col.size = natBounds.size;
+                col.isTrigger = false;
+            }
+            return inst;
+        }
+
+        static void AddLocalBoxCollider(Transform parent, string name, Vector3 localCenter, Vector3 size)
+        {
+            if (parent == null) return;
+            var go = new GameObject(name);
+            go.layer = 0;
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localCenter;
+            go.transform.localRotation = Quaternion.identity;
+            var col = go.AddComponent<BoxCollider>();
+            col.size = size;
+            col.isTrigger = false;
         }
 
         static GameObject PlaceKit(
@@ -1302,6 +2520,123 @@ namespace Kalyeah.Game
 
             static Vector3 Transform(Vector3 center, Quaternion rot, Vector3 local) => center + rot * local;
 
+            /// <summary>Appends a vertical faceted cylinder (taho urns, sauce jars, bamboo poles, umbrella shafts).</summary>
+            public void AddCylinder(Vector3 baseCenter, float bottomR, float topR, float height, int sides)
+            {
+                int n = Math.Max(sides, 5);
+                float step = MathF.PI * 2f / n;
+                Vector3 topCenter = baseCenter + Vector3.up * height;
+                for (int i = 0; i < n; i++)
+                {
+                    float a0 = i * step;
+                    float a1 = (i + 1) * step;
+                    Vector3 d0 = new Vector3(MathF.Cos(a0), 0f, MathF.Sin(a0));
+                    Vector3 d1 = new Vector3(MathF.Cos(a1), 0f, MathF.Sin(a1));
+                    Vector3 b0 = baseCenter + d0 * bottomR;
+                    Vector3 b1 = baseCenter + d1 * bottomR;
+                    Vector3 t0 = topCenter + d0 * topR;
+                    Vector3 t1 = topCenter + d1 * topR;
+                    Vector3 outward = (d0 + d1).normalized;
+                    AddQuad(b0, t0, t1, b1, outward);
+                    if (topR > 0.002f)
+                        AddTri(topCenter, t1, t0, Vector3.up);
+                }
+            }
+
+            /// <summary>Appends a horizontal wheel cylinder centered at <paramref name="center"/>.</summary>
+            public void AddHorizontalCylinder(Vector3 center, float radius, float width, int sides, bool alongZ)
+            {
+                int n = Math.Max(sides, 6);
+                float step = MathF.PI * 2f / n;
+                float hw = width * 0.5f;
+                Vector3 axis = alongZ ? Vector3.forward : Vector3.right;
+                Vector3 uAxis = alongZ ? Vector3.right : Vector3.forward;
+                Vector3 vAxis = Vector3.up;
+
+                Vector3 cPos = center + axis * hw;
+                Vector3 cNeg = center - axis * hw;
+                for (int i = 0; i < n; i++)
+                {
+                    float a0 = i * step;
+                    float a1 = (i + 1) * step;
+                    Vector3 r0 = uAxis * (MathF.Cos(a0) * radius) + vAxis * (MathF.Sin(a0) * radius);
+                    Vector3 r1 = uAxis * (MathF.Cos(a1) * radius) + vAxis * (MathF.Sin(a1) * radius);
+                    Vector3 nOut = (r0 + r1).normalized;
+                    AddQuad(cNeg + r0, cPos + r0, cPos + r1, cNeg + r1, nOut);
+                    AddTri(cPos, cPos + r0, cPos + r1, axis);
+                    AddTri(cNeg, cNeg + r1, cNeg + r0, -axis);
+                }
+            }
+
+            /// <summary>Appends a crisp pitched gable roof (ridge along local X) with overhangs and triangular gable ends.</summary>
+            public void AddPitchedRoof(Vector3 eaveCenter, float widthX, float ridgeHeight, float depthZ)
+            {
+                float hx = widthX * 0.5f;
+                float hz = depthZ * 0.5f;
+                float y0 = eaveCenter.y;
+                float yRidge = y0 + ridgeHeight;
+                float ySoffit = y0 - 0.10f;
+
+                Vector3 fl = new Vector3(eaveCenter.x - hx, y0, eaveCenter.z + hz);
+                Vector3 fr = new Vector3(eaveCenter.x + hx, y0, eaveCenter.z + hz);
+                Vector3 bl = new Vector3(eaveCenter.x - hx, y0, eaveCenter.z - hz);
+                Vector3 br = new Vector3(eaveCenter.x + hx, y0, eaveCenter.z - hz);
+                Vector3 rl = new Vector3(eaveCenter.x - hx, yRidge, eaveCenter.z);
+                Vector3 rr = new Vector3(eaveCenter.x + hx, yRidge, eaveCenter.z);
+
+                Vector3 nFront = Vector3.Cross(fr - fl, rl - fl).normalized;
+                if (nFront.y < 0f) nFront = -nFront;
+                Vector3 nBack = Vector3.Cross(bl - br, rr - br).normalized;
+                if (nBack.y < 0f) nBack = -nBack;
+
+                AddQuad(fl, rl, rr, fr, nFront);
+                AddQuad(br, rr, rl, bl, nBack);
+                AddTri(fl, bl, rl, Vector3.left);
+                AddTri(br, fr, rr, Vector3.right);
+
+                // Under-eave soffit box so roofs read solid from low 3P shoulder angles
+                AddChamferedBox(new Vector3(eaveCenter.x, (y0 + ySoffit) * 0.5f, eaveCenter.z), Quaternion.identity, new Vector3(widthX, 0.12f, depthZ), 0.02f);
+            }
+
+            /// <summary>Appends a sculpted 2-tier organic faceted foliage dome (replaces Minecraft rectangular bush cubes).</summary>
+            public void AddFoliageMound(Vector3 baseCenter, float rx, float height, float rz, float yawRad, int sides)
+            {
+                int n = Math.Max(sides, 6);
+                float step = MathF.PI * 2f / n;
+                float yMid = baseCenter.y + height * 0.44f;
+                float yUpper = baseCenter.y + height * 0.80f;
+                Vector3 apex = new Vector3(baseCenter.x, baseCenter.y + height, baseCenter.z);
+
+                for (int i = 0; i < n; i++)
+                {
+                    float a0 = i * step + yawRad;
+                    float a1 = (i + 1) * step + yawRad;
+                    float j0 = 0.90f + 0.16f * MathF.Sin(i * 2.1f + yawRad);
+                    float j1 = 0.90f + 0.16f * MathF.Sin(((i + 1) % n) * 2.1f + yawRad);
+
+                    Vector3 d0 = new Vector3(MathF.Cos(a0) * rx * j0, 0f, MathF.Sin(a0) * rz * j0);
+                    Vector3 d1 = new Vector3(MathF.Cos(a1) * rx * j1, 0f, MathF.Sin(a1) * rz * j1);
+
+                    Vector3 b0 = baseCenter + d0 * 0.84f;
+                    Vector3 b1 = baseCenter + d1 * 0.84f;
+                    Vector3 m0 = new Vector3(baseCenter.x + d0.x, yMid, baseCenter.z + d0.z);
+                    Vector3 m1 = new Vector3(baseCenter.x + d1.x, yMid, baseCenter.z + d1.z);
+                    Vector3 u0 = new Vector3(baseCenter.x + d0.x * 0.62f, yUpper, baseCenter.z + d0.z * 0.62f);
+                    Vector3 u1 = new Vector3(baseCenter.x + d1.x * 0.62f, yUpper, baseCenter.z + d1.z * 0.62f);
+
+                    Vector3 nLow = Vector3.Cross(m0 - b0, b1 - b0).normalized;
+                    if (Vector3.Dot(nLow, d0 + d1) < 0f) nLow = -nLow;
+                    Vector3 nMid = Vector3.Cross(u0 - m0, m1 - m0).normalized;
+                    if (nMid.y < 0f) nMid = -nMid;
+                    Vector3 nTop = Vector3.Cross(apex - u0, u1 - u0).normalized;
+                    if (nTop.y < 0f) nTop = -nTop;
+
+                    AddQuad(b0, m0, m1, b1, nLow);
+                    AddQuad(m0, u0, u1, m1, nMid);
+                    AddTri(u0, apex, u1, nTop);
+                }
+            }
+
             /// <summary>
             /// Extrudes a continuous, stitched, 45-degree-chamfered stone embankment or mossy coping ribbon smoothly along
             /// <see cref="MapLayoutData.CanalZ"/> from <paramref name="xStart"/> to <paramref name="xEnd"/>, eliminating segment
@@ -1391,6 +2726,12 @@ namespace Kalyeah.Game
 
             void AddTri(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 normal)
             {
+                if (Vector3.Dot(Vector3.Cross(p1 - p0, p2 - p0), normal) < 0f)
+                {
+                    Vector3 tmp = p1;
+                    p1 = p2;
+                    p2 = tmp;
+                }
                 int baseIdx = _verts.Count;
                 _verts.Add(p0);
                 _verts.Add(p1);
@@ -1411,6 +2752,12 @@ namespace Kalyeah.Game
 
             void AddQuad(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, Vector3 normal)
             {
+                if (Vector3.Dot(Vector3.Cross(p1 - p0, p2 - p0), normal) < 0f)
+                {
+                    Vector3 tmp = p1;
+                    p1 = p3;
+                    p3 = tmp;
+                }
                 int baseIdx = _verts.Count;
                 _verts.Add(p0);
                 _verts.Add(p1);

@@ -4,13 +4,16 @@ Shader "Kalyeah/TeamOutline"
     {
         _OutlineColor ("Outline Color", Color) = (1.00, 0.22, 0.24, 1.0)
         _OutlineWidth ("Outline Width", Range(0.0, 0.12)) = 0.014
-        _DistanceComp ("Distance Compensation", Range(0.0, 1.0)) = 0.45
+        _DistanceComp ("Distance Compensation", Range(0.0, 1.0)) = 0.85
         _DistanceBoost ("Distance Brightness Boost", Range(0.0, 1.0)) = 0.40
         _DepthStart ("Depth Boost Start (m)", Float) = 12.0
         _DepthEnd ("Depth Boost End (m)", Float) = 45.0
         _MaxDistance ("Max Outline Distance", Range(20.0, 260.0)) = 150.0
         _HitFlash ("Hit Flash", Range(0.0, 1.0)) = 0.0
         _AuraColor ("Merienda Aura Color", Color) = (0.0, 0.0, 0.0, 0.0)
+        _RevealPulse ("Reveal Pulse Highlight", Range(0.0, 1.0)) = 0.0
+        _UltGlow ("Ultimate Aura Glow", Range(0.0, 1.0)) = 0.0
+        _StealthAlpha ("Stealth Amount", Range(0.0, 1.0)) = 0.0
     }
 
     SubShader
@@ -33,6 +36,14 @@ Shader "Kalyeah/TeamOutline"
             ZTest LEqual
             Blend SrcAlpha OneMinusSrcAlpha
 
+            // Hardware stencil rejection against Kalyeah/Kid (Ref 4): guarantees zero bleed onto facial features, ears, or collars.
+            Stencil
+            {
+                Ref 4
+                Comp NotEqual
+                Pass Keep
+            }
+
             HLSLPROGRAM
             #pragma target 3.0
             #pragma vertex OutlineVert
@@ -53,6 +64,9 @@ Shader "Kalyeah/TeamOutline"
                 float _MaxDistance;
                 half _HitFlash;
                 half4 _AuraColor;
+                half _RevealPulse;
+                half _UltGlow;
+                half _StealthAlpha;
             CBUFFER_END
 
             struct Attributes
@@ -83,24 +97,30 @@ Shader "Kalyeah/TeamOutline"
                 float dist = max(length(toCam), 0.1);
                 float3 viewDir = (unity_OrthoParams.w > 0.5) ? -GetViewForwardDir() : (toCam / dist);
 
-                // Clean VALORANT silhouette outline: crisp up close, slightly wider & brighter at 12m..45m, zero wobble.
-                float distScale = lerp(0.86, clamp(dist / 7.2, 0.72, 1.48), _DistanceComp);
+                // Distance-compensated silhouette width: razor-thin up close (<4m) and consistent across 10m / 30m / 50m.
+                float refDist = max(dist, 0.5);
+                float closeTaper = smoothstep(1.2, 5.5, refDist);
+                float balancedComp = (refDist <= 10.0)
+                    ? lerp(0.38, 1.0, closeTaper)
+                    : clamp(pow(refDist / 10.0, 0.72), 1.0, 3.20);
+                float distScale = lerp(1.0, balancedComp, _DistanceComp);
                 float fadeStart = max(_MaxDistance * 0.75, 1.0);
                 distScale *= 1.0 - smoothstep(fadeStart, max(_MaxDistance, fadeStart + 1.0), dist);
                 float depthSpan = max(_DepthEnd - _DepthStart, 1.0);
                 float distGlow = saturate((dist - _DepthStart) / depthSpan);
 
-                float width = _OutlineWidth * distScale;
+                float pulseExpand = 1.0 + (float)_RevealPulse * 0.25 + (float)_UltGlow * 0.12;
+                float width = _OutlineWidth * distScale * pulseExpand;
 
                 // Project rim strictly perpendicular to viewDir so double-sided cloth/masks never push toward camera.
                 float ndotv = dot(normWS, viewDir);
                 float3 rimWS = normWS - viewDir * ndotv;
                 float rimLen = length(rimWS);
-                float graze = smoothstep(0.16, 0.52, rimLen);
+                float graze = smoothstep(0.14, 0.50, rimLen);
                 float3 pushDir = (rimLen > 0.0001) ? (rimWS / rimLen) : float3(0.0, 0.0, 0.0);
 
                 posWS += pushDir * (width * graze);
-                posWS -= viewDir * 0.020;
+                posWS -= viewDir * clamp(width * 0.65, 0.004, 0.024);
 
                 output.positionCS = TransformWorldToHClip(posWS);
                 output.edgeDepth = half2((half)graze, (half)distGlow);
@@ -124,10 +144,25 @@ Shader "Kalyeah/TeamOutline"
                 #endif
 
                 highlight = lerp(highlight, _AuraColor.rgb, saturate(_AuraColor.a * 0.45h));
+                if (_UltGlow > 0.001h)
+                {
+                    half ultPulse = (half)(0.78 + 0.22 * sin(_Time.y * 6.5));
+                    highlight = lerp(highlight, half3(1.00h, 0.84h, 0.28h) * (1.15h * ultPulse), saturate(_UltGlow * 0.65h));
+                }
+                if (_RevealPulse > 0.001h)
+                {
+                    half revWave = (half)(0.70 + 0.30 * sin(_Time.y * 8.0));
+                    highlight = lerp(highlight, half3(1.00h, 0.44h, 0.20h) * (1.30h * revWave), saturate(_RevealPulse * 0.80h));
+                }
                 highlight = lerp(highlight, half3(1.0h, 0.97h, 0.88h), saturate(_HitFlash));
 
                 half alpha = saturate(_OutlineColor.a * lerp(0.84h, 0.98h, edgeSoft) * (1.0h + _DistanceBoost * 0.35h * distGlow));
-                alpha = max(alpha, saturate(_HitFlash));
+                if (_StealthAlpha > 0.001h)
+                {
+                    highlight = lerp(highlight, half3(0.45h, 0.92h, 1.00h), saturate(_StealthAlpha * 0.75h));
+                    alpha *= lerp(1.0h, 0.45h, saturate(_StealthAlpha));
+                }
+                alpha = max(alpha, max(saturate(_HitFlash), saturate(_RevealPulse * 0.92h)));
                 half3 finalRgb = MixFog(highlight, input.fogFactor);
                 return half4(finalRgb, alpha);
             }

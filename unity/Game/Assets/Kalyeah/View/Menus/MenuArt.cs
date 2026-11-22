@@ -41,6 +41,21 @@ namespace Kalyeah.Game
         public static readonly Color DiamondCyan = new Color(0.32f, 0.84f, 1.00f, 1f);
         public static readonly Color SuccessGreen = new Color(0.24f, 0.82f, 0.56f, 1f);
 
+        // Locked Option A1 Editorial + A2 Frosted Titanium + A3 Split Scoreboard & Coral-Gold tokens
+        public static readonly Color ObsidianGlass = new Color(14f / 255f, 19f / 255f, 26f / 255f, 0.74f);       // #0E131A @ 74%
+        public static readonly Color ObsidianSolid = new Color(14f / 255f, 19f / 255f, 26f / 255f, 0.94f);       // #0E131A @ 94%
+        public static readonly Color PaperWhite = new Color(245f / 255f, 241f / 255f, 232f / 255f, 1f);          // #F5F1E8
+        public static readonly Color SignalVermilion = new Color(255f / 255f, 70f / 255f, 85f / 255f, 1f);       // #FF4655
+        public static readonly Color SignalVermilionDeep = new Color(212f / 255f, 49f / 255f, 64f / 255f, 1f);   // #D43140
+        public static readonly Color TitaniumRim = new Color(213f / 255f, 223f / 255f, 233f / 255f, 1f);         // #D5DFE9
+        public static readonly Color CoralGold = new Color(255f / 255f, 155f / 255f, 106f / 255f, 1f);           // #FF9B6A
+        public static readonly Color ValorantRadarRoad = new Color(74f / 255f, 90f / 255f, 102f / 255f, 1f);     // #4A5A66
+        public static readonly Color ValorantRadarWall = new Color(180f / 255f, 192f / 255f, 200f / 255f, 1f);   // #B4C0C8
+        public static readonly Color ValorantRadarBg = new Color(22f / 255f, 32f / 255f, 40f / 255f, 1f);        // #162028
+        public static readonly Color WaterCyan = new Color(0.24f, 0.85f, 0.98f, 1f);
+        public static readonly Color AllyBlue = new Color(0.18f, 0.56f, 0.94f, 1f);
+        public static readonly Color EnemyRed = new Color(0.92f, 0.27f, 0.33f, 1f);
+
         public enum GlyphKind
         {
             Gear, Heart, Clock, Play, Diamond, Kid, Cards, Chevron,
@@ -1334,6 +1349,557 @@ namespace Kalyeah.Game
                 if ((poly[i].y > v) != (poly[j].y > v) && u < (poly[j].x - poly[i].x) * (v - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x)
                     inside = !inside;
             return inside;
+        }
+
+        // ---------------------------------------------------------------- 36 kit skill emblems + combat archetypes
+
+        /// <summary>
+        /// Crisp 64x64 4x4 supersampled Valorant/CODM minimalist white vector emblem with subtle top-lit bevel shading
+        /// for every one of the 36 <c>docs/KITS.md</c> skills plus core combat actions (<c>tirador</c>, <c>reload</c>,
+        /// <c>jump</c>, <c>slide</c>, <c>vault</c>, <c>ads</c>). Never returns null and never falls back to English text.
+        /// </summary>
+        public static Sprite SkillEmblem(string skillId)
+        {
+            string canonical = CanonicalSkillId(skillId);
+            string key = "skillEmblem|" + canonical;
+            if (Sprites.TryGetValue(key, out Sprite hit) && hit != null) return hit;
+
+            const int size = 64;
+            const int samples = 4;
+            var pixels = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            {
+                float ny = (y + 0.5f) / size;
+                byte lum = (byte)Mathf.RoundToInt(Mathf.Lerp(226f, 255f, ny));
+                for (int x = 0; x < size; x++)
+                {
+                    int inside = 0;
+                    for (int sy = 0; sy < samples; sy++)
+                    {
+                        float v = (y + (sy + 0.5f) / samples) / size * 2f - 1f;
+                        for (int sx = 0; sx < samples; sx++)
+                        {
+                            float u = (x + (sx + 0.5f) / samples) / size * 2f - 1f;
+                            if (InsideSkill(canonical, u, v)) inside++;
+                        }
+                    }
+                    byte alpha = (byte)(inside * 255 / (samples * samples));
+                    pixels[y * size + x] = new Color32(lum, lum, lum, alpha);
+                }
+            }
+
+            return MakeCachedSprite(key, "KalyeahSkill_" + canonical, size, size, pixels, Vector4.zero);
+        }
+
+        static string CanonicalSkillId(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "tactical_default";
+            string s = raw.Trim().ToLowerInvariant().Replace('-', '_').Replace(' ', '_').Replace("!", "");
+            switch (s)
+            {
+                case "tirador_bato":
+                case "slingshot":
+                    return "tirador";
+                case "aim":
+                    return "ads";
+                case "bato":
+                case "bato_heavy":
+                case "bato_light":
+                    return "bato_execute";
+                case "lata":
+                    return "lata_morph";
+                case "lupa":
+                case "ult_bagsak":
+                    return "lupa_quake";
+                case "patintero":
+                    return "patintero_lines";
+                case "pabitin":
+                case "heal":
+                    return "pabitin_heal";
+                case "tsinelas_light":
+                case "tsinelas_heavy":
+                case "tsinelas":
+                    return "tsinelas_bagsik";
+                case "papel_shield":
+                    return "sungka";
+                case "papel_trap":
+                    return "teks_tripwire";
+                case "jacks":
+                    return "jackstone";
+                case "trumpo":
+                    return "trumpo_ikot";
+                case "bola":
+                    return "tira_holens";
+                case "langit_lupa":
+                    return "langit";
+                default:
+                    return s;
+            }
+        }
+
+        static bool Seg(float u, float v, float ax, float ay, float bx, float by, float halfW)
+        {
+            float abx = bx - ax, aby = by - ay;
+            float lenSq = abx * abx + aby * aby;
+            float t = lenSq > 1e-6f ? Mathf.Clamp01(((u - ax) * abx + (v - ay) * aby) / lenSq) : 0f;
+            float dx = u - (ax + abx * t);
+            float dy = v - (ay + aby * t);
+            return dx * dx + dy * dy < halfW * halfW;
+        }
+
+        static bool Circ(float u, float v, float cx, float cy, float r)
+        {
+            float dx = u - cx, dy = v - cy;
+            return dx * dx + dy * dy < r * r;
+        }
+
+        static bool Ring(float u, float v, float cx, float cy, float rIn, float rOut)
+        {
+            float dx = u - cx, dy = v - cy;
+            float r2 = dx * dx + dy * dy;
+            return r2 > rIn * rIn && r2 < rOut * rOut;
+        }
+
+        static bool Tri(float u, float v, float ax, float ay, float bx, float by, float cx, float cy)
+        {
+            float d1 = (u - bx) * (ay - by) - (ax - bx) * (v - by);
+            float d2 = (u - cx) * (by - cy) - (bx - cx) * (v - cy);
+            float d3 = (u - ax) * (cy - ay) - (cx - ax) * (v - ay);
+            bool hasNeg = (d1 < 0f) || (d2 < 0f) || (d3 < 0f);
+            bool hasPos = (d1 > 0f) || (d2 > 0f) || (d3 > 0f);
+            return !(hasNeg && hasPos);
+        }
+
+        static bool RotBox(float u, float v, float cx, float cy, float rad, float hw, float hh)
+        {
+            float c = Mathf.Cos(rad), s = Mathf.Sin(rad);
+            float dx = u - cx, dy = v - cy;
+            float rx = dx * c - dy * s;
+            float ry = dx * s + dy * c;
+            return Mathf.Abs(rx) < hw && Mathf.Abs(ry) < hh;
+        }
+
+        static bool InsideSkill(string id, float u, float v)
+        {
+            switch (id)
+            {
+                // ---- Narda (Striker) ----
+                case "luksong_tinik": // hurdle vault arch + twin speed dash chevrons over crossed thorn bars
+                {
+                    bool bar1 = Seg(u, v, -0.78f, -0.56f, 0.78f, -0.22f, 0.08f);
+                    bool bar2 = Seg(u, v, -0.78f, -0.22f, 0.78f, -0.56f, 0.08f);
+                    bool arch = Ring(u, v, 0f, -0.18f, 0.44f, 0.62f) && v > -0.10f;
+                    bool head = Tri(u, v, 0.80f, 0.08f, 0.36f, 0.24f, 0.48f, -0.16f);
+                    bool streak = Seg(u, v, -0.78f, 0.54f, -0.16f, 0.74f, 0.07f);
+                    return bar1 || bar2 || arch || head || streak;
+                }
+                case "tira_holens": // glossy marble orb with specular cut + ricochet bounce path
+                {
+                    bool marble = Circ(u, v, -0.34f, -0.20f, 0.40f) && !Circ(u, v, -0.46f, -0.06f, 0.13f);
+                    bool bounce1 = Seg(u, v, 0.04f, -0.16f, 0.62f, 0.54f, 0.075f);
+                    bool bounce2 = Seg(u, v, 0.62f, 0.54f, 0.12f, 0.72f, 0.07f);
+                    bool wall = Seg(u, v, 0.76f, 0.12f, 0.76f, 0.82f, 0.07f);
+                    bool arrow = Tri(u, v, -0.10f, 0.78f, 0.22f, 0.88f, 0.16f, 0.56f);
+                    return marble || bounce1 || bounce2 || wall || arrow;
+                }
+                case "tsinelas_bagsik": // triple fanned curved boomerang slippers
+                {
+                    bool s1 = (RotBox(u, v, -0.42f, 0.12f, 0.52f, 0.18f, 0.52f) || Circ(u, v, -0.56f, 0.50f, 0.17f))
+                        && !Seg(u, v, -0.54f, 0.40f, -0.32f, 0.16f, 0.055f);
+                    bool s2 = (RotBox(u, v, 0.02f, 0.16f, 0.0f, 0.19f, 0.56f) || Circ(u, v, 0.02f, 0.64f, 0.18f))
+                        && !Circ(u, v, 0.02f, 0.34f, 0.085f);
+                    bool s3 = (RotBox(u, v, 0.46f, 0.04f, -0.52f, 0.18f, 0.50f) || Circ(u, v, 0.60f, 0.42f, 0.17f))
+                        && !Seg(u, v, 0.56f, 0.32f, 0.34f, 0.08f, 0.055f);
+                    bool arc = Ring(u, v, 0f, -0.20f, 0.66f, 0.78f) && v < -0.26f;
+                    return s1 || s2 || s3 || arc;
+                }
+
+                // ---- Jumong (Striker) ----
+                case "syato": // long striker stick + popped short syato peg + upward knock-up burst
+                {
+                    bool longStick = Seg(u, v, -0.74f, -0.66f, 0.54f, 0.24f, 0.10f);
+                    bool shortPeg = Seg(u, v, -0.10f, 0.44f, 0.56f, 0.72f, 0.095f);
+                    bool popArc = Ring(u, v, -0.14f, 0.02f, 0.44f, 0.55f) && u < 0.05f && v > 0.18f;
+                    bool popTip = Tri(u, v, -0.24f, 0.76f, -0.46f, 0.48f, -0.10f, 0.52f);
+                    return longStick || shortPeg || popArc || popTip;
+                }
+                case "trumpo_ikot": // spinning wooden top + twin cyclone spin blades
+                {
+                    bool topCap = Tri(u, v, 0f, -0.68f, -0.40f, 0.24f, 0.40f, 0.24f);
+                    bool knob = RotBox(u, v, 0f, 0.38f, 0f, 0.14f, 0.16f);
+                    bool swirlL = Ring(u, v, 0f, -0.04f, 0.58f, 0.72f) && u < -0.18f && v > -0.48f && v < 0.46f;
+                    bool swirlR = Ring(u, v, 0f, -0.04f, 0.58f, 0.72f) && u > 0.18f && v > -0.48f && v < 0.46f;
+                    bool stripe = Mathf.Abs(v - 0.02f) < 0.055f && Mathf.Abs(u) < 0.34f;
+                    return ((topCap || knob) && !stripe) || swirlL || swirlR;
+                }
+                case "pukpok_palayok": // clay palayok pot shattered from above by smashing club + starburst
+                {
+                    bool pot = Circ(u, v, 0f, -0.26f, 0.48f) && v < 0.08f;
+                    bool rim = RotBox(u, v, 0f, 0.12f, 0f, 0.36f, 0.08f);
+                    bool crack = Seg(u, v, 0f, 0.10f, -0.16f, -0.24f, 0.045f) || Seg(u, v, -0.16f, -0.24f, 0.14f, -0.52f, 0.045f);
+                    bool club = Seg(u, v, 0.14f, 0.28f, 0.74f, 0.80f, 0.10f);
+                    bool shard1 = Tri(u, v, -0.66f, 0.56f, -0.34f, 0.38f, -0.46f, 0.22f);
+                    bool shard2 = Tri(u, v, -0.18f, 0.78f, -0.04f, 0.44f, -0.24f, 0.46f);
+                    return ((pot || rim) && !crack) || club || shard1 || shard2;
+                }
+
+                // ---- Inggo (Striker) ----
+                case "sipa": // feathered rattan sipa shuttlecock + 3-bounce arc dots
+                {
+                    bool washer = Ring(u, v, 0f, -0.46f, 0.11f, 0.28f);
+                    bool featherL = Tri(u, v, -0.08f, -0.26f, -0.64f, 0.54f, -0.22f, 0.68f);
+                    bool featherM = Tri(u, v, 0f, -0.24f, -0.20f, 0.76f, 0.20f, 0.76f);
+                    bool featherR = Tri(u, v, 0.08f, -0.26f, 0.22f, 0.68f, 0.64f, 0.54f);
+                    bool hop1 = Circ(u, v, -0.66f, -0.58f, 0.11f);
+                    bool hop2 = Circ(u, v, 0.66f, -0.58f, 0.11f);
+                    return washer || featherL || featherM || featherR || hop1 || hop2;
+                }
+                case "tiyakad": // twin tall bamboo stilts with foot-pegs + sniper horizon bar
+                {
+                    bool poleL = Seg(u, v, -0.38f, -0.82f, -0.28f, 0.72f, 0.08f);
+                    bool poleR = Seg(u, v, 0.38f, -0.82f, 0.28f, 0.72f, 0.08f);
+                    bool pegL = Seg(u, v, -0.66f, -0.22f, -0.28f, -0.22f, 0.075f);
+                    bool pegR = Seg(u, v, 0.28f, -0.22f, 0.66f, -0.22f, 0.075f);
+                    bool scope = Ring(u, v, 0f, 0.42f, 0.18f, 0.30f) || Seg(u, v, -0.78f, 0.42f, 0.78f, 0.42f, 0.045f);
+                    return poleL || poleR || pegL || pegR || scope;
+                }
+                case "bato_execute": // heavy faceted boulder meteor + execution crosshair diamond
+                {
+                    bool rock = (Mathf.Abs(u) * 0.92f + Mathf.Abs(v + 0.06f) * 1.05f < 0.72f)
+                        && (Mathf.Abs(u) < 0.62f) && (v > -0.72f && v < 0.64f);
+                    bool crossH = Mathf.Abs(v + 0.04f) < 0.065f && Mathf.Abs(u) < 0.84f;
+                    bool crossV = Mathf.Abs(u) < 0.065f && Mathf.Abs(v + 0.04f) < 0.84f;
+                    bool coreCut = Mathf.Abs(u) + Mathf.Abs(v + 0.04f) < 0.22f;
+                    bool tail = Tri(u, v, 0f, 0.88f, -0.28f, 0.56f, 0.28f, 0.56f);
+                    return (rock && !coreCut) || (crossH && !rock) || (crossV && !rock) || tail;
+                }
+
+                // ---- Jopay (Defender) ----
+                case "bahay_bahayan": // fortified 3-panel box barricade wall with brace
+                {
+                    bool b1 = RotBox(u, v, -0.52f, -0.18f, 0f, 0.22f, 0.44f);
+                    bool b2 = RotBox(u, v, 0f, 0.02f, 0f, 0.23f, 0.54f);
+                    bool b3 = RotBox(u, v, 0.52f, -0.18f, 0f, 0.22f, 0.44f);
+                    bool roof = Tri(u, v, 0f, 0.84f, -0.78f, 0.38f, 0.78f, 0.38f) && !Tri(u, v, 0f, 0.66f, -0.52f, 0.38f, 0.52f, 0.38f);
+                    bool seam = Mathf.Abs(u - 0.26f) < 0.035f || Mathf.Abs(u + 0.26f) < 0.035f;
+                    return ((b1 || b2 || b3) && !seam) || roof;
+                }
+                case "pabitin_heal": // hanging bamboo treat rack + crisp medical heal cross
+                {
+                    bool cordL = Seg(u, v, 0f, 0.86f, -0.66f, 0.44f, 0.06f);
+                    bool cordR = Seg(u, v, 0f, 0.86f, 0.66f, 0.44f, 0.06f);
+                    bool rack = RotBox(u, v, 0f, 0.40f, 0f, 0.74f, 0.08f);
+                    bool plusV = RotBox(u, v, 0f, -0.22f, 0f, 0.16f, 0.44f);
+                    bool plusH = RotBox(u, v, 0f, -0.22f, 0f, 0.44f, 0.16f);
+                    return cordL || cordR || rack || plusV || plusH;
+                }
+                case "palosebo": // upright greased bamboo pole anchored in circular base ring with slip ripples
+                {
+                    bool pole = RotBox(u, v, 0f, 0.08f, 0f, 0.11f, 0.74f);
+                    bool flag = Tri(u, v, 0.10f, 0.80f, 0.62f, 0.62f, 0.10f, 0.42f);
+                    bool baseRing = Ring(u, v, 0f, -0.58f, 0.36f, 0.50f) && v < -0.34f;
+                    bool slip1 = Seg(u, v, -0.58f, 0.14f, -0.24f, -0.10f, 0.065f);
+                    bool slip2 = Seg(u, v, 0.58f, -0.02f, 0.24f, -0.26f, 0.065f);
+                    return pole || flag || baseRing || slip1 || slip2;
+                }
+
+                // ---- Oriang (Defender) ----
+                case "chinese_garter": // two ally diamond anchor nodes joined by taut twin elastic strands
+                {
+                    bool nodeL = Mathf.Abs(u + 0.62f) + Mathf.Abs(v) < 0.30f;
+                    bool nodeR = Mathf.Abs(u - 0.62f) + Mathf.Abs(v) < 0.30f;
+                    bool holeL = Mathf.Abs(u + 0.62f) + Mathf.Abs(v) < 0.11f;
+                    bool holeR = Mathf.Abs(u - 0.62f) + Mathf.Abs(v) < 0.11f;
+                    bool strand1 = Seg(u, v, -0.40f, 0.16f, 0.40f, 0.16f, 0.07f);
+                    bool strand2 = Seg(u, v, -0.40f, -0.16f, 0.40f, -0.16f, 0.07f);
+                    bool spark = Mathf.Abs(u) + Mathf.Abs(v) < 0.18f;
+                    return (nodeL && !holeL) || (nodeR && !holeR) || strand1 || strand2 || spark;
+                }
+                case "sungka": // carved sungka board shell pits + protective shield dome
+                {
+                    bool shield = Ring(u, v, 0f, -0.16f, 0.62f, 0.78f) && v > -0.06f;
+                    bool board = RotBox(u, v, 0f, -0.28f, 0f, 0.66f, 0.26f)
+                        || Circ(u, v, -0.66f, -0.28f, 0.26f)
+                        || Circ(u, v, 0.66f, -0.28f, 0.26f);
+                    bool pit1 = Circ(u, v, -0.40f, -0.28f, 0.11f);
+                    bool pit2 = Circ(u, v, 0f, -0.28f, 0.11f);
+                    bool pit3 = Circ(u, v, 0.40f, -0.28f, 0.11f);
+                    return shield || (board && !pit1 && !pit2 && !pit3);
+                }
+                case "langit": // ascending sanctuary wings + invulnerability halo crown
+                {
+                    bool halo = Ring(u, v, 0f, 0.56f, 0.16f, 0.28f);
+                    bool wingL1 = Tri(u, v, -0.10f, 0.08f, -0.84f, 0.46f, -0.60f, -0.16f);
+                    bool wingL2 = Tri(u, v, -0.12f, -0.12f, -0.68f, -0.22f, -0.34f, -0.62f);
+                    bool wingR1 = Tri(u, v, 0.10f, 0.08f, 0.84f, 0.46f, 0.60f, -0.16f);
+                    bool wingR2 = Tri(u, v, 0.12f, -0.12f, 0.68f, -0.22f, 0.34f, -0.62f);
+                    bool core = Mathf.Abs(u) + Mathf.Abs(v + 0.08f) < 0.24f;
+                    return halo || wingL1 || wingL2 || wingR1 || wingR2 || core;
+                }
+
+                // ---- Paeng (Defender) ----
+                case "sack_race": // tied burlap sack charging forward + impact shock arcs
+                {
+                    bool body = Circ(u, v, -0.12f, -0.24f, 0.48f) || RotBox(u, v, -0.12f, -0.10f, 0f, 0.40f, 0.34f);
+                    bool neck = Tri(u, v, -0.12f, 0.26f, -0.38f, 0.68f, 0.14f, 0.68f);
+                    bool tie = Mathf.Abs(v - 0.28f) < 0.055f && Mathf.Abs(u + 0.12f) < 0.32f;
+                    bool shock1 = Ring(u, v, -0.06f, -0.10f, 0.62f, 0.76f) && u > 0.36f;
+                    bool shock2 = Seg(u, v, 0.56f, 0.44f, 0.82f, 0.60f, 0.07f);
+                    return ((body || neck) && !tie) || shock1 || shock2;
+                }
+                case "luksong_baka": // vaulted springboard leap arrow arcing cleanly over crouched hump
+                {
+                    bool hump = Circ(u, v, 0f, -0.46f, 0.42f) && v > -0.66f;
+                    bool arc = Ring(u, v, 0f, -0.18f, 0.54f, 0.72f) && v > -0.04f;
+                    bool arrow = Tri(u, v, 0.84f, 0.14f, 0.44f, 0.38f, 0.48f, -0.10f);
+                    return hump || arc || arrow;
+                }
+                case "tinik_wall": // row of 4 rising spiky thorn pillars across lane
+                {
+                    bool baseBar = RotBox(u, v, 0f, -0.64f, 0f, 0.82f, 0.12f);
+                    bool s1 = Tri(u, v, -0.60f, 0.46f, -0.78f, -0.56f, -0.42f, -0.56f);
+                    bool s2 = Tri(u, v, -0.20f, 0.80f, -0.40f, -0.56f, 0.00f, -0.56f);
+                    bool s3 = Tri(u, v, 0.20f, 0.80f, 0.00f, -0.56f, 0.40f, -0.56f);
+                    bool s4 = Tri(u, v, 0.60f, 0.46f, 0.42f, -0.56f, 0.78f, -0.56f);
+                    return baseBar || s1 || s2 || s3 || s4;
+                }
+
+                // ---- Kikay (Seeker) ----
+                case "teks_tripwire": // twin angled teks cards spanned by taut laser tripwire + trigger node
+                {
+                    bool cardL = RotBox(u, v, -0.62f, 0f, 0.18f, 0.20f, 0.38f);
+                    bool cardR = RotBox(u, v, 0.62f, 0f, -0.18f, 0.20f, 0.38f);
+                    bool wire = Seg(u, v, -0.44f, 0f, 0.44f, 0f, 0.06f);
+                    bool spark = Mathf.Abs(u) + Mathf.Abs(v) < 0.22f;
+                    bool dot = Circ(u, v, 0f, 0f, 0.08f);
+                    return cardL || cardR || wire || (spark && !dot);
+                }
+                case "tago": // stealth eye slashed by sleek diagonal cloak bar
+                {
+                    bool eye = Circ(u, v, 0f, -0.46f, 0.88f) && Circ(u, v, 0f, 0.46f, 0.88f);
+                    bool pupil = Circ(u, v, 0f, 0f, 0.22f);
+                    bool slashGap = Seg(u, v, -0.78f, -0.68f, 0.78f, 0.68f, 0.14f);
+                    bool slash = Seg(u, v, -0.78f, -0.68f, 0.78f, 0.68f, 0.075f);
+                    return (eye && !pupil && !slashGap) || slash;
+                }
+                case "saranggola": // diamond Filipino kite + ribbon tail hovering over radar circle
+                {
+                    bool kite = Mathf.Abs(u) * 1.15f + Mathf.Abs(v - 0.24f) < 0.56f;
+                    bool ribV = Mathf.Abs(u) < 0.045f && v > -0.32f && v < 0.80f;
+                    bool ribH = Mathf.Abs(v - 0.24f) < 0.045f && Mathf.Abs(u) < 0.48f;
+                    bool tail = Seg(u, v, 0f, -0.30f, -0.22f, -0.56f, 0.06f) || Seg(u, v, -0.22f, -0.56f, 0.16f, -0.82f, 0.06f);
+                    bool scan = Ring(u, v, 0f, -0.42f, 0.48f, 0.60f) && v < -0.28f;
+                    return (kite && !(ribV || ribH)) || tail || scan;
+                }
+
+                // ---- Karding (Seeker) ----
+                case "yoyo": // yoyo spool on taut diagonal string with pullback hook arrow
+                {
+                    bool spool = Circ(u, v, 0.34f, -0.26f, 0.40f) && !Ring(u, v, 0.34f, -0.26f, 0.14f, 0.24f);
+                    bool cord = Seg(u, v, -0.62f, 0.62f, 0.12f, -0.04f, 0.075f);
+                    bool hook = Tri(u, v, -0.78f, 0.78f, -0.34f, 0.74f, -0.74f, 0.34f);
+                    return spool || cord || hook;
+                }
+                case "piko": // classic hopscotch piko chalk grid with center sweeper pip
+                {
+                    bool top = RotBox(u, v, 0f, 0.56f, 0f, 0.24f, 0.20f) && !RotBox(u, v, 0f, 0.56f, 0f, 0.12f, 0.09f);
+                    bool midL = RotBox(u, v, -0.30f, 0.12f, 0f, 0.24f, 0.20f) && !RotBox(u, v, -0.30f, 0.12f, 0f, 0.12f, 0.09f);
+                    bool midR = RotBox(u, v, 0.30f, 0.12f, 0f, 0.24f, 0.20f) && !RotBox(u, v, 0.30f, 0.12f, 0f, 0.12f, 0.09f);
+                    bool bot = RotBox(u, v, 0f, -0.32f, 0f, 0.24f, 0.20f) && !RotBox(u, v, 0f, -0.32f, 0f, 0.12f, 0.09f);
+                    bool foot = RotBox(u, v, 0f, -0.72f, 0f, 0.36f, 0.14f);
+                    bool pip = Circ(u, v, 0f, 0.56f, 0.08f);
+                    return top || midL || midR || bot || foot || pip;
+                }
+                case "pogs_slam": // heavy beveled pog disc slamming down with shockwave ring
+                {
+                    bool pog = Circ(u, v, 0f, 0.14f, 0.42f) && !Ring(u, v, 0f, 0.14f, 0.20f, 0.29f);
+                    bool wave = Ring(u, v, 0f, -0.22f, 0.64f, 0.80f) && v < 0.05f;
+                    bool slamL = Seg(u, v, -0.64f, 0.68f, -0.34f, 0.42f, 0.07f);
+                    bool slamR = Seg(u, v, 0.64f, 0.68f, 0.34f, 0.42f, 0.07f);
+                    return pog || wave || slamL || slamR;
+                }
+
+                // ---- Manoy (Seeker) ----
+                case "sili_tubig": // chili nozzle spraying a 3-ray mist cone
+                {
+                    bool pod = (Circ(u, v, -0.52f, -0.14f, 0.26f) || Tri(u, v, -0.82f, -0.58f, -0.68f, -0.02f, -0.28f, -0.30f));
+                    bool stem = Seg(u, v, -0.44f, 0.12f, -0.26f, 0.34f, 0.065f);
+                    bool ray1 = Seg(u, v, -0.12f, 0.08f, 0.72f, 0.60f, 0.075f);
+                    bool ray2 = Seg(u, v, -0.08f, -0.04f, 0.80f, -0.02f, 0.075f);
+                    bool ray3 = Seg(u, v, -0.12f, -0.16f, 0.70f, -0.62f, 0.075f);
+                    return pod || stem || ray1 || ray2 || ray3;
+                }
+                case "trumpo_bantay": // upright sentry top emitting twin sonar ping arcs overhead
+                {
+                    bool sentry = Tri(u, v, 0f, -0.80f, -0.32f, -0.16f, 0.32f, -0.16f);
+                    bool head = Circ(u, v, 0f, -0.08f, 0.16f);
+                    bool ping1 = Ring(u, v, 0f, -0.08f, 0.38f, 0.50f) && v > 0.08f;
+                    bool ping2 = Ring(u, v, 0f, -0.08f, 0.66f, 0.78f) && v > 0.14f;
+                    return sentry || head || ping1 || ping2;
+                }
+                case "taya": // all-seeing tactical map-reveal eye inside 4 corner brackets
+                {
+                    bool eye = Circ(u, v, 0f, -0.52f, 0.86f) && Circ(u, v, 0f, 0.52f, 0.86f);
+                    bool iris = Ring(u, v, 0f, 0f, 0.12f, 0.25f);
+                    bool bTL = (Mathf.Abs(u + 0.74f) < 0.075f && v > 0.34f && v < 0.80f) || (Mathf.Abs(v - 0.74f) < 0.075f && u > -0.80f && u < -0.34f);
+                    bool bTR = (Mathf.Abs(u - 0.74f) < 0.075f && v > 0.34f && v < 0.80f) || (Mathf.Abs(v - 0.74f) < 0.075f && u < 0.80f && u > 0.34f);
+                    bool bBL = (Mathf.Abs(u + 0.74f) < 0.075f && v < -0.34f && v > -0.80f) || (Mathf.Abs(v + 0.74f) < 0.075f && u > -0.80f && u < -0.34f);
+                    bool bBR = (Mathf.Abs(u - 0.74f) < 0.075f && v < -0.34f && v > -0.80f) || (Mathf.Abs(v + 0.74f) < 0.075f && u < 0.80f && u > 0.34f);
+                    return (eye && !iris) || bTL || bTR || bBL || bBR;
+                }
+
+                // ---- Tere (Controller) ----
+                case "jackstone": // 6-arm star jack caltrop + twin bouncing rubber ball pips
+                {
+                    bool a1 = Seg(u, v, -0.58f, 0f, 0.58f, 0f, 0.09f);
+                    bool a2 = Seg(u, v, -0.30f, -0.52f, 0.30f, 0.52f, 0.09f);
+                    bool a3 = Seg(u, v, -0.30f, 0.52f, 0.30f, -0.52f, 0.09f);
+                    bool tip1 = Circ(u, v, -0.62f, 0f, 0.13f) || Circ(u, v, 0.62f, 0f, 0.13f);
+                    bool tip2 = Circ(u, v, 0.32f, 0.56f, 0.13f) || Circ(u, v, -0.32f, -0.56f, 0.13f);
+                    bool tip3 = Circ(u, v, -0.32f, 0.56f, 0.13f) || Circ(u, v, 0.32f, -0.56f, 0.13f);
+                    bool ball = Circ(u, v, 0.64f, -0.56f, 0.18f);
+                    return a1 || a2 || a3 || tip1 || tip2 || tip3 || ball;
+                }
+                case "luksong_lubid": // twin handles spanned by sweeping curved jump-rope snare arc
+                {
+                    bool postL = RotBox(u, v, -0.72f, 0.24f, 0f, 0.11f, 0.36f);
+                    bool postR = RotBox(u, v, 0.72f, 0.24f, 0f, 0.11f, 0.36f);
+                    bool rope = Ring(u, v, 0f, 0.30f, 0.66f, 0.80f) && v < 0.24f;
+                    bool knot = Circ(u, v, 0f, -0.44f, 0.16f);
+                    return postL || postR || rope || knot;
+                }
+                case "garter_net": // woven diamond lattice net inside circular containment ring
+                {
+                    bool ring = Ring(u, v, 0f, 0f, 0.68f, 0.82f);
+                    bool inDisc = Circ(u, v, 0f, 0f, 0.70f);
+                    bool l1 = Seg(u, v, -0.68f, -0.22f, 0.22f, 0.68f, 0.055f);
+                    bool l2 = Seg(u, v, -0.22f, -0.68f, 0.68f, 0.22f, 0.055f);
+                    bool l3 = Seg(u, v, -0.68f, 0.22f, 0.22f, -0.68f, 0.055f);
+                    bool l4 = Seg(u, v, -0.22f, 0.68f, 0.68f, -0.22f, 0.055f);
+                    return ring || (inDisc && (l1 || l2 || l3 || l4));
+                }
+
+                // ---- Pamela (Controller) ----
+                case "holens_spill": // scatter cone spilling 5 crisp glass marbles
+                {
+                    bool m1 = Circ(u, v, -0.56f, -0.44f, 0.20f) && !Circ(u, v, -0.62f, -0.38f, 0.06f);
+                    bool m2 = Circ(u, v, -0.10f, -0.18f, 0.21f) && !Circ(u, v, -0.16f, -0.12f, 0.06f);
+                    bool m3 = Circ(u, v, 0.44f, -0.36f, 0.19f) && !Circ(u, v, 0.38f, -0.30f, 0.06f);
+                    bool m4 = Circ(u, v, 0.02f, 0.44f, 0.20f) && !Circ(u, v, -0.04f, 0.50f, 0.06f);
+                    bool m5 = Circ(u, v, 0.56f, 0.30f, 0.18f) && !Circ(u, v, 0.50f, 0.36f, 0.055f);
+                    return m1 || m2 || m3 || m4 || m5;
+                }
+                case "lata_morph": // dented tumbang-preso tin can topped by morph spiral halo
+                {
+                    bool canBody = RotBox(u, v, 0f, -0.22f, 0f, 0.38f, 0.46f);
+                    bool rib1 = Mathf.Abs(v + 0.04f) < 0.045f && Mathf.Abs(u) < 0.36f;
+                    bool rib2 = Mathf.Abs(v + 0.38f) < 0.045f && Mathf.Abs(u) < 0.36f;
+                    bool dizzy1 = Ring(u, v, 0f, 0.54f, 0.16f, 0.28f) && u > -0.18f;
+                    bool dizzy2 = Ring(u, v, -0.10f, 0.54f, 0.34f, 0.44f) && v > 0.38f;
+                    return (canBody && !rib1 && !rib2) || dizzy1 || dizzy2;
+                }
+                case "patintero_lines": // 3 parallel chalk lane lines crossed by an angled stun bolt
+                {
+                    bool r1 = RotBox(u, v, 0f, 0.52f, 0f, 0.78f, 0.085f);
+                    bool r2 = RotBox(u, v, 0f, 0.00f, 0f, 0.78f, 0.085f);
+                    bool r3 = RotBox(u, v, 0f, -0.52f, 0f, 0.78f, 0.085f);
+                    bool bolt = Seg(u, v, 0.24f, 0.80f, -0.22f, 0.08f, 0.10f)
+                        || Seg(u, v, -0.22f, 0.08f, 0.20f, -0.08f, 0.10f)
+                        || Seg(u, v, 0.20f, -0.08f, -0.26f, -0.80f, 0.10f);
+                    return r1 || r2 || r3 || bolt;
+                }
+
+                // ---- Domeng (Controller) ----
+                case "pabitin_snare": // descending snare cage with downward lock chevrons
+                {
+                    bool topBar = RotBox(u, v, 0f, 0.54f, 0f, 0.76f, 0.09f);
+                    bool barL = RotBox(u, v, -0.54f, 0.06f, 0f, 0.08f, 0.46f);
+                    bool barM = RotBox(u, v, 0f, 0.06f, 0f, 0.08f, 0.46f);
+                    bool barR = RotBox(u, v, 0.54f, 0.06f, 0f, 0.08f, 0.46f);
+                    bool botBar = RotBox(u, v, 0f, -0.34f, 0f, 0.76f, 0.09f);
+                    bool downArrow = Tri(u, v, 0f, -0.86f, -0.34f, -0.50f, 0.34f, -0.50f);
+                    return topBar || barL || barM || barR || botBar || downArrow;
+                }
+                case "sako_trap": // jawed open burlap snare trap with central trigger diamond
+                {
+                    bool jawL = Ring(u, v, 0f, 0f, 0.54f, 0.74f) && u < -0.14f;
+                    bool jawR = Ring(u, v, 0f, 0f, 0.54f, 0.74f) && u > 0.14f;
+                    bool tooth1 = Tri(u, v, -0.22f, 0.32f, -0.56f, 0.44f, -0.52f, 0.16f);
+                    bool tooth2 = Tri(u, v, 0.22f, 0.32f, 0.56f, 0.44f, 0.52f, 0.16f);
+                    bool tooth3 = Tri(u, v, -0.22f, -0.32f, -0.56f, -0.44f, -0.52f, -0.16f);
+                    bool tooth4 = Tri(u, v, 0.22f, -0.32f, 0.56f, -0.44f, 0.52f, -0.16f);
+                    bool trigger = Mathf.Abs(u) + Mathf.Abs(v) < 0.26f;
+                    return jawL || jawR || tooth1 || tooth2 || tooth3 || tooth4 || trigger;
+                }
+                case "lupa_quake": // ground fracture fissure erupting in 3 seismic spire spikes
+                {
+                    bool baseSlab = RotBox(u, v, 0f, -0.62f, 0f, 0.84f, 0.13f);
+                    bool midSpire = Tri(u, v, 0f, 0.84f, -0.30f, -0.50f, 0.30f, -0.50f);
+                    bool leftSpire = Tri(u, v, -0.54f, 0.44f, -0.78f, -0.50f, -0.26f, -0.50f);
+                    bool rightSpire = Tri(u, v, 0.54f, 0.44f, 0.26f, -0.50f, 0.78f, -0.50f);
+                    bool fissure = Seg(u, v, 0f, 0.44f, -0.10f, -0.14f, 0.045f) || Seg(u, v, -0.10f, -0.14f, 0.10f, -0.48f, 0.045f);
+                    return baseSlab || ((midSpire || leftSpire || rightSpire) && !fissure);
+                }
+
+                // ---- Core Combat Controls ----
+                case "tirador": // classic Y-shaped wooden tirador slingshot fork + elastic band + centered stone
+                {
+                    bool handle = Seg(u, v, 0f, -0.80f, 0f, -0.06f, 0.12f);
+                    bool forkL = Seg(u, v, 0f, -0.08f, -0.54f, 0.68f, 0.11f);
+                    bool forkR = Seg(u, v, 0f, -0.08f, 0.54f, 0.68f, 0.11f);
+                    bool bandL = Seg(u, v, -0.54f, 0.68f, 0f, 0.24f, 0.055f);
+                    bool bandR = Seg(u, v, 0.54f, 0.68f, 0f, 0.24f, 0.055f);
+                    bool stone = Circ(u, v, 0f, 0.24f, 0.16f);
+                    return handle || forkL || forkR || bandL || bandR || stone;
+                }
+                case "reload": // circular twin-arrow reload loop
+                {
+                    bool arcTop = Ring(u, v, 0f, 0f, 0.48f, 0.66f) && v > 0.08f;
+                    bool arcBot = Ring(u, v, 0f, 0f, 0.48f, 0.66f) && v < -0.08f;
+                    bool tipR = Tri(u, v, 0.64f, -0.06f, 0.36f, 0.24f, 0.80f, 0.24f);
+                    bool tipL = Tri(u, v, -0.64f, 0.06f, -0.36f, -0.24f, -0.80f, -0.24f);
+                    return arcTop || arcBot || tipR || tipL;
+                }
+                case "jump": // bold upward double launch chevron
+                {
+                    bool up1 = Seg(u, v, -0.54f, 0.06f, 0f, 0.64f, 0.11f) || Seg(u, v, 0f, 0.64f, 0.54f, 0.06f, 0.11f);
+                    bool up2 = Seg(u, v, -0.46f, -0.46f, 0f, 0.08f, 0.10f) || Seg(u, v, 0f, 0.08f, 0.46f, -0.46f, 0.10f);
+                    return up1 || up2;
+                }
+                case "slide": // low-profile forward speed-slide dash
+                {
+                    bool body = Seg(u, v, -0.64f, 0.34f, 0.36f, -0.34f, 0.13f);
+                    bool floorLine = Seg(u, v, -0.78f, -0.56f, 0.78f, -0.56f, 0.075f);
+                    bool tip = Tri(u, v, 0.78f, -0.34f, 0.30f, -0.06f, 0.30f, -0.48f);
+                    return body || floorLine || tip;
+                }
+                case "vault": // crisp hurdle-vault arc over low rail
+                {
+                    bool rail = RotBox(u, v, 0f, -0.42f, 0f, 0.58f, 0.11f);
+                    bool arc = Ring(u, v, 0f, -0.22f, 0.52f, 0.70f) && v > -0.10f;
+                    bool head = Tri(u, v, 0.80f, 0.04f, 0.42f, 0.28f, 0.46f, -0.18f);
+                    return rail || arc || head;
+                }
+                case "ads": // precision 4-tick sniper scope ring
+                {
+                    bool ring = Ring(u, v, 0f, 0f, 0.46f, 0.62f);
+                    bool tL = Seg(u, v, -0.84f, 0f, -0.34f, 0f, 0.075f);
+                    bool tR = Seg(u, v, 0.34f, 0f, 0.84f, 0f, 0.075f);
+                    bool tT = Seg(u, v, 0f, 0.34f, 0f, 0.84f, 0.075f);
+                    bool tB = Seg(u, v, 0f, -0.84f, 0f, -0.34f, 0.075f);
+                    bool dot = Circ(u, v, 0f, 0f, 0.10f);
+                    return ring || tL || tR || tT || tB || dot;
+                }
+
+                // ---- Clean Tactical Diamond Fallback (never text) ----
+                default:
+                {
+                    float d = Mathf.Abs(u) + Mathf.Abs(v);
+                    bool outer = d < 0.76f && d > 0.54f;
+                    bool core = d < 0.24f;
+                    return outer || core;
+                }
+            }
         }
     }
 }

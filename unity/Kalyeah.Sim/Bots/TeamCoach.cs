@@ -11,9 +11,8 @@ namespace Kalyeah.Sim
     /// Per tick it hands out jobs: a rescuer (the free bot nearest the own rescue area while a teammate is tagged), up to two guards (sent
     /// home while the own base is being captured during an attack), a pusher (on a team backing up a defending human, once at most a third
     /// of the enemies are free) and `BotBaseHolders` attackers that hold courtyard spots inside the enemy base while the rest screen outside.
-    /// Use: <c>new TeamCoach(team, followId)</c>, <c>Add(sim, id, skill)</c> for each bot already added to the sim with
-    /// <c>sim.AddPlayer</c>, then every tick <c>Drive(sim)</c> before <c>sim.Step(dt)</c>: it calls <c>sim.SetInput(id, ...)</c> for every
-    /// free bot.
+    /// When Spec Kits are active, assigns roles smartly: Defenders anchor bases and escort rescues, Strikers flank aggressively,
+    /// Seekers sweep mid/choke lanes for vision and traps, and Controllers zone lane entrances. Legacy non-spec matches stay bit-identical.
     /// </summary>
     public sealed class TeamCoach
     {
@@ -36,6 +35,7 @@ namespace Kalyeah.Sim
 
         readonly OrderedDict<int, TeamBrain> _brains = new OrderedDict<int, TeamBrain>();
         List<int> _holders = new List<int>();
+        readonly List<int> _attackersScratch = new List<int>(8);
         readonly Dictionary<int, Vec2> _courtyardSpots = new Dictionary<int, Vec2>();
         readonly Dictionary<int, int> _screenPhase = new Dictionary<int, int>();
 
@@ -70,11 +70,12 @@ namespace Kalyeah.Sim
         public void Drive(MatchSim sim)
         {
             if (sim.Phase != MatchSim.MatchPhase.Playing) return;
+            bool specKits = TeamUsesSpecKits(sim);
             Plan = Decide(sim);
             int rescuer = RescuerId(sim);
             List<int> guards = GuardIds(sim, rescuer);
             int pusher = PusherId(sim, rescuer);
-            PickHolders(sim, rescuer, guards, pusher);
+            PickHolders(sim, rescuer, guards, pusher, specKits);
             bool enemiesFree = AnyFreeEnemy(sim);
             int vanguardSlot = 0;
             Vec2 fallbackSpot = sim.Layout.BaseCenter(-sim.SideForTeam(Team));
@@ -92,30 +93,94 @@ namespace Kalyeah.Sim
                     brain.Target = _courtyardSpots.TryGetValue(id, out Vec2 spot) ? spot : fallbackSpot;
                 else if (attack)
                 {
-                    brain.Target = VanguardTarget(sim, state, vanguardSlot);
+                    brain.Target = specKits
+                        ? RoleVanguardTarget(sim, state, vanguardSlot, rescuer)
+                        : VanguardTarget(sim, state, vanguardSlot);
                     vanguardSlot += 1;
                 }
                 sim.SetInput(id, brain.Think(state, sim));
             }
         }
 
+        bool TeamUsesSpecKits(MatchSim sim)
+        {
+            if (!sim.Rules.UsesSpecKits()) return false;
+            foreach (var pair in _brains)
+                if (sim.Players.TryGetValue(pair.Key, out PlayerState s) && s.UsingSpecKit) return true;
+            return false;
+        }
+
+        static CharacterRole RoleOf(MatchSim sim, int id)
+        {
+            if (!sim.Players.TryGetValue(id, out PlayerState s)) return CharacterRole.Striker;
+            CharacterDef def = sim.GetCharacterDef(s.CharacterId);
+            return def != null ? def.Role : CharacterRole.Striker;
+        }
+
+        static int RoleGuardPriority(CharacterRole role)
+        {
+            switch (role)
+            {
+                case CharacterRole.Defender: return 0;
+                case CharacterRole.Controller: return 1;
+                case CharacterRole.Seeker: return 2;
+                default: return 3;
+            }
+        }
+
+        static int RoleHoldPriority(CharacterRole role)
+        {
+            switch (role)
+            {
+                case CharacterRole.Defender: return 0;
+                case CharacterRole.Controller: return 0;
+                default: return 1;
+            }
+        }
+
         /// <summary>Chooses which attackers hold the enemy base this tick: the ones already holding stay, then the free attackers nearest it.</summary>
-        void PickHolders(MatchSim sim, int rescuer, List<int> guards, int pusher)
+        void PickHolders(MatchSim sim, int rescuer, List<int> guards, int pusher, bool specKits)
         {
             int wanted = sim.Rules.BotBaseHolders;
-            var attackers = new List<int>();
+            _attackersScratch.Clear();
             foreach (var pair in _brains)
             {
                 int id = pair.Key;
                 if (sim.Players[id].Tagged || id == rescuer || guards.Contains(id)) continue;
-                if (Plan == CoachPlan.Assault || id == pusher) attackers.Add(id);
+                if (Plan == CoachPlan.Assault || id == pusher) _attackersScratch.Add(id);
             }
-            _holders = _holders.FindAll(attackers.Contains);
+            for (int i = _holders.Count - 1; i >= 0; i--)
+                if (!_attackersScratch.Contains(_holders[i])) _holders.RemoveAt(i);
             Vec2 spot = sim.Layout.BaseCenter(-sim.SideForTeam(Team));
-            InsertionSort(attackers, (a, b) => sim.Players[a].Position.DistanceSquaredTo(spot) < sim.Players[b].Position.DistanceSquaredTo(spot));
-            foreach (int id in attackers)
+            if (specKits)
+            {
+                for (int i = 1; i < _attackersScratch.Count; i++)
+                {
+                    int value = _attackersScratch[i];
+                    int pv = RoleHoldPriority(RoleOf(sim, value));
+                    double dv = sim.Players[value].Position.DistanceSquaredTo(spot);
+                    int j = i;
+                    while (j > 0)
+                    {
+                        int prev = _attackersScratch[j - 1];
+                        int pp = RoleHoldPriority(RoleOf(sim, prev));
+                        bool less = pv != pp ? pv < pp : dv < sim.Players[prev].Position.DistanceSquaredTo(spot);
+                        if (!less) break;
+                        _attackersScratch[j] = prev;
+                        j--;
+                    }
+                    _attackersScratch[j] = value;
+                }
+            }
+            else
+            {
+                InsertionSort(_attackersScratch, (a, b) =>
+                    sim.Players[a].Position.DistanceSquaredTo(spot) < sim.Players[b].Position.DistanceSquaredTo(spot));
+            }
+            for (int i = 0; i < _attackersScratch.Count; i++)
             {
                 if (_holders.Count >= wanted) break;
+                int id = _attackersScratch[i];
                 if (!_holders.Contains(id)) _holders.Add(id);
             }
             while (_holders.Count > wanted) _holders.RemoveAt(_holders.Count - 1);
@@ -141,7 +206,26 @@ namespace Kalyeah.Sim
         public int RescuerId(MatchSim sim)
         {
             if (!sim.Objectives.TeammateWaiting(sim, Team)) return -1;
-            return NearestFree(sim, sim.Layout.RescueRect(sim.JailSideFor(Team)).GetCenter(), -1);
+            Vec2 rescuePoint = sim.Layout.RescueRect(sim.JailSideFor(Team)).GetCenter();
+            if (!TeamUsesSpecKits(sim)) return NearestFree(sim, rescuePoint, -1);
+            // Spec kits: slight preference for Defenders (escort/invuln/vault) and Seekers (stealth/reveal) when similarly close
+            int best = -1;
+            double bestScore = GMath.Inf;
+            foreach (var pair in _brains)
+            {
+                int id = pair.Key;
+                PlayerState state = sim.Players[id];
+                if (state.Tagged) continue;
+                CharacterRole role = RoleOf(sim, id);
+                double bonus = role == CharacterRole.Defender || role == CharacterRole.Seeker ? -6.0 : 0.0;
+                double score = state.Position.DistanceTo(rescuePoint) + bonus;
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    best = id;
+                }
+            }
+            return best;
         }
 
         /// <summary>Primary guard sent home while the other team captures this team's base during an attack (-1: none needed).</summary>
@@ -157,7 +241,8 @@ namespace Kalyeah.Sim
             var result = new List<int>();
             if (Plan != CoachPlan.Assault || sim.CaptureTeam != 1 - Team || sim.CurrentCaptureKind != MatchSim.CaptureKind.Base) return result;
             Vec2 home = sim.Layout.BaseCenter(sim.SideForTeam(Team));
-            int first = NearestFree(sim, home, rescuer);
+            bool specKits = TeamUsesSpecKits(sim);
+            int first = specKits ? BestRoleGuard(sim, home, rescuer, -1) : NearestFree(sim, home, rescuer);
             if (first < 0) return result;
             result.Add(first);
             if (_brains.Count < 4) return result;
@@ -166,10 +251,32 @@ namespace Kalyeah.Sim
                 if (!sim.Players[pair.Key].Tagged && pair.Key != rescuer) available += 1;
             if (available >= 3)
             {
-                int second = NearestFree(sim, home, rescuer, first);
+                int second = specKits ? BestRoleGuard(sim, home, rescuer, first) : NearestFree(sim, home, rescuer, first);
                 if (second >= 0 && result.Count < MaxSquadGuards) result.Add(second);
             }
             return result;
+        }
+
+        int BestRoleGuard(MatchSim sim, Vec2 home, int skip, int secondSkip)
+        {
+            int best = -1;
+            int bestPriority = 99;
+            double bestDistance = GMath.Inf;
+            foreach (var pair in _brains)
+            {
+                int id = pair.Key;
+                PlayerState state = sim.Players[id];
+                if (state.Tagged || id == skip || id == secondSkip) continue;
+                int prio = RoleGuardPriority(RoleOf(sim, id));
+                double distance = state.Position.DistanceTo(home);
+                if (prio < bestPriority || (prio == bestPriority && distance < bestDistance))
+                {
+                    bestPriority = prio;
+                    bestDistance = distance;
+                    best = id;
+                }
+            }
+            return best;
         }
 
         /// <summary>The bot that attacks alone while a team backing up a human defends, once that is safe (-1: none).</summary>
@@ -245,6 +352,36 @@ namespace Kalyeah.Sim
             Rect2 safeRect = sim.Layout.BaseRect(side).Grow(-margin);
             if (safeRect.Size.x > 0.0 && safeRect.Size.y > 0.0) spot = spot.Clamp(safeRect.Position, safeRect.End);
             return spot;
+        }
+
+        /// <summary>Role-aware vanguard routing: Defenders escort rescuers, Strikers flank wings, Seekers &amp; Controllers hold chokes.</summary>
+        Vec2 RoleVanguardTarget(MatchSim sim, PlayerState state, int laneSlot, int rescuerId)
+        {
+            CharacterRole role = RoleOf(sim, state.Id);
+            if (role == CharacterRole.Defender && rescuerId >= 0 && rescuerId != state.Id
+                && sim.Players.TryGetValue(rescuerId, out PlayerState rescuer) && !rescuer.Tagged)
+            {
+                Vec2 toCenter = (-rescuer.Position).LengthSquared() > 0.01 ? (-rescuer.Position).Normalized() : new Vec2(0.0, 1.0);
+                Vec2 escort = sim.Layout.KeepInStreet(rescuer.Position + toCenter * 3.5, sim.Rules.PlayerRadius + 0.8);
+                if (!sim.Layout.InBase(-sim.SideForTeam(Team), escort)) return escort;
+            }
+            int mappedLane;
+            switch (role)
+            {
+                case CharacterRole.Striker:
+                    mappedLane = state.Id % 2;  // outer flank wings (0 or 1)
+                    break;
+                case CharacterRole.Controller:
+                    mappedLane = 2;  // center choke / base entrance
+                    break;
+                case CharacterRole.Seeker:
+                    mappedLane = (laneSlot + 1) % 3;  // sweeps mid & side choke lanes
+                    break;
+                default:
+                    mappedLane = laneSlot % 3;
+                    break;
+            }
+            return VanguardTarget(sim, state, mappedLane);
         }
 
         /// <summary>Screening waypoint across the three pathways outside the enemy base (or a nearby active merienda stand).</summary>

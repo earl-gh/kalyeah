@@ -1487,7 +1487,7 @@
       "deformBones": 70,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4579
+      "fileSizeKb": 4290
     },
     "lod1": {
       "asset": "models/characters/karding_lod1",
@@ -1495,7 +1495,7 @@
       "deformBones": 50,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 861
+      "fileSizeKb": 866
     },
     "lod2": {
       "asset": "models/characters/karding_lod2",
@@ -1503,14 +1503,15 @@
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 268
+      "fileSizeKb": 264
     }
   },
   "textures": {
     "baseColorEmbedded": true,
     "normal": "models/characters/karding_2",
     "orm": "models/characters/karding_orm",
-    "ormChannels": "R=AO,G=Roughness,B=Metallic"
+    "ormChannels": "R=AO,G=Roughness,B=Metallic",
+    "stylizedPolishVersion": 2
   },
   "log": [
     "removed 4 path-breaking bones",
@@ -1520,5 +1521,11 @@
     "cape/hair limb-pull cleaned verts: 14287 (cape_zone=17380)",
     "stray influences removed: 4245",
     "cross-side influences removed: 303"
+  ],
+  "facialShapes": [
+    "Blink",
+    "Smile",
+    "Determined",
+    "Talk_Open"
   ]
 }

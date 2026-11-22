@@ -45,6 +45,8 @@ namespace Kalyeah.Game
         Bounce = 5,
         Knockout = 6,
         Tripped = 7,
+        Root = 8,
+        Slip = 9,
     }
 
     public enum BuffKind
@@ -90,6 +92,49 @@ namespace Kalyeah.Game
         PendingCone = 7,
     }
 
+    public enum AimCameraKind
+    {
+        Normal = 0,
+        Ads = 1,
+        ZoomOut = 2,
+        MapCast = 3,
+    }
+
+    public enum RevealMarkerKind
+    {
+        None = 0,
+        Outline = 1,
+        Snapshot = 2,
+    }
+
+    public enum CharacterRoleKind
+    {
+        Striker = 0,
+        Defender = 1,
+        Seeker = 2,
+        Controller = 3,
+    }
+
+    public enum SkillZoneVisualKind
+    {
+        PabitinHeal = 0,
+        PaloseboPole = 1,
+        SaranggolaKite = 2,
+        PikoGrid = 3,
+        JackstoneCircle = 4,
+        LuksongLubidRope = 5,
+        GarterNet = 6,
+        HolensSpillCone = 7,
+        PatinteroLines = 8,
+        PabitinSnare = 9,
+        LupaQuake = 10,
+        PukpokLanding = 11,
+        TayaCount = 12,
+        LangitAura = 13,
+        TrumpoSpin = 14,
+        SungkaAbsorb = 15,
+    }
+
     /// <summary>Bit flags matching Kalyeah.Sim.PlayerInput bit-for-bit.</summary>
     public static class InputButtons
     {
@@ -109,6 +154,7 @@ namespace Kalyeah.Game
         public const int Crouch = 1 << 12;
         public const int Slide = 1 << 13;
         public const int Ads = 1 << 14;
+        public const int Reload = 1 << 15;
 
         public static int CardSlotBit(int slot) => (slot >= 0 && slot < 4) ? (1 << slot) : 0;
     }
@@ -134,8 +180,22 @@ namespace Kalyeah.Game
         public string BotDifficulty;
         public bool TrainingMode;
         public bool? CardCycleOverride;
+        public bool? SpecKitsOverride;
         public int FirstTo;
         public GameClient OnlineClient;
+    }
+
+    /// <summary>Authoritative hit-confirm snapshot for crosshair hitmarkers, headshot dings, and TAYA! confirm stamps.</summary>
+    public struct HitConfirmInfo
+    {
+        public int Tick;
+        public int AttackerId;
+        public int TargetId;
+        public string WeaponId;
+        public int Damage;
+        public bool IsHeadshot;
+        public bool IsTag;
+        public Vector2 WorldPos;
     }
 
     /// <summary>What the view draws of one kid, copied out of the sim after each tick (zero per-tick heap allocations).</summary>
@@ -144,6 +204,7 @@ namespace Kalyeah.Game
         public int Id;
         public int Team;
         public string CharacterId;
+        public CharacterRoleKind Role;
         /// <summary>Feet on the ground, sim XZ (GodotSpace.World makes it a Unity point).</summary>
         public Vector2 Position;
         public Vector2 Facing;
@@ -163,7 +224,7 @@ namespace Kalyeah.Game
         public Vector2 DashDir;
         public Vector2 SlideDir;
 
-        // Resources
+        // Resources (legacy stamina/elixir + docs/KITS.md Water mana & 7-stone Tirador)
         public float Stamina;
         public float MaxStamina;
         public float ExhaustLeft;
@@ -171,8 +232,19 @@ namespace Kalyeah.Game
         public float Elixir;
         public float MaxElixir;
         public float UltCharge;
+        public bool UsingSpecKit;
+        public float Water;
+        public float MaxWater;
+        public bool InHomeFountain;
+        public int TiradorAmmo;
+        public int TiradorMaxAmmo;
+        public float TiradorReloadLeft;
+        public float TiradorReloadTotal;
+        /// <summary>0..1 while pulling back Tirador; -1 when not charging.</summary>
+        public float TiradorCharge01;
+        public float TiradorCurrentRange;
 
-        // Status & Merienda buff
+        // Status, Merienda buff & spec kit combat states
         public StatusKind StatusKind;
         public float StatusLeft;
         public float ImmuneLeft;
@@ -180,6 +252,20 @@ namespace Kalyeah.Game
         public BuffKind ActiveBuff;
         public float BuffLeft;
         public string BuffId;
+        public float BlurLeft;
+        public float RevealedOutlineLeft;
+        public float RevealAlertLeft;
+        public bool KnownRevealAlert;
+        public bool Invisible;
+        public bool OnStilts;
+        public bool InSackRace;
+        public bool InLuksongBaka;
+        public bool SpinningTrumpo;
+        public float ShieldHp;
+        public bool LangitProtected;
+        public float TayaCountLeft;
+        public bool SyatoRecastReady;
+        public bool EmpoweredShotReady;
 
         // Casting, hold-aim & ability cooldowns
         public string CastingWeaponId;
@@ -194,13 +280,17 @@ namespace Kalyeah.Game
         public float JumpCooldown;
         public float SlideCooldown;
 
-        // Superpower loadout / 4-card cycle hand
+        // Superpower loadout / 3-skill spec kit / 4-card cycle hand
         public bool CardsMode;
         public int HandCount;
         public string[] HandWeaponIds;
         public float[] SlotCooldowns;
         public float[] SlotMaxCooldowns;
         public int[] SlotElixirCosts;
+        public int[] SlotWaterCosts;
+        public int[] SlotCharges;
+        public int[] SlotMaxCharges;
+        public AimCameraKind[] SlotAimCameras;
         public string NextWeaponId;
         public string ShuffleWeaponId;
         public float ShuffleLeft;
@@ -237,6 +327,92 @@ namespace Kalyeah.Game
         public float MaxRange;
         public bool Returning;
         public int Bounces;
+    }
+
+    public struct WallSnapshot
+    {
+        public int Id;
+        public int OwnerId;
+        public int Team;
+        public string SkillId;
+        public Vector2 Center;
+        public Vector2 Along;
+        public float HalfWidth;
+        public int Hp;
+        public int MaxHp;
+        public float TimeLeft;
+        public float Duration;
+    }
+
+    public struct TrapSnapshot
+    {
+        public int Id;
+        public int OwnerId;
+        public int Team;
+        public string SkillId;
+        public Vector2 Position;
+        public float TriggerRadius;
+        public bool Armed;
+        public bool VisibleToLocal;
+        public bool Revealed;
+    }
+
+    public struct SentrySnapshot
+    {
+        public int Id;
+        public int OwnerId;
+        public int Team;
+        public string SkillId;
+        public Vector2 Position;
+        public float Radius;
+        public float TimeLeft;
+        public float Duration;
+        public float PingPulse01;
+    }
+
+    public struct TetherSnapshot
+    {
+        public int Id;
+        public int OwnerId;
+        public int AllyId;
+        public int Team;
+        public string SkillId;
+        public Vector2 OwnerPos;
+        public Vector2 AllyPos;
+        public float MaxRange;
+        public float Stretch01;
+        public float TimeLeft;
+    }
+
+    public struct SkillZoneSnapshot
+    {
+        public int Id;
+        public int OwnerId;
+        public int Team;
+        public string SkillId;
+        public SkillZoneVisualKind Kind;
+        public Vector2 Position;
+        public Vector2 EndPosition;
+        public Vector2 Direction;
+        public float Radius;
+        public float HalfWidth;
+        public float AngleDegrees;
+        public int Count;
+        public float Spacing;
+        public float TimeLeft;
+        public float Duration;
+        public float DelayLeft;
+    }
+
+    public struct RevealMarkerSnapshot
+    {
+        public int Id;
+        public int TargetId;
+        public int Team;
+        public string SkillId;
+        public Vector2 Position;
+        public float TimeLeft;
+        public float Duration;
     }
 
     /// <summary>Barangay Merienda stand state (Palamig, Teks, Turon).</summary>
@@ -283,7 +459,7 @@ namespace Kalyeah.Game
         public bool Ready;
     }
 
-    /// <summary>Static metadata and combat numbers for a weapon or superpower.</summary>
+    /// <summary>Static metadata and combat numbers for a weapon, superpower, or docs/KITS.md kid skill.</summary>
     public struct WeaponInfo
     {
         public string Id;
@@ -296,6 +472,12 @@ namespace Kalyeah.Game
         public WeaponRoleKind Kind;
         public WeaponShapeKind Shape;
         public int ElixirCost;
+        public int WaterCost;
+        public int MaxCharges;
+        public AimCameraKind AimCamera;
+        public RevealMarkerKind RevealKind;
+        public bool KnownRevealAlert;
+        public bool IsUltimate;
         public int Damage;
         public int Heal;
         public int Count;
@@ -346,8 +528,23 @@ namespace Kalyeah.Game
         public const int BtnJump = InputButtons.Jump;
         public const int BtnCrouch = InputButtons.Crouch;
         public const int BtnSlide = InputButtons.Slide;
+        public const int BtnAds = InputButtons.Ads;
+        public const int BtnReload = InputButtons.Reload;
 
         static readonly Regex RefPattern = new Regex("\"\\$ref\"\\s*:\\s*\"(res://data/[^\"]+)\"", RegexOptions.Compiled);
+
+        static readonly StatusEffects.Type[] StatusPriority =
+        {
+            StatusEffects.Type.Knockout,
+            StatusEffects.Type.Polymorph,
+            StatusEffects.Type.Airborne,
+            StatusEffects.Type.Stun,
+            StatusEffects.Type.Root,
+            StatusEffects.Type.Bounce,
+            StatusEffects.Type.Tripped,
+            StatusEffects.Type.Slip,
+            StatusEffects.Type.Slow,
+        };
 
         sealed class KidSlotCache
         {
@@ -355,6 +552,10 @@ namespace Kalyeah.Game
             public float[] Cooldowns = Array.Empty<float>();
             public float[] MaxCooldowns = Array.Empty<float>();
             public int[] Costs = Array.Empty<int>();
+            public int[] WaterCosts = Array.Empty<int>();
+            public int[] Charges = Array.Empty<int>();
+            public int[] MaxCharges = Array.Empty<int>();
+            public AimCameraKind[] AimCameras = Array.Empty<AimCameraKind>();
 
             public void EnsureSize(int count)
             {
@@ -363,12 +564,22 @@ namespace Kalyeah.Game
                 Cooldowns = count == 0 ? Array.Empty<float>() : new float[count];
                 MaxCooldowns = count == 0 ? Array.Empty<float>() : new float[count];
                 Costs = count == 0 ? Array.Empty<int>() : new int[count];
+                WaterCosts = count == 0 ? Array.Empty<int>() : new int[count];
+                Charges = count == 0 ? Array.Empty<int>() : new int[count];
+                MaxCharges = count == 0 ? Array.Empty<int>() : new int[count];
+                AimCameras = count == 0 ? Array.Empty<AimCameraKind>() : new AimCameraKind[count];
             }
         }
 
         readonly List<KidSnapshot> _kids = new List<KidSnapshot>(12);
         readonly List<WorldEffectSnapshot> _projectiles = new List<WorldEffectSnapshot>(32);
         readonly List<WorldEffectSnapshot> _worldEffects = new List<WorldEffectSnapshot>(48);
+        readonly List<WallSnapshot> _walls = new List<WallSnapshot>(12);
+        readonly List<TrapSnapshot> _traps = new List<TrapSnapshot>(16);
+        readonly List<SentrySnapshot> _sentries = new List<SentrySnapshot>(8);
+        readonly List<TetherSnapshot> _tethers = new List<TetherSnapshot>(6);
+        readonly List<SkillZoneSnapshot> _skillZones = new List<SkillZoneSnapshot>(24);
+        readonly List<RevealMarkerSnapshot> _revealMarkers = new List<RevealMarkerSnapshot>(24);
         readonly List<MeriendaStandSnapshot> _meriendaStands = new List<MeriendaStandSnapshot>(4);
         readonly BaseObjectiveSnapshot[] _bases = new BaseObjectiveSnapshot[2];
         readonly RescueObjectiveSnapshot[] _rescues = new RescueObjectiveSnapshot[2];
@@ -385,11 +596,16 @@ namespace Kalyeah.Game
         public int MaxHp { get; }
         public float MaxStamina { get; }
         public float MaxElixir { get; }
+        public float MaxWater { get; }
+        public int TiradorMaxAmmo { get; }
+        public float TiradorMinRange { get; }
+        public float TiradorMaxRange { get; }
         public float ArenaRadius { get; }
         public float PlayerRadius { get; }
         public bool UsesStandIn { get; }
         public bool IsOnline { get; }
         public bool IsTraining { get; }
+        public bool SpecKitsActive => ActiveSim.Rules.UsesSpecKits() && ActiveSim.Players.TryGetValue(LocalPlayerId, out PlayerState lp) && lp.UsingSpecKit;
 
         public WeaponInfo? PrimaryWeaponInfo { get; }
         public WeaponInfo? UltimateWeaponInfo { get; }
@@ -397,6 +613,12 @@ namespace Kalyeah.Game
         public IReadOnlyList<KidSnapshot> Kids => _kids;
         public IReadOnlyList<WorldEffectSnapshot> Projectiles => _projectiles;
         public IReadOnlyList<WorldEffectSnapshot> WorldEffects => _worldEffects;
+        public IReadOnlyList<WallSnapshot> Walls => _walls;
+        public IReadOnlyList<TrapSnapshot> Traps => _traps;
+        public IReadOnlyList<SentrySnapshot> Sentries => _sentries;
+        public IReadOnlyList<TetherSnapshot> Tethers => _tethers;
+        public IReadOnlyList<SkillZoneSnapshot> SkillZones => _skillZones;
+        public IReadOnlyList<RevealMarkerSnapshot> RevealMarkers => _revealMarkers;
         public IReadOnlyList<MeriendaStandSnapshot> MeriendaStands => _meriendaStands;
         public IReadOnlyList<BaseObjectiveSnapshot> Bases => _bases;
         public IReadOnlyList<RescueObjectiveSnapshot> Rescues => _rescues;
@@ -423,6 +645,14 @@ namespace Kalyeah.Game
         /// <summary>(playerId, stickerIndex) quick-chat sticker event.</summary>
         public event Action<int, int> QuickChatSaid;
 
+        // Chunk 2 spec combat events
+        public event Action<HitConfirmInfo> HitConfirmed;
+        public event Action<int, Vector2> WallBroken;
+        public event Action<int, Vector2, bool> TrapTriggered;
+        public event Action<int, int, RevealMarkerKind, bool> PlayerRevealed;
+        public event Action<int> TiradorReloadStarted;
+        public event Action<int> WaterInsufficient;
+
         public SimBridge(DataSource data, long seed, string localCharacter)
             : this(data, new MatchSetup { Seed = seed, LocalCharacter = localCharacter })
         {
@@ -448,12 +678,18 @@ namespace Kalyeah.Game
 
             if (setup.CardCycleOverride.HasValue)
                 rules.CardCycle = setup.CardCycleOverride.Value;
+            if (setup.SpecKitsOverride.HasValue)
+                rules.SpecKitsEnabled = setup.SpecKitsOverride.Value;
 
             MapLayout layout = simData.MapLayout;
             TickDt = 1f / rules.TickRate;
             MaxHp = rules.PlayerMaxHp;
             MaxStamina = (float)rules.StaminaMax;
             MaxElixir = (float)rules.ElixirMax;
+            MaxWater = (float)rules.WaterMax;
+            TiradorMaxAmmo = rules.TiradorMaxAmmo;
+            TiradorMinRange = (float)rules.TiradorMinRange;
+            TiradorMaxRange = (float)rules.TiradorMaxRange;
             ArenaRadius = (float)layout.ArenaRadius;
             PlayerRadius = (float)rules.PlayerRadius;
             _runPerTick = (float)rules.MoveSpeed * TickDt;
@@ -486,18 +722,18 @@ namespace Kalyeah.Game
             if (IsTraining)
             {
                 _coaches = Array.Empty<TeamCoach>();
-                SetupTrainingMatch(_offlineSim, rules, layout, avatar, setup.SuperpowerLoadout);
+                SetupTrainingMatch(_offlineSim, rules, layout, avatar, setup.SuperpowerLoadout, setup.SpecKitsOverride);
             }
             else
             {
-                _coaches = SetupBotMatch(_offlineSim, rules, avatar, setup.SuperpowerLoadout);
+                _coaches = SetupBotMatch(_offlineSim, rules, avatar, setup.SuperpowerLoadout, setup.SpecKitsOverride);
             }
 
             _offlineSim.BeginIntro();
             Refresh();
         }
 
-        static TeamCoach[] SetupBotMatch(MatchSim sim, GameRules rules, string avatar, string[] loadout)
+        static TeamCoach[] SetupBotMatch(MatchSim sim, GameRules rules, string avatar, string[] loadout, bool? specOverride)
         {
             sim.AddPlayer(LocalId, LocalTeam);
             var allies = new TeamCoach(LocalTeam, LocalId);
@@ -506,13 +742,15 @@ namespace Kalyeah.Game
             foreach (int id in EnemyIds) { sim.AddPlayer(id, 1 - LocalTeam); foes.Add(sim, id, rules.BotSkill); }
 
             AssignUniqueRoster(sim, rules, avatar);
-            EquipLocalPlayer(sim, LocalId, loadout);
+            bool useSpec = rules.UsesSpecKits() && !rules.CardCycle && specOverride != false && sim.HasSpecKit(avatar);
+            if (useSpec) sim.EquipSpecKit(LocalId);
+            else EquipLocalPlayer(sim, LocalId, loadout);
             foreach (int id in AllyIds) sim.Equip(id, true);
             foreach (int id in EnemyIds) sim.Equip(id, true);
             return new[] { allies, foes };
         }
 
-        static void SetupTrainingMatch(MatchSim sim, GameRules rules, MapLayout layout, string avatar, string[] loadout)
+        static void SetupTrainingMatch(MatchSim sim, GameRules rules, MapLayout layout, string avatar, string[] loadout, bool? specOverride)
         {
             sim.AddPlayer(LocalId, LocalTeam);
             var standSpot = new Vec2(rules.DummyStandX, rules.DummyZ);
@@ -536,7 +774,11 @@ namespace Kalyeah.Game
 
             sim.AssignCharacters();
             sim.SetCharacter(LocalId, avatar);
-            EquipLocalPlayer(sim, LocalId, loadout);
+            bool explicitLegacy = loadout != null && loadout.Length > 0 && specOverride != true;
+            if (!explicitLegacy && rules.UsesSpecKits() && !rules.CardCycle && specOverride != false && sim.HasSpecKit(avatar))
+                sim.EquipSpecKit(LocalId);
+            else
+                EquipLocalPlayer(sim, LocalId, loadout);
             if (sim.IsFighter(TrainingEnemyStandId)) sim.Equip(TrainingEnemyStandId, true);
             if (sim.IsFighter(TrainingEnemyPatrolId)) sim.Equip(TrainingEnemyPatrolId, true);
         }
@@ -570,6 +812,25 @@ namespace Kalyeah.Game
         void OnSimExhausted(int id) => PlayerExhausted?.Invoke(id);
         void OnSimPowerupTaken(int pid, int standId, int kind) => PowerupTaken?.Invoke(pid, standId, (BuffKind)kind);
 
+        void OnSimHitConfirmed(HitConfirmEvent ev) => HitConfirmed?.Invoke(new HitConfirmInfo
+        {
+            Tick = ev.Tick,
+            AttackerId = ev.AttackerId,
+            TargetId = ev.TargetId,
+            WeaponId = ev.WeaponId ?? "",
+            Damage = ev.Damage,
+            IsHeadshot = ev.IsHeadshot,
+            IsTag = ev.IsTag,
+            WorldPos = new Vector2(ev.WorldPos.X, ev.WorldPos.Y),
+        });
+
+        void OnSimWallBroken(int ownerId, Vec2 pos) => WallBroken?.Invoke(ownerId, new Vector2(pos.X, pos.Y));
+        void OnSimTrapTriggered(int ownerId, Vec2 pos, bool disarmed) => TrapTriggered?.Invoke(ownerId, new Vector2(pos.X, pos.Y), disarmed);
+        void OnSimPlayerRevealed(int targetId, int viewerTeam, RevealKind kind, bool knownAlert) =>
+            PlayerRevealed?.Invoke(targetId, viewerTeam, (RevealMarkerKind)(int)kind, knownAlert);
+        void OnSimTiradorReloadStarted(int playerId) => TiradorReloadStarted?.Invoke(playerId);
+        void OnSimWaterInsufficient(int playerId) => WaterInsufficient?.Invoke(playerId);
+
         void OnSimConeWinding(int owner, WeaponDef def, Vec2 origin, Vec2 dir) =>
             ConeTriggered?.Invoke(owner, def.Id, new Vector2(origin.X, origin.Y), new Vector2(dir.X, dir.Y), true);
 
@@ -596,6 +857,12 @@ namespace Kalyeah.Game
             sim.UltimateCast += OnSimUltimateCast;
             sim.Exhausted += OnSimExhausted;
             sim.PowerupTaken += OnSimPowerupTaken;
+            sim.HitConfirmed += OnSimHitConfirmed;
+            sim.WallBroken += OnSimWallBroken;
+            sim.TrapTriggered += OnSimTrapTriggered;
+            sim.PlayerRevealed += OnSimPlayerRevealed;
+            sim.TiradorReloadStarted += OnSimTiradorReloadStarted;
+            sim.WaterInsufficient += OnSimWaterInsufficient;
             sim.Weapons.ConeWinding += OnSimConeWinding;
             sim.Weapons.ConeStruck += OnSimConeStruck;
         }
@@ -620,6 +887,12 @@ namespace Kalyeah.Game
             sim.UltimateCast -= OnSimUltimateCast;
             sim.Exhausted -= OnSimExhausted;
             sim.PowerupTaken -= OnSimPowerupTaken;
+            sim.HitConfirmed -= OnSimHitConfirmed;
+            sim.WallBroken -= OnSimWallBroken;
+            sim.TrapTriggered -= OnSimTrapTriggered;
+            sim.PlayerRevealed -= OnSimPlayerRevealed;
+            sim.TiradorReloadStarted -= OnSimTiradorReloadStarted;
+            sim.WaterInsufficient -= OnSimWaterInsufficient;
             sim.Weapons.ConeWinding -= OnSimConeWinding;
             sim.Weapons.ConeStruck -= OnSimConeStruck;
         }
@@ -885,6 +1158,21 @@ namespace Kalyeah.Game
                 _weaponLookup[rules.PrimaryWeapon.Id] = ToWeaponInfo(rules.PrimaryWeapon);
             if (rules.UltimateWeapon != null && !string.IsNullOrEmpty(rules.UltimateWeapon.Id))
                 _weaponLookup[rules.UltimateWeapon.Id] = ToWeaponInfo(rules.UltimateWeapon);
+
+            if (rules.Characters != null)
+            {
+                for (int c = 0; c < rules.Characters.Count; c++)
+                {
+                    CharacterDef ch = rules.Characters[c];
+                    if (ch == null || ch.Skills == null) continue;
+                    for (int s = 0; s < ch.Skills.Count; s++)
+                    {
+                        SkillDef sk = ch.Skills[s];
+                        if (sk == null || string.IsNullOrEmpty(sk.Id)) continue;
+                        _weaponLookup[sk.Id] = ToSkillWeaponInfo(sk);
+                    }
+                }
+            }
         }
 
         static WeaponInfo ToWeaponInfo(WeaponDef def)
@@ -901,6 +1189,12 @@ namespace Kalyeah.Game
                 Kind = (WeaponRoleKind)(int)def.Kind,
                 Shape = (WeaponShapeKind)(int)def.Shape,
                 ElixirCost = def.ElixirCost,
+                WaterCost = 0,
+                MaxCharges = 1,
+                AimCamera = AimCameraKind.Normal,
+                RevealKind = RevealMarkerKind.None,
+                KnownRevealAlert = false,
+                IsUltimate = false,
                 Damage = def.Damage,
                 Heal = def.Heal,
                 Count = def.Count,
@@ -922,6 +1216,79 @@ namespace Kalyeah.Game
                 EffectMagnitude = (float)def.EffectMagnitude,
                 CastLock = (float)def.CastLock,
             };
+        }
+
+        static WeaponInfo ToSkillWeaponInfo(SkillDef sk)
+        {
+            WeaponRoleKind roleKind = sk.Heal > 0 ? WeaponRoleKind.Heal
+                : (sk.WallHp > 0 ? WeaponRoleKind.Block
+                : (sk.Damage > 0 ? WeaponRoleKind.Attack : WeaponRoleKind.CrowdControl));
+            return new WeaponInfo
+            {
+                Id = sk.Id ?? "",
+                DisplayName = sk.DisplayName ?? "",
+                ShortName = sk.ShortName ?? "",
+                Description = sk.Description ?? "",
+                StreetGame = sk.StreetGame ?? "",
+                IconPath = string.IsNullOrEmpty(sk.Id) ? "" : ("ui/weapons/" + sk.Id),
+                Look = "",
+                Kind = roleKind,
+                Shape = ShapeForSkill(sk.Mechanic),
+                ElixirCost = 0,
+                WaterCost = sk.WaterCost,
+                MaxCharges = Math.Max(1, sk.MaxCharges),
+                AimCamera = (AimCameraKind)(int)sk.AimCamera,
+                RevealKind = (RevealMarkerKind)(int)sk.RevealKind,
+                KnownRevealAlert = sk.KnownRevealAlert,
+                IsUltimate = sk.IsUltimate,
+                Damage = sk.Damage,
+                Heal = sk.Heal,
+                Count = Math.Max(1, sk.Count),
+                CardPower = 0,
+                Cooldown = (float)sk.Cooldown,
+                MaxRange = (float)sk.MaxRange,
+                Radius = (float)sk.Radius,
+                AngleDegrees = (float)sk.AngleDegrees,
+                Delay = (float)sk.Delay,
+                Speed = (float)sk.Speed,
+                Duration = (float)sk.Duration,
+                ArmTime = 0.4f,
+                TriggerRadius = (float)sk.Radius,
+                Width = (float)sk.Width,
+                Offset = 0f,
+                ProjectileRadius = 0.30f,
+                Effect = StatusKind.None,
+                EffectDuration = (float)sk.EffectDuration,
+                EffectMagnitude = (float)sk.EffectMagnitude,
+                CastLock = 0f,
+            };
+        }
+
+        static WeaponShapeKind ShapeForSkill(SkillMechanic mechanic)
+        {
+            switch (mechanic)
+            {
+                case SkillMechanic.TsinelasBagsik: return WeaponShapeKind.Boomerang;
+                case SkillMechanic.SiliTubig:
+                case SkillMechanic.HolensSpill: return WeaponShapeKind.Cone;
+                case SkillMechanic.BahayBahayan:
+                case SkillMechanic.TinikWall: return WeaponShapeKind.Shield;
+                case SkillMechanic.TeksTripwire:
+                case SkillMechanic.SakoTrap: return WeaponShapeKind.Trap;
+                case SkillMechanic.PabitinHeal:
+                case SkillMechanic.Palosebo:
+                case SkillMechanic.Saranggola:
+                case SkillMechanic.Piko:
+                case SkillMechanic.Jackstone:
+                case SkillMechanic.GarterNet:
+                case SkillMechanic.PatinteroLines:
+                case SkillMechanic.LuksongLubid: return WeaponShapeKind.Field;
+                case SkillMechanic.PukpokPalayok:
+                case SkillMechanic.PogsSlam:
+                case SkillMechanic.PabitinSnare:
+                case SkillMechanic.LupaQuake: return WeaponShapeKind.GroundAoe;
+                default: return WeaponShapeKind.Skillshot;
+            }
         }
 
         void Refresh()
@@ -984,24 +1351,51 @@ namespace Kalyeah.Game
                     string wid = p.Weapons[s] ?? "";
                     slotCache.HandIds[s] = wid;
                     slotCache.Cooldowns[s] = s < p.WeaponCooldowns.Count ? (float)p.WeaponCooldowns[s] : 0f;
-                    if (sim.WeaponDefs.TryGetValue(wid, out WeaponDef wdef))
+                    if (p.UsingSpecKit && sim.SkillDefs.TryGetValue(wid, out SkillDef sdef))
+                    {
+                        slotCache.MaxCooldowns[s] = (float)sdef.Cooldown;
+                        slotCache.Costs[s] = 0;
+                        slotCache.WaterCosts[s] = sdef.WaterCost;
+                        int maxChg = Math.Max(1, sdef.MaxCharges);
+                        slotCache.MaxCharges[s] = maxChg;
+                        slotCache.Charges[s] = (s == 0 && maxChg > 1) ? p.S1Charges : (slotCache.Cooldowns[s] <= 0f ? 1 : 0);
+                        slotCache.AimCameras[s] = (AimCameraKind)(int)sdef.AimCamera;
+                    }
+                    else if (sim.WeaponDefs.TryGetValue(wid, out WeaponDef wdef))
                     {
                         slotCache.MaxCooldowns[s] = (float)wdef.Cooldown;
                         slotCache.Costs[s] = wdef.ElixirCost;
+                        slotCache.WaterCosts[s] = 0;
+                        slotCache.MaxCharges[s] = 1;
+                        slotCache.Charges[s] = slotCache.Cooldowns[s] <= 0f ? 1 : 0;
+                        slotCache.AimCameras[s] = AimCameraKind.Normal;
                     }
                     else
                     {
                         slotCache.MaxCooldowns[s] = 0f;
                         slotCache.Costs[s] = 0;
+                        slotCache.WaterCosts[s] = 0;
+                        slotCache.MaxCharges[s] = 1;
+                        slotCache.Charges[s] = 0;
+                        slotCache.AimCameras[s] = AimCameraKind.Normal;
                     }
                 }
 
+                float charge01 = p.TiradorChargeTime >= 0.0
+                    ? Math.Clamp((float)(rules.TiradorChargeSeconds > 0.0 ? p.TiradorChargeTime / rules.TiradorChargeSeconds : 0.0), 0f, 1f)
+                    : -1f;
+                float currentRange = (float)GMath.Lerpf(rules.TiradorMinRange, rules.TiradorMaxRange, charge01 >= 0f ? charge01 : 0f);
+                if (p.StiltsLeft > 0.0) currentRange *= 1.4f;
+
+                CharacterDef cdef = sim.GetCharacterDef(p.CharacterId);
+                CharacterRoleKind role = cdef != null ? (CharacterRoleKind)(int)cdef.Role : CharacterRoleKind.Striker;
                 BuffKind buff = (BuffKind)p.BuffType;
                 _kids.Add(new KidSnapshot
                 {
                     Id = p.Id,
                     Team = p.Team,
                     CharacterId = p.CharacterId ?? "",
+                    Role = role,
                     Position = pos,
                     Facing = facing,
                     Hp = p.Hp,
@@ -1025,6 +1419,16 @@ namespace Kalyeah.Game
                     Elixir = (float)p.Elixir,
                     MaxElixir = (float)rules.ElixirMax,
                     UltCharge = (float)p.UltCharge,
+                    UsingSpecKit = p.UsingSpecKit,
+                    Water = (float)p.Water,
+                    MaxWater = (float)rules.WaterMax,
+                    InHomeFountain = p.InHomeFountain,
+                    TiradorAmmo = p.TiradorAmmo,
+                    TiradorMaxAmmo = rules.TiradorMaxAmmo,
+                    TiradorReloadLeft = (float)p.TiradorReloadLeft,
+                    TiradorReloadTotal = (float)rules.TiradorReloadSeconds,
+                    TiradorCharge01 = charge01,
+                    TiradorCurrentRange = currentRange,
 
                     StatusKind = domStatus,
                     StatusLeft = statusLeft,
@@ -1033,6 +1437,20 @@ namespace Kalyeah.Game
                     ActiveBuff = buff,
                     BuffLeft = (float)p.BuffLeft,
                     BuffId = BuffIdOf(buff),
+                    BlurLeft = (float)p.BlurLeft,
+                    RevealedOutlineLeft = (float)p.RevealedOutlineLeft,
+                    RevealAlertLeft = (float)p.RevealAlertLeft,
+                    KnownRevealAlert = p.KnownRevealAlert,
+                    Invisible = p.InvisibleLeft > 0.0,
+                    OnStilts = p.StiltsLeft > 0.0,
+                    InSackRace = p.SackRaceLeft > 0.0,
+                    InLuksongBaka = p.LuksongBakaLeft > 0.0,
+                    SpinningTrumpo = p.TrumpoSpinLeft > 0.0,
+                    ShieldHp = (float)p.ShieldHp,
+                    LangitProtected = p.LangitLeft > 0.0,
+                    TayaCountLeft = (float)p.TayaCountLeft,
+                    SyatoRecastReady = p.SyatoRecastLeft > 0.0 && p.SyatoTargetId >= 0,
+                    EmpoweredShotReady = p.EmpoweredTiradorLeft > 0.0 && p.EmpoweredTiradorBonus > 0.0,
 
                     CastingWeaponId = castingWid,
                     CastWindupLeft = windupLeft,
@@ -1040,7 +1458,7 @@ namespace Kalyeah.Game
                     HeldSlot = heldSlot,
                     AimHoldSeconds = heldSec,
                     PrimaryCooldown = (float)p.PrimaryCd,
-                    PrimaryMaxCooldown = rules.PrimaryWeapon != null ? (float)rules.PrimaryWeapon.Cooldown : 0f,
+                    PrimaryMaxCooldown = p.UsingSpecKit ? (float)rules.TiradorFireCooldown : (rules.PrimaryWeapon != null ? (float)rules.PrimaryWeapon.Cooldown : 0f),
                     DashCooldown = (float)p.DashCd,
                     DashMaxCooldown = (float)rules.DashCooldown,
                     JumpCooldown = (float)p.JumpCd,
@@ -1052,6 +1470,10 @@ namespace Kalyeah.Game
                     SlotCooldowns = slotCache.Cooldowns,
                     SlotMaxCooldowns = slotCache.MaxCooldowns,
                     SlotElixirCosts = slotCache.Costs,
+                    SlotWaterCosts = slotCache.WaterCosts,
+                    SlotCharges = slotCache.Charges,
+                    SlotMaxCharges = slotCache.MaxCharges,
+                    SlotAimCameras = slotCache.AimCameras,
                     NextWeaponId = p.NextCard ?? "",
                     ShuffleWeaponId = p.ShuffleCard ?? "",
                     ShuffleLeft = (float)p.ShuffleLeft,
@@ -1067,6 +1489,7 @@ namespace Kalyeah.Game
             }
 
             RefreshWorldEffects(sim);
+            RefreshSpecEntities(sim);
             RefreshObjectivesAndStands(sim);
         }
 
@@ -1074,22 +1497,12 @@ namespace Kalyeah.Game
 
         static StatusKind DominantStatus(StatusEffects effects, out float timeLeft)
         {
-            StatusEffects.Type[] priority =
+            for (int i = 0; i < StatusPriority.Length; i++)
             {
-                StatusEffects.Type.Knockout,
-                StatusEffects.Type.Polymorph,
-                StatusEffects.Type.Airborne,
-                StatusEffects.Type.Stun,
-                StatusEffects.Type.Bounce,
-                StatusEffects.Type.Tripped,
-                StatusEffects.Type.Slow,
-            };
-            for (int i = 0; i < priority.Length; i++)
-            {
-                if (effects.Has(priority[i]))
+                if (effects.Has(StatusPriority[i]))
                 {
-                    timeLeft = (float)effects.TimeLeft(priority[i]);
-                    return (StatusKind)(int)priority[i];
+                    timeLeft = (float)effects.TimeLeft(StatusPriority[i]);
+                    return (StatusKind)(int)StatusPriority[i];
                 }
             }
             timeLeft = 0f;
@@ -1106,20 +1519,22 @@ namespace Kalyeah.Game
             {
                 WeaponSystem.Projectile pr = projs[i];
                 WeaponDef def = pr.Def;
+                SkillDef sk = pr.Skill;
+                WeaponShapeKind shape = sk != null ? ShapeForSkill(sk.Mechanic) : (def != null ? (WeaponShapeKind)(int)def.Shape : WeaponShapeKind.Skillshot);
                 var snap = new WorldEffectSnapshot
                 {
                     Id = pr.Id,
                     OwnerId = pr.OwnerId,
                     Team = pr.Team,
                     Kind = WorldEffectKind.Projectile,
-                    Shape = def != null ? (WeaponShapeKind)(int)def.Shape : WeaponShapeKind.Skillshot,
-                    WeaponId = def != null ? (def.Id ?? "") : "",
+                    Shape = shape,
+                    WeaponId = pr.EffectId ?? "",
                     Look = def != null ? (def.Look ?? "") : "",
                     Position = new Vector2(pr.Position.X, pr.Position.Y),
                     Direction = new Vector2(pr.Direction.X, pr.Direction.Y),
-                    Radius = def != null ? (float)Math.Max(def.ProjectileRadius, def.Radius) : 0.25f,
+                    Radius = sk != null ? 0.30f : (def != null ? (float)Math.Max(def.ProjectileRadius, def.Radius) : 0.25f),
                     Travelled = (float)pr.Travelled,
-                    MaxRange = def != null ? (float)def.MaxRange : 0f,
+                    MaxRange = (float)pr.EffectiveMaxRange,
                     Returning = pr.Returning,
                     Bounces = pr.Bounces,
                 };
@@ -1212,6 +1627,139 @@ namespace Kalyeah.Game
                     AngleDegrees = def != null ? (float)def.AngleDegrees : 0f,
                     TimeLeft = (float)pc.TimeLeft,
                     Duration = def != null ? (float)def.Delay : (float)pc.TimeLeft,
+                });
+            }
+        }
+
+        void RefreshSpecEntities(MatchSim sim)
+        {
+            int localTeam = LocalPlayerTeam;
+
+            _walls.Clear();
+            List<WeaponSystem.DestructibleWall> walls = sim.Weapons.Walls;
+            for (int i = 0; i < walls.Count; i++)
+            {
+                WeaponSystem.DestructibleWall w = walls[i];
+                _walls.Add(new WallSnapshot
+                {
+                    Id = w.Id,
+                    OwnerId = w.OwnerId,
+                    Team = w.Team,
+                    SkillId = w.SkillId ?? "",
+                    Center = new Vector2(w.Center.X, w.Center.Y),
+                    Along = new Vector2(w.Along.X, w.Along.Y),
+                    HalfWidth = (float)w.HalfWidth,
+                    Hp = w.Hp,
+                    MaxHp = w.MaxHp,
+                    TimeLeft = (float)w.TimeLeft,
+                    Duration = (float)w.Duration,
+                });
+            }
+
+            _traps.Clear();
+            List<WeaponSystem.HiddenTrap> traps = sim.Weapons.Traps;
+            for (int i = 0; i < traps.Count; i++)
+            {
+                WeaponSystem.HiddenTrap t = traps[i];
+                _traps.Add(new TrapSnapshot
+                {
+                    Id = t.Id,
+                    OwnerId = t.OwnerId,
+                    Team = t.Team,
+                    SkillId = t.SkillId ?? "",
+                    Position = new Vector2(t.Position.X, t.Position.Y),
+                    TriggerRadius = (float)t.TriggerRadius,
+                    Armed = t.Armed,
+                    VisibleToLocal = sim.IsTrapVisibleToTeam(t, localTeam),
+                    Revealed = t.RevealedToEnemy,
+                });
+            }
+
+            _sentries.Clear();
+            List<WeaponSystem.Sentry> sentries = sim.Weapons.Sentries;
+            for (int i = 0; i < sentries.Count; i++)
+            {
+                WeaponSystem.Sentry s = sentries[i];
+                float interval = s.PingInterval > 0.0 ? (float)s.PingInterval : 1f;
+                float pulse01 = Math.Clamp(1f - (float)s.PingTimer / interval, 0f, 1f);
+                _sentries.Add(new SentrySnapshot
+                {
+                    Id = s.Id,
+                    OwnerId = s.OwnerId,
+                    Team = s.Team,
+                    SkillId = s.SkillId ?? "",
+                    Position = new Vector2(s.Position.X, s.Position.Y),
+                    Radius = (float)s.Radius,
+                    TimeLeft = (float)s.TimeLeft,
+                    Duration = (float)s.Duration,
+                    PingPulse01 = pulse01,
+                });
+            }
+
+            _tethers.Clear();
+            List<WeaponSystem.AllyTether> tethers = sim.Weapons.Tethers;
+            for (int i = 0; i < tethers.Count; i++)
+            {
+                WeaponSystem.AllyTether te = tethers[i];
+                Vec2 op = sim.Players.TryGetValue(te.OwnerId, out PlayerState owner) ? owner.Position : Vec2.Zero;
+                Vec2 ap = sim.Players.TryGetValue(te.AllyId, out PlayerState ally) ? ally.Position : Vec2.Zero;
+                float stretch01 = te.MaxRange > 0.0 ? Math.Clamp((float)(op.DistanceTo(ap) / te.MaxRange), 0f, 1f) : 0f;
+                _tethers.Add(new TetherSnapshot
+                {
+                    Id = te.Id,
+                    OwnerId = te.OwnerId,
+                    AllyId = te.AllyId,
+                    Team = te.Team,
+                    SkillId = te.SkillId ?? "",
+                    OwnerPos = new Vector2(op.X, op.Y),
+                    AllyPos = new Vector2(ap.X, ap.Y),
+                    MaxRange = (float)te.MaxRange,
+                    Stretch01 = stretch01,
+                    TimeLeft = (float)te.TimeLeft,
+                });
+            }
+
+            _skillZones.Clear();
+            List<WeaponSystem.SkillZone> szones = sim.Weapons.SkillZones;
+            for (int i = 0; i < szones.Count; i++)
+            {
+                WeaponSystem.SkillZone z = szones[i];
+                _skillZones.Add(new SkillZoneSnapshot
+                {
+                    Id = z.Id,
+                    OwnerId = z.OwnerId,
+                    Team = z.Team,
+                    SkillId = z.SkillId ?? "",
+                    Kind = (SkillZoneVisualKind)(int)z.Kind,
+                    Position = new Vector2(z.Position.X, z.Position.Y),
+                    EndPosition = new Vector2(z.EndPosition.X, z.EndPosition.Y),
+                    Direction = new Vector2(z.Direction.X, z.Direction.Y),
+                    Radius = (float)z.Radius,
+                    HalfWidth = (float)z.HalfWidth,
+                    AngleDegrees = (float)z.AngleDegrees,
+                    Count = z.Count,
+                    Spacing = (float)z.Spacing,
+                    TimeLeft = (float)z.TimeLeft,
+                    Duration = (float)z.Duration,
+                    DelayLeft = (float)z.DelayLeft,
+                });
+            }
+
+            _revealMarkers.Clear();
+            List<WeaponSystem.RevealMarker> rmarks = sim.Weapons.RevealMarkers;
+            for (int i = 0; i < rmarks.Count; i++)
+            {
+                WeaponSystem.RevealMarker m = rmarks[i];
+                if (m.Team != localTeam) continue;
+                _revealMarkers.Add(new RevealMarkerSnapshot
+                {
+                    Id = m.Id,
+                    TargetId = m.TargetId,
+                    Team = m.Team,
+                    SkillId = m.SkillId ?? "",
+                    Position = new Vector2(m.Position.X, m.Position.Y),
+                    TimeLeft = (float)m.TimeLeft,
+                    Duration = (float)m.Duration,
                 });
             }
         }

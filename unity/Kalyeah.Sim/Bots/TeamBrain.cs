@@ -5,6 +5,8 @@ namespace Kalyeah.Sim
     /// (anything within `BotAggroRange` is fought), 2. stay at the enemy base (a RUSHER walks in and holds it; a DEFENDER holds its own base
     /// and does not chase out of it), 3. rescue a tagged teammate (the lowest-numbered free one, and only once it stands at its post).
     /// Pure sim, deterministic for a seed; a TeamCoach sets <see cref="Role"/>, <see cref="Hold"/>, <see cref="Target"/> and RescueDuty.
+    /// When `state.UsingSpecKit` is active, also manages safe Water fountain refills (retreating briefly to home base when Water < 25 and safe,
+    /// patrolling inside home base until Water >= 75) while keeping base holders and active rescuers locked to their objective.
     /// </summary>
     public class TeamBrain : FightBrain
     {
@@ -46,17 +48,31 @@ namespace Kalyeah.Sim
         /// <summary>
         /// No enemy in reach: a rusher goes to the enemy base and walks about in it, a defender walks about in its own, and only one already
         /// at its post sets off to rescue. Nobody stands still while there is something to do.
+        /// Spec-kit bots safely dip to their home fountain when low on Water and not holding an active capture/rescue.
         /// </summary>
         protected override PlayerInput NoEnemy(PlayerState state, MatchSim sim)
         {
             int teamSide = sim.SideForTeam(state.Team);
             if (RescueDue(state, sim) && IsRescuer(state, sim))
             {
+                _refillingWater = false;
                 Rect2 area = sim.Layout.RescueRect(sim.JailSideFor(state.Team));
                 // a spec rescue cancels when the rescuer moves: once the jail is ready, walk to its centre and stand there
                 bool standToRescue = sim.Rules.SpecRules && sim.RescueReadyLeft[state.Team] <= 0.0;
                 if (sim.Objectives.InRescueArea(sim, state) && !standToRescue) return Patrol(state, sim, area, RescuePatrolMargin);
                 return WalkToNav(state, sim, area.GetCenter());
+            }
+            if (state.UsingSpecKit && !Hold)
+            {
+                if (state.Water >= WaterRefillTarget) _refillingWater = false;
+                else if (state.Water < WaterLowThreshold && !AnyVisibleEnemyWithin(state, sim, WaterSafeDistance))
+                    _refillingWater = true;
+                if (_refillingWater)
+                {
+                    if (sim.Layout.InBase(teamSide, state.Position))
+                        return Patrol(state, sim, sim.Layout.BaseRect(teamSide), sim.Layout.BaseCorner);
+                    return WalkToNav(state, sim, sim.Layout.BaseCenter(teamSide));
+                }
             }
             if (Role == BrainRole.Rush)
             {
@@ -91,7 +107,11 @@ namespace Kalyeah.Sim
         /// <summary>A defender fights from inside its own base and does not chase out of it: at the edge it slides along it instead.</summary>
         PlayerInput Guard(PlayerState state, MatchSim sim, PlayerInput input)
         {
-            if (!input.IsPressed(PlayerInput.BtnMoveTarget) || sim.NearestEnemy(state, sim.Rules.BotAggroRange) == null) return input;
+            if (!input.IsPressed(PlayerInput.BtnMoveTarget)) return input;
+            bool enemyNear = state.UsingSpecKit
+                ? AnyVisibleEnemyWithin(state, sim, sim.Rules.BotAggroRange)
+                : sim.NearestEnemy(state, sim.Rules.BotAggroRange) != null;
+            if (!enemyNear) return input;
             Vec2 way = input.MoveTarget - state.Position;
             if (way.LengthSquared() <= 0.0) return input;
             Vec2 centre = sim.Layout.BaseCenter(sim.SideForTeam(state.Team));

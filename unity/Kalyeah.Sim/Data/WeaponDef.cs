@@ -2,6 +2,107 @@ using System;
 
 namespace Kalyeah.Sim
 {
+    /// <summary>Which of a kid's 3 fixed skill slots a SkillDef occupies (docs/KITS.md).</summary>
+    public enum SkillSlot { S1 = 0, S2 = 1, Ult = 2 }
+
+    /// <summary>Camera framing while drag-aiming a skill (docs/KITS.md: Normal, ADS, ZoomOut, MapCast).</summary>
+    public enum AimCameraMode { Normal = 0, Ads = 1, ZoomOut = 2, MapCast = 3 }
+
+    /// <summary>Vision reveal type produced by a Seeker skill (docs/KITS.md: Outline vs one-time Snapshot).</summary>
+    public enum RevealKind { None = 0, Outline = 1, Snapshot = 2 }
+
+    /// <summary>Exact mechanic executed by each of the 36 approved kid skills in docs/KITS.md.</summary>
+    public enum SkillMechanic
+    {
+        None = 0,
+        // Strikers
+        LuksongTinik = 1,
+        TiraHolens = 2,
+        TsinelasBagsik = 3,
+        Syato = 4,
+        TrumpoIkot = 5,
+        PukpokPalayok = 6,
+        Sipa = 7,
+        Tiyakad = 8,
+        BatoExecute = 9,
+        // Defenders
+        BahayBahayan = 10,
+        PabitinHeal = 11,
+        Palosebo = 12,
+        ChineseGarter = 13,
+        Sungka = 14,
+        Langit = 15,
+        SackRace = 16,
+        LuksongBaka = 17,
+        TinikWall = 18,
+        // Seekers
+        TeksTripwire = 19,
+        Tago = 20,
+        Saranggola = 21,
+        Yoyo = 22,
+        Piko = 23,
+        PogsSlam = 24,
+        SiliTubig = 25,
+        TrumpoBantay = 26,
+        Taya = 27,
+        // Controllers
+        Jackstone = 28,
+        LuksongLubid = 29,
+        GarterNet = 30,
+        HolensSpill = 31,
+        LataMorph = 32,
+        PatinteroLines = 33,
+        PabitinSnare = 34,
+        SakoTrap = 35,
+        LupaQuake = 36,
+    }
+
+    /// <summary>Data-driven definition for one kid skill (S1, S2 or ULT) loaded from unity/Data/characters__*.json.</summary>
+    [Serializable]
+    public sealed class SkillDef
+    {
+        public string Id = "";
+        public string DisplayName = "";
+        public string ShortName = "";
+        public string Description = "";
+        public string StreetGame = "";
+        public SkillSlot Slot = SkillSlot.S1;
+        public SkillMechanic Mechanic = SkillMechanic.None;
+        public AimCameraMode AimCamera = AimCameraMode.Normal;
+        public RevealKind RevealKind = RevealKind.None;
+        public bool KnownRevealAlert;
+        public int WaterCost;
+        public double Cooldown;
+        public int MaxCharges = 1;
+        public double MaxRange;
+        public double Radius;
+        public double SecondaryRadius;
+        public double Width;
+        public double AngleDegrees;
+        public int Damage;
+        public int SecondaryDamage;
+        public int Heal;
+        public int WallHp;
+        public double Duration;
+        public double SecondaryDuration;
+        public double Delay;
+        public double Interval;
+        public double Speed;
+        public int Count = 1;
+        public double EffectDuration;
+        public double EffectMagnitude;
+        public double BlurDuration;
+        public double RevealDuration;
+        public double RecastWindow;
+        public double BonusRatio;
+        public double SpeedDelta;
+        public double Knockback;
+
+        public bool IsUltimate => Slot == SkillSlot.Ult;
+        public bool DealsDamage() => Damage > 0 || SecondaryDamage > 0;
+        public SkillDef Duplicate() => (SkillDef)MemberwiseClone();
+    }
+
     /// <summary>
     /// One weapon (docs/GDD.md "Weapons"), port of scripts/sim/weapon_def.gd. Every weapon is one generic <see cref="Shape"/> executor
     /// plus numbers; values live in data/weapons/*.tres (unity/Data/weapons__*.json).
