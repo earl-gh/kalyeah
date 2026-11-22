@@ -43,11 +43,81 @@ namespace Kalyeah.Game
         public static readonly Vector2 CrosshairViewport = new Vector2(0.50f, 0.54f);
 
         const int DamageTrackSlots = 32;
+        const float DamageTrailHoldSeconds = 0.16f;
+        const float DamageTrailDecayPerSec = 1.25f;
 
         static readonly string[] NumberStrings =
         {
             "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
         };
+
+        static readonly Color WaterBarColor = MenuArt.WaterCyan;
+        static readonly Color ShieldBarColor = new Color(0.54f, 0.92f, 1.00f, 0.92f);
+        static readonly Color RevealEyeColor = new Color(1.00f, 0.80f, 0.24f, 0.98f);
+        static readonly Color TrailAmberColor = new Color(1.00f, 0.68f, 0.24f, 0.94f);
+        static readonly Color OverheadTrackObsidian = new Color(14f / 255f, 19f / 255f, 26f / 255f, 0.86f);
+        static Sprite s_eyeSprite;
+
+        sealed class MaterialCleanupBehaviour : MonoBehaviour
+        {
+            [NonSerialized] public Material[] Materials;
+
+            void OnDestroy()
+            {
+                if (Materials == null) return;
+                for (int i = 0; i < Materials.Length; i++)
+                {
+                    Material m = Materials[i];
+                    if (m != null && m != Graphic.defaultGraphicMaterial && m != Canvas.GetDefaultCanvasMaterial())
+                        KalyeahResources.Kill(m);
+                    Materials[i] = null;
+                }
+            }
+        }
+
+        /// <summary>Cached crisp almond-eye icon sprite shared by revealed overhead markers and local REVEALED badge.</summary>
+        internal static Sprite EyeIconSprite()
+        {
+            if (s_eyeSprite != null) return s_eyeSprite;
+            const int w = 48;
+            const int h = 32;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
+            {
+                name = "KalyeahRevealEye",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            var px = new Color32[w * h];
+            float cx = w * 0.5f;
+            float cy = h * 0.5f;
+            float rx = w * 0.44f;
+            float ry = h * 0.36f;
+
+            for (int y = 0; y < h; y++)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    float dx = (x + 0.5f - cx) / rx;
+                    float dy = (y + 0.5f - cy) / ry;
+                    float ax = Mathf.Abs(dx);
+                    float lid = Mathf.Max(0f, 1f - ax * ax);
+                    float edgeDist = Mathf.Abs(Mathf.Abs(dy) - lid);
+                    float outline = ax <= 1.02f ? Mathf.Clamp01(1f - edgeDist * 3.8f) : 0f;
+
+                    float irisDist = Mathf.Sqrt(((x + 0.5f - cx) * (x + 0.5f - cx)) + ((y + 0.5f - cy) * (y + 0.5f - cy)));
+                    float insideEye = ax < 0.96f && Mathf.Abs(dy) <= lid ? 1f : 0f;
+                    float irisRing = insideEye * Mathf.Clamp01(1f - Mathf.Abs(irisDist - 6.8f) * 0.65f);
+                    float pupil = insideEye * Mathf.Clamp01((3.6f - irisDist) * 0.85f);
+                    float a = Mathf.Clamp01(Mathf.Max(outline, Mathf.Max(irisRing, pupil)));
+                    px[y * w + x] = new Color32(255, 255, 255, (byte)(a * 255f));
+                }
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            s_eyeSprite = Sprite.Create(tex, new Rect(0f, 0f, w, h), new Vector2(0.5f, 0.5f), 100f);
+            s_eyeSprite.name = "KalyeahRevealEye";
+            return s_eyeSprite;
+        }
 
         sealed class PlateSlot
         {
@@ -57,8 +127,14 @@ namespace Kalyeah.Game
 
             public GameObject HpPlateObj;
             public RectTransform HpPlateRect;
+            public RectTransform HpTrailRect;
+            public Image HpTrailImage;
             public RectTransform HpFillRect;
             public Image HpFillImage;
+            public Material HpGaugeMat;
+            public bool HasLiquidShader;
+            public GameObject ShieldFillObj;
+            public RectTransform ShieldFillRect;
 
             public GameObject StaminaPlateObj;
             public RectTransform StaminaPlateRect;
@@ -67,6 +143,9 @@ namespace Kalyeah.Game
 
             public Image BadgeFill;
             public Text BadgeText;
+
+            public GameObject RevealEyeObj;
+            public Image RevealEyeIcon;
 
             public GameObject YouObj;
             public GameObject StatusObj;
@@ -122,6 +201,9 @@ namespace Kalyeah.Game
         readonly int[] _trackedPlayerIds = new int[DamageTrackSlots];
         readonly int[] _trackedPrevHp = new int[DamageTrackSlots];
         readonly float[] _lastDamagedClock = new float[DamageTrackSlots];
+        readonly float[] _trackedTrailRatio = new float[DamageTrackSlots];
+        readonly float[] _trackedTrailHold = new float[DamageTrackSlots];
+        readonly Material[] _ownedGaugeMats = new Material[MaxPlates];
         int _trackedCount;
         float _prevClockSeconds = -1f;
         float _barScale = DefaultBarScale;
@@ -142,7 +224,12 @@ namespace Kalyeah.Game
 
             Root = Ui.Fill("OverheadBars", parent);
             for (int i = 0; i < MaxPlates; i++)
+            {
                 _plates[i] = BuildPlate(i);
+                _ownedGaugeMats[i] = _plates[i].HasLiquidShader ? _plates[i].HpGaugeMat : null;
+            }
+            var cleanup = Root.gameObject.AddComponent<MaterialCleanupBehaviour>();
+            cleanup.Materials = _ownedGaugeMats;
         }
 
         /// <summary>Loads <c>bar_scale</c>, <c>shoulder_name_reach</c>, and <c>kid_view_scale</c> from <c>rules__camera_rules</c>.</summary>
@@ -220,7 +307,7 @@ namespace Kalyeah.Game
             int barR = KomiksUi.BarRadius(barH);
 
             // HP Plate (shown ONLY for local player and allies; strictly hidden on enemies)
-            Image hpPlate = KomiksUi.MakeInkPanel("HpPlate", root, KomiksUi.EmptyBar, KomiksUi.SoftBorder, barR, 2);
+            Image hpPlate = KomiksUi.MakeInkPanel("HpPlate", root, OverheadTrackObsidian, KomiksUi.SoftBorder, barR, 2);
             RectTransform hpRect = hpPlate.rectTransform;
             hpRect.anchorMin = hpRect.anchorMax = new Vector2(0f, 0.5f);
             hpRect.pivot = new Vector2(0f, 0.5f);
@@ -230,7 +317,34 @@ namespace Kalyeah.Game
             slot.HpPlateRect = hpRect;
 
             RectTransform hpInner = Ui.Panel("HpInner", hpRect, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-BorderPx * 2f, -BorderPx * 2f));
-            Image hpFill = KomiksUi.MakeSlicedFill("HpFill", hpInner, KomiksUi.SelfHealthColor(0), Mathf.Max(2, barR - 1));
+
+            // Smooth delayed amber damage-drain trail (GPU UI_LiquidGauge with fallback RectTransform trail)
+            Image hpTrail = KomiksUi.MakeSlicedFill("HpTrail", hpInner, TrailAmberColor, Mathf.Max(2, barR - 1));
+            RectTransform trailRect = hpTrail.rectTransform;
+            trailRect.anchorMin = Vector2.zero;
+            trailRect.anchorMax = Vector2.one;
+            trailRect.pivot = new Vector2(0f, 0.5f);
+            trailRect.sizeDelta = Vector2.zero;
+            slot.HpTrailImage = hpTrail;
+            slot.HpTrailRect = trailRect;
+
+            Material gaugeMat = UiShaders.CreateLiquidGauge(KomiksUi.SelfHealthColor(0), TrailAmberColor, segments: 4, animatedLiquid: false);
+            bool hasLiquidShader = gaugeMat != null
+                && gaugeMat != Graphic.defaultGraphicMaterial
+                && gaugeMat != Canvas.GetDefaultCanvasMaterial()
+                && gaugeMat.HasProperty(UiShaders.PropFill);
+
+            Image hpFill;
+            if (hasLiquidShader)
+            {
+                hpFill = Ui.MakeImage("HpFill", hpInner, Color.white, round: false, raycast: false);
+                hpFill.material = gaugeMat;
+                hpTrail.enabled = false;
+            }
+            else
+            {
+                hpFill = KomiksUi.MakeSlicedFill("HpFill", hpInner, KomiksUi.SelfHealthColor(0), Mathf.Max(2, barR - 1));
+            }
             RectTransform fillRect = hpFill.rectTransform;
             fillRect.anchorMin = Vector2.zero;
             fillRect.anchorMax = Vector2.one;
@@ -238,6 +352,18 @@ namespace Kalyeah.Game
             fillRect.sizeDelta = Vector2.zero;
             slot.HpFillImage = hpFill;
             slot.HpFillRect = fillRect;
+            slot.HpGaugeMat = gaugeMat;
+            slot.HasLiquidShader = hasLiquidShader;
+
+            Image shieldFill = KomiksUi.MakeSlicedFill("ShieldFill", hpInner, ShieldBarColor, Mathf.Max(2, barR - 1));
+            RectTransform shRect = shieldFill.rectTransform;
+            shRect.anchorMin = new Vector2(1f, 0f);
+            shRect.anchorMax = Vector2.one;
+            shRect.pivot = new Vector2(1f, 0.5f);
+            shRect.sizeDelta = Vector2.zero;
+            slot.ShieldFillRect = shRect;
+            slot.ShieldFillObj = shieldFill.gameObject;
+            slot.ShieldFillObj.SetActive(false);
 
             // Gapless Stamina / Overclock strip directly sharing HpPlate's bottom border (local kid only)
             Image stamPlate = KomiksUi.MakeInkPanel("StaminaPlate", root, KomiksUi.EmptyBar, KomiksUi.SoftBorder, 3, 2);
@@ -280,6 +406,22 @@ namespace Kalyeah.Game
             badgeText.rectTransform.sizeDelta = Vector2.zero;
             slot.BadgeText = badgeText;
 
+            // Revealed "EYE" badge above enemy number badge when outlined through walls/tall cover
+            RectTransform eyePill = Ui.Panel("RevealEye", root, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0f), new Vector2(0f, 4f), new Vector2(26f, 18f));
+            Image eyeBg = KomiksUi.MakeInkPanel("EyeBg", eyePill, KomiksUi.InkOutline, RevealEyeColor, 6, 1, raycast: false);
+            eyeBg.rectTransform.anchorMin = Vector2.zero;
+            eyeBg.rectTransform.anchorMax = Vector2.one;
+            eyeBg.rectTransform.sizeDelta = Vector2.zero;
+            Image eyeIcon = Ui.MakeImage("EyeGlyph", eyePill, RevealEyeColor, round: false, raycast: false);
+            eyeIcon.sprite = EyeIconSprite();
+            eyeIcon.preserveAspect = true;
+            eyeIcon.rectTransform.anchorMin = new Vector2(0.12f, 0.14f);
+            eyeIcon.rectTransform.anchorMax = new Vector2(0.88f, 0.86f);
+            eyeIcon.rectTransform.sizeDelta = Vector2.zero;
+            slot.RevealEyeObj = eyePill.gameObject;
+            slot.RevealEyeIcon = eyeIcon;
+            slot.RevealEyeObj.SetActive(false);
+
             // "You" label at top-left of local player's bar (never player names)
             Text youText = Ui.MakeText("YouLabel", root, "You", 18, KomiksUi.SunlitCream, TextAnchor.LowerLeft);
             RectTransform youRect = youText.rectTransform;
@@ -318,7 +460,7 @@ namespace Kalyeah.Game
 
         /// <summary>
         /// Resolves at most ONE priority italic status word:
-        /// Stunned / Tripped / Polymorphed (and hard CC) &gt; Slowed &gt; Exhausted.
+        /// Stunned / Rooted / Tripped / Polymorphed (and hard CC) &gt; Slipping / Slowed &gt; Langit! &gt; Exhausted.
         /// </summary>
         public static string ResolvePriorityStatus(in KidSnapshot kid)
         {
@@ -327,14 +469,19 @@ namespace Kalyeah.Game
                 switch (kid.StatusKind)
                 {
                     case StatusKind.Stun: return "Stunned";
+                    case StatusKind.Root: return "Rooted";
                     case StatusKind.Tripped: return "Tripped";
                     case StatusKind.Polymorph: return "Polymorphed";
                     case StatusKind.Knockout: return "Knocked Out";
                     case StatusKind.Airborne: return "Airborne";
                     case StatusKind.Bounce: return "Bounced";
+                    case StatusKind.Slip: return "Slipping";
                     case StatusKind.Slow: return "Slowed";
                 }
             }
+
+            if (kid.LangitProtected)
+                return "Langit!";
 
             if (kid.Overclocked)
                 return "Exhausted";
@@ -404,17 +551,21 @@ namespace Kalyeah.Game
 
             float nowClock = sim.ClockSeconds;
             bool clockRewound = _prevClockSeconds >= 0f && nowClock < _prevClockSeconds - 0.25f;
+            float clockDelta = (_prevClockSeconds >= 0f && !clockRewound)
+                ? Mathf.Clamp(nowClock - _prevClockSeconds, 0f, 0.25f)
+                : 0f;
+            float trailDt = Application.isPlaying ? Mathf.Min(Time.unscaledDeltaTime, 0.1f) : clockDelta;
             _prevClockSeconds = nowClock;
             if (clockRewound)
                 _trackedCount = 0;
 
-            UpdateRecentDamageTracking(kids, totalKids, nowClock);
+            int maxHp = Mathf.Max(1, sim.MaxHp);
+            bool reduceMotion = SettingsStore.Current.ReduceMotion;
+            UpdateRecentDamageTracking(kids, totalKids, nowClock, maxHp, trailDt, reduceMotion);
 
             int localId = sim.LocalPlayerId;
             int localTeam = sim.LocalPlayerTeam;
-            int maxHp = Mathf.Max(1, sim.MaxHp);
             int cbMode = SettingsStore.Current.ColorblindMode;
-            bool reduceMotion = SettingsStore.Current.ReduceMotion;
 
             float reachScale = _shoulderNameReach > 0.01f ? (_shoulderNameReach / DefaultShoulderNameReach) : 1f;
             float maxEnemyDist = MaxEnemyDistanceMeters * reachScale;
@@ -444,13 +595,18 @@ namespace Kalyeah.Game
 
                     float dist = Vector3.Distance(camPos, headWorld);
                     bool isEnemy = !isLocal && kid.Team != localTeam;
+                    bool isRevealed = isEnemy && kid.RevealedOutlineLeft > 0.01f;
                     if (!isLocal)
                     {
-                        float maxDist = isEnemy ? maxEnemyDist : maxAllyDist;
+                        // Invisible enemy (Kikay Tago!) hides overhead plate unless revealed
+                        if (isEnemy && kid.Invisible && !isRevealed)
+                            continue;
+
+                        float maxDist = (isEnemy && !isRevealed) ? maxEnemyDist : maxAllyDist;
                         if (dist > maxDist)
                             continue;
 
-                        if (isEnemy && !WasDamagedRecently(kid.Id, nowClock))
+                        if (isEnemy && !isRevealed && !WasDamagedRecently(kid.Id, nowClock))
                         {
                             Vector3 chestWorld = ComputeBodyWorld(in kid, BaseKidChestMeters, worldFeetOverride);
                             if (IsEnemyOccluded(camPos, chestWorld, layout))
@@ -507,19 +663,22 @@ namespace Kalyeah.Game
 
                 bool isLocal = kid.Id == localId;
                 bool isEnemy = !isLocal && kid.Team != localTeam;
+                bool isRevealed = isEnemy && kid.RevealedOutlineLeft > 0.01f;
                 bool showHp = !isEnemy;
-                bool showStamina = isLocal && kid.MaxStamina > 0.01f;
-                bool withinLabelReach = isLocal || _shoulderNameReach <= 0f || dist <= _shoulderNameReach || WasDamagedRecently(kid.Id, nowClock);
+                bool showStamina = isLocal && ((kid.UsingSpecKit && kid.MaxWater > 0.01f) || kid.MaxStamina > 0.01f);
+                bool withinLabelReach = isLocal || isRevealed || _shoulderNameReach <= 0f || dist <= _shoulderNameReach || WasDamagedRecently(kid.Id, nowClock);
                 string statusWord = withinLabelReach ? ResolvePriorityStatus(in kid) : string.Empty;
 
                 float rawWidth = showHp ? (barW + BadgeSize - BadgeOverlap) : BadgeSize;
                 float w = rawWidth * scale;
 
-                // Asymmetric vertical bounds relative to plate center so local "You" (+24 px) and stamina are fully protected
+                // Asymmetric vertical bounds relative to plate center so local "You" (+24 px), stamina/water, and revealed eye are fully protected
                 float bottomExtent = (barH * 0.5f + (showStamina ? (stamH - BorderPx) : 0f) + 2f) * scale;
                 float topExtent;
                 if (isLocal)
                     topExtent = (barH * 0.5f + LocalYouTopPadPx + (statusWord.Length > 0 ? 24f : 0f)) * scale + 4f;
+                else if (isRevealed)
+                    topExtent = (barH * 0.5f + 22f + (statusWord.Length > 0 ? 20f : 0f)) * scale;
                 else if (statusWord.Length > 0)
                     topExtent = (barH * 0.5f + 22f) * scale;
                 else
@@ -583,6 +742,7 @@ namespace Kalyeah.Game
 
                 _placedRects[placedCount] = candidate;
                 float targetAlpha = (!isLocal && nearCrosshair) ? CrosshairNearAlpha : 1f;
+                float trailRatio = GetTrackedTrailRatio(kid.Id, Mathf.Clamp01((float)kid.Hp / maxHp));
 
                 ApplyPlate(
                     slot,
@@ -596,6 +756,7 @@ namespace Kalyeah.Game
                     scale,
                     targetAlpha,
                     maxHp,
+                    trailRatio,
                     localTeam,
                     cbMode,
                     reduceMotion,
@@ -663,25 +824,58 @@ namespace Kalyeah.Game
             return true;
         }
 
-        void UpdateRecentDamageTracking(IReadOnlyList<KidSnapshot> kids, int totalKids, float nowClock)
+        void UpdateRecentDamageTracking(
+            IReadOnlyList<KidSnapshot> kids,
+            int totalKids,
+            float nowClock,
+            int maxHp,
+            float dt,
+            bool reduceMotion)
         {
+            float safeMaxHp = Mathf.Max(1f, maxHp);
             for (int i = 0; i < totalKids; i++)
             {
                 KidSnapshot k = kids[i];
-                int slot = FindOrAddDamageTrackSlot(k.Id, k.Hp);
+                float liveRatio = k.Tagged ? 0f : Mathf.Clamp01(k.Hp / safeMaxHp);
+                int slot = FindOrAddDamageTrackSlot(k.Id, k.Hp, liveRatio);
                 if (slot < 0) continue;
 
                 int prevHp = _trackedPrevHp[slot];
                 if (!k.Tagged && k.Hp < prevHp)
+                {
                     _lastDamagedClock[slot] = nowClock;
+                    _trackedTrailHold[slot] = DamageTrailHoldSeconds;
+                }
                 else if (k.Tagged || k.Hp > prevHp)
+                {
                     _lastDamagedClock[slot] = -999f;
+                    _trackedTrailRatio[slot] = liveRatio;
+                    _trackedTrailHold[slot] = 0f;
+                }
+
+                if (reduceMotion)
+                {
+                    _trackedTrailRatio[slot] = liveRatio;
+                    _trackedTrailHold[slot] = 0f;
+                }
+                else if (liveRatio > _trackedTrailRatio[slot])
+                {
+                    _trackedTrailRatio[slot] = liveRatio;
+                    _trackedTrailHold[slot] = 0f;
+                }
+                else if (dt > 0f && _trackedTrailRatio[slot] > liveRatio)
+                {
+                    if (_trackedTrailHold[slot] > 0f)
+                        _trackedTrailHold[slot] = Mathf.Max(0f, _trackedTrailHold[slot] - dt);
+                    else
+                        _trackedTrailRatio[slot] = Mathf.Max(liveRatio, _trackedTrailRatio[slot] - DamageTrailDecayPerSec * dt);
+                }
 
                 _trackedPrevHp[slot] = k.Hp;
             }
         }
 
-        int FindOrAddDamageTrackSlot(int playerId, int initialHp)
+        int FindOrAddDamageTrackSlot(int playerId, int initialHp, float initialRatio)
         {
             for (int i = 0; i < _trackedCount; i++)
             {
@@ -695,7 +889,19 @@ namespace Kalyeah.Game
             _trackedPlayerIds[idx] = playerId;
             _trackedPrevHp[idx] = initialHp;
             _lastDamagedClock[idx] = -999f;
+            _trackedTrailRatio[idx] = initialRatio;
+            _trackedTrailHold[idx] = 0f;
             return idx;
+        }
+
+        float GetTrackedTrailRatio(int playerId, float liveRatio)
+        {
+            for (int i = 0; i < _trackedCount; i++)
+            {
+                if (_trackedPlayerIds[i] == playerId)
+                    return Mathf.Clamp(_trackedTrailRatio[i], liveRatio, 1f);
+            }
+            return liveRatio;
         }
 
         bool WasDamagedRecently(int playerId, float nowClock)
@@ -829,6 +1035,7 @@ namespace Kalyeah.Game
             float scale,
             float alpha,
             int maxHp,
+            float trailRatio,
             int localTeam,
             int cbMode,
             bool reduceMotion,
@@ -872,8 +1079,41 @@ namespace Kalyeah.Game
             if (showHp)
             {
                 float hpRatio = Mathf.Clamp01((float)kid.Hp / maxHp);
-                slot.HpFillRect.anchorMax = new Vector2(hpRatio, 1f);
-                slot.HpFillImage.color = isLocal ? KomiksUi.SelfHealthColor(cbMode) : KomiksUi.AllyHealthColor(cbMode);
+                float clampedTrail = Mathf.Clamp(trailRatio, hpRatio, 1f);
+                Color hpCol = isLocal ? KomiksUi.SelfHealthColor(cbMode) : KomiksUi.AllyHealthColor(cbMode);
+
+                if (slot.HasLiquidShader && slot.HpGaugeMat != null)
+                {
+                    slot.HpFillRect.anchorMax = Vector2.one;
+                    slot.HpFillImage.color = Color.white;
+                    slot.HpGaugeMat.SetFloat(UiShaders.PropFill, hpRatio);
+                    slot.HpGaugeMat.SetFloat(UiShaders.PropTrailFill, clampedTrail);
+                    slot.HpGaugeMat.SetColor(UiShaders.PropFillColor, hpCol);
+                    slot.HpGaugeMat.SetFloat(UiShaders.PropLowPulse, isLocal && hpRatio <= 0.30f ? 1f : 0f);
+                    slot.HpGaugeMat.SetFloat(UiShaders.PropReduceMotion, reduceMotion ? 1f : 0f);
+                }
+                else
+                {
+                    if (slot.HpTrailRect != null)
+                    {
+                        slot.HpTrailRect.anchorMin = new Vector2(hpRatio, 0f);
+                        slot.HpTrailRect.anchorMax = new Vector2(clampedTrail, 1f);
+                        if (slot.HpTrailImage != null)
+                            slot.HpTrailImage.enabled = clampedTrail > hpRatio + 0.002f;
+                    }
+                    slot.HpFillRect.anchorMax = new Vector2(hpRatio, 1f);
+                    slot.HpFillImage.color = hpCol;
+                }
+
+                bool hasShield = kid.ShieldHp > 0.5f;
+                if (slot.ShieldFillObj.activeSelf != hasShield)
+                    slot.ShieldFillObj.SetActive(hasShield);
+                if (hasShield)
+                {
+                    float shRatio = Mathf.Clamp01(kid.ShieldHp / maxHp);
+                    slot.ShieldFillRect.anchorMin = new Vector2(Mathf.Clamp01(1f - shRatio), 0f);
+                    slot.ShieldFillRect.anchorMax = Vector2.one;
+                }
             }
 
             if (slot.StaminaVisible != showStamina || slot.StaminaPlateObj.activeSelf != showStamina)
@@ -884,11 +1124,26 @@ namespace Kalyeah.Game
 
             if (showStamina)
             {
-                float stamRatio = kid.MaxStamina > 0.001f ? (kid.Stamina / kid.MaxStamina) : 1f;
-                Color stamCol = KomiksUi.StaminaColor(stamRatio, kid.Overclocked, kid.ExhaustLeft, reduceMotion, out float displayRatio);
-                slot.StaminaFillRect.anchorMax = new Vector2(displayRatio, 1f);
-                slot.StaminaFillImage.color = stamCol;
+                if (kid.UsingSpecKit && kid.MaxWater > 0.01f)
+                {
+                    float waterRatio = Mathf.Clamp01(kid.Water / kid.MaxWater);
+                    slot.StaminaFillRect.anchorMax = new Vector2(waterRatio, 1f);
+                    slot.StaminaFillImage.color = WaterBarColor;
+                }
+                else
+                {
+                    float stamRatio = kid.MaxStamina > 0.001f ? (kid.Stamina / kid.MaxStamina) : 1f;
+                    Color stamCol = KomiksUi.StaminaColor(stamRatio, kid.Overclocked, kid.ExhaustLeft, reduceMotion, out float displayRatio);
+                    slot.StaminaFillRect.anchorMax = new Vector2(displayRatio, 1f);
+                    slot.StaminaFillImage.color = stamCol;
+                }
             }
+
+            bool showRevealEye = !isLocal && kid.Team != localTeam && kid.RevealedOutlineLeft > 0.01f;
+            if (slot.RevealEyeObj.activeSelf != showRevealEye)
+                slot.RevealEyeObj.SetActive(showRevealEye);
+            if (showRevealEye && slot.RevealEyeIcon != null)
+                slot.RevealEyeIcon.color = RevealEyeColor;
 
             if (slot.YouObj.activeSelf != isLocal)
                 slot.YouObj.SetActive(isLocal);
@@ -906,7 +1161,7 @@ namespace Kalyeah.Game
                 }
                 slot.StatusText.rectTransform.anchoredPosition = isLocal
                     ? new Vector2(6f, 23f)
-                    : new Vector2(showHp ? 6f : 0f, 3f);
+                    : (showRevealEye ? new Vector2(0f, 24f) : new Vector2(showHp ? 6f : 0f, 3f));
             }
             else
             {

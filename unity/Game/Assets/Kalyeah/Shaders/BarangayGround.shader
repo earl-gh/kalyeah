@@ -10,13 +10,16 @@ Shader "Kalyeah/BarangayGround"
         _Wear ("Wear", Range(0.0, 1.0)) = 1.0
         _AlbedoScale ("Albedo Scale", Range(0.5, 1.5)) = 1.0
         _ShadowFloor ("Shadow Luminance Floor", Range(0.15, 0.55)) = 0.34
-        _AmbientMin ("Ambient Clamp Min", Range(0.05, 0.50)) = 0.24
-        _AmbientMax ("Ambient Clamp Max", Range(0.50, 1.40)) = 0.92
+        _AmbientMin ("Ambient Clamp Min", Range(0.05, 0.50)) = 0.28
+        _AmbientMax ("Ambient Clamp Max", Range(0.50, 1.40)) = 0.94
         _DetailStrength ("Surface Detail Strength", Range(0.0, 1.0)) = 0.72
-        _SpecStrength ("Road Specular Strength", Range(0.0, 0.35)) = 0.12
+        _SpecStrength ("Road Specular Strength", Range(0.0, 0.35)) = 0.14
         _CarveCreekSlot ("Carve Creek Slot", Float) = 0.0
         _IsCreekBed ("Is Creek Bed", Float) = 0.0
         _ParcelCount ("Parcel Count", Float) = 0.0
+        [NoScaleOffset] _ParcelAoTex ("Baked Parcel AO LUT", 2D) = "white" {}
+        _HasParcelAoTex ("Has Baked Parcel AO LUT", Float) = 0.0
+        _ParcelAoBounds ("Parcel AO Bounds (minX, minZ, invW, invH)", Vector) = (-100.0, -100.0, 0.005, 0.005)
     }
 
     SubShader
@@ -31,11 +34,15 @@ Shader "Kalyeah/BarangayGround"
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
+        TEXTURE2D(_ParcelAoTex);
+        SAMPLER(sampler_ParcelAoTex);
+
         CBUFFER_START(UnityPerMaterial)
             half4 _BaseColor;
             float4 _ArenaHalf;
             float4 _OwnBaseCenter;
             float4 _EnemyBaseCenter;
+            float4 _ParcelAoBounds;
             float _ArenaRadius;
             float _Wear;
             float _AlbedoScale;
@@ -47,6 +54,7 @@ Shader "Kalyeah/BarangayGround"
             float _CarveCreekSlot;
             float _IsCreekBed;
             float _ParcelCount;
+            float _HasParcelAoTex;
             float4 _ParcelPose[32];
             float4 _ParcelHalf[32];
         CBUFFER_END
@@ -358,6 +366,10 @@ Shader "Kalyeah/BarangayGround"
                 float zebraBarNs = smoothstep(0.20, 0.26, zebraU) * (1.0 - smoothstep(0.74, 0.80, zebraU));
                 asph = lerp(asph, float3(0.45, 0.43, 0.38), saturate(xwalkBandNs * zebraBarNs * onNsCarriageway) * 0.68);
 
+                // Clean crisp carriageway white edge lines (Option A1 Manila street clarity, capped below AoE pop threshold)
+                float edgeLineLow = smoothstep(-0.56, -0.46, dRoad) * (1.0 - smoothstep(-0.36, -0.26, dRoad)) * clearJunc;
+                asph = lerp(asph, float3(0.46, 0.45, 0.42), edgeLineLow * 0.72);
+
                 col = lerp(col, asph, roadMask);
 
                 // Clean curb lip
@@ -392,7 +404,7 @@ Shader "Kalyeah/BarangayGround"
 
                 // Clean Estero bank silt / ford tint
                 int parcelCount = min((int)(_ParcelCount + 0.5), 32);
-                bool creekActive = (_IsCreekBed > 0.5) || (_CarveCreekSlot > 0.5) || (parcelCount > 0);
+                bool creekActive = (_IsCreekBed > 0.5) || (_CarveCreekSlot > 0.5) || (parcelCount > 0) || (_HasParcelAoTex > 0.5);
                 if (creekActive)
                 {
                     float canalAbs = abs(xz.y - cz);
@@ -406,8 +418,15 @@ Shader "Kalyeah/BarangayGround"
                     }
                 }
 
-                // Soft building contact AO (no moss noise)
-                if (parcelCount > 0)
+                // Soft building contact AO: 1-fetch baked 256x256 LUT when bound, graceful OBB fallback when unbound
+                if (_HasParcelAoTex > 0.5)
+                {
+                    float2 aoUv = (xz - _ParcelAoBounds.xy) * _ParcelAoBounds.zw;
+                    float inLut = step(0.0, aoUv.x) * step(aoUv.x, 1.0) * step(0.0, aoUv.y) * step(aoUv.y, 1.0);
+                    half4 aoLut = SAMPLE_TEXTURE2D_LOD(_ParcelAoTex, sampler_ParcelAoTex, saturate(aoUv), 0);
+                    col *= lerp(1.0, (float)aoLut.r, inLut);
+                }
+                else if (parcelCount > 0)
                 {
                     float minBldgD = 999.0;
                     [loop]
@@ -432,16 +451,17 @@ Shader "Kalyeah/BarangayGround"
                     col = lerp(col, float3(0.37, 0.34, 0.30), coping * 0.55);
                 }
 
-                col = clamp(col, 0.18, 0.46);
+                col = clamp(col, 0.18, 0.48);
 
                 // Diffuse-only matte lighting on Low (Riot rule: drop specular on matte Low environments)
                 float3 normalWS = normalize(input.normalWS);
                 Light mainLight = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
                 float ndotl = saturate(dot(normalWS, mainLight.direction));
                 float shadowAtten = lerp(_ShadowFloor, 1.0, mainLight.shadowAttenuation * mainLight.distanceAttenuation);
-                float ambMin = (_KalyeahAmbientMin > 0.001) ? _KalyeahAmbientMin : _AmbientMin;
+                float ambMin = (_KalyeahAmbientMin > 0.001) ? max(_KalyeahAmbientMin, _AmbientMin) : _AmbientMin;
                 float ambMax = max((_KalyeahAmbientMax > 0.001) ? _KalyeahAmbientMax : _AmbientMax, ambMin + 0.01);
-                float3 ambient = clamp(SampleSH(normalWS), ambMin, ambMax);
+                float3 hemiFallback = float3(0.384, 0.596, 0.847) * (ambMin * 1.15);
+                float3 ambient = max(clamp(SampleSH(normalWS), ambMin, ambMax), hemiFallback);
                 float3 diffuseLight = mainLight.color * (ndotl * shadowAtten) + ambient;
 
                 float3 baseLinear = SrgbToLinear3(col) * _BaseColor.rgb * _AlbedoScale;
@@ -617,6 +637,10 @@ Shader "Kalyeah/BarangayGround"
                 float gutterBand = smoothstep(-0.54, -0.16, dRoad) * (1.0 - smoothstep(-0.01, 0.07, dRoad));
                 asph = lerp(asph, float3(0.17, 0.17, 0.18), gutterBand * 0.58);
 
+                // Crisp painted white carriageway edge stripes (matching Option A1 Manila street clarity)
+                float edgeLine = smoothstep(-0.62, -0.52, dRoad) * (1.0 - smoothstep(-0.40, -0.30, dRoad)) * clearJunc;
+                asph = lerp(asph, float3(0.48, 0.47, 0.44), edgeLine * chipPaint * 0.78);
+
                 col = lerp(col, asph, roadMask);
                 float roadRough = lerp(0.89, 0.74, saturate(tireTrack * 0.40 + gutterBand * 0.35 + mhMask * 0.55));
                 rough = lerp(rough, roadRough, roadMask);
@@ -686,7 +710,7 @@ Shader "Kalyeah/BarangayGround"
 
                 // 7. Sunken Estero riverbank silt & cobble fords
                 int parcelCount = min((int)(_ParcelCount + 0.5), 32);
-                bool creekActive = (_IsCreekBed > 0.5) || (_CarveCreekSlot > 0.5) || (parcelCount > 0);
+                bool creekActive = (_IsCreekBed > 0.5) || (_CarveCreekSlot > 0.5) || (parcelCount > 0) || (_HasParcelAoTex > 0.5);
                 if (creekActive)
                 {
                     float canalAbs = abs(xz.y - cz + warp.y * 0.38);
@@ -714,8 +738,24 @@ Shader "Kalyeah/BarangayGround"
                     }
                 }
 
-                // 8. Oriented building storefront aprons & soft contact AO
-                if (parcelCount > 0)
+                // 8. Oriented building storefront aprons & soft contact AO (single-fetch baked 256x256 LUT when bound)
+                if (_HasParcelAoTex > 0.5)
+                {
+                    float2 aoUv = (xz - _ParcelAoBounds.xy) * _ParcelAoBounds.zw;
+                    float inLut = step(0.0, aoUv.x) * step(aoUv.x, 1.0) * step(0.0, aoUv.y) * step(aoUv.y, 1.0);
+                    half4 aoLut = SAMPLE_TEXTURE2D_LOD(_ParcelAoTex, sampler_ParcelAoTex, saturate(aoUv), 0);
+                    float wallAo = lerp(1.0, (float)aoLut.r, inLut);
+                    float skirtM = (float)aoLut.g * inLut;
+                    float frontApron = (float)aoLut.b * inLut;
+                    float nearWall = (float)aoLut.a * inLut;
+
+                    float3 skirtCol = lerp(float3(0.34, 0.32, 0.29), float3(0.37, 0.35, 0.31), frontApron);
+                    col = lerp(col, skirtCol, max(skirtM * 0.74, frontApron * 0.80));
+                    float mossSkirt = nearWall * smoothstep(0.45, 0.78, midVar);
+                    col = lerp(col, float3(0.22, 0.27, 0.19), mossSkirt * 0.30 * _DetailStrength);
+                    col *= wallAo;
+                }
+                else if (parcelCount > 0)
                 {
                     float minBldgD = 999.0;
                     float frontApron = 0.0;
@@ -765,16 +805,20 @@ Shader "Kalyeah/BarangayGround"
                 col = clamp(col, 0.16, 0.48);
                 rough = clamp(rough, 0.40, 0.95);
 
-                // URP lighting with clamped ambient bounce (zero pitch-black shadow pits, calm matte streets)
-                float3 normalWS = normalize(input.normalWS);
+                // Clean asphalt aggregate micro-normal perturbation + clamped 10:30 AM sunlit ambient bounce
+                float3 baseNormalWS = normalize(input.normalWS);
+                float aggX = (gravelChip - 0.5) * 0.09 + (finePebble - 0.5) * 0.05;
+                float aggZ = (grit - 0.5) * 0.07 - (finePebble - 0.5) * 0.05;
+                float3 normalWS = normalize(baseNormalWS + float3(aggX, 0.0, aggZ) * (detailVis * lerp(0.35, 1.0, roadMask)));
                 float3 viewDirWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
                 Light mainLight = GetMainLight(TransformWorldToShadowCoord(input.positionWS));
 
                 float ndotl = saturate(dot(normalWS, mainLight.direction));
                 float shadowAtten = lerp(_ShadowFloor, 1.0, mainLight.shadowAttenuation * mainLight.distanceAttenuation);
-                float ambMin = (_KalyeahAmbientMin > 0.001) ? _KalyeahAmbientMin : _AmbientMin;
+                float ambMin = (_KalyeahAmbientMin > 0.001) ? max(_KalyeahAmbientMin, _AmbientMin) : _AmbientMin;
                 float ambMax = max((_KalyeahAmbientMax > 0.001) ? _KalyeahAmbientMax : _AmbientMax, ambMin + 0.01);
-                float3 ambient = clamp(SampleSH(normalWS), ambMin, ambMax);
+                float3 hemiFallback = float3(0.384, 0.596, 0.847) * (ambMin * 1.15);
+                float3 ambient = max(clamp(SampleSH(normalWS), ambMin, ambMax), hemiFallback);
                 float3 diffuseLight = mainLight.color * (ndotl * shadowAtten) + ambient;
 
                 #ifdef _ADDITIONAL_LIGHTS

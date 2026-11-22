@@ -115,11 +115,14 @@ for ids in twins.values():
         for i in ids:
             nbr[i].extend(j for j in ids if j != i)
 
-# Clear any old corr_* shape keys so re-baking is 100% idempotent.
+# Clear any old corr_* shape keys so re-baking is 100% idempotent, and zero any remaining facial shapes during bake.
 if me.shape_keys is not None:
     for kb in list(me.shape_keys.key_blocks):
         if kb.name.startswith("corr_"):
             mesh.shape_key_remove(kb)
+    for kb in me.shape_keys.key_blocks:
+        if kb.name != "Basis":
+            kb.value = 0.0
 if me.shape_keys is None:
     mesh.shape_key_add(name="Basis", from_mix=False)
 
@@ -225,6 +228,7 @@ def write_delta_shape(shape_name, idx_list, delta_posed_local):
         return 0, peak
 
     kb = mesh.shape_key_add(name=shape_name, from_mix=False)
+    kb.value = 0.0
     for i, dr in filtered.items():
         kb.data[i].co = Vector(tuple(rest[i] + dr))
     return len(filtered), peak
@@ -500,6 +504,7 @@ for grp in ranked_pairs:
         if speak < MIN_SHAPE_PEAK_M:
             continue
         kb = mesh.shape_key_add(name=f"corr_{short}_Squash", from_mix=False)
+        kb.value = 0.0
         for i, dr in filtered.items():
             kb.data[i].co = Vector(tuple(rest[i] + dr))
         meta.append({
@@ -514,8 +519,13 @@ for grp in ranked_pairs:
         })
         print(f"[corr] corr_{short}_Squash: pen={max_pen*1000:.1f}mm -> {len(filtered)} verts, peak={speak*1000:.2f}mm")
 
-# Restore rest pose & remove temporary bake helpers
+# Restore rest pose, ensure ALL non-Basis shape keys default to 0.0 (Blender 5.2 defaults shape_key_add to 1.0!),
+# and remove temporary bake helpers.
 reset_pose()
+if me.shape_keys is not None:
+    for kb in me.shape_keys.key_blocks:
+        if kb.name != "Basis":
+            kb.value = 0.0
 mesh.modifiers.remove(cs)
 mesh.vertex_groups.remove(zone)
 if arm.animation_data and saved_action is not None:

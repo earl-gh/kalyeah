@@ -1356,7 +1356,7 @@
       ],
       "boneRestDir": [
         0.76564,
-        -0.64255,
+        -0.64256,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1374,7 +1374,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1392,7 +1392,7 @@
       ],
       "boneRestDir": [
         0.76564,
-        -0.64255,
+        -0.64256,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1410,7 +1410,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1452,7 +1452,7 @@
       "deformBones": 64,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4739
+      "fileSizeKb": 4465
     },
     "lod1": {
       "asset": "models/characters/oriang_lod1",
@@ -1460,7 +1460,7 @@
       "deformBones": 44,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 784
+      "fileSizeKb": 774
     },
     "lod2": {
       "asset": "models/characters/oriang_lod2",
@@ -1468,14 +1468,15 @@
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 247
+      "fileSizeKb": 245
     }
   },
   "textures": {
     "baseColorEmbedded": true,
     "normal": "models/characters/oriang_2",
     "orm": "models/characters/oriang_orm",
-    "ormChannels": "R=AO,G=Roughness,B=Metallic"
+    "ormChannels": "R=AO,G=Roughness,B=Metallic",
+    "stylizedPolishVersion": 2
   },
   "log": [
     "removed 4 path-breaking bones",
@@ -1484,5 +1485,11 @@
     "rebound to reference rest; added 12 twist/helper bones",
     "stray influences removed: 41010",
     "cross-side influences removed: 0"
+  ],
+  "facialShapes": [
+    "Blink",
+    "Smile",
+    "Determined",
+    "Talk_Open"
   ]
 }

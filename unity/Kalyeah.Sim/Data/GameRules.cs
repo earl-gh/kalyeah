@@ -75,6 +75,28 @@ namespace Kalyeah.Sim
         /// wipe replays the round. False keeps the pre-spec rules the recorded goldens play.
         /// </summary>
         public bool SpecRules;
+        /// <summary>
+        /// docs/KITS.md + docs/SPEC.md §7: Water mana, 7-shot Tirador slingshot with hold-to-charge range &amp; headshots,
+        /// and 12 kid-specific 3-skill kits. Gated via <see cref="UsesSpecKits"/> so recorded goldens (SpecRules=false) stay exact.
+        /// </summary>
+        public bool SpecKitsEnabled;
+        public double WaterMax = 100.0;
+        public double WaterRegenPerS = 2.0;
+        public double WaterFountainRegenPerS = 25.0;
+        public int TiradorMaxAmmo = 7;
+        public double TiradorReloadSeconds = 1.5;
+        public double TiradorFireCooldown = 0.4;
+        public int TiradorBodyDamage = 20;
+        public double TiradorHeadshotMultiplier = 1.5;
+        public double TiradorMinRange = 18.0;
+        public double TiradorMaxRange = 30.0;
+        public double TiradorChargeSeconds = 1.0;
+        public double TiradorHeadshotRadius = 0.22;
+        public double TiradorProjectileSpeed = 36.0;
+        public double TrapRevealDistance = 3.0;
+        public int TrapMaxPerPlayer = 2;
+        public double PassiveHealDelay = 5.0;
+        public double PassiveHealPerS = 5.0;
         /// <summary>Seconds into a rescue a cancel keeps once passed (0: none).</summary>
         public double RescueCheckpoint;
         /// <summary>How far (metres) a rescuer may drift before the rescue counts as moved.</summary>
@@ -189,5 +211,8 @@ namespace Kalyeah.Sim
 
         /// <summary>True when cards are paid for with elixir (cards on and elixir on).</summary>
         public bool UsesElixir() => CardCycle && ElixirEnabled;
+
+        /// <summary>True when docs/KITS.md spec kits, Water mana, and 7-shot Tirador are active.</summary>
+        public bool UsesSpecKits() => SpecRules && SpecKitsEnabled;
     }
 }

@@ -45,6 +45,11 @@ namespace Kalyeah.Game
         public const int MaxSwapWeaponTiles = 16;
         public const int ConfettiCount = 18;
         public const int MaxWaypoints = 3;
+        public const float StreakWindowSeconds = 7.0f;
+        public const float StreakBannerDuration = 2.40f;
+        const float StreakBannerEnterSeconds = 0.16f;
+        const float StreakBannerExitSeconds = 0.35f;
+        const int MaxTrackedPlayers = 16;
 
         public static readonly string[] StickerPhrases =
         {
@@ -57,18 +62,21 @@ namespace Kalyeah.Game
         };
 
         static readonly Color ColInk = new Color(0.05f, 0.07f, 0.12f, 0.94f);
-        static readonly Color ColCardDark = new Color(0.06f, 0.09f, 0.16f, 0.92f);
         static readonly Color ColModalDark = new Color(0.06f, 0.09f, 0.16f, 0.97f);
         static readonly Color ColCardWarm = new Color(0.98f, 0.95f, 0.89f, 0.99f);
         static readonly Color ColWarmText = new Color(0.16f, 0.14f, 0.13f, 1f);
-        static readonly Color ColWarmSubText = new Color(0.30f, 0.25f, 0.21f, 1f);
         static readonly Color ColGold = new Color(1f, 0.80f, 0.24f, 1f);
-        static readonly Color ColHpWhite = new Color(0.98f, 0.99f, 1f, 0.97f);
-        static readonly Color ColMissingCoral = new Color(0.89f, 0.24f, 0.17f, 0.88f);
+        static readonly Color ColHpWhite = MenuArt.PaperWhite;
         static readonly Color ColStatusAlert = new Color(1f, 0.58f, 0.50f, 1f);
-        static readonly Color ColTrailAmber = new Color(1f, 0.78f, 0.58f, 0.92f);
+        static readonly Color ColTrailAmber = new Color(1f, 0.74f, 0.34f, 0.94f);
         static readonly Color ColRegenMint = new Color(0.28f, 0.92f, 0.56f, 0.96f);
         static readonly Color ColStamina = new Color(0.32f, 0.86f, 0.98f, 0.95f);
+        static readonly Color ColWaterFill = MenuArt.WaterCyan;
+        static readonly Color ColWaterFountain = new Color(0.52f, 0.96f, 1.00f, 1.00f);
+        static readonly Color ColWaterLow = MenuArt.SignalVermilion;
+        static readonly Color ColShieldGlow = new Color(0.56f, 0.94f, 1.00f, 0.88f);
+        static readonly Color ColBlurEdge = new Color(0.10f, 0.09f, 0.14f, 1f);
+        static readonly Color ColRevealGold = new Color(1.00f, 0.80f, 0.24f, 1f);
         static readonly Color ColOverclock = new Color(1f, 0.84f, 0.26f, 0.98f);
         static readonly Color ColPalamig = new Color(0.26f, 0.88f, 0.96f, 0.96f);
         static readonly Color ColTeks = new Color(0.98f, 0.74f, 0.22f, 0.96f);
@@ -79,19 +87,38 @@ namespace Kalyeah.Game
         static readonly Color ColTilePicked = new Color(0.20f, 0.34f, 0.56f, 0.99f);
         static readonly Color ColSwapReady = new Color(0.18f, 0.68f, 0.42f, 1f);
         static readonly Color ColSwapDisabled = new Color(0.28f, 0.32f, 0.40f, 0.92f);
-        static readonly Color ColDeltaPos = new Color(0.075f, 0.431f, 0.380f, 1f);
-        static readonly Color ColDeltaNeg = new Color(0.722f, 0.227f, 0.157f, 1f);
-        static readonly Color ColDefeatCoral = new Color(0.96f, 0.52f, 0.44f, 1f);
 
         static readonly Color ColWaypointGold = new Color(1.000f, 0.839f, 0.439f, 1f);
         static readonly Color ColWaypointDefend = new Color(0.961f, 0.380f, 0.322f, 1f);
         static readonly Color ColWaypointRescue = new Color(0.380f, 0.941f, 0.620f, 1f);
 
+        static readonly string[] StreakTitles =
+        {
+            "", "", "DOUBLE TAG!", "TRIPLE TAG!", "QUADRA TAG!", "BARANGAY LEGEND!",
+        };
+
+        static readonly string[] StreakSubtitles =
+        {
+            "", "", "2X MULTI-TAG", "3X MULTI-TAG", "4X MULTI-TAG", "5X UNSTOPPABLE!",
+        };
+
         static Sprite s_roundedCard;
         static Sprite s_pillSprite;
         static Sprite s_warningSprite;
         static Sprite s_edgeGradientSprite;
+        static Sprite s_blurVignetteSprite;
         static Sprite s_chevronSprite;
+
+        static readonly string[] WaterStrings = BuildWaterStrings();
+
+        struct PlayerStatTracker
+        {
+            public int PlayerId;
+            public int Tags;
+            public int Rescues;
+            public int Captures;
+            public int RawDamage;
+        }
 
         struct WaypointMarkerUi
         {
@@ -114,14 +141,12 @@ namespace Kalyeah.Game
         struct SquadSlotUi
         {
             public RectTransform Root;
-            public Image Ring;
-            public Image FallbackBg;
-            public RawImage Face;
+            public Image Bust;
             public Text Initial;
-            public Text YouTag;
-            public Image HpTrack;
-            public RectTransform HpFill;
-            public Image HpFillImage;
+            public GameObject YouTick;
+            public Image UnderlineTrack;
+            public RectTransform UnderlineFill;
+            public Image UnderlineFillImage;
             public GameObject TaggedCross;
             public GameObject UltPip;
             public int CachedId;
@@ -183,15 +208,6 @@ namespace Kalyeah.Game
             public string WeaponId;
         }
 
-        struct ConfettiPiece
-        {
-            public RectTransform Rect;
-            public Image Image;
-            public Vector2 StartPos;
-            public Vector2 Velocity;
-            public float SpinSpeed;
-        }
-
         sealed class BackKeyBehaviour : MonoBehaviour
         {
             [NonSerialized] public MatchOverlaysView Owner;
@@ -233,11 +249,16 @@ namespace Kalyeah.Game
         public bool IsBriefingVisible => _interactive && _briefingRoot != null && _briefingRoot.gameObject.activeSelf;
         public bool IsHurtPulseVisible => _hurtPulseRoot != null && _hurtPulseRoot.gameObject.activeSelf;
         public float HurtPulseAlpha => _hurtCurrentAlpha;
+        public bool IsBlurOverlayVisible => _blurOverlayRoot != null && _blurOverlayRoot.gameObject.activeSelf;
+        public float BlurOverlayAlpha => _blurCurrentAlpha;
+        public bool IsRevealedBadgeVisible => _revealedBadgeRoot != null && _revealedBadgeRoot.gameObject.activeSelf;
         public int ActiveWaypointCount { get; private set; }
         public bool IsTaggedOverlayVisible => _taggedRoot != null && _taggedRoot.gameObject.activeSelf;
         public bool IsCaptureAlertVisible => _captureAlertRoot != null && _captureAlertRoot.gameObject.activeSelf;
+        public bool IsStreakBannerVisible => _streakBannerRoot != null && _streakBannerRoot.gameObject.activeSelf;
         public bool IsLeaveConfirmOpen => _pauseConfirmRow != null && _pauseConfirmRow.gameObject.activeSelf;
         public RankOutcomeInfo? LastRecordedOutcome { get; private set; }
+        public MatchResultsView MatchResults => _matchResults;
 
         bool _suppressTakedownFeed;
 
@@ -264,27 +285,35 @@ namespace Kalyeah.Game
         bool _hasLocalKid;
         bool _rawCaptureAlertActive;
 
-        // 1. Hero Vitals & 5v5 Squad Wings
+        // 1. G5 A1 Frameless Floating Hero Vitals (4-segment Paper-White HP + animated cyan Water liquid gauges) & G4 5v5 Squad Wings
         readonly RectTransform _heroVitalsRoot;
-        readonly Image _heroRing;
-        readonly RawImage _heroFace;
-        readonly Text _heroInitial;
+        readonly Image _heroHpGaugeImg;
+        readonly Material _heroHpGaugeMat;
+        readonly bool _hasHeroHpShader;
         readonly RectTransform _heroHpFill;
         readonly Image _heroHpFillImg;
+        readonly RectTransform _heroShieldFill;
+        readonly GameObject _heroShieldObj;
         readonly RectTransform _heroTrailFill;
-        readonly RectTransform _heroMissingFill;
-        readonly Image _heroMissingImg;
         readonly Text _heroHpText;
+        readonly Image _heroWaterGaugeImg;
+        readonly Material _heroWaterGaugeMat;
+        readonly bool _hasHeroWaterShader;
         readonly RectTransform _heroStamFill;
         readonly Image _heroStamImg;
+        readonly Image _heroWaterFountainGlow;
+        readonly bool _hasWaterSoftGlow;
+        readonly Text _heroWaterText;
         readonly Text _heroStatusText;
         readonly GameObject _heroBuffBadge;
         readonly Image _heroBuffDot;
         readonly Text _heroBuffText;
-        string _cachedHeroChar = "";
         bool _vitalsSynced;
         int _lastHp = -1;
-        int _lastMaxHp = -1;
+        int _lastWaterWhole = -1;
+        bool _lastShowWaterMode = true;
+        bool _lastFountainChip;
+        float _fountainPulsePhase;
         float _trailShare = 1f;
         float _trailHoldLeft;
         BuffKind _lastBuffKind = BuffKind.None;
@@ -299,11 +328,20 @@ namespace Kalyeah.Game
         readonly List<KidSnapshot> _allyScratch = new List<KidSnapshot>(SquadWingSlots);
         readonly List<KidSnapshot> _enemyScratch = new List<KidSnapshot>(SquadWingSlots);
 
-        // 2. TakedownFeed & CaptureAlert
+        // 2. TakedownFeed, A1/A3 Skewed Multi-Tag Streak Banner & CaptureAlert
         readonly RectTransform _takedownRoot;
         readonly TakedownRowUi[] _takedownRows = new TakedownRowUi[MaxTakedownRows];
         readonly List<TakedownEntry> _takedownEntries = new List<TakedownEntry>(MaxTakedownRows + 1);
         bool _takedownDirty = true;
+
+        readonly RectTransform _streakBannerRoot;
+        readonly CanvasGroup _streakBannerGroup;
+        readonly Text _streakTitleText;
+        readonly Text _streakSubText;
+        int _localTagStreak;
+        float _streakChainTimeLeft;
+        float _streakBannerElapsed;
+        bool _streakBannerActive;
 
         readonly RectTransform _captureAlertRoot;
         readonly RectTransform _captureIconRect;
@@ -404,31 +442,11 @@ namespace Kalyeah.Game
 
         readonly RectTransform _victoryRoot;
         readonly RectTransform _victoryDimRect;
-        readonly RectTransform _victoryCardRect;
-        readonly Text _victoryTitleText;
-        readonly Text _victorySubText;
-        readonly Text _victoryYouCapText;
-        readonly Text _victoryThemCapText;
-        readonly Text _victoryMyScoreText;
-        readonly Text _victoryTheirScoreText;
-        readonly GameObject _promoBannerObj;
-        readonly RectTransform _victoryRankCardRect;
-        readonly Image _rankEmblemBg;
-        readonly Text _rankEmblemInitial;
-        readonly Text _rankTierNameText;
-        readonly Image _rankDeltaChipImg;
-        readonly Text _rankDeltaText;
-        readonly RectTransform _rankLpBarFill;
-        readonly Image _rankLpBarImg;
-        readonly Text _rankLpDetailText;
-        readonly RectTransform _playAgainBtnRect;
-        readonly RectTransform _homeBtnRect;
-        readonly ConfettiPiece[] _confetti = new ConfettiPiece[ConfettiCount];
-        float _lpAnimFrom;
-        float _lpAnimTo;
-        float _lpAnimElapsed;
-        bool _confettiActive;
-        float _confettiElapsed;
+        readonly RectTransform _resultsHostRect;
+        readonly MatchResultsView _matchResults;
+        readonly PlayerStatTracker[] _statTrackers = new PlayerStatTracker[MaxTrackedPlayers];
+        readonly List<MatchPlayerStats> _resultsPlayersScratch = new List<MatchPlayerStats>(10);
+        int _statTrackerCount;
 
         // 0. HurtPulse screen-edge vignette & projected 3D->2D WorldWaypoints + first-match BriefingCard
         readonly RectTransform _hurtPulseRoot;
@@ -439,6 +457,16 @@ namespace Kalyeah.Game
         float _lowHpWeight;
         float _lowHpTime;
         float _hurtCurrentAlpha;
+
+        readonly RectTransform _blurOverlayRoot;
+        readonly Image _blurVignetteImg;
+        float _blurCurrentAlpha;
+        float _blurDriftPhase;
+
+        readonly RectTransform _revealedBadgeRoot;
+        readonly CanvasGroup _revealedBadgeGroup;
+        readonly Image _revealedEyeImg;
+        float _revealedPulsePhase;
 
         readonly RectTransform _waypointsRoot;
         readonly WaypointMarkerUi[] _waypoints = new WaypointMarkerUi[MaxWaypoints];
@@ -485,14 +513,20 @@ namespace Kalyeah.Game
 
             // Build HUD layers back-to-front so modals cleanly sit over persistent chrome.
             BuildHurtPulseOverlay(out _hurtPulseRoot);
+            BuildBlurOverlay(out _blurOverlayRoot, out _blurVignetteImg);
             BuildWorldWaypointsOverlay(out _waypointsRoot);
             BuildSquadWings(out _wingsContainer, out _allyWingRoot, out _enemyWingRoot);
             BuildHeroVitals(
-                out _heroVitalsRoot, out _heroRing, out _heroFace, out _heroInitial,
-                out _heroHpFill, out _heroHpFillImg, out _heroTrailFill, out _heroMissingFill, out _heroMissingImg,
-                out _heroHpText, out _heroStamFill, out _heroStamImg, out _heroStatusText,
+                out _heroVitalsRoot, out _heroHpGaugeImg, out _heroHpGaugeMat, out _hasHeroHpShader,
+                out _heroHpFill, out _heroHpFillImg, out _heroShieldFill, out _heroShieldObj,
+                out _heroTrailFill, out _heroHpText,
+                out _heroWaterGaugeImg, out _heroWaterGaugeMat, out _hasHeroWaterShader,
+                out _heroStamFill, out _heroStamImg, out _heroWaterFountainGlow, out _hasWaterSoftGlow,
+                out _heroWaterText, out _heroStatusText,
                 out _heroBuffBadge, out _heroBuffDot, out _heroBuffText);
+            BuildRevealedBadge(out _revealedBadgeRoot, out _revealedBadgeGroup, out _revealedEyeImg);
             BuildTakedownFeed(out _takedownRoot);
+            BuildStreakBanner(out _streakBannerRoot, out _streakBannerGroup, out _streakTitleText, out _streakSubText);
             BuildCaptureAlert(out _captureAlertRoot, out _captureIconRect, out _capturePlateImg, out _captureProgFill);
             BuildSpeechPool();
             BuildTaggedOverlay(
@@ -508,13 +542,7 @@ namespace Kalyeah.Game
             BuildPointFreezeOverlay(out _pointFreezeRoot, out _pointFreezeDimRect, out _freezeSubjectText, out _freezeOutcomeText, out _freezeScoreText);
             BuildIntroOverlay(out _introRoot, out _introDimRect, out _introCardRect, out _introRoundText, out _introCountdownText, out _introBarFill);
             BuildBriefingCard(out _briefingRoot, out _briefingDimRect, out _briefingPanelRect, out _briefingGotItRect, out _briefingBarFill, out _briefingCountdownText);
-            BuildVictoryOverlay(
-                out _victoryRoot, out _victoryDimRect, out _victoryCardRect, out _victoryTitleText, out _victorySubText,
-                out _victoryYouCapText, out _victoryThemCapText,
-                out _victoryMyScoreText, out _victoryTheirScoreText, out _promoBannerObj,
-                out _victoryRankCardRect, out _rankEmblemBg, out _rankEmblemInitial, out _rankTierNameText,
-                out _rankDeltaChipImg, out _rankDeltaText, out _rankLpBarFill, out _rankLpBarImg,
-                out _rankLpDetailText, out _playAgainBtnRect, out _homeBtnRect);
+            BuildVictoryOverlay(out _victoryRoot, out _victoryDimRect, out _resultsHostRect, out _matchResults);
             BuildPauseSheet(
                 out _pauseSheetRoot, out _pauseDimRect, out _pauseCardRect,
                 out _pauseTitleRect, out _pauseCloseRect, out _pauseViewportRect, out _pauseContentRect,
@@ -544,8 +572,24 @@ namespace Kalyeah.Game
             if (_safeArea != null)
                 _safeArea.Changed -= OnSafeAreaChanged;
             UnbindSim();
+            _matchResults?.Dispose();
+            if (_heroHpGaugeImg != null && _heroHpGaugeMat != null && ReferenceEquals(_heroHpGaugeImg.material, _heroHpGaugeMat))
+                _heroHpGaugeImg.material = null;
+            if (_heroHpGaugeMat != null && IsOwnedCustomMaterial(_heroHpGaugeMat))
+                KalyeahResources.Kill(_heroHpGaugeMat);
+            if (_heroWaterGaugeImg != null && _heroWaterGaugeMat != null && ReferenceEquals(_heroWaterGaugeImg.material, _heroWaterGaugeMat))
+                _heroWaterGaugeImg.material = null;
+            if (_heroWaterGaugeMat != null && IsOwnedCustomMaterial(_heroWaterGaugeMat))
+                KalyeahResources.Kill(_heroWaterGaugeMat);
             if (Root != null)
                 KalyeahResources.Kill(Root.gameObject);
+        }
+
+        static bool IsOwnedCustomMaterial(Material mat)
+        {
+            return mat != null
+                && mat != Graphic.defaultGraphicMaterial
+                && mat != Canvas.GetDefaultCanvasMaterial();
         }
 
         void OnSafeAreaChanged(SafeArea _)
@@ -583,6 +627,11 @@ namespace Kalyeah.Game
             _lowHpTime = 0f;
             _hurtCurrentAlpha = 0f;
             if (_hurtPulseRoot != null) _hurtPulseRoot.gameObject.SetActive(false);
+            _blurCurrentAlpha = 0f;
+            if (_blurOverlayRoot != null) _blurOverlayRoot.gameObject.SetActive(false);
+            if (_revealedBadgeRoot != null) _revealedBadgeRoot.gameObject.SetActive(false);
+            ResetStatTrackers();
+            ResetStreakState();
             HideAllWaypoints();
             ClearTakedowns();
             ClearSpeechBubbles();
@@ -596,9 +645,12 @@ namespace Kalyeah.Game
             {
                 _sim.Tagged += OnSimTagged;
                 _sim.PlayerDamaged += OnSimPlayerDamaged;
+                _sim.HitConfirmed += OnSimHitConfirmed;
                 _sim.Rescued += OnSimRescued;
                 _sim.PointScored += OnSimPointScored;
+                _sim.PointReset += OnSimPointReset;
                 _sim.QuickChatSaid += OnSimQuickChatSaid;
+                _sim.PlayerRevealed += OnSimPlayerRevealed;
                 PopulateSwapCatalog(_sim);
             }
         }
@@ -608,9 +660,12 @@ namespace Kalyeah.Game
             if (_sim == null) return;
             _sim.Tagged -= OnSimTagged;
             _sim.PlayerDamaged -= OnSimPlayerDamaged;
+            _sim.HitConfirmed -= OnSimHitConfirmed;
             _sim.Rescued -= OnSimRescued;
             _sim.PointScored -= OnSimPointScored;
+            _sim.PointReset -= OnSimPointReset;
             _sim.QuickChatSaid -= OnSimQuickChatSaid;
+            _sim.PlayerRevealed -= OnSimPlayerRevealed;
             _sim = null;
         }
 
@@ -638,9 +693,12 @@ namespace Kalyeah.Game
 
             SyncPhaseOverlays(sim, localKid, localTeam, safeDt);
             TickHurtPulse(sim, localKid, safeDt);
+            TickBlurOverlay(sim, localKid, safeDt);
             SyncHeroVitals(sim, localKid, safeDt);
+            SyncRevealedBadge(sim, localKid, safeDt);
             SyncSquadWings(sim, localId, localTeam);
             TickTakedownFeed(safeDt);
+            TickStreakBanner(safeDt);
             SyncCaptureAlert(sim, localTeam, safeDt);
             SyncTaggedOverlay(sim, localKid, localTeam);
             TickSpeechBubbles(sim, safeDt);
@@ -673,6 +731,10 @@ namespace Kalyeah.Game
             bool showFeed = !_suppressTakedownFeed && !IsQuickChatOpen && !IsBlockingGameplayInput;
             if (_takedownRoot != null && _takedownRoot.gameObject.activeSelf != showFeed)
                 _takedownRoot.gameObject.SetActive(showFeed);
+
+            bool showStreak = _streakBannerActive && !_suppressTakedownFeed && !IsQuickChatOpen && !IsBlockingGameplayInput;
+            if (_streakBannerRoot != null && _streakBannerRoot.gameObject.activeSelf != showStreak)
+                _streakBannerRoot.gameObject.SetActive(showStreak);
         }
 
         void ResolveFullBleedOffsets(out Vector2 bleedMin, out Vector2 bleedMax)
@@ -713,8 +775,10 @@ namespace Kalyeah.Game
             ApplyBleedOffsets(_introDimRect, bleedMin, bleedMax);
             ApplyBleedOffsets(_briefingDimRect, bleedMin, bleedMax);
             ApplyBleedOffsets(_victoryDimRect, bleedMin, bleedMax);
+            ApplyBleedOffsets(_resultsHostRect, bleedMin, bleedMax);
             ApplyBleedOffsets(_pauseDimRect, bleedMin, bleedMax);
             ApplyBleedOffsets(_hurtPulseRoot, bleedMin - new Vector2(8f, 8f), bleedMax + new Vector2(8f, 8f));
+            ApplyBleedOffsets(_blurOverlayRoot, bleedMin - new Vector2(8f, 8f), bleedMax + new Vector2(8f, 8f));
 
             float cornerRightInset = Mathf.Max(24f, ScreenFitMetrics.DpToCanvasPx(12f, _canvas));
             if (_pauseBtnRect != null)
@@ -730,20 +794,23 @@ namespace Kalyeah.Game
 
             float topControlsBottom = -(minTouch + 22f);
             // the HP + water chip sits bottom centre between the thumbs: MatchHud.LayoutHeroVitals places it
+            if (_streakBannerRoot != null)
+                _streakBannerRoot.anchoredPosition = new Vector2(-cornerRightInset, topControlsBottom);
             if (_takedownRoot != null)
-                _takedownRoot.anchoredPosition = new Vector2(-cornerRightInset, topControlsBottom);
+                _takedownRoot.anchoredPosition = new Vector2(-cornerRightInset, topControlsBottom - (_streakBannerActive ? 54f : 0f));
 
-            // Clamp top 5v5 Squad Wings between corner Pause/Quick-Chat buttons and central Scoreboard across 4:3..21:9.
+            // Clamp top 5v5 Squad Wings cleanly between [Pause][Map] and [Ping][QuickChat] flanking the 200 px A3 split scoreboard
             if (_wingsContainer != null)
             {
-                float sideReserve = Mathf.Max(140f, minTouch + 28f);
-                float totalSpan = ScreenFitMetrics.ClampWingSpread(760f, sideReserve, 920f, _canvas);
-                _wingsContainer.sizeDelta = new Vector2(totalSpan, 48f);
+                float sideReserve = Mathf.Max(140f, minTouch * 2f + 44f);
+                float totalSpan = ScreenFitMetrics.ClampWingSpread(680f, sideReserve, 740f, _canvas);
+                _wingsContainer.anchoredPosition = new Vector2(0f, -8f);
+                _wingsContainer.sizeDelta = new Vector2(totalSpan, 46f);
 
-                const float centerGap = 256f;
-                float eachWingWidth = Mathf.Max(164f, (totalSpan - centerGap) * 0.5f);
-                _allyWingRoot.sizeDelta = new Vector2(eachWingWidth, 48f);
-                _enemyWingRoot.sizeDelta = new Vector2(eachWingWidth, 48f);
+                const float centerGap = 212f;
+                float eachWingWidth = Mathf.Max(140f, (totalSpan - centerGap) * 0.5f);
+                _allyWingRoot.sizeDelta = new Vector2(eachWingWidth, 46f);
+                _enemyWingRoot.sizeDelta = new Vector2(eachWingWidth, 46f);
                 LayoutWingSlots(_allySlots, eachWingWidth, rightAlign: true);
                 LayoutWingSlots(_enemySlots, eachWingWidth, rightAlign: false);
             }
@@ -825,29 +892,10 @@ namespace Kalyeah.Game
                 _briefingPanelRect.sizeDelta = new Vector2(briefW, briefH);
             }
 
-            if (_victoryCardRect != null)
+            if (_matchResults != null)
             {
-                float vicW = Mathf.Clamp(safeSize.x - 48f, 420f, 600f);
-                Vector2 vicBtnSize = ScreenFitMetrics.ClampTouchSize(new Vector2((vicW - 64f) * 0.5f, 96f), ScreenFitMetrics.MinTouchDp, _canvas);
-                float vicH = Mathf.Clamp(safeSize.y - 28f, 480f, Mathf.Max(528f, 432f + vicBtnSize.y));
-                _victoryCardRect.sizeDelta = new Vector2(vicW, vicH);
-
-                if (_playAgainBtnRect != null)
-                {
-                    _playAgainBtnRect.sizeDelta = vicBtnSize;
-                    _playAgainBtnRect.anchoredPosition = new Vector2(24f, 16f);
-                }
-                if (_homeBtnRect != null)
-                {
-                    _homeBtnRect.sizeDelta = vicBtnSize;
-                    _homeBtnRect.anchoredPosition = new Vector2(-24f, 16f);
-                }
-                if (_victoryRankCardRect != null)
-                {
-                    float rankBottomY = 16f + vicBtnSize.y + 24f;
-                    _victoryRankCardRect.anchoredPosition = new Vector2(0f, rankBottomY);
-                    _victoryRankCardRect.sizeDelta = new Vector2(-48f, 132f);
-                }
+                _matchResults.SafeAreaComponent?.ForceApply();
+                _matchResults.RefreshLayout();
             }
         }
 
@@ -1090,111 +1138,173 @@ namespace Kalyeah.Game
 
         void BuildHeroVitals(
             out RectTransform root,
-            out Image ring,
-            out RawImage face,
-            out Text initial,
+            out Image hpGaugeImg,
+            out Material hpGaugeMat,
+            out bool hasHpShader,
             out RectTransform hpFill,
             out Image hpFillImg,
+            out RectTransform shieldFill,
+            out GameObject shieldObj,
             out RectTransform trailFill,
-            out RectTransform missingFill,
-            out Image missingImg,
             out Text hpText,
+            out Image waterGaugeImg,
+            out Material waterGaugeMat,
+            out bool hasWaterShader,
             out RectTransform stamFill,
             out Image stamImg,
+            out Image waterFountainGlow,
+            out bool hasWaterSoftGlow,
+            out Text waterText,
             out Text statusText,
             out GameObject buffBadge,
             out Image buffDot,
             out Text buffText)
         {
-            root = Ui.Panel("HeroVitalsChip", Root, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(12f, -80f), new Vector2(214f, 74f));
-            Image card = KomiksUi.MakeInkPanel("Plate", root, ColCardDark, KomiksUi.InkOutline, 12, 2, raycast: false);
-            Stretch(card.rectTransform, 0f);
+            // Locked G5 (A1): Frameless floating bottom-center vitals stack (ZERO opaque enclosing box!)
+            // 4-segment Paper-White HP bar + delayed amber drain above slim glowing cyan liquid Water bar.
+            root = Ui.Panel("HeroVitalsChip", Root, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 14f), new Vector2(264f, 46f));
 
-            RectTransform avatarBox = Ui.Panel("Avatar", root, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(8f, 0f), new Vector2(44f, 44f));
-            ring = Ui.MakeImage("Ring", avatarBox, OwnTeamColor(), round: true);
-            Stretch(ring.rectTransform, 0f);
-            Image innerBg = Ui.MakeImage("Inner", avatarBox, ColInk, round: true);
-            Stretch(innerBg.rectTransform, 3f);
-
-            var faceGo = new GameObject("Face", typeof(RectTransform), typeof(RawImage));
-            faceGo.transform.SetParent(avatarBox, false);
-            face = faceGo.GetComponent<RawImage>();
-            face.raycastTarget = false;
-            Stretch(face.rectTransform, 4f);
-            face.gameObject.SetActive(false);
-
-            initial = Ui.MakeText("Initial", avatarBox, "J", 20, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            Stretch(initial.rectTransform, 0f);
-
-            // Disjoint Numeric HP (left) + Status tag (right) so "OVERCLOCK" never collides with "100 / 100"
-            hpText = Ui.MakeText("HpText", root, "100 / 100", 16, ColHpWhite, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            // Row 1 (top 24 px): Crisp bold Paper-White HP integer on left + 4-segment HP liquid gauge on right
+            hpText = Ui.MakeText("HpText", root, "100", 22, ColHpWhite, TextAnchor.MiddleRight, KalyeahResources.DisplayFont());
             hpText.resizeTextForBestFit = true;
-            hpText.resizeTextMinSize = 12;
-            hpText.resizeTextMaxSize = 16;
+            hpText.resizeTextMinSize = 14;
+            hpText.resizeTextMaxSize = 22;
             RectTransform hpTextRt = hpText.rectTransform;
             hpTextRt.anchorMin = hpTextRt.anchorMax = new Vector2(0f, 1f);
             hpTextRt.pivot = new Vector2(0f, 1f);
-            hpTextRt.anchoredPosition = new Vector2(58f, -5f);
-            hpTextRt.sizeDelta = new Vector2(74f, 22f);
+            hpTextRt.anchoredPosition = new Vector2(0f, 0f);
+            hpTextRt.sizeDelta = new Vector2(48f, 24f);
 
-            statusText = Ui.MakeText("StatusTag", root, "", 13, ColGold, TextAnchor.MiddleRight, KalyeahResources.DisplayFont());
-            statusText.horizontalOverflow = HorizontalWrapMode.Wrap;
-            statusText.resizeTextForBestFit = true;
-            statusText.resizeTextMinSize = 10;
-            statusText.resizeTextMaxSize = 13;
-            RectTransform stRt = statusText.rectTransform;
-            stRt.anchorMin = new Vector2(0f, 1f);
-            stRt.anchorMax = new Vector2(1f, 1f);
-            stRt.offsetMin = new Vector2(136f, -27f);
-            stRt.offsetMax = new Vector2(-8f, -5f);
+            RectTransform hpTrack = Ui.Panel("HpBar", root, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 1f), new Vector2(54f, -5f), new Vector2(-54f, 14f));
+            hpGaugeMat = UiShaders.CreateLiquidGauge(ColHpWhite, ColTrailAmber, segments: 4, animatedLiquid: false);
+            hasHpShader = IsOwnedCustomMaterial(hpGaugeMat) && hpGaugeMat.HasProperty(UiShaders.PropFill);
+            if (!hasHpShader) hpGaugeMat = null;
 
-            // HP bar with missing-coral + hit-trail + live white/mint fill
-            RectTransform hpTrack = Ui.Panel("HpBar", root, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(25f, -29f), new Vector2(-66f, 13f));
-            Image hpBg = MakeSlicedImage("Track", hpTrack, ColInk, pill: true);
-            Stretch(hpBg.rectTransform, 0f);
-
-            missingImg = Ui.MakeImage("Missing", hpTrack, ColMissingCoral);
-            missingFill = missingImg.rectTransform;
-            missingFill.anchorMin = new Vector2(1f, 0f);
-            missingFill.anchorMax = Vector2.one;
-            missingFill.sizeDelta = Vector2.zero;
+            Image hpFallbackBg = Ui.MakeImage("Track", hpTrack, new Color(0.055f, 0.075f, 0.102f, 0.62f));
+            Stretch(hpFallbackBg.rectTransform, 0f);
+            hpFallbackBg.enabled = !hasHpShader;
 
             Image trailImg = Ui.MakeImage("Trail", hpTrack, ColTrailAmber);
             trailFill = trailImg.rectTransform;
             trailFill.anchorMin = new Vector2(1f, 0f);
             trailFill.anchorMax = Vector2.one;
             trailFill.sizeDelta = Vector2.zero;
+            trailImg.enabled = !hasHpShader;
 
             hpFillImg = Ui.MakeImage("LiveHp", hpTrack, ColHpWhite);
             hpFill = hpFillImg.rectTransform;
             hpFill.anchorMin = Vector2.zero;
             hpFill.anchorMax = Vector2.one;
             hpFill.sizeDelta = Vector2.zero;
+            hpFillImg.enabled = !hasHpShader;
 
-            // Gapless Stamina / Overclock bar directly below HP
-            RectTransform stamTrack = Ui.Panel("StaminaBar", root, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(25f, -45f), new Vector2(-66f, 7f));
-            Image stamBg = Ui.MakeImage("StamTrack", stamTrack, ColInk);
+            hpGaugeImg = Ui.MakeImage("HpLiquidGauge", hpTrack, Color.white);
+            Stretch(hpGaugeImg.rectTransform, 0f);
+            if (hasHpShader)
+            {
+                hpGaugeImg.material = hpGaugeMat;
+                hpGaugeImg.sprite = null;
+                hpGaugeImg.type = Image.Type.Simple;
+                hpGaugeImg.enabled = true;
+            }
+            else
+            {
+                hpGaugeImg.enabled = false;
+            }
+
+            Image shieldImg = Ui.MakeImage("ShieldHp", hpTrack, ColShieldGlow);
+            shieldFill = shieldImg.rectTransform;
+            shieldFill.anchorMin = new Vector2(1f, 0f);
+            shieldFill.anchorMax = Vector2.one;
+            shieldFill.sizeDelta = Vector2.zero;
+            shieldObj = shieldImg.gameObject;
+            shieldObj.SetActive(false);
+
+            // Row 2 (bottom 18 px): Crisp cyan Water integer on left + glowing animated liquid Water bar on right
+            waterText = Ui.MakeText("WaterReadout", root, "100", 14, ColWaterFill, TextAnchor.MiddleRight, KalyeahResources.DisplayFont());
+            waterText.resizeTextForBestFit = true;
+            waterText.resizeTextMinSize = 10;
+            waterText.resizeTextMaxSize = 14;
+            RectTransform wtRt = waterText.rectTransform;
+            wtRt.anchorMin = wtRt.anchorMax = new Vector2(0f, 0f);
+            wtRt.pivot = new Vector2(0f, 0f);
+            wtRt.anchoredPosition = new Vector2(0f, 1f);
+            wtRt.sizeDelta = new Vector2(48f, 16f);
+
+            RectTransform stamTrack = Ui.Panel("StaminaBar", root, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 0f), new Vector2(54f, 4f), new Vector2(-54f, 9f));
+            waterGaugeMat = UiShaders.CreateLiquidGauge(ColWaterFill, new Color(0.10f, 0.52f, 0.70f, 0.65f), segments: 0, animatedLiquid: true);
+            hasWaterShader = IsOwnedCustomMaterial(waterGaugeMat) && waterGaugeMat.HasProperty(UiShaders.PropFill);
+            if (!hasWaterShader) waterGaugeMat = null;
+
+            waterFountainGlow = Ui.MakeImage("FountainGlow", stamTrack, new Color(ColWaterFountain.r, ColWaterFountain.g, ColWaterFountain.b, 0f), round: false, raycast: false);
+            Material fountainGlowMat = UiShaders.CreateSoftGlow(MenuArt.WaterCyan);
+            hasWaterSoftGlow = IsOwnedCustomMaterial(fountainGlowMat);
+            if (hasWaterSoftGlow)
+            {
+                waterFountainGlow.material = fountainGlowMat;
+                waterFountainGlow.sprite = null;
+                waterFountainGlow.type = Image.Type.Simple;
+                waterFountainGlow.color = new Color(1f, 1f, 1f, 0f);
+            }
+            waterFountainGlow.rectTransform.anchorMin = Vector2.zero;
+            waterFountainGlow.rectTransform.anchorMax = Vector2.one;
+            waterFountainGlow.rectTransform.offsetMin = new Vector2(-6f, -5f);
+            waterFountainGlow.rectTransform.offsetMax = new Vector2(6f, 5f);
+            waterFountainGlow.enabled = false;
+
+            Image stamBg = Ui.MakeImage("StamTrack", stamTrack, new Color(0.055f, 0.075f, 0.102f, 0.62f));
             Stretch(stamBg.rectTransform, 0f);
-            stamImg = Ui.MakeImage("StamFill", stamTrack, ColStamina);
+            stamBg.enabled = !hasWaterShader;
+
+            stamImg = Ui.MakeImage("StamFill", stamTrack, ColWaterFill);
             stamFill = stamImg.rectTransform;
             stamFill.anchorMin = Vector2.zero;
             stamFill.anchorMax = Vector2.one;
             stamFill.sizeDelta = Vector2.zero;
+            stamImg.enabled = !hasWaterShader;
 
-            // Active Merienda Buff badge (Palamig, Teks, Turon)
-            RectTransform buffRect = Ui.Panel("MeriendaBuff", root, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(25f, 4f), new Vector2(-66f, 17f));
+            waterGaugeImg = Ui.MakeImage("WaterLiquidGauge", stamTrack, Color.white);
+            Stretch(waterGaugeImg.rectTransform, 0f);
+            if (hasWaterShader)
+            {
+                waterGaugeImg.material = waterGaugeMat;
+                waterGaugeImg.sprite = null;
+                waterGaugeImg.type = Image.Type.Simple;
+                waterGaugeImg.enabled = true;
+            }
+            else
+            {
+                waterGaugeImg.enabled = false;
+            }
+
+            // Floating micro Status / Merienda Buff row cleanly above the HP bar (hidden when idle so resting HUD stays pure)
+            statusText = Ui.MakeText("StatusTag", root, "", 12, ColGold, TextAnchor.MiddleRight, KalyeahResources.DisplayFont());
+            statusText.resizeTextForBestFit = true;
+            statusText.resizeTextMinSize = 10;
+            statusText.resizeTextMaxSize = 12;
+            RectTransform stRt = statusText.rectTransform;
+            stRt.anchorMin = new Vector2(0.5f, 1f);
+            stRt.anchorMax = new Vector2(1f, 1f);
+            stRt.pivot = new Vector2(1f, 0f);
+            stRt.anchoredPosition = new Vector2(0f, 3f);
+            stRt.sizeDelta = new Vector2(0f, 16f);
+
+            RectTransform buffRect = Ui.Panel("MeriendaBuff", root, new Vector2(0f, 1f), new Vector2(0.55f, 1f), new Vector2(0f, 0f), new Vector2(54f, 3f), new Vector2(-54f, 16f));
             buffBadge = buffRect.gameObject;
-            Image buffPlate = MakeSlicedImage("BuffPlate", buffRect, new Color(0.04f, 0.06f, 0.10f, 0.84f), pill: true);
+            Image buffPlate = MakeSlicedImage("BuffPlate", buffRect, new Color(MenuArt.ObsidianSolid.r, MenuArt.ObsidianSolid.g, MenuArt.ObsidianSolid.b, 0.78f), pill: true);
             Stretch(buffPlate.rectTransform, 0f);
             buffDot = Ui.MakeImage("BuffDot", buffRect, ColPalamig, round: true);
             buffDot.rectTransform.anchorMin = buffDot.rectTransform.anchorMax = new Vector2(0f, 0.5f);
             buffDot.rectTransform.pivot = new Vector2(0f, 0.5f);
             buffDot.rectTransform.anchoredPosition = new Vector2(5f, 0f);
-            buffDot.rectTransform.sizeDelta = new Vector2(10f, 10f);
-            buffText = Ui.MakeText("BuffLabel", buffRect, "PALAMIG 8s", 12, ColPalamig, TextAnchor.MiddleLeft);
+            buffDot.rectTransform.sizeDelta = new Vector2(8f, 8f);
+            buffText = Ui.MakeText("BuffLabel", buffRect, "PALAMIG 8s", 11, ColPalamig, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            buffText.resizeTextForBestFit = true;
+            buffText.resizeTextMinSize = 9;
+            buffText.resizeTextMaxSize = 11;
             buffText.rectTransform.anchorMin = Vector2.zero;
             buffText.rectTransform.anchorMax = Vector2.one;
-            buffText.rectTransform.offsetMin = new Vector2(19f, 0f);
+            buffText.rectTransform.offsetMin = new Vector2(16f, 0f);
             buffText.rectTransform.offsetMax = new Vector2(-4f, 0f);
             buffBadge.SetActive(false);
         }
@@ -1210,13 +1320,7 @@ namespace Kalyeah.Game
             }
 
             KidSnapshot kid = localKid.Value;
-            _heroRing.color = OwnTeamColor();
-            if (!string.Equals(_cachedHeroChar, kid.CharacterId, StringComparison.Ordinal))
-            {
-                _cachedHeroChar = kid.CharacterId ?? "";
-                ApplyAvatarArt(_cachedHeroChar, _heroFace, _heroInitial);
-            }
-
+            bool reduce = SettingsStore.Current.ReduceMotion;
             int maxHp = Mathf.Max(sim.MaxHp, 1);
             int curHp = kid.Tagged ? 0 : Mathf.Clamp(kid.Hp, 0, maxHp);
             float liveShare = Mathf.Clamp01((float)curHp / maxHp);
@@ -1227,7 +1331,7 @@ namespace Kalyeah.Game
                 _trailShare = liveShare;
                 _trailHoldLeft = 0f;
             }
-            else if (SettingsStore.Current.ReduceMotion)
+            else if (reduce)
             {
                 _trailShare = liveShare;
                 _trailHoldLeft = 0f;
@@ -1248,29 +1352,133 @@ namespace Kalyeah.Game
                 }
             }
 
-            if (curHp != _lastHp || maxHp != _lastMaxHp)
+            if (curHp != _lastHp)
             {
                 _lastHp = curHp;
-                _lastMaxHp = maxHp;
-                _heroHpText.text = curHp.ToString(CultureInfo.InvariantCulture) + " / " + maxHp.ToString(CultureInfo.InvariantCulture);
+                int clampedHp = Mathf.Clamp(curHp, 0, WaterStrings.Length - 1);
+                _heroHpText.text = WaterStrings[clampedHp];
             }
 
             bool regen = kid.ActiveBuff == BuffKind.Turon && kid.BuffLeft > 0.01f && !kid.Tagged;
-            _heroHpFillImg.color = regen ? ColRegenMint : ColHpWhite;
-            _heroMissingImg.color = SettingsStore.Current.IsColorblind ? EnemyTeamColor() : ColMissingCoral;
+            Color hpColor = kid.LangitProtected ? ColGold : (regen ? ColRegenMint : ColHpWhite);
+            float clampedTrail = Mathf.Clamp(_trailShare, liveShare, 1f);
 
-            _heroHpFill.anchorMax = new Vector2(liveShare, 1f);
-            _heroTrailFill.anchorMin = new Vector2(liveShare, 0f);
-            _heroTrailFill.anchorMax = new Vector2(Mathf.Clamp(_trailShare, liveShare, 1f), 1f);
-            _heroMissingFill.anchorMin = new Vector2(Mathf.Clamp(_trailShare, liveShare, 1f), 0f);
-            _heroMissingFill.anchorMax = Vector2.one;
+            if (_hasHeroHpShader && _heroHpGaugeMat != null)
+            {
+                _heroHpGaugeMat.SetFloat(UiShaders.PropFill, liveShare);
+                _heroHpGaugeMat.SetFloat(UiShaders.PropTrailFill, clampedTrail);
+                _heroHpGaugeMat.SetColor(UiShaders.PropFillColor, hpColor);
+                _heroHpGaugeMat.SetColor(UiShaders.PropTrailColor, ColTrailAmber);
+                _heroHpGaugeMat.SetFloat(UiShaders.PropLowPulse, (!kid.Tagged && liveShare <= LowHealthThresholdShare) ? 1f : 0f);
+                _heroHpGaugeMat.SetFloat(UiShaders.PropReduceMotion, reduce ? 1f : 0f);
+            }
+            else
+            {
+                _heroHpFillImg.color = hpColor;
+                _heroHpFill.anchorMax = new Vector2(liveShare, 1f);
+                _heroTrailFill.anchorMin = new Vector2(liveShare, 0f);
+                _heroTrailFill.anchorMax = new Vector2(clampedTrail, 1f);
+            }
 
-            float maxStam = Mathf.Max(kid.MaxStamina > 0f ? kid.MaxStamina : sim.MaxStamina, 1f);
-            float stamShare = Mathf.Clamp01(kid.Stamina / maxStam);
-            _heroStamFill.anchorMax = new Vector2(stamShare, 1f);
-            _heroStamImg.color = kid.Overclocked
-                ? ColOverclock
-                : (kid.ExhaustLeft > 0.01f ? ColStatusAlert : ColStamina);
+            bool hasShield = !kid.Tagged && kid.ShieldHp > 0.5f;
+            if (_heroShieldObj != null)
+            {
+                if (_heroShieldObj.activeSelf != hasShield)
+                    _heroShieldObj.SetActive(hasShield);
+                if (hasShield)
+                {
+                    float shShare = Mathf.Clamp01(kid.ShieldHp / maxHp);
+                    _heroShieldFill.anchorMin = new Vector2(Mathf.Clamp01(1f - shShare), 0f);
+                    _heroShieldFill.anchorMax = Vector2.one;
+                }
+            }
+
+            bool showWater = kid.UsingSpecKit || sim.SpecKitsActive;
+            if (showWater != _lastShowWaterMode)
+            {
+                _lastShowWaterMode = showWater;
+                if (_heroWaterText != null)
+                    _heroWaterText.gameObject.SetActive(showWater);
+            }
+
+            bool fountainRefilling = false;
+            float lowerShare;
+            Color lowerColor;
+            float waveSpeed;
+            float meniscusGlow;
+            float lowerLowPulse = 0f;
+
+            if (showWater)
+            {
+                float maxWater = Mathf.Max(kid.MaxWater > 0.5f ? kid.MaxWater : sim.MaxWater, 1f);
+                float curWater = Mathf.Clamp(kid.Water, 0f, maxWater);
+                lowerShare = Mathf.Clamp01(curWater / maxWater);
+
+                fountainRefilling = !kid.Tagged && kid.InHomeFountain && curWater < maxWater - 0.5f;
+                if (fountainRefilling)
+                {
+                    if (!reduce)
+                        _fountainPulsePhase = Mathf.Repeat(_fountainPulsePhase + dt * 6.5f, Mathf.PI * 2f);
+                    float pulse = reduce ? 0.65f : (0.5f + 0.5f * Mathf.Sin(_fountainPulsePhase));
+                    lowerColor = Color.Lerp(ColWaterFill, ColWaterFountain, pulse);
+                    waveSpeed = 2.2f;
+                    meniscusGlow = 1.15f;
+                    if (_heroWaterFountainGlow != null)
+                    {
+                        _heroWaterFountainGlow.enabled = true;
+                        _heroWaterFountainGlow.color = _hasWaterSoftGlow
+                            ? new Color(1f, 1f, 1f, 0.45f + 0.35f * pulse)
+                            : new Color(ColWaterFountain.r, ColWaterFountain.g, ColWaterFountain.b, 0.24f + 0.34f * pulse);
+                    }
+                }
+                else
+                {
+                    bool lowWater = curWater < 20f;
+                    lowerColor = lowWater ? ColWaterLow : ColWaterFill;
+                    waveSpeed = 1.15f;
+                    meniscusGlow = 0.85f;
+                    lowerLowPulse = lowWater ? 1f : 0f;
+                    if (_heroWaterFountainGlow != null && _heroWaterFountainGlow.enabled)
+                        _heroWaterFountainGlow.enabled = false;
+                }
+
+                int waterWhole = Mathf.Clamp(Mathf.FloorToInt(curWater + 0.05f), 0, WaterStrings.Length - 1);
+                if (waterWhole != _lastWaterWhole && _heroWaterText != null)
+                {
+                    _lastWaterWhole = waterWhole;
+                    _heroWaterText.text = WaterStrings[waterWhole];
+                }
+                if (_heroWaterText != null)
+                    _heroWaterText.color = fountainRefilling ? ColWaterFountain : (curWater < 20f ? ColWaterLow : ColWaterFill);
+            }
+            else
+            {
+                if (_heroWaterFountainGlow != null && _heroWaterFountainGlow.enabled)
+                    _heroWaterFountainGlow.enabled = false;
+                float maxStam = Mathf.Max(kid.MaxStamina > 0f ? kid.MaxStamina : sim.MaxStamina, 1f);
+                lowerShare = Mathf.Clamp01(kid.Stamina / maxStam);
+                lowerColor = kid.Overclocked
+                    ? ColOverclock
+                    : (kid.ExhaustLeft > 0.01f ? ColStatusAlert : ColStamina);
+                waveSpeed = 0.65f;
+                meniscusGlow = 0.55f;
+            }
+
+            if (_hasHeroWaterShader && _heroWaterGaugeMat != null)
+            {
+                _heroWaterGaugeMat.SetFloat(UiShaders.PropFill, lowerShare);
+                _heroWaterGaugeMat.SetFloat(UiShaders.PropTrailFill, lowerShare);
+                _heroWaterGaugeMat.SetColor(UiShaders.PropFillColor, lowerColor);
+                _heroWaterGaugeMat.SetFloat(UiShaders.PropMeniscusGlow, meniscusGlow);
+                _heroWaterGaugeMat.SetFloat(UiShaders.PropWaveSpeed, waveSpeed);
+                _heroWaterGaugeMat.SetFloat(UiShaders.PropLowPulse, lowerLowPulse);
+                _heroWaterGaugeMat.SetFloat(UiShaders.PropReduceMotion, reduce ? 1f : 0f);
+            }
+            else
+            {
+                _heroStamFill.anchorMax = new Vector2(lowerShare, 1f);
+                _heroStamImg.color = lowerColor;
+            }
 
             string statusWord = ResolveHeroStatusWord(kid, out Color statusColor);
             if (!string.Equals(_lastHeroStatus, statusWord, StringComparison.Ordinal))
@@ -1282,38 +1490,61 @@ namespace Kalyeah.Game
 
             BuffKind activeBuff = kid.BuffLeft > 0.01f ? kid.ActiveBuff : BuffKind.None;
             bool showBuff = activeBuff != BuffKind.None;
-            if (_heroBuffBadge.activeSelf != showBuff)
-                _heroBuffBadge.SetActive(showBuff);
+            bool showFountainBadge = !showBuff && fountainRefilling;
+            bool showBottomChip = showBuff || showFountainBadge;
+            if (_heroBuffBadge.activeSelf != showBottomChip)
+                _heroBuffBadge.SetActive(showBottomChip);
             if (showBuff)
             {
                 int sec = Mathf.Max(1, Mathf.CeilToInt(kid.BuffLeft));
-                if (activeBuff != _lastBuffKind || sec != _lastBuffCeilSec)
+                if (activeBuff != _lastBuffKind || sec != _lastBuffCeilSec || _lastFountainChip)
                 {
                     _lastBuffKind = activeBuff;
                     _lastBuffCeilSec = sec;
+                    _lastFountainChip = false;
                     Color bc = BuffColorOf(activeBuff);
                     _heroBuffDot.color = bc;
                     _heroBuffText.color = bc;
                     _heroBuffText.text = BuffDisplayName(activeBuff) + " " + sec.ToString(CultureInfo.InvariantCulture) + "s";
                 }
             }
+            else if (showFountainBadge)
+            {
+                if (!_lastFountainChip)
+                {
+                    _lastFountainChip = true;
+                    _lastBuffKind = BuffKind.None;
+                    _lastBuffCeilSec = -1;
+                    _heroBuffDot.color = ColWaterFountain;
+                    _heroBuffText.color = ColWaterFountain;
+                    _heroBuffText.text = "BASE WATER +25/s";
+                }
+            }
             else
             {
                 _lastBuffKind = BuffKind.None;
                 _lastBuffCeilSec = -1;
+                _lastFountainChip = false;
             }
         }
 
         static string ResolveHeroStatusWord(KidSnapshot kid, out Color color)
         {
             if (kid.Tagged) { color = ColStatusAlert; return "OUT"; }
-            if (kid.Overclocked) { color = ColOverclock; return "OVERCLOCK"; }
             if (kid.StatusKind == StatusKind.Stun || kid.StatusKind == StatusKind.Knockout || kid.StatusKind == StatusKind.Polymorph)
             {
                 color = ColTeks;
-                return "STUN";
+                return kid.StatusKind == StatusKind.Polymorph ? "CAN" : "STUN";
             }
+            if (kid.StatusKind == StatusKind.Root) { color = ColTeks; return "ROOTED"; }
             if (kid.StatusKind == StatusKind.Tripped) { color = ColStatusAlert; return "TRIPPED"; }
+            if (kid.StatusKind == StatusKind.Slip) { color = ColPalamig; return "SLIP"; }
+            if (kid.LangitProtected) { color = ColGold; return "LANGIT!"; }
+            if (kid.OnStilts) { color = ColTuron; return "STILTS"; }
+            if (kid.Invisible) { color = ColPalamig; return "HIDDEN"; }
+            if (kid.InSackRace) { color = ColGold; return "SACK"; }
+            if (kid.SpinningTrumpo) { color = ColTeks; return "SPIN"; }
+            if (kid.Overclocked) { color = ColOverclock; return "OVERCLOCK"; }
             if (kid.ExhaustLeft > 0.01f) { color = ColStatusAlert; return "EXHAUST"; }
             if (kid.Dashing) { color = ColPalamig; return "VAULT"; }
             if (kid.Sliding) { color = ColPalamig; return "SLIDE"; }
@@ -1324,9 +1555,10 @@ namespace Kalyeah.Game
 
         void BuildSquadWings(out RectTransform container, out RectTransform allyWing, out RectTransform enemyWing)
         {
-            container = Ui.Panel("SquadWings", Root, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -14f), new Vector2(760f, 48f));
-            allyWing = Ui.Panel("AllySquadWing", container, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(240f, 48f));
-            enemyWing = Ui.Panel("EnemySquadWing", container, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(240f, 48f));
+            // Locked G4 (A3): 5v5 frameless clean KidBustSprite portraits flanking the split top-center scoreboard (zero heavy enclosing card!)
+            container = Ui.Panel("SquadWings", Root, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(680f, 46f));
+            allyWing = Ui.Panel("AllySquadWing", container, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(234f, 46f));
+            enemyWing = Ui.Panel("EnemySquadWing", container, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(234f, 46f));
 
             for (int i = 0; i < SquadWingSlots; i++)
             {
@@ -1340,68 +1572,69 @@ namespace Kalyeah.Game
         {
             RectTransform slot = Ui.Panel(name, parent, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(36f, 46f));
 
-            RectTransform disc = Ui.Panel("Portrait", slot, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -2f), new Vector2(34f, 34f));
-            Image ring = Ui.MakeImage("Ring", disc, Color.white, round: true);
-            Stretch(ring.rectTransform, 0f);
-            Image bg = Ui.MakeImage("Bg", disc, ColInk, round: true);
-            Stretch(bg.rectTransform, 2.5f);
+            // Frameless bust mask — whisper-subtle translucent shadow only, ZERO heavy card border or ring!
+            RectTransform bustBox = Ui.Panel("Portrait", slot, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            bustBox.offsetMin = new Vector2(0f, 5f);
+            bustBox.offsetMax = new Vector2(0f, -2f);
+            bustBox.gameObject.AddComponent<RectMask2D>();
 
-            var faceGo = new GameObject("Face", typeof(RectTransform), typeof(RawImage));
-            faceGo.transform.SetParent(disc, false);
-            var face = faceGo.GetComponent<RawImage>();
-            face.raycastTarget = false;
-            Stretch(face.rectTransform, 3f);
-            face.gameObject.SetActive(false);
+            Image softBack = Ui.MakeImage("SoftShade", bustBox, new Color(MenuArt.ObsidianSolid.r, MenuArt.ObsidianSolid.g, MenuArt.ObsidianSolid.b, 0.24f), round: false, raycast: false);
+            Stretch(softBack.rectTransform, 0f);
 
-            Text initial = Ui.MakeText("Initial", disc, "K", 15, Color.white, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Image bust = Ui.MakeImage("Bust", bustBox, Color.white, round: false, raycast: false);
+            bust.preserveAspect = true;
+            bust.rectTransform.anchorMin = new Vector2(-0.08f, -0.06f);
+            bust.rectTransform.anchorMax = new Vector2(1.08f, 1.06f);
+            bust.rectTransform.offsetMin = Vector2.zero;
+            bust.rectTransform.offsetMax = Vector2.zero;
+
+            Text initial = Ui.MakeText("Initial", bustBox, "K", 15, MenuArt.PaperWhite, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             Stretch(initial.rectTransform, 0f);
+            initial.gameObject.SetActive(false);
 
-            GameObject crossObj = Ui.Panel("TaggedCross", disc, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero).gameObject;
-            Text crossTxt = Ui.MakeText("X", crossObj.transform, "X", 20, ColStatusAlert, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            GameObject crossObj = Ui.Panel("TaggedCross", bustBox, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero).gameObject;
+            Text crossTxt = Ui.MakeText("X", crossObj.transform, "X", 20, MenuArt.SignalVermilion, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             Stretch(crossTxt.rectTransform, 0f);
             crossObj.SetActive(false);
 
-            RectTransform ultRect = Ui.Panel("UltPip", disc, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(11f, 11f));
-            Image ultImg = Ui.MakeImage("Star", ultRect, ColOverclock, round: true);
+            // Clean 2 px Paper-White top micro-tick marking the local player (replaces cramped 9 px YOU label)
+            GameObject youTick = null;
+            if (includeHpBar)
+            {
+                Image tickImg = Ui.MakeImage("YouTick", slot, MenuArt.PaperWhite, round: false, raycast: false);
+                tickImg.rectTransform.anchorMin = new Vector2(0.18f, 1f);
+                tickImg.rectTransform.anchorMax = new Vector2(0.82f, 1f);
+                tickImg.rectTransform.pivot = new Vector2(0.5f, 1f);
+                tickImg.rectTransform.anchoredPosition = Vector2.zero;
+                tickImg.rectTransform.sizeDelta = new Vector2(0f, 2f);
+                youTick = tickImg.gameObject;
+                youTick.SetActive(false);
+            }
+
+            RectTransform ultRect = Ui.Panel("UltPip", slot, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-1f, -3f), new Vector2(8f, 8f));
+            Image ultImg = Ui.MakeImage("Star", ultRect, MenuArt.WaterCyan, round: true);
             Stretch(ultImg.rectTransform, 0f);
             ultRect.gameObject.SetActive(false);
 
-            Text youTag = null;
-            Image hpTrack = null;
-            RectTransform hpFill = null;
-            Image hpFillImg = null;
-
-            if (includeHpBar)
-            {
-                youTag = Ui.MakeText("YouTag", disc, "YOU", 9, ColHpWhite, TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
-                youTag.rectTransform.anchorMin = new Vector2(0f, 0f);
-                youTag.rectTransform.anchorMax = new Vector2(1f, 0f);
-                youTag.rectTransform.pivot = new Vector2(0.5f, 0f);
-                youTag.rectTransform.anchoredPosition = new Vector2(0f, -1f);
-                youTag.rectTransform.sizeDelta = new Vector2(0f, 11f);
-                youTag.gameObject.SetActive(false);
-
-                RectTransform barBox = Ui.Panel("AllyHp", slot, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 2f), new Vector2(-2f, 5f));
-                hpTrack = Ui.MakeImage("Track", barBox, ColInk);
-                Stretch(hpTrack.rectTransform, 0f);
-                hpFillImg = Ui.MakeImage("Fill", barBox, ColRegenMint);
-                hpFill = hpFillImg.rectTransform;
-                hpFill.anchorMin = Vector2.zero;
-                hpFill.anchorMax = Vector2.one;
-                hpFill.sizeDelta = Vector2.zero;
-            }
+            // Thin 3.5 px team-colored bottom underline (ally scales with HP; enemy stays full-width team color only!)
+            RectTransform barBox = Ui.Panel(includeHpBar ? "AllyHp" : "TeamUnderline", slot, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 0f), new Vector2(0f, 3.5f));
+            Image underlineTrack = Ui.MakeImage("Track", barBox, new Color(MenuArt.ObsidianSolid.r, MenuArt.ObsidianSolid.g, MenuArt.ObsidianSolid.b, 0.62f));
+            Stretch(underlineTrack.rectTransform, 0f);
+            Image underlineFillImg = Ui.MakeImage("Fill", barBox, includeHpBar ? MenuArt.AllyBlue : MenuArt.EnemyRed);
+            RectTransform underlineFill = underlineFillImg.rectTransform;
+            underlineFill.anchorMin = Vector2.zero;
+            underlineFill.anchorMax = Vector2.one;
+            underlineFill.sizeDelta = Vector2.zero;
 
             return new SquadSlotUi
             {
                 Root = slot,
-                Ring = ring,
-                FallbackBg = bg,
-                Face = face,
+                Bust = bust,
                 Initial = initial,
-                YouTag = youTag,
-                HpTrack = hpTrack,
-                HpFill = hpFill,
-                HpFillImage = hpFillImg,
+                YouTick = youTick,
+                UnderlineTrack = underlineTrack,
+                UnderlineFill = underlineFill,
+                UnderlineFillImage = underlineFillImg,
                 TaggedCross = crossObj,
                 UltPip = ultRect.gameObject,
                 CachedId = -1,
@@ -1411,8 +1644,8 @@ namespace Kalyeah.Game
 
         static void LayoutWingSlots(SquadSlotUi[] slots, float wingWidth, bool rightAlign)
         {
-            const float gap = 5f;
-            float slotW = Mathf.Clamp((wingWidth - gap * (SquadWingSlots - 1)) / SquadWingSlots, 28f, 38f);
+            const float gap = 4f;
+            float slotW = Mathf.Clamp((wingWidth - gap * (SquadWingSlots - 1)) / SquadWingSlots, 26f, 38f);
             float totalUsed = slotW * SquadWingSlots + gap * (SquadWingSlots - 1);
             float startX = rightAlign ? Mathf.Max(0f, wingWidth - totalUsed) : 0f;
             for (int i = 0; i < slots.Length; i++)
@@ -1467,42 +1700,64 @@ namespace Kalyeah.Game
             {
                 ui.CachedId = k.Id;
                 ui.CachedChar = k.CharacterId ?? "";
-                ApplyAvatarArt(ui.CachedChar, ui.Face, ui.Initial);
+                Sprite bustSp = KalyeahResources.KidHeadSprite(ui.CachedChar) ?? KalyeahResources.KidBustSprite(ui.CachedChar);
+                if (bustSp != null)
+                {
+                    ui.Bust.sprite = bustSp;
+                    ui.Bust.enabled = true;
+                    ui.Initial.gameObject.SetActive(false);
+                }
+                else
+                {
+                    ui.Bust.enabled = false;
+                    ui.Initial.gameObject.SetActive(true);
+                    string clean = ui.CachedChar.Trim();
+                    ui.Initial.text = clean.Length > 0 ? clean.Substring(0, 1).ToUpperInvariant() : "K";
+                }
             }
 
             bool isMe = isAlly && k.Id == localId;
             bool isOut = k.Tagged;
 
-            ui.Ring.color = isOut
-                ? new Color(1f, 1f, 1f, 0.30f)
-                : (isMe ? ColHpWhite : teamColor);
-            if (ui.Face.gameObject.activeSelf)
-                ui.Face.color = isOut ? new Color(0.45f, 0.48f, 0.54f, 0.55f) : Color.white;
-            ui.Initial.color = isOut ? new Color(0.82f, 0.85f, 0.90f, 0.72f) : Color.white;
+            if (ui.Bust.enabled)
+                ui.Bust.color = isOut ? new Color(0.36f, 0.40f, 0.46f, 0.48f) : Color.white;
+            if (ui.Initial.gameObject.activeSelf)
+                ui.Initial.color = isOut ? new Color(0.76f, 0.80f, 0.86f, 0.56f) : MenuArt.PaperWhite;
 
             if (ui.TaggedCross.activeSelf != isOut)
                 ui.TaggedCross.SetActive(isOut);
 
-            bool showUlt = isAlly && !isOut && k.UltCharge >= 99.9f;
+            bool ultReady = k.UsingSpecKit
+                ? (k.SlotCooldowns != null && k.SlotCooldowns.Length > 2 && k.SlotCooldowns[2] <= 0.01f)
+                : (k.UltCharge >= 99.9f);
+            bool showUlt = isAlly && !isOut && ultReady;
             if (ui.UltPip.activeSelf != showUlt)
                 ui.UltPip.SetActive(showUlt);
 
-            if (isAlly && ui.HpFill != null)
-            {
-                if (ui.YouTag != null && ui.YouTag.gameObject.activeSelf != isMe)
-                    ui.YouTag.gameObject.SetActive(isMe);
+            if (ui.YouTick != null && ui.YouTick.activeSelf != isMe)
+                ui.YouTick.SetActive(isMe);
 
+            if (isAlly)
+            {
                 float share = isOut ? 0f : Mathf.Clamp01((float)k.Hp / maxHp);
-                ui.HpFill.anchorMax = new Vector2(share, 1f);
+                ui.UnderlineFill.anchorMax = new Vector2(share, 1f);
                 if (SettingsStore.Current.IsColorblind)
-                    ui.HpFillImage.color = teamColor;
+                    ui.UnderlineFillImage.color = teamColor;
                 else
-                    ui.HpFillImage.color = share <= 0.30f ? ColStatusAlert : (share <= 0.60f ? ColOverclock : ColRegenMint);
+                    ui.UnderlineFillImage.color = share <= 0.30f ? ColStatusAlert : (isMe ? MenuArt.PaperWhite : teamColor);
+            }
+            else
+            {
+                // Enemy HP strictly NEVER shown: full-width team color underline (dimmed only when Tagged)
+                ui.UnderlineFill.anchorMax = Vector2.one;
+                Color c = teamColor;
+                c.a = isOut ? 0.30f : 0.94f;
+                ui.UnderlineFillImage.color = c;
             }
         }
 
         // =============================================================================================================================
-        // 2. TakedownFeed (Top-Right 3 Recent Tags) & CaptureAlert (0.4s Hysteresis Anti-Flicker)
+        // 2. TakedownFeed (Top-Right 3 Recent Tags), Skewed Multi-Tag Streak Banners & CaptureAlert (0.4s Hysteresis)
         // =============================================================================================================================
 
         void BuildTakedownFeed(out RectTransform root)
@@ -1519,15 +1774,22 @@ namespace Kalyeah.Game
                 group.blocksRaycasts = false;
                 group.interactable = false;
 
-                Image bg = KomiksUi.MakeInkPanel("Pill", row, new Color(0.05f, 0.08f, 0.14f, 0.88f), KomiksUi.InkOutline, 12, 2, raycast: false);
+                Image bg = KomiksUi.MakeInkPanel(
+                    "Pill",
+                    row,
+                    new Color(MenuArt.ObsidianSolid.r, MenuArt.ObsidianSolid.g, MenuArt.ObsidianSolid.b, 0.86f),
+                    new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.28f),
+                    8,
+                    1,
+                    raycast: false);
                 Stretch(bg.rectTransform, 0f);
 
                 Image accent = Ui.MakeImage("Accent", row, KillFeedOwnColor());
                 accent.rectTransform.anchorMin = new Vector2(0f, 0f);
                 accent.rectTransform.anchorMax = new Vector2(0f, 1f);
                 accent.rectTransform.pivot = new Vector2(0f, 0.5f);
-                accent.rectTransform.anchoredPosition = new Vector2(5f, 0f);
-                accent.rectTransform.sizeDelta = new Vector2(4f, -10f);
+                accent.rectTransform.anchoredPosition = new Vector2(4f, 0f);
+                accent.rectTransform.sizeDelta = new Vector2(3.5f, -8f);
 
                 Text left = Ui.MakeText("Left", row, "", 14, KillFeedOwnColor(), TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
                 left.resizeTextForBestFit = true;
@@ -1535,10 +1797,10 @@ namespace Kalyeah.Game
                 left.resizeTextMaxSize = 15;
                 left.rectTransform.anchorMin = new Vector2(0f, 0f);
                 left.rectTransform.anchorMax = new Vector2(0.39f, 1f);
-                left.rectTransform.offsetMin = new Vector2(14f, 0f);
+                left.rectTransform.offsetMin = new Vector2(13f, 0f);
                 left.rectTransform.offsetMax = Vector2.zero;
 
-                Text badge = Ui.MakeText("Badge", row, "TAG", 12, ColGold, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+                Text badge = Ui.MakeText("Badge", row, "TAG", 12, MenuArt.CoralGold, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
                 badge.resizeTextForBestFit = true;
                 badge.resizeTextMinSize = 10;
                 badge.resizeTextMaxSize = 12;
@@ -1568,11 +1830,212 @@ namespace Kalyeah.Game
             }
         }
 
+        void BuildStreakBanner(out RectTransform root, out CanvasGroup group, out Text titleText, out Text subText)
+        {
+            // A1/A3 skewed top-right multi-tag streak banner (strictly outside 45%x50% center sightbox, EditMode-inert, ReduceMotion-safe)
+            root = Ui.Panel("MultiTagStreakBanner", Root, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -80f), new Vector2(256f, 48f));
+            group = root.gameObject.AddComponent<CanvasGroup>();
+            group.blocksRaycasts = false;
+            group.interactable = false;
+            group.alpha = 0f;
+
+            Image plate = Ui.MakeImage("Plate", root, Color.white, round: false, raycast: false);
+            Material glassMat = UiShaders.CreateTacticalGlass(
+                MenuArt.ObsidianSolid,
+                new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.44f),
+                MenuArt.SignalVermilion,
+                cornerCut: 6f,
+                accentW: 4f,
+                topHighlight: 0.18f);
+            if (IsOwnedCustomMaterial(glassMat))
+            {
+                plate.material = glassMat;
+                plate.sprite = null;
+                plate.type = Image.Type.Simple;
+                plate.color = Color.white;
+            }
+            else
+            {
+                plate.sprite = RoundedCardSprite();
+                plate.type = Image.Type.Sliced;
+                plate.color = MenuArt.ObsidianSolid;
+            }
+            Stretch(plate.rectTransform, 0f);
+
+            Image rightAccent = Ui.MakeImage("RightRail", root, MenuArt.CoralGold, round: false, raycast: false);
+            rightAccent.rectTransform.anchorMin = new Vector2(1f, 0f);
+            rightAccent.rectTransform.anchorMax = new Vector2(1f, 1f);
+            rightAccent.rectTransform.pivot = new Vector2(1f, 0.5f);
+            rightAccent.rectTransform.anchoredPosition = Vector2.zero;
+            rightAccent.rectTransform.sizeDelta = new Vector2(3.5f, 0f);
+
+            titleText = Ui.MakeText("StreakTitle", root, "DOUBLE TAG!", 19, MenuArt.PaperWhite, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            titleText.resizeTextForBestFit = true;
+            titleText.resizeTextMinSize = 13;
+            titleText.resizeTextMaxSize = 19;
+            titleText.rectTransform.anchorMin = new Vector2(0f, 0.36f);
+            titleText.rectTransform.anchorMax = new Vector2(1f, 1f);
+            titleText.rectTransform.offsetMin = new Vector2(14f, 0f);
+            titleText.rectTransform.offsetMax = new Vector2(-12f, -3f);
+
+            subText = Ui.MakeText("StreakSub", root, "2X MULTI-TAG", 11, MenuArt.CoralGold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            subText.resizeTextForBestFit = true;
+            subText.resizeTextMinSize = 10;
+            subText.resizeTextMaxSize = 11;
+            subText.rectTransform.anchorMin = new Vector2(0f, 0f);
+            subText.rectTransform.anchorMax = new Vector2(1f, 0.42f);
+            subText.rectTransform.offsetMin = new Vector2(14f, 3f);
+            subText.rectTransform.offsetMax = new Vector2(-12f, 0f);
+
+            root.gameObject.SetActive(false);
+        }
+
+        /// <summary>Displays the skewed A1/A3 multi-tag streak banner (2 = DOUBLE TAG!, 3 = TRIPLE TAG!, 4 = QUADRA TAG!, 5+ = BARANGAY LEGEND!).</summary>
+        public void ShowStreakBanner(int streakCount)
+        {
+            if (_streakBannerRoot == null || streakCount < 2) return;
+            int idx = Mathf.Clamp(streakCount, 2, StreakTitles.Length - 1);
+            _streakTitleText.text = StreakTitles[idx];
+            _streakSubText.text = StreakSubtitles[idx];
+            _streakTitleText.color = streakCount >= 4 ? MenuArt.GoldLight : MenuArt.PaperWhite;
+            _streakBannerElapsed = 0f;
+            _streakBannerActive = true;
+
+            bool staticPose = !Application.isPlaying || SettingsStore.Current.ReduceMotion;
+            _streakBannerRoot.localEulerAngles = staticPose ? Vector3.zero : new Vector3(0f, 0f, -3.5f);
+            _streakBannerRoot.localScale = Vector3.one;
+            _streakBannerGroup.alpha = staticPose ? 1f : 0f;
+            if (_takedownRoot != null)
+            {
+                float minTouch = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, _canvas);
+                float cornerRightInset = Mathf.Max(24f, ScreenFitMetrics.DpToCanvasPx(12f, _canvas));
+                _takedownRoot.anchoredPosition = new Vector2(-cornerRightInset, -(minTouch + 22f) - 54f);
+            }
+            SyncOverlayChromeVisibility();
+        }
+
+        void ResetStreakState()
+        {
+            _localTagStreak = 0;
+            _streakChainTimeLeft = 0f;
+            _streakBannerElapsed = 0f;
+            _streakBannerActive = false;
+            if (_streakBannerGroup != null) _streakBannerGroup.alpha = 0f;
+            if (_streakBannerRoot != null)
+            {
+                _streakBannerRoot.localEulerAngles = Vector3.zero;
+                _streakBannerRoot.localScale = Vector3.one;
+                _streakBannerRoot.gameObject.SetActive(false);
+            }
+        }
+
+        void TickStreakBanner(float dt)
+        {
+            if (_streakChainTimeLeft > 0f && dt > 0f)
+            {
+                _streakChainTimeLeft = Mathf.Max(0f, _streakChainTimeLeft - dt);
+                if (_streakChainTimeLeft <= 0f)
+                    _localTagStreak = 0;
+            }
+
+            if (!_streakBannerActive || _streakBannerRoot == null) return;
+            if (!Application.isPlaying)
+            {
+                _streakBannerRoot.localEulerAngles = Vector3.zero;
+                _streakBannerGroup.alpha = 1f;
+                return;
+            }
+            if (dt <= 0f) return;
+
+            _streakBannerElapsed += dt;
+            if (_streakBannerElapsed >= StreakBannerDuration)
+            {
+                _streakBannerActive = false;
+                _streakBannerGroup.alpha = 0f;
+                _streakBannerRoot.gameObject.SetActive(false);
+                if (_takedownRoot != null)
+                {
+                    float minTouch = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, _canvas);
+                    float cornerRightInset = Mathf.Max(24f, ScreenFitMetrics.DpToCanvasPx(12f, _canvas));
+                    _takedownRoot.anchoredPosition = new Vector2(-cornerRightInset, -(minTouch + 22f));
+                }
+                return;
+            }
+
+            bool reduce = SettingsStore.Current.ReduceMotion;
+            _streakBannerRoot.localEulerAngles = reduce ? Vector3.zero : new Vector3(0f, 0f, -3.5f);
+            if (reduce)
+            {
+                _streakBannerGroup.alpha = 1f;
+                _streakBannerRoot.localScale = Vector3.one;
+            }
+            else if (_streakBannerElapsed < StreakBannerEnterSeconds)
+            {
+                float t = Mathf.Clamp01(_streakBannerElapsed / StreakBannerEnterSeconds);
+                _streakBannerGroup.alpha = t;
+                float s = Mathf.Lerp(1.10f, 1f, t);
+                _streakBannerRoot.localScale = new Vector3(s, s, 1f);
+            }
+            else if (_streakBannerElapsed > StreakBannerDuration - StreakBannerExitSeconds)
+            {
+                float remain = StreakBannerDuration - _streakBannerElapsed;
+                _streakBannerGroup.alpha = Mathf.Clamp01(remain / StreakBannerExitSeconds);
+                _streakBannerRoot.localScale = Vector3.one;
+            }
+            else
+            {
+                _streakBannerGroup.alpha = 1f;
+                _streakBannerRoot.localScale = Vector3.one;
+            }
+        }
+
+        void ResetStatTrackers()
+        {
+            _statTrackerCount = 0;
+            for (int i = 0; i < _statTrackers.Length; i++)
+                _statTrackers[i] = default;
+        }
+
+        int GetOrCreateStatIndex(int playerId)
+        {
+            if (playerId < 0) return -1;
+            for (int i = 0; i < _statTrackerCount; i++)
+            {
+                if (_statTrackers[i].PlayerId == playerId)
+                    return i;
+            }
+            if (_statTrackerCount >= _statTrackers.Length)
+                return -1;
+            int idx = _statTrackerCount++;
+            _statTrackers[idx] = new PlayerStatTracker { PlayerId = playerId };
+            return idx;
+        }
+
         void OnSimTagged(int victimId, int taggerId)
         {
             if (_sim == null) return;
+            if (taggerId >= 0 && taggerId != victimId)
+            {
+                int idx = GetOrCreateStatIndex(taggerId);
+                if (idx >= 0) _statTrackers[idx].Tags++;
+            }
+
             if (victimId == _sim.LocalPlayerId)
+            {
                 TriggerHurtFlash(HurtTaggedAlpha, HurtTaggedSeconds);
+                _localTagStreak = 0;
+                _streakChainTimeLeft = 0f;
+            }
+            else if (taggerId == _sim.LocalPlayerId)
+            {
+                _localTagStreak = _streakChainTimeLeft > 0f ? (_localTagStreak + 1) : 1;
+                _streakChainTimeLeft = StreakWindowSeconds;
+                if (_localTagStreak >= 2)
+                {
+                    ShowStreakBanner(_localTagStreak);
+                    Audio?.PlayMultiTagFanfare(_localTagStreak);
+                }
+            }
 
             int localTeam = _sim.LocalPlayerTeam;
             KidSnapshot? victim = _sim.Find(victimId);
@@ -1583,12 +2046,34 @@ namespace Kalyeah.Game
             PushTag(taggerName, victimName, allyScored);
         }
 
+        void OnSimHitConfirmed(HitConfirmInfo info)
+        {
+            if (_sim == null || info.Damage <= 0 || info.AttackerId < 0) return;
+            int idx = GetOrCreateStatIndex(info.AttackerId);
+            if (idx >= 0) _statTrackers[idx].RawDamage += info.Damage;
+        }
+
+        void OnSimPointReset()
+        {
+            _localTagStreak = 0;
+            _streakChainTimeLeft = 0f;
+        }
+
         void OnSimPlayerDamaged(int playerId, int amount)
         {
             if (_sim == null || amount <= 0 || playerId != _sim.LocalPlayerId) return;
             float share = Mathf.Clamp01((float)amount / Mathf.Max(_sim.MaxHp, 1));
             float peak = Mathf.Lerp(HurtFlashMinAlpha, HurtFlashMaxAlpha, Mathf.Clamp01(share / 0.30f));
             TriggerHurtFlash(peak, HurtFlashSeconds);
+        }
+
+        void OnSimPlayerRevealed(int targetId, int viewerTeam, RevealMarkerKind kind, bool knownAlert)
+        {
+            if (_sim == null || kind == RevealMarkerKind.None) return;
+            bool localTargeted = targetId == _sim.LocalPlayerId && knownAlert;
+            bool ourTeamRevealedEnemy = viewerTeam == _sim.LocalPlayerTeam && targetId != _sim.LocalPlayerId;
+            if (localTargeted || ourTeamRevealedEnemy)
+                Audio?.PlayRevealChime();
         }
 
         public void TriggerHurtFlash(float peak, float seconds)
@@ -1609,6 +2094,11 @@ namespace Kalyeah.Game
         void OnSimRescued(int savedId, int rescuerId)
         {
             if (_sim == null) return;
+            if (rescuerId >= 0 && rescuerId != Kalyeah.Sim.MatchSim.ReleasedByRevenge)
+            {
+                int idx = GetOrCreateStatIndex(rescuerId);
+                if (idx >= 0) _statTrackers[idx].Rescues++;
+            }
             int localTeam = _sim.LocalPlayerTeam;
             KidSnapshot? saved = _sim.Find(savedId);
             KidSnapshot? rescuer = _sim.Find(rescuerId);
@@ -2930,6 +3420,117 @@ namespace Kalyeah.Game
             }
         }
 
+        void BuildBlurOverlay(out RectTransform root, out Image vignetteImg)
+        {
+            root = Ui.Fill("BlurEdgeOverlay", Root);
+            root.offsetMin = new Vector2(-8f, -8f);
+            root.offsetMax = new Vector2(8f, 8f);
+            var group = root.gameObject.AddComponent<CanvasGroup>();
+            group.interactable = false;
+            group.blocksRaycasts = false;
+
+            vignetteImg = Ui.MakeImage("BlurVignette", root, new Color(ColBlurEdge.r, ColBlurEdge.g, ColBlurEdge.b, 0f), round: false, raycast: false);
+            vignetteImg.sprite = BlurVignetteSprite();
+            Stretch(vignetteImg.rectTransform, 0f);
+            root.gameObject.SetActive(false);
+        }
+
+        void TickBlurOverlay(SimBridge sim, KidSnapshot? localKid, float dt)
+        {
+            if (_blurOverlayRoot == null || _blurVignetteImg == null) return;
+
+            bool blurred = !IsPaused &&
+                           !IsSwapPickerOpen &&
+                           sim.Phase == MatchPhaseKind.Playing &&
+                           localKid.HasValue &&
+                           !localKid.Value.Tagged &&
+                           localKid.Value.BlurLeft > 0.01f;
+
+            // docs/KITS.md L34-35: ReduceMotion softens edge blur but NEVER removes it
+            bool reduce = SettingsStore.Current.ReduceMotion;
+            float targetPeak = reduce ? 0.56f : 0.86f;
+            float fadeTail = blurred ? Mathf.Clamp01(localKid.Value.BlurLeft / 0.30f) : 0f;
+            float targetAlpha = blurred ? (targetPeak * fadeTail) : 0f;
+
+            if (reduce || dt <= 0f)
+                _blurCurrentAlpha = targetAlpha;
+            else
+                _blurCurrentAlpha = Mathf.MoveTowards(_blurCurrentAlpha, targetAlpha, dt * (blurred ? 8.0f : 5.0f));
+
+            bool show = _blurCurrentAlpha > 0.005f;
+            if (_blurOverlayRoot.gameObject.activeSelf != show)
+                _blurOverlayRoot.gameObject.SetActive(show);
+            if (!show) return;
+
+            float shimmer = 1f;
+            if (!reduce)
+            {
+                _blurDriftPhase = Mathf.Repeat(_blurDriftPhase + dt * 4.5f, Mathf.PI * 2f);
+                shimmer = 0.94f + 0.06f * Mathf.Sin(_blurDriftPhase);
+            }
+            _blurVignetteImg.color = new Color(ColBlurEdge.r, ColBlurEdge.g, ColBlurEdge.b, Mathf.Clamp01(_blurCurrentAlpha * shimmer));
+        }
+
+        void BuildRevealedBadge(out RectTransform root, out CanvasGroup group, out Image eyeImg)
+        {
+            // Seated directly above bottom-center HeroVitalsChip (y=98..126), strictly below the 45%x50% center sightbox (y>=180)
+            root = Ui.Panel("RevealedEyeBadge", Root, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 98f), new Vector2(146f, 28f));
+            group = root.gameObject.AddComponent<CanvasGroup>();
+            group.interactable = false;
+            group.blocksRaycasts = false;
+
+            Image plate = KomiksUi.MakeInkPanel("Plate", root, new Color(0.08f, 0.06f, 0.12f, 0.92f), ColRevealGold, 8, 2, raycast: false);
+            Stretch(plate.rectTransform, 0f);
+
+            eyeImg = Ui.MakeImage("EyeIcon", root, ColRevealGold, round: false, raycast: false);
+            eyeImg.sprite = OverheadBarsView.EyeIconSprite();
+            eyeImg.preserveAspect = true;
+            eyeImg.rectTransform.anchorMin = eyeImg.rectTransform.anchorMax = new Vector2(0f, 0.5f);
+            eyeImg.rectTransform.pivot = new Vector2(0f, 0.5f);
+            eyeImg.rectTransform.anchoredPosition = new Vector2(10f, 0f);
+            eyeImg.rectTransform.sizeDelta = new Vector2(24f, 16f);
+
+            Text label = Ui.MakeText("Label", root, "REVEALED", 13, ColRevealGold, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            label.resizeTextForBestFit = true;
+            label.resizeTextMinSize = 10;
+            label.resizeTextMaxSize = 13;
+            label.rectTransform.anchorMin = Vector2.zero;
+            label.rectTransform.anchorMax = Vector2.one;
+            label.rectTransform.offsetMin = new Vector2(38f, 2f);
+            label.rectTransform.offsetMax = new Vector2(-8f, -2f);
+
+            root.gameObject.SetActive(false);
+        }
+
+        void SyncRevealedBadge(SimBridge sim, KidSnapshot? localKid, float dt)
+        {
+            if (_revealedBadgeRoot == null) return;
+            bool hideBehindModal = IsPaused || IsSwapPickerOpen || _lastPhase == MatchPhaseKind.MatchOver;
+            bool show = !hideBehindModal &&
+                        sim.Phase == MatchPhaseKind.Playing &&
+                        localKid.HasValue &&
+                        !localKid.Value.Tagged &&
+                        localKid.Value.KnownRevealAlert &&
+                        localKid.Value.RevealAlertLeft > 0.01f;
+
+            if (_revealedBadgeRoot.gameObject.activeSelf != show)
+                _revealedBadgeRoot.gameObject.SetActive(show);
+            if (!show) return;
+
+            if (SettingsStore.Current.ReduceMotion)
+            {
+                _revealedBadgeGroup.alpha = 0.96f;
+            }
+            else
+            {
+                _revealedPulsePhase = Mathf.Repeat(_revealedPulsePhase + dt * 5.2f, Mathf.PI * 2f);
+                float pulse = 0.5f + 0.5f * Mathf.Sin(_revealedPulsePhase);
+                _revealedBadgeGroup.alpha = 0.84f + 0.16f * pulse;
+                if (_revealedEyeImg != null)
+                    _revealedEyeImg.color = Color.Lerp(ColRevealGold, Color.white, pulse * 0.35f);
+            }
+        }
+
         void BuildWorldWaypointsOverlay(out RectTransform root)
         {
             root = Ui.Fill("WorldWaypointsOverlay", Root);
@@ -3245,204 +3846,68 @@ namespace Kalyeah.Game
             _lastPointReason = Enum.IsDefined(typeof(CaptureReasonKind), howRaw)
                 ? (CaptureReasonKind)howRaw
                 : CaptureReasonKind.Base;
+
+            if (_sim != null && _lastPointReason == CaptureReasonKind.Base)
+            {
+                // Credit capture to the scoring-team kid closest to / inside enemy base
+                IReadOnlyList<KidSnapshot> kids = _sim.Kids;
+                int capturerId = -1;
+                for (int i = 0; i < kids.Count; i++)
+                {
+                    KidSnapshot k = kids[i];
+                    if (k.Team == scoringTeam && !k.Tagged && k.NearEnemyBase)
+                    {
+                        capturerId = k.Id;
+                        break;
+                    }
+                }
+                if (capturerId < 0 && scoringTeam == _sim.LocalPlayerTeam)
+                    capturerId = _sim.LocalPlayerId;
+                if (capturerId >= 0)
+                {
+                    int idx = GetOrCreateStatIndex(capturerId);
+                    if (idx >= 0) _statTrackers[idx].Captures++;
+                }
+            }
         }
 
         void BuildVictoryOverlay(
             out RectTransform root,
             out RectTransform dimRect,
-            out RectTransform cardRect,
-            out Text titleText,
-            out Text subText,
-            out Text youCapText,
-            out Text themCapText,
-            out Text myScoreText,
-            out Text theirScoreText,
-            out GameObject promoBannerObj,
-            out RectTransform rankCardRect,
-            out Image emblemBg,
-            out Text emblemInitial,
-            out Text tierNameText,
-            out Image deltaChipImg,
-            out Text deltaText,
-            out RectTransform lpBarFill,
-            out Image lpBarImg,
-            out Text lpDetailText,
-            out RectTransform playAgainRect,
-            out RectTransform homeRect)
+            out RectTransform resultsHostRect,
+            out MatchResultsView resultsView)
         {
             root = Ui.Fill("MatchVictoryOverlay", Root);
-            Image dim = Ui.MakeImage("Backdrop", root, new Color(0.02f, 0.04f, 0.09f, 0.88f), raycast: _interactive);
+            Image dim = Ui.MakeImage("Backdrop", root, new Color(MenuArt.ObsidianSolid.r, MenuArt.ObsidianSolid.g, MenuArt.ObsidianSolid.b, 0.90f), raycast: _interactive);
             dimRect = dim.rectTransform;
             Stretch(dimRect, 0f);
 
-            cardRect = Ui.Panel("VictoryCard", root, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(588f, 528f));
-            cardRect.gameObject.AddComponent<RectMask2D>();
-            Image cardBg = KomiksUi.MakeInkPanel("Plate", cardRect, ColModalDark, KomiksUi.InkOutline, 18, 2, raycast: _interactive);
-            Stretch(cardBg.rectTransform, 0f);
+            // Full-canvas bleed host so MatchResultsView's own SafeArea lands at exact AppliedSafeRectPx with zero double-inset
+            resultsHostRect = Ui.Fill("ResultsFullCanvasHost", root);
+            ResolveFullBleedOffsets(out Vector2 bleedMin, out Vector2 bleedMax);
+            ApplyBleedOffsets(resultsHostRect, bleedMin, bleedMax);
 
-            // Preallocated fiesta banderitas contained strictly inside VictoryCard (zero runtime instantiation/GC, never spills over HUD)
-            RectTransform confettiLayer = Ui.Fill("ConfettiLayer", cardRect);
-            Color[] fiestaPalette =
-            {
-                new Color(0.96f, 0.65f, 0.14f, 0.92f),
-                new Color(0.12f, 0.62f, 0.55f, 0.92f),
-                new Color(0.89f, 0.33f, 0.24f, 0.92f),
-                new Color(0.98f, 0.95f, 0.89f, 0.92f),
-            };
-            for (int i = 0; i < ConfettiCount; i++)
-            {
-                RectTransform p = Ui.Panel("Confetti_" + i, confettiLayer, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(15f, 9f));
-                Image img = Ui.MakeImage("Paper", p, fiestaPalette[i % fiestaPalette.Length]);
-                Stretch(img.rectTransform, 0f);
-                p.gameObject.SetActive(false);
-
-                float spread = ((i / (float)(ConfettiCount - 1)) - 0.5f) * 520f;
-                _confetti[i] = new ConfettiPiece
-                {
-                    Rect = p,
-                    Image = img,
-                    StartPos = new Vector2(spread, -10f - (i % 4) * 10f),
-                    Velocity = new Vector2(((i % 5) - 2) * 28f, -185f - (i % 4) * 48f),
-                    SpinSpeed = ((i % 2 == 0) ? 1f : -1f) * (140f + (i % 3) * 70f),
-                };
-            }
-
-            titleText = Ui.MakeText("Title", cardRect, "Victory", 46, ColGold, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            titleText.rectTransform.anchorMin = new Vector2(0f, 1f);
-            titleText.rectTransform.anchorMax = new Vector2(1f, 1f);
-            titleText.rectTransform.pivot = new Vector2(0.5f, 1f);
-            titleText.rectTransform.anchoredPosition = new Vector2(0f, -14f);
-            titleText.rectTransform.sizeDelta = new Vector2(-32f, 52f);
-
-            subText = Ui.MakeText("Subtitle", cardRect, "Agawang Base (First to 3) (5v5)", 16, Ui.Cream, TextAnchor.MiddleCenter);
-            subText.rectTransform.anchorMin = new Vector2(0f, 1f);
-            subText.rectTransform.anchorMax = new Vector2(1f, 1f);
-            subText.rectTransform.pivot = new Vector2(0.5f, 1f);
-            subText.rectTransform.anchoredPosition = new Vector2(0f, -68f);
-            subText.rectTransform.sizeDelta = new Vector2(-32f, 26f);
-
-            // Disjoint ScoreRow: YOU / THEM caps strictly in [0.72..1.0], large digits strictly in [0.0..0.70]
-            RectTransform scoreRow = Ui.Panel("ScoreRow", cardRect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -100f), new Vector2(340f, 72f));
-            youCapText = Ui.MakeText("YouCap", scoreRow, "YOU", 14, KillFeedOwnColor(), TextAnchor.UpperCenter, KalyeahResources.DisplayFont());
-            youCapText.rectTransform.anchorMin = new Vector2(0f, 0.72f);
-            youCapText.rectTransform.anchorMax = new Vector2(0.42f, 1f);
-            youCapText.rectTransform.sizeDelta = Vector2.zero;
-
-            myScoreText = Ui.MakeText("MyScore", scoreRow, "3", 40, Color.white, TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
-            myScoreText.rectTransform.anchorMin = new Vector2(0f, 0f);
-            myScoreText.rectTransform.anchorMax = new Vector2(0.42f, 0.70f);
-            myScoreText.rectTransform.sizeDelta = Vector2.zero;
-
-            Text sep = Ui.MakeText("Dash", scoreRow, "-", 34, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            sep.rectTransform.anchorMin = new Vector2(0.42f, 0f);
-            sep.rectTransform.anchorMax = new Vector2(0.58f, 0.74f);
-            sep.rectTransform.sizeDelta = Vector2.zero;
-
-            themCapText = Ui.MakeText("ThemCap", scoreRow, "THEM", 14, KillFeedEnemyColor(), TextAnchor.UpperCenter, KalyeahResources.DisplayFont());
-            themCapText.rectTransform.anchorMin = new Vector2(0.58f, 0.72f);
-            themCapText.rectTransform.anchorMax = new Vector2(1f, 1f);
-            themCapText.rectTransform.sizeDelta = Vector2.zero;
-
-            theirScoreText = Ui.MakeText("TheirScore", scoreRow, "1", 40, Color.white, TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
-            theirScoreText.rectTransform.anchorMin = new Vector2(0.58f, 0f);
-            theirScoreText.rectTransform.anchorMax = new Vector2(1f, 0.70f);
-            theirScoreText.rectTransform.sizeDelta = Vector2.zero;
-
-            // Optional "ANGAT RANGGO!" promotion pill seated cleanly below ScoreRow with 10 px clearance
-            RectTransform promoRect = Ui.Panel("PromoBanner", cardRect, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -182f), new Vector2(236f, 30f));
-            Image promoBg = KomiksUi.MakeInkPanel("PromoBg", promoRect, ColGold, KomiksUi.SlateEspresso, 14, 2);
-            Stretch(promoBg.rectTransform, 0f);
-            Text promoTxt = Ui.MakeText("PromoText", promoRect, "ANGAT RANGGO!", 16, ColWarmText, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            promoTxt.GetComponent<Outline>().enabled = false;
-            Stretch(promoTxt.rectTransform, 0f);
-            promoBannerObj = promoRect.gameObject;
-            promoBannerObj.SetActive(false);
-
-            // Warm sand Tagalog Ranked LP Card raised into the middle band with >= 24 px clearance above >= 48 dp action buttons
-            rankCardRect = Ui.Panel("RankCard", cardRect, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 136f), new Vector2(-48f, 132f));
-            Image rankBg = KomiksUi.MakeInkPanel("WarmCard", rankCardRect, ColCardWarm, KomiksUi.SlateEspresso, 16, 2);
-            Stretch(rankBg.rectTransform, 0f);
-
-            RectTransform emblemBox = Ui.Panel("RankEmblem", rankCardRect, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(16f, 0f), new Vector2(72f, 72f));
-            Image emblemRim = Ui.MakeImage("CrestRim", emblemBox, KomiksUi.SlateEspresso, round: true);
-            Stretch(emblemRim.rectTransform, 0f);
-            emblemBg = Ui.MakeImage("Crest", emblemBox, HexColor("c8874b", ColGold), round: true);
-            Stretch(emblemBg.rectTransform, 3f);
-            emblemInitial = Ui.MakeText("EmblemGlyph", emblemBox, "K", 32, Color.white, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            Stretch(emblemInitial.rectTransform, 0f);
-
-            tierNameText = Ui.MakeText("TierName", rankCardRect, "KAHOY", 24, ColWarmText, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
-            tierNameText.GetComponent<Outline>().enabled = false;
-            tierNameText.rectTransform.anchorMin = new Vector2(0f, 1f);
-            tierNameText.rectTransform.anchorMax = new Vector2(1f, 1f);
-            tierNameText.rectTransform.offsetMin = new Vector2(102f, -46f);
-            tierNameText.rectTransform.offsetMax = new Vector2(-132f, -14f);
-
-            RectTransform deltaBox = Ui.Panel("DeltaChip", rankCardRect, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-16f, -14f), new Vector2(108f, 32f));
-            deltaChipImg = KomiksUi.MakeInkPanel("ChipBg", deltaBox, ColDeltaPos, KomiksUi.SlateEspresso, 14, 2);
-            Stretch(deltaChipImg.rectTransform, 0f);
-            deltaText = Ui.MakeText("DeltaText", deltaBox, "+15 LP", 15, ColCardWarm, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
-            deltaText.GetComponent<Outline>().enabled = false;
-            Stretch(deltaText.rectTransform, 0f);
-
-            RectTransform lpTrack = Ui.Panel("RankLpBar", rankCardRect, new Vector2(0f, 0.5f), new Vector2(1f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(43f, 0f), new Vector2(-118f, 18f));
-            Image lpTrackImg = KomiksUi.MakeInkPanel("Track", lpTrack, HexColor("dfd0b4", Color.grey), KomiksUi.SandBorder, 9, 2);
-            Stretch(lpTrackImg.rectTransform, 0f);
-            lpBarImg = Ui.MakeImage("Fill", lpTrack, ColGold);
-            lpBarFill = lpBarImg.rectTransform;
-            lpBarFill.anchorMin = Vector2.zero;
-            lpBarFill.anchorMax = new Vector2(0.2f, 1f);
-            lpBarFill.offsetMin = new Vector2(2f, 2f);
-            lpBarFill.offsetMax = new Vector2(-2f, -2f);
-
-            lpDetailText = Ui.MakeText("LpDetail", rankCardRect, "15 / 200 LP · Next: Bakal", 16, ColWarmSubText, TextAnchor.MiddleLeft);
-            lpDetailText.GetComponent<Outline>().enabled = false;
-            lpDetailText.resizeTextForBestFit = true;
-            lpDetailText.resizeTextMinSize = 13;
-            lpDetailText.resizeTextMaxSize = 17;
-            lpDetailText.rectTransform.anchorMin = new Vector2(0f, 0f);
-            lpDetailText.rectTransform.anchorMax = new Vector2(1f, 0f);
-            lpDetailText.rectTransform.offsetMin = new Vector2(102f, 14f);
-            lpDetailText.rectTransform.offsetMax = new Vector2(-16f, 42f);
-
-            // Action buttons: Play Again & Back to Home (>= 48 dp)
-            MakeActionButton(
-                "PlayAgainButton",
-                cardRect,
-                "Play Again",
-                new Color(0.18f, 0.68f, 0.42f, 1f),
-                19,
-                () =>
+            resultsView = new MatchResultsView(
+                resultsHostRect,
+                onPlayAgain: () =>
                 {
                     Haptics.LightTap();
                     Audio?.PlayUiTap("confirm");
                     OnPlayAgain?.Invoke();
                 },
-                out playAgainRect,
-                out _,
-                out _);
-            playAgainRect.anchorMin = playAgainRect.anchorMax = new Vector2(0f, 0f);
-            playAgainRect.pivot = new Vector2(0f, 0f);
-            playAgainRect.anchoredPosition = new Vector2(24f, 16f);
-
-            MakeActionButton(
-                "BackToHomeButton",
-                cardRect,
-                "Back to Home",
-                new Color(0.20f, 0.48f, 0.88f, 1f),
-                19,
-                () =>
+                onHome: () =>
                 {
                     Haptics.LightTap();
                     Audio?.PlayUiTap("back");
                     OnBackToHome?.Invoke();
                 },
-                out homeRect,
-                out _,
-                out _);
-            homeRect.anchorMin = homeRect.anchorMax = new Vector2(1f, 0f);
-            homeRect.pivot = new Vector2(1f, 0f);
-            homeRect.anchoredPosition = new Vector2(-24f, 16f);
+                canvas: _canvas);
+
+            resultsView.PlayerHonored += (playerId, playerName) =>
+            {
+                Haptics.LightTap();
+                Audio?.PlayUiTap("confirm");
+            };
 
             root.gameObject.SetActive(false);
         }
@@ -3514,42 +3979,6 @@ namespace Kalyeah.Game
                     SetSwapPickerOpen(false);
                     PopulateVictorySummary(sim, localKid, localTeam);
                 }
-                else
-                {
-                    _confettiActive = false;
-                }
-            }
-
-            if (showVictory)
-            {
-                if (!SettingsStore.Current.ReduceMotion && Mathf.Abs(_lpAnimTo - _lpAnimFrom) > 0.005f && _lpAnimElapsed < 0.55f)
-                {
-                    _lpAnimElapsed = Mathf.Min(0.55f, _lpAnimElapsed + dt);
-                    float t = _lpAnimElapsed / 0.55f;
-                    float eased = 1f - (1f - t) * (1f - t) * (1f - t);
-                    _rankLpBarFill.anchorMax = new Vector2(Mathf.Lerp(_lpAnimFrom, _lpAnimTo, eased), 1f);
-                }
-
-                if (_confettiActive)
-                {
-                    _confettiElapsed += dt;
-                    if (_confettiElapsed > 2.8f)
-                    {
-                        _confettiActive = false;
-                        for (int i = 0; i < ConfettiCount; i++)
-                            _confetti[i].Rect.gameObject.SetActive(false);
-                    }
-                    else
-                    {
-                        for (int i = 0; i < ConfettiCount; i++)
-                        {
-                            ConfettiPiece c = _confetti[i];
-                            Vector2 pos = c.StartPos + c.Velocity * _confettiElapsed + new Vector2(0f, -140f * _confettiElapsed * _confettiElapsed);
-                            c.Rect.anchoredPosition = pos;
-                            c.Rect.localEulerAngles = new Vector3(0f, 0f, c.SpinSpeed * _confettiElapsed);
-                        }
-                    }
-                }
             }
         }
 
@@ -3559,113 +3988,78 @@ namespace Kalyeah.Game
             int theirScore = sim.ScoreOf(1 - localTeam);
             bool won = sim.WinnerTeam >= 0 ? (sim.WinnerTeam == localTeam) : (myScore >= theirScore);
 
-            _victoryTitleText.text = won ? "Victory" : "Defeat";
-            _victoryTitleText.color = won ? ColGold : ColDefeatCoral;
-            if (_victoryYouCapText != null) _victoryYouCapText.color = KillFeedOwnColor();
-            if (_victoryThemCapText != null) _victoryThemCapText.color = KillFeedEnemyColor();
-
-            int allies = 0;
-            int enemies = 0;
-            for (int i = 0; i < sim.Kids.Count; i++)
-            {
-                if (sim.Kids[i].Team == localTeam) allies++;
-                else enemies++;
-            }
-            string modeLabel = sim.IsOnline ? "Online Battle" : (sim.IsTraining ? "Training" : "Agawang Base");
-            _victorySubText.text = modeLabel + " (First to " + Mathf.Max(1, sim.PointsToWin).ToString(CultureInfo.InvariantCulture) + ") (" +
-                                   Mathf.Max(1, allies).ToString(CultureInfo.InvariantCulture) + "v" + Mathf.Max(1, enemies).ToString(CultureInfo.InvariantCulture) + ")";
-            _victoryMyScoreText.text = myScore.ToString(CultureInfo.InvariantCulture);
-            _victoryTheirScoreText.text = theirScore.ToString(CultureInfo.InvariantCulture);
-
             string kidId = (localKid.HasValue && !string.IsNullOrEmpty(localKid.Value.CharacterId))
                 ? localKid.Value.CharacterId
                 : AppSession.Current.SelectedCharacter;
 
-            RankOutcomeInfo outcome;
             if (!_matchResultRecorded)
             {
                 _matchResultRecorded = true;
                 RankOutcomeInfo? preRecorded = AppSession.Current.ConsumeLastOutcome();
-                if (preRecorded.HasValue)
-                {
-                    outcome = preRecorded.Value;
-                }
-                else
-                {
-                    outcome = AppSession.Current.RecordMatchResult(null, kidId, won, myScore, theirScore);
+                RankOutcomeInfo outcome = preRecorded.HasValue
+                    ? preRecorded.Value
+                    : AppSession.Current.RecordMatchResult(null, kidId, won, myScore, theirScore);
+                if (!preRecorded.HasValue)
                     SaveSessionPrefs();
-                }
                 LastRecordedOutcome = outcome;
                 if (won) Audio?.PlayObjectiveEvent("victory");
             }
-            else if (LastRecordedOutcome.HasValue)
+
+            if (_matchResults == null) return;
+
+            _resultsPlayersScratch.Clear();
+            IReadOnlyList<KidSnapshot> kids = sim.Kids;
+            int localId = sim.LocalPlayerId;
+            for (int i = 0; i < kids.Count; i++)
             {
-                outcome = LastRecordedOutcome.Value;
-            }
-            else
-            {
-                RankTierInfo cur = AppSession.Current.CurrentTier;
-                outcome = new RankOutcomeInfo
+                KidSnapshot k = kids[i];
+                int tags = 0, rescues = 0, captures = 0, rawDmg = 0;
+                for (int s = 0; s < _statTrackerCount; s++)
                 {
-                    OldLp = AppSession.Current.Lp,
-                    NewLp = AppSession.Current.Lp,
-                    Delta = 0,
-                    TierId = cur.Id,
-                    TierName = cur.Name,
-                    Promoted = false,
-                };
+                    if (_statTrackers[s].PlayerId == k.Id)
+                    {
+                        tags = _statTrackers[s].Tags;
+                        rescues = _statTrackers[s].Rescues;
+                        captures = _statTrackers[s].Captures;
+                        rawDmg = _statTrackers[s].RawDamage;
+                        break;
+                    }
+                }
+                string pName = k.Id == localId ? "YOU" : DisplayKidName(sim, k.Id, k);
+                _resultsPlayersScratch.Add(new MatchPlayerStats(
+                    playerId: k.Id,
+                    team: k.Team,
+                    playerName: pName,
+                    kidId: k.CharacterId,
+                    isLocalPlayer: k.Id == localId,
+                    tags: tags,
+                    assists: 0,
+                    rescues: rescues,
+                    captures: captures,
+                    supportScore: rescues * 2,
+                    rawDamage: rawDmg));
             }
 
-            RankTierInfo tierSpec = AppSession.Current.CurrentTier;
-            Color tierCol = HexColor(tierSpec.ColorHex, ColGold);
-            Color tierDark = HexColor(tierSpec.DarkHex, ColWarmText);
-
-            _rankEmblemBg.color = tierCol;
-            string tierTitle = !string.IsNullOrEmpty(outcome.TierName) ? outcome.TierName : tierSpec.Name;
-            _rankEmblemInitial.text = !string.IsNullOrEmpty(tierTitle) ? tierTitle.Substring(0, 1).ToUpperInvariant() : "K";
-            _rankTierNameText.text = (tierTitle ?? "KAHOY").ToUpperInvariant();
-            _rankTierNameText.color = Color.Lerp(ColWarmText, tierDark, 0.55f);
-
-            if (outcome.Delta >= 0)
+            var payload = new MatchResultsPayload
             {
-                _rankDeltaText.text = "+" + outcome.Delta.ToString(CultureInfo.InvariantCulture) + " LP";
-                _rankDeltaChipImg.sprite = KomiksUi.BorderedSprite(14, 2, ColDeltaPos, KomiksUi.SlateEspresso);
-            }
-            else
-            {
-                _rankDeltaText.text = outcome.Delta.ToString(CultureInfo.InvariantCulture) + " LP";
-                _rankDeltaChipImg.sprite = KomiksUi.BorderedSprite(14, 2, ColDeltaNeg, KomiksUi.SlateEspresso);
-            }
-            _rankDeltaChipImg.color = Color.white;
+                LocalTeamWon = won,
+                LocalTeam = localTeam,
+                BlueScore = sim.ScoreOf(0),
+                RedScore = sim.ScoreOf(1),
+                Mode = sim.PointsToWin >= 5 ? MatchRewardMode.Standard : MatchRewardMode.Blitz,
+                IsRanked = sim.IsOnline,
+                IsHotspot = false,
+                IsFirstWinOfDay = false,
+                WeeklyBaryaAlreadyEarned = 0,
+                MapName = "Barangay",
+                Players = _resultsPlayersScratch,
+            };
 
-            int nextCeil = AppSession.Current.NextTierLp;
-            if (nextCeil > 0)
-            {
-                int nextIdx = Mathf.Clamp(AppSession.Current.TierIndex + 1, 0, AppSession.RankTiers.Length - 1);
-                string nextName = AppSession.RankTiers[nextIdx].Name;
-                _rankLpDetailText.text = outcome.NewLp.ToString(CultureInfo.InvariantCulture) + " / " +
-                                         nextCeil.ToString(CultureInfo.InvariantCulture) + " LP · Next: " + nextName;
-            }
-            else
-            {
-                _rankLpDetailText.text = outcome.NewLp.ToString(CultureInfo.InvariantCulture) + " LP · Top Barrio Rank";
-            }
-
-            _promoBannerObj.SetActive(outcome.Promoted);
-            _lpAnimTo = Mathf.Clamp01(AppSession.Current.TierProgress01);
-            _lpAnimFrom = (SettingsStore.Current.ReduceMotion || outcome.Promoted) ? _lpAnimTo : Mathf.Clamp01(_lpAnimTo - Mathf.Abs(outcome.Delta) / 200f);
-            _lpAnimElapsed = 0f;
-            _rankLpBarImg.color = tierCol;
-            _rankLpBarFill.anchorMax = new Vector2(SettingsStore.Current.ReduceMotion ? _lpAnimTo : _lpAnimFrom, 1f);
-
-            _confettiActive = won && !SettingsStore.Current.ReduceMotion;
-            _confettiElapsed = 0f;
-            for (int i = 0; i < ConfettiCount; i++)
-            {
-                _confetti[i].Rect.gameObject.SetActive(_confettiActive);
-                if (_confettiActive)
-                    _confetti[i].Rect.anchoredPosition = _confetti[i].StartPos;
-            }
+            ResolveFullBleedOffsets(out Vector2 bleedMin, out Vector2 bleedMax);
+            ApplyBleedOffsets(_resultsHostRect, bleedMin, bleedMax);
+            _matchResults.Bind(payload);
+            _matchResults.SafeAreaComponent?.ForceApply();
+            _matchResults.RefreshLayout();
         }
 
         // =============================================================================================================================
@@ -4165,18 +4559,19 @@ namespace Kalyeah.Game
         {
             float sz = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, _canvas);
             rect = Ui.Panel(name, parent, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), Vector2.zero, new Vector2(sz, sz));
-            Image outerInk = Ui.MakeImage("InkRim", rect, ColInk, round: true, raycast: _interactive);
-            Stretch(outerInk.rectTransform, 0f);
-            Image ring = Ui.MakeImage("Rim", rect, new Color(0.98f, 0.95f, 0.89f, 0.92f), round: true, raycast: false);
-            Stretch(ring.rectTransform, 2f);
-            Image disc = Ui.MakeImage("Disc", rect, ColCardDark, round: true);
-            Stretch(disc.rectTransform, 4.5f);
+            Image disc = Ui.MakeImage("Disc", rect, new Color(MenuArt.ObsidianSolid.r, MenuArt.ObsidianSolid.g, MenuArt.ObsidianSolid.b, 0.72f), round: true, raycast: _interactive);
+            Stretch(disc.rectTransform, 1.5f);
+            Image ring = Ui.MakeImage("Rim", rect, new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.78f), round: false, raycast: false);
+            ring.sprite = KomiksUi.RingSprite(96, 2);
+            Stretch(ring.rectTransform, 0f);
 
             var btn = rect.gameObject.AddComponent<Button>();
-            btn.targetGraphic = outerInk;
+            btn.transition = Selectable.Transition.None;
+            btn.targetGraphic = disc;
             btn.interactable = _interactive;
             if (_interactive && onClick != null)
                 btn.onClick.AddListener(() => onClick());
+            UiShaders.AttachPressSpring(btn, 0.94f, 2f);
 
             if (iconTex != null)
             {
@@ -4186,6 +4581,7 @@ namespace Kalyeah.Game
                 go.transform.SetParent(iconSlot, false);
                 var raw = go.GetComponent<RawImage>();
                 raw.texture = iconTex;
+                raw.color = MenuArt.PaperWhite;
                 raw.raycastTarget = false;
                 Stretch(raw.rectTransform, 0f);
                 var fitter = go.GetComponent<AspectRatioFitter>();
@@ -4194,7 +4590,7 @@ namespace Kalyeah.Game
             }
             else
             {
-                Text txt = Ui.MakeText("Glyph", rect, fallbackGlyph, 18, Color.white, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+                Text txt = Ui.MakeText("Glyph", rect, fallbackGlyph, 18, MenuArt.PaperWhite, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
                 Stretch(txt.rectTransform, 0f);
             }
             return btn;
@@ -4300,7 +4696,7 @@ namespace Kalyeah.Game
                 case 1:
                 case 2: return new Color(0.26f, 0.66f, 1f, 0.96f);
                 case 3: return new Color(0.18f, 0.90f, 0.84f, 0.96f);
-                default: return new Color(0.32f, 0.68f, 1f, 0.96f);
+                default: return new Color(41f / 255f, 182f / 255f, 246f / 255f, 1f); // #29B6F6 Ally Blue (G4 A3)
             }
         }
 
@@ -4311,7 +4707,7 @@ namespace Kalyeah.Game
                 case 1:
                 case 2: return new Color(1f, 0.56f, 0.12f, 0.96f);
                 case 3: return new Color(1f, 0.32f, 0.47f, 0.96f);
-                default: return new Color(0.95f, 0.36f, 0.34f, 0.96f);
+                default: return MenuArt.SignalVermilion; // #FF4655 Enemy Red (G4 A3)
             }
         }
 
@@ -4367,21 +4763,6 @@ namespace Kalyeah.Game
                 case WeaponRoleKind.Heal: return ColRegenMint;
                 default: return KillFeedEnemyColor();
             }
-        }
-
-        static Color HexColor(string hex, Color fallback)
-        {
-            if (string.IsNullOrEmpty(hex)) return fallback;
-            string clean = hex[0] == '#' ? hex.Substring(1) : hex;
-            if (clean.Length != 6) return fallback;
-            if (uint.TryParse(clean, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint rgb))
-            {
-                float r = ((rgb >> 16) & 0xFFu) / 255f;
-                float g = ((rgb >> 8) & 0xFFu) / 255f;
-                float b = (rgb & 0xFFu) / 255f;
-                return new Color(r, g, b, 1f);
-            }
-            return fallback;
         }
 
         static Sprite RoundedCardSprite()
@@ -4506,6 +4887,58 @@ namespace Kalyeah.Game
             s_edgeGradientSprite = Sprite.Create(tex, new Rect(0f, 0f, w, h), new Vector2(0.5f, 0.5f), 100f);
             s_edgeGradientSprite.name = "KalyeahHurtEdgeGradient";
             return s_edgeGradientSprite;
+        }
+
+        static Sprite BlurVignetteSprite()
+        {
+            if (s_blurVignetteSprite != null) return s_blurVignetteSprite;
+            const int w = 160;
+            const int h = 90;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
+            {
+                name = "KalyeahBlurEdgeVignette",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            var px = new Color32[w * h];
+            // Keep center elliptical sightbox around crosshair (0.50, 0.54) 100% crystal clear
+            const float cx = 0.50f;
+            const float cy = 0.54f;
+            const float clearRx = 0.25f;
+            const float clearRy = 0.27f;
+
+            for (int y = 0; y < h; y++)
+            {
+                float ny = (y + 0.5f) / h;
+                float dy = (ny - cy) / clearRy;
+                for (int x = 0; x < w; x++)
+                {
+                    float nx = (x + 0.5f) / w;
+                    float dx = (nx - cx) / clearRx;
+                    float r = Mathf.Sqrt(dx * dx + dy * dy);
+                    // 0.0 inside central sightbox (r <= 1.0), smooth frosted dark-edge ramp outside
+                    float t = Mathf.Clamp01((r - 1.02f) / 1.15f);
+                    float smooth = t * t * (3f - 2f * t);
+                    // Subtle concentric frost texture rings so edge reads as soft frosted blur, never flat matte ink
+                    float frost = 0.88f + 0.12f * Mathf.Sin(r * 14f + nx * 19f) * Mathf.Cos(ny * 17f);
+                    byte lum = (byte)Mathf.RoundToInt(Mathf.Lerp(210f, 255f, smooth * frost));
+                    byte a = (byte)Mathf.RoundToInt(Mathf.Clamp01(smooth) * 255f);
+                    px[y * w + x] = new Color32(lum, lum, lum, a);
+                }
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            s_blurVignetteSprite = Sprite.Create(tex, new Rect(0f, 0f, w, h), new Vector2(0.5f, 0.5f), 100f);
+            s_blurVignetteSprite.name = "KalyeahBlurEdgeVignette";
+            return s_blurVignetteSprite;
+        }
+
+        static string[] BuildWaterStrings()
+        {
+            var arr = new string[301];
+            for (int i = 0; i < arr.Length; i++)
+                arr[i] = i.ToString(CultureInfo.InvariantCulture);
+            return arr;
         }
 
         static Sprite ChevronSprite()

@@ -1395,7 +1395,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1431,39 +1431,39 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
       "fullAngleDeg": 85.0
     },
     {
-      "shape": "corr_LeftLeg_Squash",
+      "shape": "corr_LeftForeArm_Squash",
       "kind": "squash",
-      "bone": "mixamorig:LeftLeg",
-      "parent": "mixamorig:LeftUpLeg",
+      "bone": "mixamorig:LeftForeArm",
+      "parent": "mixamorig:LeftArm",
       "axis": [
-        1.0,
-        0.0,
+        -0.64285,
+        -0.76599,
         0.0
       ],
-      "restAngleDeg": 3.07,
-      "startAngleDeg": 73.07,
-      "fullAngleDeg": 108.07
+      "restAngleDeg": 4.72,
+      "startAngleDeg": 104.72,
+      "fullAngleDeg": 139.72
     },
     {
-      "shape": "corr_RightLeg_Squash",
+      "shape": "corr_RightForeArm_Squash",
       "kind": "squash",
-      "bone": "mixamorig:RightLeg",
-      "parent": "mixamorig:RightUpLeg",
+      "bone": "mixamorig:RightForeArm",
+      "parent": "mixamorig:RightArm",
       "axis": [
-        1.0,
-        0.0,
-        0.0
+        -0.64285,
+        0.76599,
+        -0.0
       ],
-      "restAngleDeg": 3.07,
-      "startAngleDeg": 73.07,
-      "fullAngleDeg": 108.07
+      "restAngleDeg": 4.72,
+      "startAngleDeg": 104.72,
+      "fullAngleDeg": 139.72
     }
   ],
   "lods": {
@@ -1473,7 +1473,7 @@
       "deformBones": 70,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4837
+      "fileSizeKb": 4443
     },
     "lod1": {
       "asset": "models/characters/narda_lod1",
@@ -1481,22 +1481,23 @@
       "deformBones": 50,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 851
+      "fileSizeKb": 847
     },
     "lod2": {
       "asset": "models/characters/narda_lod2",
-      "tris": 4881,
+      "tris": 4882,
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 269
+      "fileSizeKb": 270
     }
   },
   "textures": {
     "baseColorEmbedded": true,
     "normal": "models/characters/narda_2",
     "orm": "models/characters/narda_orm",
-    "ormChannels": "R=AO,G=Roughness,B=Metallic"
+    "ormChannels": "R=AO,G=Roughness,B=Metallic",
+    "stylizedPolishVersion": 2
   },
   "log": [
     "removed 3 path-breaking bones",
@@ -1506,5 +1507,11 @@
     "skirt hem thigh-bound verts: 28654 (smoothed 30305)",
     "stray influences removed: 20415",
     "cross-side influences removed: 230"
+  ],
+  "facialShapes": [
+    "Blink",
+    "Smile",
+    "Determined",
+    "Talk_Open"
   ]
 }

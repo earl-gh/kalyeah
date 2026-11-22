@@ -197,12 +197,12 @@ namespace Kalyeah.Game
         {
             DataSource data = KalyeahResources.Data();
             CameraRulesData rules = CameraRulesData.Load(data);
-            // docs/SPEC.md §7 camera: T3 Arena / Deadlock, slightly far behind, a little above, offset a little right, no swap
-            Assert.AreEqual(5.5f, rules.ShoulderDistance, 0.001f, "5.5 m behind the kid");
+            // Competitive AAA 3P right-shoulder framing: hero in lower-left third (~37% X) with open sightline past right shoulder
+            Assert.AreEqual(4.15f, rules.ShoulderDistance, 0.001f, "4.15 m behind the kid");
             Assert.AreEqual(1.9f, rules.ShoulderHeight, 0.001f, "1.9 m pivot, a little above the kid");
-            Assert.AreEqual(0.45f, rules.ShoulderOffset, 0.001f, "0.45 m to the right: the kid stands just left of centre");
+            Assert.AreEqual(0.88f, rules.ShoulderOffset, 0.001f, "0.88 m to the right: hero sits cleanly in the lower-left third");
             Assert.AreEqual(12f, rules.LookPitchDegrees, 0.001f, "12 deg looking down over the street");
-            Assert.AreEqual(72f, rules.ShoulderFov, 0.001f, "72 deg vertical FOV: wide enough to see the street around the kid");
+            Assert.AreEqual(58f, rules.ShoulderFov, 0.001f, "58 deg vertical FOV: crisp competitive AAA 3P framing");
 
             SVector2 feet = new SVector2(4f, 20f); // Unity ground (4, 0, -20)
             var (eye, forward) = ShoulderRig.Pose(rules, feet, yawDegrees: 0f, pitchDegrees: rules.LookPitchDegrees);

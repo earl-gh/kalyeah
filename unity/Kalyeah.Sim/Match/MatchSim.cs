@@ -24,7 +24,7 @@ namespace Kalyeah.Sim
         public event Action IntroFinished;
         public event Action<int, StatusEffects.Type> EffectApplied;
         public event Action<int, int> PlayerHealed;
-        /// <summary>(id, weaponId): a weapon was cast (for sounds and effects).</summary>
+        /// <summary>(id, weaponId): a weapon or skill was cast (for sounds and effects).</summary>
         public event Action<int, string> WeaponCast;
         /// <summary>(id, weaponId): a weapon's hit landed on player `id` (before its damage or effect).</summary>
         public event Action<int, string> WeaponHit;
@@ -37,6 +37,20 @@ namespace Kalyeah.Sim
         /// <summary>(playerId, powerupId, kind).</summary>
         public event Action<int, int, int> PowerupTaken;
 
+        // ---- Chunk 2 spec combat events ----
+        /// <summary>Authoritative hit-confirm event (body hit, headshot, TAYA! tag).</summary>
+        public event Action<HitConfirmEvent> HitConfirmed;
+        /// <summary>(ownerId, worldPos): a destructible player wall broke.</summary>
+        public event Action<int, Vec2> WallBroken;
+        /// <summary>(ownerId, worldPos, isDisarmed): a hidden trap or sentry triggered or was broken/disarmed.</summary>
+        public event Action<int, Vec2, bool> TrapTriggered;
+        /// <summary>(targetId, viewerTeam, kind, knownAlert): an enemy was revealed via Outline or Snapshot.</summary>
+        public event Action<int, int, RevealKind, bool> PlayerRevealed;
+        /// <summary>(playerId): Tirador 7-stone reload started (auto at 0 or manual via BtnReload).</summary>
+        public event Action<int> TiradorReloadStarted;
+        /// <summary>(playerId): player attempted to cast a skill without enough water.</summary>
+        public event Action<int> WaterInsufficient;
+
         public const int ReleasedAlone = -1;
         /// <summary>PlayerRescued's rescuer id for a revenge release (docs/SPEC.md §5): the tagger was tagged.</summary>
         public const int ReleasedByRevenge = -2;
@@ -44,6 +58,12 @@ namespace Kalyeah.Sim
         public const double Epsilon = 0.00001;
         /// <summary>Mixed into the match seed for the trip rolls' own generator.</summary>
         public const long TripSeedMix = 0x7121B;
+        /// <summary>Mixed into the match seed for deterministic BarangayNeutrals spawns/flee angles.</summary>
+        public const long NeutralsSeedMix = 0x5EED42;
+        /// <summary>Water restored immediately on Mang Taho / Fishball vendor pickup under SpecKits.</summary>
+        public const double VendorWaterRestore = 35.0;
+        /// <summary>HP restored immediately on Mang Taho / Fishball vendor pickup under SpecKits.</summary>
+        public const int VendorInstantHeal = 30;
         public const int PowerupNone = 0;
         public const int PowerupPalamig = 1;
         public const int PowerupTeks = 2;
@@ -71,6 +91,7 @@ namespace Kalyeah.Sim
         public MapLayout Layout;
         public GodotRng Rng = new GodotRng();
         readonly GodotRng _tripRng = new GodotRng();
+        readonly GodotRng _neutralsRng = new GodotRng();
         public int Tick;
         /// <summary>id to state, in insertion order (stepping order is deterministic).</summary>
         public OrderedDict<int, PlayerState> Players = new OrderedDict<int, PlayerState>();
@@ -84,6 +105,10 @@ namespace Kalyeah.Sim
         public WeaponCasting Casting = new WeaponCasting();
         public MatchObjectives Objectives = new MatchObjectives();
         public Dictionary<string, WeaponDef> WeaponDefs = new Dictionary<string, WeaponDef>();
+        /// <summary>All loaded docs/KITS.md skill definitions indexed by SkillDef.Id.</summary>
+        public Dictionary<string, SkillDef> SkillDefs = new Dictionary<string, SkillDef>();
+        /// <summary>All loaded CharacterDefs indexed by CharacterDef.Id.</summary>
+        public Dictionary<string, CharacterDef> CharacterDefs = new Dictionary<string, CharacterDef>();
         public MatchScore Score;
         /// <summary>The team whose capture countdown is running (-1: none), how, and for how long.</summary>
         public int CaptureTeam = -1;
@@ -108,6 +133,8 @@ namespace Kalyeah.Sim
         /// <summary>How every point was won, in order: (team that scored, CaptureKind).</summary>
         public List<Vec2I> PointLog = new List<Vec2I>();
         public List<Powerup> Powerups = new List<Powerup>();
+        /// <summary>Live Barangay living-world vendors, Selecta bike, Crocodile &amp; Eagle (active strictly when Rules.UsesSpecKits() is true).</summary>
+        public BarangayNeutrals Neutrals { get; private set; }
         /// <summary>A timed street game in place of Agawang Base's rescues and captures; null for Agawang Base.</summary>
         public IStreetMode Mode;
 
@@ -117,6 +144,7 @@ namespace Kalyeah.Sim
         readonly List<Rect2> _blocking = new List<Rect2>();
         readonly List<Rect2> _walkBlocking = new List<Rect2>();
         readonly List<Rect2> _walkObstacles = new List<Rect2>();
+        readonly List<Rect2> _boundaryBlocking = new List<Rect2>();
         public BarangayNav Nav;
         int _castSerial;
         readonly Dictionary<int, int> _castTick = new Dictionary<int, int>();
@@ -133,35 +161,152 @@ namespace Kalyeah.Sim
             Layout = layout;
             Rng.Seed = seed;
             _tripRng.Seed = seed ^ TripSeedMix;
+            _neutralsRng.Seed = seed ^ NeutralsSeedMix;
             Obstacles = layout.ObstacleRects();
             LowCovers = layout.LowCoverRects();
             for (int i = 0; i < LowCovers.Count; i++) LowCoverHeights.Add(layout.LowCoverHeight(i));
             _walkObstacles.AddRange(layout.WalkObstacleRects());
             _street = layout.LaneRect();
-            _blocking.AddRange(layout.BoundaryRects());
+            _boundaryBlocking.AddRange(layout.BoundaryRects());
+            _blocking.AddRange(_boundaryBlocking);
             _blocking.AddRange(Obstacles);
-            _walkBlocking.AddRange(layout.BoundaryRects());
+            _walkBlocking.AddRange(_boundaryBlocking);
             _walkBlocking.AddRange(_walkObstacles);
             Nav = new BarangayNav(layout, rules.PlayerRadius);
             foreach (WeaponDef def in rules.Weapons) WeaponDefs[def.Id] = def;
             if (rules.PrimaryWeapon != null) WeaponDefs[rules.PrimaryWeapon.Id] = rules.PrimaryWeapon;
             if (rules.UltimateWeapon != null) WeaponDefs[rules.UltimateWeapon.Id] = rules.UltimateWeapon;
+            IndexCharactersAndSkills();
             Score = new MatchScore(rules.FirstTo);
             CaptureNeeded = rules.CaptureSoloTime;
             double ready = rules.SpecRules ? 0.0 : rules.RescueCooldown;
             RescueReadyLeft = new[] { ready, ready };
             BarrierLeft = rules.BarrierSeconds;
             ResetPowerups();
+            if (rules != null && rules.UsesSpecKits() && layout != null)
+            {
+                Neutrals = new BarangayNeutrals(layout, rules);
+                ConfigureLiveVendors(Neutrals);
+                BindNeutrals(Neutrals);
+            }
+        }
+
+        static void ConfigureLiveVendors(BarangayNeutrals neutrals)
+        {
+            if (neutrals == null) return;
+            IReadOnlyList<VendorState> vendors = neutrals.Vendors;
+            for (int i = 0; i < vendors.Count; i++)
+            {
+                // Instant +30 HP + +35 Water applied on pickup in OnNeutralVendorUsed; retain 30 s restock & eating slow window.
+                vendors[i].HealAmount = 0;
+            }
+        }
+
+        void BindNeutrals(BarangayNeutrals neutrals)
+        {
+            if (neutrals == null) return;
+            neutrals.VendorUsed += OnNeutralVendorUsed;
+            neutrals.SelectaClaimed += OnNeutralSelectaClaimed;
+            neutrals.NeutralBossRetaliated += OnNeutralBossRetaliated;
+        }
+
+        void UnbindNeutrals()
+        {
+            if (Neutrals == null) return;
+            Neutrals.VendorUsed -= OnNeutralVendorUsed;
+            Neutrals.SelectaClaimed -= OnNeutralSelectaClaimed;
+            Neutrals.NeutralBossRetaliated -= OnNeutralBossRetaliated;
+        }
+
+        void OnNeutralVendorUsed(int playerId, string _)
+        {
+            if (!Players.TryGetValue(playerId, out PlayerState state) || state.Tagged) return;
+            if (Rules != null && Rules.UsesSpecKits())
+            {
+                state.Water = GMath.Minf(Rules.WaterMax, state.Water + VendorWaterRestore);
+                Heal(playerId, VendorInstantHeal);
+            }
+        }
+
+        void OnNeutralSelectaClaimed(int playerId, int _)
+        {
+            if (Neutrals != null && Neutrals.Selecta.InstantHeal > 0)
+                PlayerHealed?.Invoke(playerId, Neutrals.Selecta.InstantHeal);
+        }
+
+        void OnNeutralBossRetaliated(NeutralBossKind _, int targetId, int applied)
+        {
+            if (applied > 0)
+                PlayerDamaged?.Invoke(targetId, applied);
+        }
+
+        /// <summary>Applies damage directly to Crocodile (Dragon) or Philippine Eagle (Baron) when live neutrals are active.</summary>
+        public bool DamageNeutral(NeutralBossKind kind, int damage, int attackerId, int attackerTeam, bool isDamageSkillOrStone = true)
+        {
+            if (Neutrals == null || Mode != null) return false;
+            return Neutrals.DamageNeutral(kind, damage, attackerId, attackerTeam, isDamageSkillOrStone, _neutralsRng);
+        }
+
+        void IndexCharactersAndSkills()
+        {
+            CharacterDefs.Clear();
+            SkillDefs.Clear();
+            if (Rules.Characters == null) return;
+            for (int i = 0; i < Rules.Characters.Count; i++)
+            {
+                CharacterDef c = Rules.Characters[i];
+                if (c == null || string.IsNullOrEmpty(c.Id)) continue;
+                CharacterDefs[c.Id] = c;
+                if (c.Skills == null) continue;
+                for (int s = 0; s < c.Skills.Count; s++)
+                {
+                    SkillDef sk = c.Skills[s];
+                    if (sk != null && !string.IsNullOrEmpty(sk.Id)) SkillDefs[sk.Id] = sk;
+                }
+            }
         }
 
         // ---- signal emitters (GDScript's `sim.<signal>.emit(...)` from the other sim classes) ----
-        public void EmitPlayerTagged(int id, int byId) => PlayerTagged?.Invoke(id, byId);
+        public void EmitPlayerTagged(int id, int byId)
+        {
+            if (Players.TryGetValue(id, out PlayerState tagged))
+            {
+                Weapons.OnPlayerTagged(id);
+                ClearTransientSpecState(tagged);
+                // Narda ULT Tsinelas Bagsik: tagging an enemy hit by one refunds 50% of ULT cooldown.
+                if (tagged.TsinelasMarkedLeft > 0.0 && tagged.TsinelasMarkedBy >= 0)
+                {
+                    if (Players.TryGetValue(tagged.TsinelasMarkedBy, out PlayerState narda)
+                        && narda.UsingSpecKit && narda.WeaponCooldowns.Count >= 3)
+                    {
+                        SkillDef ult = GetPlayerSkill(narda, 2);
+                        if (ult != null && ult.Mechanic == SkillMechanic.TsinelasBagsik)
+                        {
+                            double ratio = ult.BonusRatio > 0.0 ? ult.BonusRatio : 0.50;
+                            narda.WeaponCooldowns[2] = GMath.Maxf(0.0, narda.WeaponCooldowns[2] - ult.Cooldown * ratio);
+                        }
+                    }
+                    tagged.TsinelasMarkedLeft = 0.0;
+                    tagged.TsinelasMarkedBy = -1;
+                }
+            }
+            PlayerTagged?.Invoke(id, byId);
+        }
+
         public void EmitPlayerRescued(int id, int byId) => PlayerRescued?.Invoke(id, byId);
         public void EmitPointScored(int team, int how) => PointScored?.Invoke(team, how);
         public void EmitMatchWon(int team) => MatchWon?.Invoke(team);
         public void EmitPointReset() => PointReset?.Invoke();
         public void EmitWeaponHit(int id, string weaponId) => WeaponHit?.Invoke(id, weaponId);
         public void EmitCardDrawn(int id, int slot) => CardDrawn?.Invoke(id, slot);
+        public void EmitPlayerDashed(int id) => PlayerDashed?.Invoke(id);
+        public void EmitUltimateCast(int id) => UltimateCast?.Invoke(id);
+        public void EmitWallBroken(int ownerId, Vec2 pos) => WallBroken?.Invoke(ownerId, pos);
+        public void EmitTrapTriggered(int ownerId, Vec2 pos, bool isDisarmed) => TrapTriggered?.Invoke(ownerId, pos, isDisarmed);
+        public void EmitPlayerRevealed(int targetId, int viewerTeam, RevealKind kind, bool knownAlert) =>
+            PlayerRevealed?.Invoke(targetId, viewerTeam, kind, knownAlert);
+        public void EmitTiradorReloadStarted(int playerId) => TiradorReloadStarted?.Invoke(playerId);
+        public void EmitWaterInsufficient(int playerId) => WaterInsufficient?.Invoke(playerId);
 
         /// <summary>Emits WeaponCast (the sim counts every cast first, like the GDScript's own first listener).</summary>
         public void EmitWeaponCast(int id, string weaponId)
@@ -169,6 +314,121 @@ namespace Kalyeah.Sim
             _castSerial += 1;
             _castTick[id] = Tick;
             WeaponCast?.Invoke(id, weaponId);
+        }
+
+        // ---- spec kit helpers ----
+
+        public SkillDef GetSkillDef(string id) => !string.IsNullOrEmpty(id) && SkillDefs.TryGetValue(id, out SkillDef def) ? def : null;
+
+        public CharacterDef GetCharacterDef(string id) => !string.IsNullOrEmpty(id) && CharacterDefs.TryGetValue(id, out CharacterDef def) ? def : null;
+
+        public bool HasSpecKit(string characterId)
+        {
+            CharacterDef def = GetCharacterDef(characterId);
+            return def != null && def.HasSpecKit();
+        }
+
+        public SkillDef GetPlayerSkill(PlayerState state, int slot)
+        {
+            if (state == null || slot < 0 || slot >= state.Weapons.Count) return null;
+            return GetSkillDef(state.Weapons[slot]);
+        }
+
+        /// <summary>Equips `id` with its CharacterDef's 3 spec skills [S1, S2, ULT]. Returns false if the kid has no kit.</summary>
+        public bool EquipSpecKit(int id)
+        {
+            if (!Players.TryGetValue(id, out PlayerState state)) return false;
+            CharacterDef def = GetCharacterDef(state.CharacterId);
+            if (def == null || !def.HasSpecKit()) return false;
+            state.UsingSpecKit = true;
+            state.Cards = false;
+            state.Weapons = new List<string> { def.Skills[0].Id, def.Skills[1].Id, def.Skills[2].Id };
+            SizeSlots(state);
+            state.Water = Rules.WaterMax;
+            state.TiradorAmmo = Rules.TiradorMaxAmmo;
+            state.TiradorReloadLeft = 0.0;
+            state.TiradorChargeTime = -1.0;
+            state.S1Charges = GMath.Maxi(1, def.Skills[0].MaxCharges);
+            state.S1ChargeRegenLeft = 0.0;
+            ClearTransientSpecState(state);
+            return true;
+        }
+
+        /// <summary>Resets all players' ultimate cooldowns and water (called at half-time side swap per docs/SPEC.md §5 &amp; §6).</summary>
+        public void ResetUltimateCooldowns()
+        {
+            foreach (var pair in Players)
+            {
+                PlayerState state = pair.Value;
+                if (state.UsingSpecKit && state.WeaponCooldowns.Count >= 3)
+                    state.WeaponCooldowns[2] = 0.0;
+                state.Water = Rules.WaterMax;
+            }
+        }
+
+        /// <summary>True when `state` can legally cast spec skill in `slot` right now (not tagged, off CD, affordable, not blocked).</summary>
+        public bool CanCastSkill(PlayerState state, int slot) => WeaponReady(state, slot);
+
+        /// <summary>True when `enemy` is visible to `viewerTeam` (not invisible from Tago!, or currently outline-revealed).</summary>
+        public bool IsEnemyVisibleToTeam(PlayerState enemy, int viewerTeam)
+        {
+            if (enemy == null) return false;
+            if (enemy.Team == viewerTeam) return true;
+            if (enemy.InvisibleLeft <= 0.0) return true;
+            return enemy.RevealedOutlineLeft > 0.0;
+        }
+
+        /// <summary>True when `trap` is visible to `viewerTeam`: allies always see it; enemies see it within 3m or when revealed.</summary>
+        public bool IsTrapVisibleToTeam(WeaponSystem.HiddenTrap trap, int viewerTeam)
+        {
+            if (trap == null) return false;
+            if (trap.Team == viewerTeam) return true;
+            if (trap.RevealedToEnemy) return true;
+            double distLimit = Rules.TrapRevealDistance > 0.0 ? Rules.TrapRevealDistance : 3.0;
+            foreach (var pair in Players)
+            {
+                PlayerState p = pair.Value;
+                if (p.Team == viewerTeam && !p.Tagged && p.Position.DistanceTo(trap.Position) <= distLimit)
+                    return true;
+            }
+            return false;
+        }
+
+        static void ClearTransientSpecState(PlayerState state)
+        {
+            state.TiradorChargeTime = -1.0;
+            state.SyatoTargetId = -1;
+            state.SyatoRecastLeft = 0.0;
+            state.EmpoweredTiradorBonus = 0.0;
+            state.EmpoweredTiradorLeft = 0.0;
+            state.BlurLeft = 0.0;
+            state.RevealedOutlineLeft = 0.0;
+            state.RevealAlertLeft = 0.0;
+            state.KnownRevealAlert = false;
+            state.InvisibleLeft = 0.0;
+            state.StiltsLeft = 0.0;
+            state.SackRaceLeft = 0.0;
+            state.LuksongBakaLeft = 0.0;
+            state.TrumpoSpinLeft = 0.0;
+            state.TrumpoSpinTickTimer = 0.0;
+            state.SungkaAbsorbLeft = 0.0;
+            state.SungkaStoredDamage = 0;
+            state.ShieldHp = 0.0;
+            state.ShieldHpLeft = 0.0;
+            state.LangitLeft = 0.0;
+            state.TayaCountLeft = 0.0;
+            state.SpeedBoostRatio = 0.0;
+            state.SpeedBoostLeft = 0.0;
+            state.PendingSlowAfterRootLeft = 0.0;
+            state.PendingSlowAfterRootDuration = 0.0;
+            state.PendingSlowAfterRootMagnitude = 0.0;
+            state.VaultDashActive = false;
+            state.LeapLeft = 0.0;
+            state.LeapDuration = 0.0;
+            state.LeapSkillId = "";
+            state.BatoWindupLeft = 0.0;
+            state.SackBumpMask = 0;
+            state.LuksongBakaUsedMask = 0;
         }
 
         /// <summary>Team 0 plays from the own (+Z) end, team 1 from the enemy (-Z) end.</summary>
@@ -191,15 +451,17 @@ namespace Kalyeah.Sim
         public void StartMode(IStreetMode mode)
         {
             Mode = mode;
+            UnbindNeutrals();
+            Neutrals = null;
             Powerups.Clear();
             Obstacles.Clear();
             LowCovers.Clear();
             LowCoverHeights.Clear();
             _walkObstacles.Clear();
             _blocking.Clear();
-            _blocking.AddRange(Layout.BoundaryRects());
+            _blocking.AddRange(_boundaryBlocking);
             _walkBlocking.Clear();
-            _walkBlocking.AddRange(Layout.BoundaryRects());
+            _walkBlocking.AddRange(_boundaryBlocking);
             Score.FirstTo = 0;
             Mode.Setup(this);
         }
@@ -228,6 +490,8 @@ namespace Kalyeah.Sim
             state.Effects.ImmunityLength = Rules.CcImmunity;
             state.Elixir = Rules.ElixirStart;
             state.Stamina = Rules.StaminaMax;
+            state.Water = Rules.WaterMax;
+            state.TiradorAmmo = Rules.TiradorMaxAmmo;
             Players[id] = state;
             return state;
         }
@@ -274,6 +538,7 @@ namespace Kalyeah.Sim
                     if (chosen[j] == wid) return false;
             }
             PlayerState state = Players[id];
+            state.UsingSpecKit = false;
             state.Weapons = new List<string>(chosen);
             SizeSlots(state);
             return true;
@@ -300,6 +565,7 @@ namespace Kalyeah.Sim
                 ids[i] = ids[j];
                 ids[j] = held;
             }
+            state.UsingSpecKit = false;
             state.Cards = true;
             state.Weapons = ids.GetRange(0, Math.Min(hand, ids.Count));
             state.NextCard = hand < ids.Count ? ids[hand] : "";
@@ -315,12 +581,17 @@ namespace Kalyeah.Sim
         /// <summary>True when `state` pays for its cards with elixir; otherwise cards play their cooldown.</summary>
         public bool PaysElixir(PlayerState state) => state.Cards && Rules.UsesElixir();
 
-        /// <summary>Equips a player: a dealt hand in cards mode, else `LoadoutSize` random weapons.</summary>
+        /// <summary>Equips a player: spec kit when enabled and character has skills, else cards or random legacy weapons.</summary>
         public void Equip(int id, bool fighter = false)
         {
             if (Rules.CardCycle)
             {
                 DealCards(id);
+                return;
+            }
+            if (Rules.UsesSpecKits() && Players.TryGetValue(id, out PlayerState p) && HasSpecKit(p.CharacterId))
+            {
+                EquipSpecKit(id);
                 return;
             }
             List<string> kit = fighter ? FightingLoadout() : RandomLoadout();
@@ -393,9 +664,27 @@ namespace Kalyeah.Sim
             }
         }
 
-        /// <summary>A new round: the shuffler finishes at once and the hand and the window are full again.</summary>
+        /// <summary>A new round: refills water/ammo, resets S1/S2 (keeping ULT CD across rounds under spec kits), and finishes card reloads.</summary>
         public void FinishReloads(PlayerState state)
         {
+            if (state.UsingSpecKit)
+            {
+                // docs/SPEC.md §5 & docs/KITS.md: Water, S1 and S2 refill on round start; ULT cooldown carries across rounds.
+                if (state.WeaponCooldowns.Count > 0) state.WeaponCooldowns[0] = 0.0;
+                if (state.WeaponCooldowns.Count > 1) state.WeaponCooldowns[1] = 0.0;
+                state.Water = Rules.WaterMax;
+                state.TiradorAmmo = Rules.TiradorMaxAmmo;
+                state.TiradorReloadLeft = 0.0;
+                state.TiradorChargeTime = -1.0;
+                SkillDef s1 = GetPlayerSkill(state, 0);
+                state.S1Charges = s1 != null ? GMath.Maxi(1, s1.MaxCharges) : 1;
+                state.S1ChargeRegenLeft = 0.0;
+                state.PassiveHealCarry = 0.0;
+                state.TsinelasMarkedLeft = 0.0;
+                state.TsinelasMarkedBy = -1;
+                ClearTransientSpecState(state);
+                return;
+            }
             for (int slot = 0; slot < state.WeaponCooldowns.Count; slot++) state.WeaponCooldowns[slot] = 0.0;
             if (!state.Cards) return;
             if (state.ShuffleCard != "") state.Deck.Add(state.ShuffleCard);
@@ -465,7 +754,7 @@ namespace Kalyeah.Sim
             return kids;
         }
 
-        /// <summary>Gives every player a random character, with no duplicates on the same team (seeded). Purely cosmetic.</summary>
+        /// <summary>Gives every player a random character, with no duplicates on the same team (seeded).</summary>
         public void AssignCharacters()
         {
             var baseIds = new List<string>();
@@ -513,6 +802,7 @@ namespace Kalyeah.Sim
             double bestDistance = maxRange;
             foreach (PlayerState target in EnemiesOf(caster.Team))
             {
+                if (Rules.UsesSpecKits() && !IsEnemyVisibleToTeam(target, caster.Team)) continue;
                 double distance = caster.Position.DistanceTo(target.Position);
                 if (distance <= bestDistance)
                 {
@@ -523,15 +813,25 @@ namespace Kalyeah.Sim
             return best;
         }
 
-        /// <summary>Status effect from a weapon.</summary>
+        /// <summary>Status effect from a weapon or skill.</summary>
         public void ApplyEffect(int id, StatusEffects.Type type, double duration, double magnitude)
         {
-            if (!Players.ContainsKey(id) || !IsTargetable(Players[id])) return;
+            ApplyEffectAndReport(id, type, duration, magnitude);
+        }
+
+        /// <summary>Status effect from a weapon or skill; returns true when applied.</summary>
+        public bool ApplyEffectAndReport(int id, StatusEffects.Type type, double duration, double magnitude)
+        {
+            if (!Players.ContainsKey(id) || !IsTargetable(Players[id])) return false;
             PlayerState state = Players[id];
+            // Jumong S2 Trumpo Ikot is immune to Slow & Slip.
+            if (state.TrumpoSpinLeft > 0.0 && (type == StatusEffects.Type.Slow || type == StatusEffects.Type.Slip))
+                return false;
             bool fresh = type != StatusEffects.Type.None && !state.Effects.Has(type);
             bool applied = state.Effects.Apply(type, duration, magnitude);
-            if (applied && state.Effects.IsHardCc(type)) EndMove(state);
+            if (applied && (state.Effects.IsHardCc(type) || type == StatusEffects.Type.Root)) EndMove(state);
             if (fresh && applied) EffectApplied?.Invoke(id, type);
+            return applied;
         }
 
         /// <summary>A training dummy (or bot): a normal player on `team` at `position`, driven by `brain`. Dummies don't count for captures.</summary>
@@ -549,21 +849,84 @@ namespace Kalyeah.Sim
         public void SetInput(int id, PlayerInput input) => _inputs[id] = input;
 
         /// <summary>Applies damage (`by` is who dealt it, -1 for nobody). At 0 HP the player is tagged.</summary>
-        public void Damage(int id, int amount, int by = -1)
+        public void Damage(int id, int amount, int by = -1) =>
+            DamageCore(id, amount, by, "", false, false, true);
+
+        /// <summary>Applies Tirador or skill damage with headshot/tag HitConfirmEvent and no-solo-100-HP-skill-kill enforcement.</summary>
+        public void DamageCombat(int id, int amount, int by, string weaponId, bool isHeadshot, bool isSkill) =>
+            DamageCore(id, amount, by, weaponId ?? "", isHeadshot, isSkill, true);
+
+        void DamageCore(int id, int amount, int by, string weaponId, bool isHeadshot, bool isSkill, bool allowRedirect)
         {
             if (!Players.ContainsKey(id) || amount <= 0) return;
             PlayerState state = Players[id];
             if (state.Tagged || Mode != null || state.ShieldLeft > 0.0) return;
+
             int finalAmount = amount;
             if (by >= 0 && Players.ContainsKey(by))
             {
                 PlayerState src = Players[by];
                 if (src.BuffType == PowerupTeks && src.BuffLeft > 0.0)
                     finalAmount = GMath.Maxi(1, GMath.Roundi(finalAmount * (1.0 + Rules.TeksDamageBonus)));
+                if (Neutrals != null)
+                {
+                    double dmgMult = Neutrals.GetDamageMultiplier(src.Team, src.CharacterId);
+                    if (dmgMult > 1.0 + Epsilon)
+                        finalAmount = GMath.Maxi(1, GMath.Roundi(finalAmount * dmgMult));
+                }
             }
             if (state.BuffType == PowerupTuron && state.BuffLeft > 0.0)
                 finalAmount = GMath.Maxi(1, GMath.Roundi(finalAmount * (1.0 - Rules.TuronDamageReduction)));
-            state.Hp = GMath.Maxi(0, state.Hp - finalAmount);
+            if (Neutrals != null)
+            {
+                double takenMult = Neutrals.GetDamageTakenMultiplier(state.Team, state.CharacterId);
+                if (takenMult < 1.0 - Epsilon)
+                    finalAmount = GMath.Maxi(1, GMath.Roundi(finalAmount * takenMult));
+            }
+
+            // docs/KITS.md: No single skill tags a full-HP kid alone.
+            if (isSkill && state.Hp >= Rules.PlayerMaxHp && finalAmount >= Rules.PlayerMaxHp)
+                finalAmount = GMath.Maxi(1, Rules.PlayerMaxHp - 1);
+
+            // Paeng S1 Sack Race: 40% less damage taken.
+            if (state.SackRaceLeft > 0.0)
+                finalAmount = GMath.Maxi(1, GMath.Roundi(finalAmount * 0.60));
+
+            // Oriang S1 Chinese Garter: 30% of tethered ally damage redirects to Oriang.
+            if (allowRedirect)
+            {
+                WeaponSystem.AllyTether tether = Weapons.TetherForAlly(id);
+                if (tether != null && tether.OwnerId != id && Players.TryGetValue(tether.OwnerId, out PlayerState oriang) && !oriang.Tagged)
+                {
+                    int redirected = GMath.Maxi(1, GMath.Roundi(finalAmount * tether.RedirectRatio));
+                    finalAmount = GMath.Maxi(0, finalAmount - redirected);
+                    if (redirected > 0) DamageCore(oriang.Id, redirected, by, weaponId, false, isSkill, false);
+                }
+            }
+
+            // Oriang S2 Sungka: store damage taken as shells during the 3s absorb window.
+            if (state.SungkaAbsorbLeft > 0.0 && finalAmount > 0)
+            {
+                SkillDef s2 = GetPlayerSkill(state, 1);
+                int maxShells = s2 != null && s2.WallHp > 0 ? s2.WallHp : 50;
+                state.SungkaStoredDamage = GMath.Mini(maxShells, state.SungkaStoredDamage + finalAmount);
+            }
+
+            // Shared Sungka ShieldHp absorbs damage before real HP.
+            int hpDamage = finalAmount;
+            if (state.ShieldHp > 0.0 && hpDamage > 0)
+            {
+                double absorbed = GMath.Minf(state.ShieldHp, hpDamage);
+                state.ShieldHp = GMath.Maxf(0.0, state.ShieldHp - absorbed);
+                hpDamage = GMath.Maxi(0, hpDamage - GMath.Roundi(absorbed));
+            }
+
+            int nextHp = GMath.Maxi(0, state.Hp - hpDamage);
+            // Oriang ULT Langit!: allies in 8m cannot drop below 1 HP (cannot be tagged).
+            if (state.LangitLeft > 0.0 && nextHp < 1) nextHp = 1;
+
+            Vec2 hitPos = state.Position;
+            state.Hp = nextHp;
             state.OutOfCombatTime = 0.0;
             state.Sprinting = false;
             state.UltCharge = GMath.Minf(100.0, state.UltCharge + finalAmount * Rules.UltPerDamage * 0.45);
@@ -574,7 +937,26 @@ namespace Kalyeah.Sim
                     attacker.UltCharge = GMath.Minf(100.0, attacker.UltCharge + finalAmount * Rules.UltPerDamage);
             }
             PlayerDamaged?.Invoke(id, finalAmount);
-            if (state.Hp <= 0) Objectives.Tag(this, state, by);
+
+            bool isTag = state.Hp <= 0;
+            if (isTag) Objectives.Tag(this, state, by);
+
+            if (by >= 0 && Players.TryGetValue(by, out PlayerState hitter) && (Rules.UsesSpecKits() || !string.IsNullOrEmpty(weaponId)))
+            {
+                var ev = new HitConfirmEvent
+                {
+                    Tick = Tick,
+                    AttackerId = by,
+                    TargetId = id,
+                    WeaponId = weaponId,
+                    Damage = finalAmount,
+                    IsHeadshot = isHeadshot,
+                    IsTag = isTag,
+                    WorldPos = hitPos,
+                };
+                hitter.LastHitEvent = ev;
+                HitConfirmed?.Invoke(ev);
+            }
         }
 
         /// <summary>Heals up to max HP; returns the HP actually gained. Nothing while tagged.</summary>
@@ -666,16 +1048,115 @@ namespace Kalyeah.Sim
             else
             {
                 StepPowerups(dt);
+                if (Neutrals != null) StepNeutrals(dt);
                 Objectives.CheckRescues(this, dt);
-                Objectives.CheckCaptures(this, _brains, dt);
+                StepCapturesWithPalosebo(dt);
             }
             Tick += 1;
         }
 
+        void StepNeutrals(double dt)
+        {
+            Neutrals.Step(dt, Players, _neutralsRng);
+            StepNeutralBossProjectiles(Neutrals.Dragon);
+            StepNeutralBossProjectiles(Neutrals.Baron);
+        }
+
+        void StepNeutralBossProjectiles(NeutralBossInstance boss)
+        {
+            if (boss == null || !boss.CanBeDamaged) return;
+            List<WeaponSystem.Projectile> projectiles = Weapons.Projectiles;
+            if (projectiles.Count == 0) return;
+
+            int syntheticHitId = -100 - (int)boss.Kind;
+            for (int i = projectiles.Count - 1; i >= 0; i--)
+            {
+                WeaponSystem.Projectile pr = projectiles[i];
+                int dmg = pr.DamageOverride > 0
+                    ? pr.DamageOverride
+                    : (pr.Skill != null ? pr.Skill.Damage : (pr.Def != null ? pr.Def.Damage : 0));
+                if (dmg <= 0) continue;
+
+                double reach = boss.HitRadius + pr.HitRadius;
+                if (pr.Position.DistanceSquaredTo(boss.Position) > reach * reach) continue;
+
+                bool pierces = (pr.Skill != null && pr.Skill.Mechanic == SkillMechanic.TsinelasBagsik)
+                    || (pr.Def != null && (pr.Def.Shape == WeaponDef.WeaponShape.Boomerang || pr.Def.Shape == WeaponDef.WeaponShape.Spinner));
+                if (pierces && !pr.HitIds.Add(syntheticHitId)) continue;
+
+                bool damaged = Neutrals.DamageNeutral(boss.Kind, dmg, pr.OwnerId, pr.Team, isDamageSkillOrStone: true, rng: _neutralsRng);
+                if (!damaged) continue;
+
+                bool defeated = boss.State == NeutralBossState.Fleeing;
+                if (pr.OwnerId >= 0 && Players.TryGetValue(pr.OwnerId, out PlayerState hitter))
+                {
+                    var ev = new HitConfirmEvent
+                    {
+                        Tick = Tick,
+                        AttackerId = pr.OwnerId,
+                        TargetId = -(int)boss.Kind - 1,
+                        WeaponId = pr.EffectId ?? "",
+                        Damage = dmg,
+                        IsHeadshot = false,
+                        IsTag = defeated,
+                        WorldPos = boss.Position,
+                    };
+                    hitter.LastHitEvent = ev;
+                    HitConfirmed?.Invoke(ev);
+                }
+
+                if (!pierces)
+                    projectiles.RemoveAt(i);
+                if (!boss.CanBeDamaged) break;
+            }
+        }
+
+        void StepCapturesWithPalosebo(double dt)
+        {
+            // Jopay ULT Palosebo: greased pole in defending base halts enemy capture progress (team wipes still score).
+            bool wipe0 = Objectives.AllEnemiesTagged(this, 0, _brains);
+            bool wipe1 = Objectives.AllEnemiesTagged(this, 1, _brains);
+            if (!wipe0 && !wipe1)
+            {
+                int cap0 = Objectives.CapturersInEnemyBase(this, 0, _brains);
+                int cap1 = Objectives.CapturersInEnemyBase(this, 1, _brains);
+                if (cap0 > 0 && cap1 == 0 && Weapons.HasActivePalosebo(1))
+                {
+                    PauseCaptureForPalosebo(0);
+                    return;
+                }
+                if (cap1 > 0 && cap0 == 0 && Weapons.HasActivePalosebo(0))
+                {
+                    PauseCaptureForPalosebo(1);
+                    return;
+                }
+            }
+            Objectives.CheckCaptures(this, _brains, dt);
+        }
+
+        void PauseCaptureForPalosebo(int capturingTeam)
+        {
+            if (CaptureTeam != capturingTeam || CurrentCaptureKind != CaptureKind.Base)
+            {
+                CaptureTeam = capturingTeam;
+                CurrentCaptureKind = CaptureKind.Base;
+                CaptureElapsed = 0.0;
+                CaptureNeeded = CurrentBaseCaptureTime();
+            }
+            CaptureRate = 0.0;
+        }
+
         void TickCooldowns(PlayerState state, double dt)
         {
+            double cdDt = dt;
+            if (Neutrals != null && state.UsingSpecKit)
+            {
+                double cdMult = Neutrals.GetCooldownMultiplier(state.Team, state.CharacterId);
+                if (cdMult > Epsilon && cdMult < 1.0 - Epsilon)
+                    cdDt = dt / cdMult;
+            }
             for (int slot = 0; slot < state.WeaponCooldowns.Count; slot++)
-                state.WeaponCooldowns[slot] = GMath.Maxf(0.0, state.WeaponCooldowns[slot] - dt);
+                state.WeaponCooldowns[slot] = GMath.Maxf(0.0, state.WeaponCooldowns[slot] - cdDt);
             state.PrimaryCd = GMath.Maxf(0.0, state.PrimaryCd - dt);
             state.DashCd = GMath.Maxf(0.0, state.DashCd - dt);
             state.JumpCd = GMath.Maxf(0.0, state.JumpCd - dt);
@@ -684,6 +1165,49 @@ namespace Kalyeah.Sim
             TickBuff(state, dt);
             if (Mode == null && !state.Tagged) state.UltCharge = GMath.Minf(100.0, state.UltCharge + Rules.UltPassivePerS * dt);
             TickShuffler(state, dt);
+            if (Rules.UsesSpecKits()) TickSpecWaterAndCharges(state, dt);
+        }
+
+        void TickSpecWaterAndCharges(PlayerState state, double dt)
+        {
+            // Water mana: 2/s passive in street, 25/s in own home base fountain, plus Selecta team regen bonus when active.
+            state.InHomeFountain = !state.Tagged && Mode == null && Layout.InBase(SideForTeam(state.Team), state.Position);
+            double rate = state.InHomeFountain ? Rules.WaterFountainRegenPerS : Rules.WaterRegenPerS;
+            if (Neutrals != null && Mode == null)
+                rate += Neutrals.GetTeamWaterRegenBonus(state.Team);
+            state.Water = GMath.Minf(Rules.WaterMax, state.Water + rate * dt);
+
+            // Multi-charge S1 regeneration (Narda Luksong Tinik 2 charges).
+            if (state.UsingSpecKit && state.Weapons.Count > 0)
+            {
+                SkillDef s1 = GetPlayerSkill(state, 0);
+                if (s1 != null && s1.MaxCharges > 1 && state.S1Charges < s1.MaxCharges)
+                {
+                    state.S1ChargeRegenLeft = GMath.Maxf(0.0, state.S1ChargeRegenLeft - dt);
+                    if (state.S1ChargeRegenLeft <= Epsilon)
+                    {
+                        state.S1Charges = GMath.Mini(s1.MaxCharges, state.S1Charges + 1);
+                        state.S1ChargeRegenLeft = state.S1Charges < s1.MaxCharges ? s1.Cooldown : 0.0;
+                        if (state.S1Charges > 0 && state.WeaponCooldowns.Count > 0 && state.WeaponCooldowns[0] > 0.25)
+                            state.WeaponCooldowns[0] = 0.0;
+                    }
+                    else if (state.S1Charges == 0 && state.WeaponCooldowns.Count > 0)
+                    {
+                        state.WeaponCooldowns[0] = state.S1ChargeRegenLeft;
+                    }
+                }
+            }
+
+            // Tirador reload timer ticks even while walking/in jail.
+            if (state.TiradorReloadLeft > 0.0)
+            {
+                state.TiradorReloadLeft = GMath.Maxf(0.0, state.TiradorReloadLeft - dt);
+                if (state.TiradorReloadLeft <= Epsilon)
+                {
+                    state.TiradorReloadLeft = 0.0;
+                    state.TiradorAmmo = Rules.TiradorMaxAmmo;
+                }
+            }
         }
 
         void StepFree(PlayerState state, PlayerInput input, double dt)
@@ -692,13 +1216,14 @@ namespace Kalyeah.Sim
             if (Mode != null && Mode.IsResetting()) return;
             TickCooldowns(state, dt);
             TickElixir(state, dt);
+            if (Rules.UsesSpecKits()) StepSpecState(state, dt);
             if (Mode != null)
             {
                 Mode.HandleInput(this, state, input, dt);
             }
             else if (input != null)
             {
-                StepHeroActions(state, input);
+                StepHeroActions(state, input, dt);
                 HandleWeaponCasting(state, input, dt);
             }
             Vec2 before = state.Position;
@@ -708,6 +1233,252 @@ namespace Kalyeah.Sim
             bool moved = state.Position.DistanceSquaredTo(before) > Epsilon * Epsilon;
             TickStamina(state, moved, dt);
             TickTrip(state, moved, dt);
+        }
+
+        void StepSpecState(PlayerState state, double dt)
+        {
+            // Deferred slow after Tere ULT Garter Net root ends.
+            if (state.PendingSlowAfterRootLeft > 0.0)
+            {
+                state.PendingSlowAfterRootLeft = GMath.Maxf(0.0, state.PendingSlowAfterRootLeft - dt);
+                if (state.PendingSlowAfterRootLeft <= Epsilon && !state.Effects.Has(StatusEffects.Type.Root))
+                {
+                    ApplyEffect(state.Id, StatusEffects.Type.Slow, state.PendingSlowAfterRootDuration, state.PendingSlowAfterRootMagnitude);
+                    state.PendingSlowAfterRootLeft = 0.0;
+                }
+            }
+
+            // Timers: Syato recast, Empowered Tirador, Blur, Reveals, Invisibility, Stilts, Speed boost, Shield, Langit, Taya, Tsinelas mark.
+            if (state.SyatoRecastLeft > 0.0)
+            {
+                state.SyatoRecastLeft = GMath.Maxf(0.0, state.SyatoRecastLeft - dt);
+                PlayerState marked = Players.GetOrDefault(state.SyatoTargetId);
+                if (state.SyatoRecastLeft <= Epsilon || marked == null || marked.Tagged)
+                {
+                    state.SyatoRecastLeft = 0.0;
+                    state.SyatoTargetId = -1;
+                }
+            }
+            if (state.EmpoweredTiradorLeft > 0.0)
+            {
+                state.EmpoweredTiradorLeft = GMath.Maxf(0.0, state.EmpoweredTiradorLeft - dt);
+                if (state.EmpoweredTiradorLeft <= Epsilon)
+                {
+                    state.EmpoweredTiradorLeft = 0.0;
+                    state.EmpoweredTiradorBonus = 0.0;
+                }
+            }
+            state.BlurLeft = GMath.Maxf(0.0, state.BlurLeft - dt);
+            state.RevealedOutlineLeft = GMath.Maxf(0.0, state.RevealedOutlineLeft - dt);
+            if (state.RevealAlertLeft > 0.0)
+            {
+                state.RevealAlertLeft = GMath.Maxf(0.0, state.RevealAlertLeft - dt);
+                if (state.RevealAlertLeft <= Epsilon)
+                {
+                    state.RevealAlertLeft = 0.0;
+                    state.KnownRevealAlert = false;
+                }
+            }
+            if (state.InvisibleLeft > 0.0)
+            {
+                state.InvisibleLeft = GMath.Maxf(0.0, state.InvisibleLeft - dt);
+                // docs/SPEC.md §6: starting a rescue or standing in enemy base ends hiding / Tago!
+                if (RescueRescuer[state.Team] == state.Id || Layout.InBase(-SideForTeam(state.Team), state.Position))
+                    state.InvisibleLeft = 0.0;
+            }
+            state.StiltsLeft = GMath.Maxf(0.0, state.StiltsLeft - dt);
+            state.LangitLeft = GMath.Maxf(0.0, state.LangitLeft - dt);
+            state.TayaCountLeft = GMath.Maxf(0.0, state.TayaCountLeft - dt);
+            if (state.SpeedBoostLeft > 0.0)
+            {
+                state.SpeedBoostLeft = GMath.Maxf(0.0, state.SpeedBoostLeft - dt);
+                if (state.SpeedBoostLeft <= Epsilon)
+                {
+                    state.SpeedBoostLeft = 0.0;
+                    state.SpeedBoostRatio = 0.0;
+                }
+            }
+            if (state.ShieldHpLeft > 0.0)
+            {
+                state.ShieldHpLeft = GMath.Maxf(0.0, state.ShieldHpLeft - dt);
+                if (state.ShieldHpLeft <= Epsilon)
+                {
+                    state.ShieldHpLeft = 0.0;
+                    state.ShieldHp = 0.0;
+                }
+            }
+            if (state.TsinelasMarkedLeft > 0.0)
+            {
+                state.TsinelasMarkedLeft = GMath.Maxf(0.0, state.TsinelasMarkedLeft - dt);
+                if (state.TsinelasMarkedLeft <= Epsilon)
+                {
+                    state.TsinelasMarkedLeft = 0.0;
+                    state.TsinelasMarkedBy = -1;
+                }
+            }
+
+            // Jumong S2 Trumpo Ikot: periodic spin damage around Jumong.
+            if (state.TrumpoSpinLeft > 0.0)
+            {
+                state.TrumpoSpinLeft = GMath.Maxf(0.0, state.TrumpoSpinLeft - dt);
+                state.TrumpoSpinTickTimer -= dt;
+                if (state.TrumpoSpinTickTimer <= 0.0)
+                {
+                    SkillDef s2 = GetPlayerSkill(state, 1);
+                    double interval = s2 != null && s2.Interval > 0.0 ? s2.Interval : 0.5;
+                    double radius = s2 != null && s2.Radius > 0.0 ? s2.Radius : 3.2;
+                    int dmg = s2 != null && s2.Damage > 0 ? s2.Damage : 6;
+                    string wid = s2 != null ? s2.Id : "trumpo_ikot";
+                    state.TrumpoSpinTickTimer += interval;
+                    foreach (PlayerState enemy in Weapons.EnemiesWithin(this, state.Team, state.Position, radius))
+                    {
+                        EmitWeaponHit(enemy.Id, wid);
+                        DamageCombat(enemy.Id, dmg, state.Id, wid, false, true);
+                    }
+                }
+            }
+
+            // Jumong ULT Pukpok Palayok: parabolic leap & smash + 2s Blur.
+            if (state.LeapLeft > 0.0)
+            {
+                state.LeapLeft = GMath.Maxf(0.0, state.LeapLeft - dt);
+                double t = state.LeapDuration > 0.0 ? GMath.Clampf(1.0 - state.LeapLeft / state.LeapDuration, 0.0, 1.0) : 1.0;
+                state.Position = state.LeapStart.Lerp(state.LeapTarget, t);
+                state.AirY = 4.0 * 2.5 * t * (1.0 - t);
+                if (state.LeapLeft <= Epsilon)
+                {
+                    state.LeapLeft = 0.0;
+                    state.AirY = 0.0;
+                    state.Position = Weapons.ResolveWallPushOut(ClampMoveTarget(state.LeapTarget, state.Radius), state.Radius);
+                    SkillDef ult = GetSkillDef(state.LeapSkillId) ?? GetPlayerSkill(state, 2);
+                    double radius = ult != null && ult.Radius > 0.0 ? ult.Radius : 4.5;
+                    int dmg = ult != null && ult.Damage > 0 ? ult.Damage : 40;
+                    double blurDur = ult != null && ult.BlurDuration > 0.0 ? ult.BlurDuration : 2.0;
+                    string wid = ult != null ? ult.Id : "pukpok_palayok";
+                    foreach (PlayerState enemy in Weapons.EnemiesWithin(this, state.Team, state.Position, radius))
+                    {
+                        EmitWeaponHit(enemy.Id, wid);
+                        enemy.BlurLeft = GMath.Maxf(enemy.BlurLeft, blurDur);
+                        DamageCombat(enemy.Id, dmg, state.Id, wid, false, true);
+                    }
+                    state.LeapSkillId = "";
+                }
+            }
+
+            // Inggo ULT Bato!: 1s windup then fires missing-HP execute stone.
+            if (state.BatoWindupLeft > 0.0)
+            {
+                state.BatoWindupLeft = GMath.Maxf(0.0, state.BatoWindupLeft - dt);
+                if (state.BatoWindupLeft <= Epsilon)
+                {
+                    state.BatoWindupLeft = 0.0;
+                    SkillDef ult = GetPlayerSkill(state, 2);
+                    if (ult != null && ult.Mechanic == SkillMechanic.BatoExecute)
+                        Weapons.LaunchBatoExecute(state, ult, state.BatoWindupAim);
+                }
+            }
+
+            // Oriang S2 Sungka: release stored damage as shared ally shield when 3s absorb ends.
+            if (state.SungkaAbsorbLeft > 0.0)
+            {
+                state.SungkaAbsorbLeft = GMath.Maxf(0.0, state.SungkaAbsorbLeft - dt);
+                if (state.SungkaAbsorbLeft <= Epsilon)
+                {
+                    state.SungkaAbsorbLeft = 0.0;
+                    int stored = state.SungkaStoredDamage;
+                    state.SungkaStoredDamage = 0;
+                    if (stored > 0)
+                    {
+                        SkillDef s2 = GetPlayerSkill(state, 1);
+                        double radius = s2 != null && s2.Radius > 0.0 ? s2.Radius : 7.0;
+                        double shieldDur = s2 != null && s2.SecondaryDuration > 0.0 ? s2.SecondaryDuration : 4.0;
+                        foreach (var pair in Players)
+                        {
+                            PlayerState ally = pair.Value;
+                            if (ally.Team == state.Team && !ally.Tagged && state.Position.DistanceTo(ally.Position) <= radius + ally.Radius)
+                            {
+                                ally.ShieldHp = GMath.Maxf(ally.ShieldHp, stored);
+                                ally.ShieldHpLeft = GMath.Maxf(ally.ShieldHpLeft, shieldDur);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Paeng S1 Sack Race: bump knockback against enemies.
+            if (state.SackRaceLeft > 0.0)
+            {
+                state.SackRaceLeft = GMath.Maxf(0.0, state.SackRaceLeft - dt);
+                SkillDef s1 = GetPlayerSkill(state, 0);
+                double kb = s1 != null && s1.Knockback > 0.0 ? s1.Knockback : 3.5;
+                int dmg = s1 != null && s1.Damage > 0 ? s1.Damage : 18;
+                string wid = s1 != null ? s1.Id : "sack_race";
+                foreach (PlayerState enemy in EnemiesOf(state.Team))
+                {
+                    int bit = 1 << (enemy.Id & 31);
+                    if ((state.SackBumpMask & bit) != 0) continue;
+                    if (state.Position.DistanceTo(enemy.Position) <= state.Radius + enemy.Radius + 0.35)
+                    {
+                        state.SackBumpMask |= bit;
+                        Vec2 pushDir = state.Position.DistanceSquaredTo(enemy.Position) > 0.001
+                            ? state.Position.DirectionTo(enemy.Position)
+                            : state.Facing;
+                        MoveBy(enemy, pushDir * kb);
+                        EmitWeaponHit(enemy.Id, wid);
+                        DamageCombat(enemy.Id, dmg, state.Id, wid, false, true);
+                    }
+                }
+                if (state.SackRaceLeft <= Epsilon) { state.SackRaceLeft = 0.0; state.SackBumpMask = 0; }
+            }
+
+            // Paeng S2 Luksong Baka: ally-only 10m vault leap off crouching Paeng.
+            if (state.LuksongBakaLeft > 0.0)
+            {
+                state.LuksongBakaLeft = GMath.Maxf(0.0, state.LuksongBakaLeft - dt);
+                SkillDef s2 = GetPlayerSkill(state, 1);
+                double triggerR = s2 != null && s2.Radius > 0.0 ? s2.Radius : 2.0;
+                double leapDist = s2 != null && s2.MaxRange > 0.0 ? s2.MaxRange : 10.0;
+                double dashSpeed = Rules.DashSpeed > 0.0 ? Rules.DashSpeed : 18.5;
+                foreach (var pair in Players)
+                {
+                    PlayerState ally = pair.Value;
+                    if (ally.Id == state.Id || ally.Team != state.Team || ally.Tagged) continue;
+                    int bit = 1 << (ally.Id & 31);
+                    if ((state.LuksongBakaUsedMask & bit) != 0) continue;
+                    if (ally.Position.DistanceTo(state.Position) <= triggerR + ally.Radius)
+                    {
+                        state.LuksongBakaUsedMask |= bit;
+                        Vec2 vaultDir = ally.Facing.LengthSquared() > 0.001
+                            ? ally.Facing.Normalized()
+                            : (state.Position.DistanceSquaredTo(ally.Position) > 0.001 ? state.Position.DirectionTo(ally.Position) : new Vec2(0.0, -SideForTeam(ally.Team)));
+                        ally.DashDir = vaultDir;
+                        ally.Facing = vaultDir;
+                        ally.DashLeft = leapDist / dashSpeed;
+                        ally.VaultDashActive = true;
+                        ally.VelY = GMath.Maxf(ally.VelY, 5.2);
+                        ally.Crouching = false;
+                        EmitPlayerDashed(ally.Id);
+                    }
+                }
+                if (state.LuksongBakaLeft <= Epsilon) { state.LuksongBakaLeft = 0.0; state.LuksongBakaUsedMask = 0; }
+            }
+
+            // docs/SPEC.md §7 passive healing: 5 HP/s after 5 s without damage, attacking, or CC (spec kit kids only so legacy cooldown tests stay exact).
+            if (state.UsingSpecKit && Mode == null && Rules.PassiveHealPerS > 0.0 && state.Hp < Rules.PlayerMaxHp
+                && state.OutOfCombatTime >= Rules.PassiveHealDelay && !state.Effects.HasAny())
+            {
+                state.PassiveHealCarry += Rules.PassiveHealPerS * dt;
+                int whole = (int)Math.Floor(state.PassiveHealCarry + Epsilon);
+                if (whole > 0)
+                {
+                    state.PassiveHealCarry = GMath.Maxf(0.0, state.PassiveHealCarry - whole);
+                    Heal(state.Id, whole);
+                }
+            }
+            else
+            {
+                state.PassiveHealCarry = 0.0;
+            }
         }
 
         int HeldSlot(PlayerState state)
@@ -726,19 +1497,22 @@ namespace Kalyeah.Sim
                 && !input.IsPressed(WeaponCasting.CardBits[releasedSlot]);
             int beforeSerial = _castSerial;
             Casting.Handle(this, state, input, dt);
-            if (didRelease && !Rules.CardCycle && _castSerial == beforeSerial) state.WeaponCooldowns[releasedSlot] = 0.0;
+            if (didRelease && !Rules.CardCycle && !state.UsingSpecKit && _castSerial == beforeSerial) state.WeaponCooldowns[releasedSlot] = 0.0;
         }
 
-        void StepHeroActions(PlayerState state, PlayerInput input)
+        void StepHeroActions(PlayerState state, PlayerInput input, double dt)
         {
-            // 0. Jump and slide
+            bool morphed = Rules.UsesSpecKits() && state.Effects.Has(StatusEffects.Type.Polymorph);
+            bool slipping = state.Effects.IsSlipping();
+
             Vec2 stickMove = input.Move.LimitLength(1.0);
             double stickMag = stickMove.Length();
             bool hasTargetRun = stickMag <= 0.001 && state.HasMoveTarget && state.Position.DistanceSquaredTo(state.MoveTarget) > 0.04;
 
-            // One jump button (docs/SPEC.md §7): moving into a low cover vaults it, anything else is a jump.
+            // One jump button (docs/SPEC.md §7): moving into a low cover vaults it, anything else is a jump. Blocked while morphed
+            // into a can, slipping (Holens Spill / Palosebo), on stilts or mid luksong baka.
             bool jumpFresh = input.IsPressed(PlayerInput.BtnJump) && (state.PreviousButtons & PlayerInput.BtnJump) == 0;
-            if (jumpFresh && state.AirY <= 0.01 && state.JumpCd <= 0.0 && state.DashLeft <= 0.0 && state.VaultLeft <= 0.0
+            if (jumpFresh && !morphed && !slipping && state.StiltsLeft <= 0.0 && state.LuksongBakaLeft <= 0.0 && state.AirY <= 0.01 && state.JumpCd <= 0.0 && state.DashLeft <= 0.0 && state.VaultLeft <= 0.0
                 && state.SlideLeft <= 0.0 && state.CastLockLeft <= 0.0 && state.Effects.CanMove())
             {
                 Vec2 moveDir = stickMag > 0.001 ? stickMove : hasTargetRun ? state.MoveTarget - state.Position : Vec2.Zero;
@@ -757,7 +1531,8 @@ namespace Kalyeah.Sim
             bool runningFast = (stickMag >= Rules.WalkRunThreshold || hasTargetRun) && !state.Overclocked;
             bool slideFresh = input.IsPressed(PlayerInput.BtnSlide) && (state.PreviousButtons & PlayerInput.BtnSlide) == 0;
             bool crouchFresh = input.IsPressed(PlayerInput.BtnCrouch) && (state.PreviousButtons & PlayerInput.BtnCrouch) == 0;
-            if ((slideFresh || (crouchFresh && !state.Crouching)) && runningFast && state.AirY <= 0.01
+            if ((slideFresh || (crouchFresh && !state.Crouching)) && !morphed && state.StiltsLeft <= 0.0 && state.LuksongBakaLeft <= 0.0
+                && runningFast && state.AirY <= 0.01
                 && state.SlideCd <= 0.0 && state.SlideLeft <= 0.0 && state.DashLeft <= 0.0
                 && state.CastLockLeft <= 0.0 && state.Effects.CanMove() && Rules.SlideDuration > 0.0)
             {
@@ -778,9 +1553,9 @@ namespace Kalyeah.Sim
                 state.SlideLeft = 0.0;
             }
 
-            // 1. Dash (fresh press)
+            // 1. Dash (fresh press; blocked when morphed into a can)
             bool dashFresh = input.IsPressed(PlayerInput.BtnDash) && (state.PreviousButtons & PlayerInput.BtnDash) == 0;
-            if (dashFresh && state.DashCd <= 0.0 && state.DashLeft <= 0.0 && state.VaultLeft <= 0.0 && state.Effects.CanMove() && Rules.DashDuration > 0.0)
+            if (dashFresh && !morphed && state.DashCd <= 0.0 && state.DashLeft <= 0.0 && state.VaultLeft <= 0.0 && state.Effects.CanMove() && Rules.DashDuration > 0.0)
             {
                 Vec2 dir;
                 if (input.Move.LengthSquared() > 0.001) dir = input.Move.Normalized();
@@ -792,44 +1567,52 @@ namespace Kalyeah.Sim
                 state.Facing = dir;
                 state.DashLeft = Rules.DashDuration;
                 state.DashCd = Rules.DashCooldown;
+                state.VaultDashActive = false;
                 state.SlideLeft = 0.0;
                 state.Crouching = false;
                 state.Effects.ClearType(StatusEffects.Type.Slow);
                 PlayerDashed?.Invoke(state.Id);
             }
 
-            // 2. Ultimate (fresh press at 100% charge)
-            bool ultFresh = input.IsPressed(PlayerInput.BtnUltimate) && (state.PreviousButtons & PlayerInput.BtnUltimate) == 0;
-            if (ultFresh && Rules.UltimateWeapon != null && state.UltCharge >= 100.0 - Epsilon && state.CanAct() && !CastingBlocked(state))
+            // 2. Legacy Ultimate (when NOT using spec kits; under spec kits WeaponCasting routes BtnUltimate to slot 2!)
+            if (!state.UsingSpecKit)
             {
-                WeaponDef ultDef = Rules.UltimateWeapon;
-                Vec2 ultAim = Vec2.Zero;
-                if (input.IsPressed(PlayerInput.BtnAimPoint) && input.AimPoint.IsFinite())
+                bool ultFresh = input.IsPressed(PlayerInput.BtnUltimate) && (state.PreviousButtons & PlayerInput.BtnUltimate) == 0;
+                if (ultFresh && Rules.UltimateWeapon != null && state.UltCharge >= 100.0 - Epsilon && state.CanAct() && !CastingBlocked(state))
                 {
-                    ultAim = AimFromPoint(state, ultDef, input.AimPoint);
-                }
-                else if (input.Aim.IsFinite() && input.Aim.Length() >= Rules.AimDeadzone)
-                {
-                    ultAim = input.Aim.LimitLength(1.0);
-                }
-                else
-                {
-                    PlayerState near = NearestEnemy(state, ultDef.MaxRange);
-                    if (near != null && ultDef.MaxRange > 0.0) ultAim = ((near.Position - state.Position) / ultDef.MaxRange).LimitLength(1.0);
-                }
-                if (Weapons.Fire(this, state, ultDef, ultAim, 0.0, -1))
-                {
-                    state.UltCharge = 0.0;
-                    state.OutOfCombatTime = 0.0;
-                    state.Sprinting = false;
-                    if (ultDef.Heal > 0) Heal(state.Id, ultDef.Heal);
-                    UltimateCast?.Invoke(state.Id);
-                    EmitWeaponCast(state.Id, ultDef.Id);
+                    WeaponDef ultDef = Rules.UltimateWeapon;
+                    Vec2 ultAim = Vec2.Zero;
+                    if (input.IsPressed(PlayerInput.BtnAimPoint) && input.AimPoint.IsFinite())
+                    {
+                        ultAim = AimFromPoint(state, ultDef, input.AimPoint);
+                    }
+                    else if (input.Aim.IsFinite() && input.Aim.Length() >= Rules.AimDeadzone)
+                    {
+                        ultAim = input.Aim.LimitLength(1.0);
+                    }
+                    else
+                    {
+                        PlayerState near = NearestEnemy(state, ultDef.MaxRange);
+                        if (near != null && ultDef.MaxRange > 0.0) ultAim = ((near.Position - state.Position) / ultDef.MaxRange).LimitLength(1.0);
+                    }
+                    if (Weapons.Fire(this, state, ultDef, ultAim, 0.0, -1))
+                    {
+                        state.UltCharge = 0.0;
+                        state.OutOfCombatTime = 0.0;
+                        state.Sprinting = false;
+                        if (ultDef.Heal > 0) Heal(state.Id, ultDef.Heal);
+                        UltimateCast?.Invoke(state.Id);
+                        EmitWeaponCast(state.Id, ultDef.Id);
+                    }
                 }
             }
 
-            // 3. Primary fire (hold or tap, when no card slot is being aimed)
-            if (input.IsPressed(PlayerInput.BtnPrimary) && Rules.PrimaryWeapon != null && state.PrimaryCd <= 0.0
+            // 3. Primary fire (Tirador): Spec 7-stone magazine + hold-to-charge 18m..30m + reload OR legacy instant fire
+            if (state.UsingSpecKit)
+            {
+                StepSpecTirador(state, input, dt);
+            }
+            else if (input.IsPressed(PlayerInput.BtnPrimary) && Rules.PrimaryWeapon != null && state.PrimaryCd <= 0.0
                 && state.CanAct() && !CastingBlocked(state) && HeldSlot(state) < 0)
             {
                 WeaponDef pDef = Rules.PrimaryWeapon;
@@ -846,6 +1629,104 @@ namespace Kalyeah.Sim
                     EmitWeaponCast(state.Id, pDef.Id);
                 }
             }
+        }
+
+        void StepSpecTirador(PlayerState state, PlayerInput input, double dt)
+        {
+            // Manual reload (BtnReload) when magazine is not full and not already reloading.
+            bool reloadFresh = input.IsPressed(PlayerInput.BtnReload) && (state.PreviousButtons & PlayerInput.BtnReload) == 0;
+            if (reloadFresh && state.TiradorReloadLeft <= 0.0 && state.TiradorAmmo < Rules.TiradorMaxAmmo && state.CanAct())
+            {
+                state.TiradorReloadLeft = Rules.TiradorReloadSeconds;
+                state.TiradorChargeTime = -1.0;
+                EmitTiradorReloadStarted(state.Id);
+                return;
+            }
+
+            // Auto-reload if magazine hit 0 and reload hasn't started yet.
+            if (state.TiradorAmmo <= 0 && state.TiradorReloadLeft <= 0.0)
+            {
+                state.TiradorReloadLeft = Rules.TiradorReloadSeconds;
+                state.TiradorChargeTime = -1.0;
+                EmitTiradorReloadStarted(state.Id);
+                return;
+            }
+
+            if (state.TiradorReloadLeft > 0.0 || !state.CanAct() || CastingBlocked(state) || HeldSlot(state) >= 0)
+            {
+                state.TiradorChargeTime = -1.0;
+                return;
+            }
+
+            bool primaryHeld = input.IsPressed(PlayerInput.BtnPrimary);
+            if (primaryHeld)
+            {
+                if (state.TiradorChargeTime < 0.0)
+                {
+                    if (state.PrimaryCd <= 0.0 && state.TiradorAmmo > 0) state.TiradorChargeTime = 0.0;
+                }
+                else
+                {
+                    state.TiradorChargeTime = GMath.Minf(Rules.TiradorChargeSeconds, state.TiradorChargeTime + dt);
+                }
+                return;
+            }
+
+            // Released after charging (1-tick tap = charge 0.0 -> 18 m; full 1s hold -> 30 m; range ONLY, never extra dmg!).
+            if (state.TiradorChargeTime >= 0.0)
+            {
+                double held = state.TiradorChargeTime;
+                state.TiradorChargeTime = -1.0;
+                if (input.IsPressed(PlayerInput.BtnAimCancel) || state.TiradorAmmo <= 0 || state.PrimaryCd > 0.0) return;
+
+                double charge01 = Rules.TiradorChargeSeconds > 0.0 ? GMath.Clampf(held / Rules.TiradorChargeSeconds, 0.0, 1.0) : 0.0;
+                double range = GMath.Lerpf(Rules.TiradorMinRange, Rules.TiradorMaxRange, charge01);
+                if (state.StiltsLeft > 0.0)
+                {
+                    SkillDef s2 = GetPlayerSkill(state, 1);
+                    double rangeBonus = s2 != null && s2.BonusRatio > 0.0 ? s2.BonusRatio : 0.40;
+                    range *= 1.0 + rangeBonus;
+                }
+
+                int dmg = Rules.TiradorBodyDamage;
+                if (state.EmpoweredTiradorLeft > 0.0 && state.EmpoweredTiradorBonus > 0.0)
+                {
+                    dmg = GMath.Roundi(dmg * (1.0 + state.EmpoweredTiradorBonus));
+                    state.EmpoweredTiradorLeft = 0.0;
+                    state.EmpoweredTiradorBonus = 0.0;
+                }
+
+                WeaponDef pDef = Rules.PrimaryWeapon ?? new WeaponDef { Id = "tirador_bato", Speed = Rules.TiradorProjectileSpeed, ProjectileRadius = 0.24 };
+                Vec2 pAim;
+                if (input.IsPressed(PlayerInput.BtnAimPoint) && input.AimPoint.IsFinite()) pAim = AimFromPoint(state, pDef, input.AimPoint);
+                else if (input.Aim.IsFinite() && input.Aim.Length() >= Rules.AimDeadzone) pAim = input.Aim.LimitLength(1.0);
+                else pAim = AutoAimTirador(state, range);
+
+                Vec2 dir = pAim.LengthSquared() > 0.0001 ? pAim.Normalized() : state.Facing;
+                bool aimedDown = input.IsPressed(PlayerInput.BtnAds) || state.AimingDown;
+                Weapons.LaunchTirador(state, pDef, dir, range, dmg, aimedDown);
+                state.Facing = dir;
+                state.InvisibleLeft = 0.0; // Attacking breaks Kikay Tago! stealth.
+                state.TiradorAmmo = GMath.Maxi(0, state.TiradorAmmo - 1);
+                state.PrimaryCd = Rules.TiradorFireCooldown;
+                state.OutOfCombatTime = 0.0;
+                state.JogTime = 0.0;
+                state.Sprinting = false;
+                EmitWeaponCast(state.Id, pDef.Id);
+                if (state.TiradorAmmo <= 0)
+                {
+                    state.TiradorReloadLeft = Rules.TiradorReloadSeconds;
+                    EmitTiradorReloadStarted(state.Id);
+                }
+            }
+        }
+
+        Vec2 AutoAimTirador(PlayerState caster, double range)
+        {
+            PlayerState target = NearestEnemy(caster, range);
+            if (target != null && target.Position != caster.Position)
+                return caster.Position.DirectionTo(target.Position);
+            return caster.Facing;
         }
 
         /// <summary>Each `TripInterval` s of running without stopping is one roll at `TripChance` (the trip rng).</summary>
@@ -865,10 +1746,12 @@ namespace Kalyeah.Sim
             if (_tripRng.Randf() < Rules.TripChance) ApplyEffect(state.Id, StatusEffects.Type.Tripped, Rules.TripSeconds, 0.0);
         }
 
-        /// <summary>Spawns or resets the merienda power-up stands (circular map, no street mode).</summary>
+        /// <summary>Spawns or resets the merienda power-up stands (circular map, no street mode) and live BarangayNeutrals.</summary>
         public void ResetPowerups()
         {
             Powerups.Clear();
+            if (Neutrals != null && Mode == null)
+                Neutrals.ResetRound();
             if (Layout == null || !Layout.IsCircular() || Mode != null) return;
             var spots = new List<Vec2>(Layout.PowerupSpots);
             if (spots.Count == 0) spots.AddRange(DefaultPowerupSpots);
@@ -1174,9 +2057,18 @@ namespace Kalyeah.Sim
             return result;
         }
 
-        /// <summary>True when the card in `slot` can be paid for now (always true when cards play cooldowns instead).</summary>
+        /// <summary>True when the card or skill in `slot` can be paid for now (Water for spec S1/S2, 0 for ULT, Elixir for cards).</summary>
         public bool CanAfford(PlayerState state, int slot)
         {
+            if (state.UsingSpecKit)
+            {
+                SkillDef skill = GetPlayerSkill(state, slot);
+                if (skill == null) return false;
+                if (skill.IsUltimate || skill.WaterCost <= 0) return true;
+                if (slot == 0 && skill.Mechanic == SkillMechanic.Syato && state.SyatoRecastLeft > 0.0 && state.SyatoTargetId >= 0)
+                    return true;
+                return state.Water + Epsilon >= skill.WaterCost;
+            }
             if (!PaysElixir(state)) return true;
             if (slot < 0 || slot >= state.Weapons.Count) return false;
             WeaponDefs.TryGetValue(state.Weapons[slot], out WeaponDef def);
@@ -1202,6 +2094,35 @@ namespace Kalyeah.Sim
                 case WeaponDef.WeaponShape.Trap:
                 case WeaponDef.WeaponShape.Field:
                     return def.MaxRange > 0.0 ? (offset / def.MaxRange).LimitLength(1.0) : Vec2.Zero;
+            }
+            if (offset.Length() <= Rules.AimNoDirectionRadius) return state.Facing;
+            return offset.Normalized();
+        }
+
+        /// <summary>Maps an aimed street point to a stick-style vector for a Spec SkillDef.</summary>
+        public Vec2 AimFromPointSkill(PlayerState state, SkillDef skill, Vec2 point)
+        {
+            Vec2 offset = point - state.Position;
+            switch (skill.Mechanic)
+            {
+                case SkillMechanic.PukpokPalayok:
+                case SkillMechanic.BahayBahayan:
+                case SkillMechanic.PabitinHeal:
+                case SkillMechanic.Palosebo:
+                case SkillMechanic.ChineseGarter:
+                case SkillMechanic.TinikWall:
+                case SkillMechanic.TeksTripwire:
+                case SkillMechanic.Saranggola:
+                case SkillMechanic.Piko:
+                case SkillMechanic.PogsSlam:
+                case SkillMechanic.TrumpoBantay:
+                case SkillMechanic.Jackstone:
+                case SkillMechanic.LuksongLubid:
+                case SkillMechanic.GarterNet:
+                case SkillMechanic.PatinteroLines:
+                case SkillMechanic.PabitinSnare:
+                case SkillMechanic.SakoTrap:
+                    return skill.MaxRange > 0.0 ? (offset / skill.MaxRange).LimitLength(1.0) : Vec2.Zero;
             }
             if (offset.Length() <= Rules.AimNoDirectionRadius) return state.Facing;
             return offset.Normalized();
@@ -1251,6 +2172,7 @@ namespace Kalyeah.Sim
         public bool LacksTarget(PlayerState state, int slot)
         {
             if (slot < 0 || slot >= state.Weapons.Count) return false;
+            if (state.UsingSpecKit) return false;
             WeaponDefs.TryGetValue(state.Weapons[slot], out WeaponDef def);
             if (def == null || def.Shape != WeaponDef.WeaponShape.Targeted) return false;
             return Weapons.TargetInRange(this, state, def, ResolvedTarget(state, slot)) == null;
@@ -1263,6 +2185,7 @@ namespace Kalyeah.Sim
         {
             if (input != null) TakeMoveOrder(state, input);
             state.AimingDown = Mode == null && input != null && input.IsPressed(PlayerInput.BtnAds);
+            if (state.LeapLeft > 0.0) return; // Jumong Pukpok Palayok leap controls position directly.
             StepAir(state, dt);
             if (state.VaultLeft > 0.0)
             {
@@ -1276,10 +2199,18 @@ namespace Kalyeah.Sim
                 state.Crouching = false;
                 if (state.Effects.CanMove())
                 {
-                    MoveBy(state, state.DashDir * Rules.DashSpeed * dt);
+                    bool vault = state.VaultDashActive;
+                    MoveByInternal(state, state.DashDir * Rules.DashSpeed * dt, vault);
+                    if (state.DashLeft <= 0.0 && vault)
+                    {
+                        state.VaultDashActive = false;
+                        state.Position = Weapons.ResolveWallPushOut(
+                            Layout.ClampToArena(Collision.Resolve(state.Position, state.Radius, _walkBlocking), state.Radius), state.Radius);
+                    }
                     return;
                 }
                 state.DashLeft = 0.0;
+                state.VaultDashActive = false;
             }
             if (state.SlideLeft > 0.0)
             {
@@ -1295,6 +2226,13 @@ namespace Kalyeah.Sim
                     return;
                 }
                 state.SlideLeft = 0.0;
+            }
+            if (state.LuksongBakaLeft > 0.0)
+            {
+                state.Crouching = true;
+                state.Sprinting = false;
+                state.Walking = false;
+                return;
             }
             if (state.CastLockLeft > 0.0)
             {
@@ -1314,7 +2252,7 @@ namespace Kalyeah.Sim
             state.OutOfCombatTime += dt;
             Vec2 move = input != null ? input.Move.LimitLength(1.0) : Vec2.Zero;
             double stickLen = move.Length();
-            state.Crouching = Mode == null && state.AirY <= 0.01 && input != null && input.IsPressed(PlayerInput.BtnCrouch);
+            state.Crouching = Mode == null && state.StiltsLeft <= 0.0 && state.AirY <= 0.01 && input != null && input.IsPressed(PlayerInput.BtnCrouch);
             state.Walking = !state.Crouching && stickLen > 0.0 && stickLen < Rules.WalkRunThreshold;
             double speed = Mode != null ? Mode.Rules.MoveSpeed : Rules.MoveSpeed;
             if (Mode != null) speed *= Mode.SpeedScale(state);
@@ -1322,10 +2260,16 @@ namespace Kalyeah.Sim
             else if (state.Crouching) speed *= Rules.CrouchSpeedShare;
             if (state.AimingDown) speed *= Rules.AdsSpeedShare;
             if (Mode == null && state.BuffType == PowerupPalamig && state.BuffLeft > 0.0) speed *= 1.0 + Rules.PalamigSpeedBonus;
+            if (state.StiltsLeft > 0.0) speed *= 0.80; // Inggo Tiyakad: -20% speed
+            if (state.SackRaceLeft > 0.0) speed *= 1.15; // Paeng Sack Race: +15% hop speed
+            if (state.SpeedBoostLeft > 0.0 && state.SpeedBoostRatio > 0.0) speed *= 1.0 + state.SpeedBoostRatio;
+            if (Neutrals != null && Mode == null)
+                speed *= Neutrals.GetPlayerMoveSpeedMultiplier(state.Id, state.Team, state.CharacterId, state.Position);
             speed *= state.Effects.SpeedMultiplier(Rules.PolymorphSpeedScale);
             bool wantsMove = stickLen > 0.0 || state.HasMoveTarget;
             bool canRun = wantsMove && !state.Walking && !state.Crouching && !state.AimingDown && Rules.SprintEnabled
-                && Mode == null && !state.Overclocked && !state.Effects.Has(StatusEffects.Type.Slow);
+                && Mode == null && !state.Overclocked && !state.Effects.Has(StatusEffects.Type.Slow)
+                && !state.Effects.IsSlipping() && !(Rules.UsesSpecKits() && state.Effects.Has(StatusEffects.Type.Polymorph)) && state.StiltsLeft <= 0.0;
             if (Rules.SpecRules)
             {
                 // walk, jog, run (docs/SPEC.md §7): a steady jog turns into a run; a sharp turn (over 60 degrees) drops it
@@ -1402,14 +2346,21 @@ namespace Kalyeah.Sim
         }
 
         /// <summary>Moves by `delta` in sub-steps no longer than the player's radius so fast moves never tunnel through an obstacle.</summary>
-        public void MoveBy(PlayerState state, Vec2 delta)
+        public void MoveBy(PlayerState state, Vec2 delta) => MoveByInternal(state, delta, false);
+
+        void MoveByInternal(PlayerState state, Vec2 delta, bool vaultOverLowCover)
         {
             double length = delta.Length();
             if (length <= 0.0) return;
             int count = GMath.Maxi(1, GMath.Ceili(length / state.Radius));
             Vec2 piece = delta / count;
+            IReadOnlyList<Rect2> rects = vaultOverLowCover ? _boundaryBlocking : _walkBlocking;
             for (int i = 0; i < count; i++)
-                state.Position = Layout.ClampToArena(Collision.Resolve(state.Position + piece, state.Radius, _walkBlocking), state.Radius);
+            {
+                Vec2 next = Layout.ClampToArena(Collision.Resolve(state.Position + piece, state.Radius, rects), state.Radius);
+                if (Weapons.Walls.Count > 0) next = Layout.ClampToArena(Weapons.ResolveWallPushOut(next, state.Radius), state.Radius);
+                state.Position = next;
+            }
         }
 
         /// <summary>Slot 0 next to the post, then alternating +x / -x by spawn_spacing.</summary>

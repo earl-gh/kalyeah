@@ -113,7 +113,7 @@ namespace Kalyeah.Game
             name: "Low",
             maxFpsCap: 30,
             usesDeviceRefreshCap: false,
-            renderScale: 0.70f,
+            renderScale: 0.85f,
             msaaSamples: 1,
             shadowTier: 0,
             shadowDistance: 0f,
@@ -141,10 +141,10 @@ namespace Kalyeah.Game
             name: "Medium",
             maxFpsCap: 60,
             usesDeviceRefreshCap: false,
-            renderScale: 0.85f,
+            renderScale: 1.00f,
             msaaSamples: 1,
-            shadowTier: 1,
-            shadowDistance: 22f,
+            shadowTier: 2,
+            shadowDistance: 32f,
             textureMipmapLimit: 0,
             skinWeightsCount: 4,
             minCharacterLod: 0,
@@ -159,7 +159,7 @@ namespace Kalyeah.Game
             detailFeatureDistance: 12f,
             animSkip2Distance: 24f,
             animSkip3Distance: 40f,
-            postProcessingEnabled: false,
+            postProcessingEnabled: true,
             fullPostProcessing: false,
             useNormalAndOrmMaps: true,
             particleBudgetScale: 0.85f);
@@ -170,9 +170,9 @@ namespace Kalyeah.Game
             maxFpsCap: 60,
             usesDeviceRefreshCap: false,
             renderScale: 1.00f,
-            msaaSamples: 1,
+            msaaSamples: 2,
             shadowTier: 2,
-            shadowDistance: 40f,
+            shadowDistance: 48f,
             textureMipmapLimit: 0,
             skinWeightsCount: 4,
             minCharacterLod: 0,
@@ -200,7 +200,7 @@ namespace Kalyeah.Game
             renderScale: 1.00f,
             msaaSamples: 4,
             shadowTier: 3,
-            shadowDistance: 65f,
+            shadowDistance: 64f,
             textureMipmapLimit: 0,
             skinWeightsCount: 4,
             minCharacterLod: 0,
@@ -285,7 +285,7 @@ namespace Kalyeah.Game
         public const float ScaleSmall = 0.85f;
         public const float ScaleNormal = 1.0f;
         public const float ScaleLarge = 1.2f;
-        public const float TurboRenderScale = 0.70f;
+        public const float TurboRenderScale = 0.85f;
 
         public const int GraphicsLow = 0;
         public const int GraphicsMedium = 1;
@@ -466,7 +466,7 @@ namespace Kalyeah.Game
             }
         }
 
-        /// <summary>0 = Low (30 FPS / 0.70x / blob shadows), 1 = Medium (60 / 0.85x), 2 = High (60 / 1.0x), 3 = Ultra (1.0x / 4x MSAA).</summary>
+        /// <summary>0 = Low (30 FPS / 0.85x / blob shadows), 1 = Medium (60 / 0.95x / FXAA + Neutral), 2 = High (60 / 1.0x / 2x MSAA), 3 = Ultra (1.0x / 4x MSAA).</summary>
         public int GraphicsQuality
         {
             get => _graphicsQuality;

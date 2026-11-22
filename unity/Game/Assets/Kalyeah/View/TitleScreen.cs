@@ -11,7 +11,8 @@ namespace Kalyeah.Game
     public sealed class TitleScreen : MonoBehaviour
     {
         public const string SceneName = "Title";
-        static readonly Color Dusk = new Color(0.06f, 0.09f, 0.18f, 1f);
+        // Crisp 10:30 AM sunlit Manila sky clear color so Title transitions never flash dark mud.
+        static readonly Color SunlitSky = new Color(0.620f, 0.816f, 0.949f, 1f);
 
         DataSource _data;
         Canvas _canvas;
@@ -21,6 +22,7 @@ namespace Kalyeah.Game
         PickScreenView _pick;
         CodexScreenView _codex;
         KidsScreenView _kids;
+        ProfileScreenView _profile;
         HistoryScreenView _history;
         SettingsScreenView _settings;
         HotspotFlowView _hotspot;
@@ -34,6 +36,7 @@ namespace Kalyeah.Game
         public HomeScreenView Home => _home;
         public PickScreenView Pick => _pick;
         public CodexScreenView Codex => _codex;
+        public ProfileScreenView Profile => _profile;
         public HistoryScreenView History => _history;
         public SettingsScreenView Settings => _settings;
         public HotspotFlowView Hotspot => _hotspot;
@@ -140,6 +143,9 @@ namespace Kalyeah.Game
             _history?.Dispose();
             _history = null;
 
+            _profile?.Dispose();
+            _profile = null;
+
             _codex?.Dispose();
             _codex = null;
             _kids?.Dispose();
@@ -234,6 +240,15 @@ namespace Kalyeah.Game
 
             _codex = new CodexScreenView(pageRoot, data, onBack: _stack.Pop);
             _kids = new KidsScreenView(pageRoot, data, onBack: _stack.Pop);
+            _profile = new ProfileScreenView(
+                pageRoot,
+                data,
+                onBack: _stack.Pop,
+                onOpenHistory: () => _stack.Push(MenuStack.HistoryId),
+                onOpenKids: () => _stack.Push(MenuStack.KidsId),
+                onOpenIdCamera: () => _home.Sheets?.OpenIdCameraOver(_profile.Root),
+                sheets: _home.Sheets,
+                audio: _audio);
             _history = new HistoryScreenView(pageRoot, data, onBack: _stack.Pop);
             _settings = new SettingsScreenView(pageRoot, data, onBack: _stack.Pop, onDonate: () => _home.Sheets?.OpenDonateOver(_settings.Root));
 
@@ -294,6 +309,16 @@ namespace Kalyeah.Game
                 onShow: () => _kids.ShowKid(string.IsNullOrWhiteSpace(AppSession.Current.SelectedCharacter) ? AppSession.DefaultCharacter : AppSession.Current.SelectedCharacter),
                 onHide: _kids.Hide,
                 onBackOverride: _kids.HandleBack);
+            _stack.Register(
+                MenuStack.ProfileId,
+                _profile.Root,
+                onShow: _profile.Show,
+                onHide: () =>
+                {
+                    _home.Sheets?.Close();
+                    _profile.Hide();
+                },
+                onBackOverride: _profile.HandleBack);
             _stack.Register(MenuStack.HistoryId, _history.Root, onShow: _history.Show, onHide: _history.Hide);
             _stack.Register(
                 MenuStack.SettingsId,
@@ -363,7 +388,7 @@ namespace Kalyeah.Game
         {
             if (camera == null) return;
             camera.clearFlags = CameraClearFlags.SolidColor;
-            camera.backgroundColor = Dusk;
+            camera.backgroundColor = SunlitSky;
             camera.orthographic = true;
         }
     }

@@ -26,16 +26,19 @@ namespace Kalyeah.Game
 
         const int MaxDiscoveredRows = 5;
 
-        static readonly Color CardBg = new Color(0.08f, 0.12f, 0.23f, 0.96f);
-        static readonly Color SubCardBg = new Color(0.11f, 0.17f, 0.31f, 0.96f);
-        static readonly Color GoldCta = new Color(0.98f, 0.78f, 0.18f, 1f);
-        static readonly Color TealCta = new Color(0.12f, 0.62f, 0.55f, 1f);
-        static readonly Color CoralCta = new Color(0.89f, 0.33f, 0.24f, 1f);
-        static readonly Color MutedBtn = new Color(0.18f, 0.25f, 0.42f, 1f);
-        static readonly Color InkDark = new Color(0.14f, 0.09f, 0.04f, 1f);
-        static readonly Color SubtleText = new Color(0.78f, 0.85f, 0.96f, 1f);
-        static readonly Color WarnText = new Color(1f, 0.80f, 0.36f, 1f);
-        static readonly Color OkText = new Color(0.46f, 0.95f, 0.70f, 1f);
+        static readonly Color CardBg = new Color(0.055f, 0.075f, 0.102f, 0.96f);
+        static readonly Color SubCardBg = new Color(0.075f, 0.102f, 0.138f, 0.94f);
+        static readonly Color SurfaceDark = new Color(0.045f, 0.062f, 0.088f, 0.94f);
+        static readonly Color PaperWhite = MenuArt.PaperWhite;
+        static readonly Color SignalVermilion = new Color(1.00f, 0.275f, 0.333f, 1f);
+        static readonly Color SignalVermilionDeep = new Color(0.83f, 0.19f, 0.25f, 1f);
+        static readonly Color TitaniumBorder = new Color(0.835f, 0.875f, 0.914f, 0.28f);
+        static readonly Color GoldCta = MenuArt.CoralGold;
+        static readonly Color MutedBtn = new Color(0.115f, 0.145f, 0.190f, 0.96f);
+        static readonly Color InkDark = MenuArt.Ink;
+        static readonly Color SubtleText = MenuArt.MutedText;
+        static readonly Color WarnText = MenuArt.CoralGold;
+        static readonly Color OkText = MenuArt.SuccessGreen;
 
         static Sprite _fallbackQrSprite;
 
@@ -101,6 +104,7 @@ namespace Kalyeah.Game
         readonly Text _emptyListLabel;
 
         readonly List<RectTransform> _touchTargets = new List<RectTransform>(16);
+        readonly List<Material> _ownedMaterials = new List<Material>(8);
 
         GameClient _boundClient;
         Sprite _ownedQrSprite;
@@ -157,7 +161,7 @@ namespace Kalyeah.Game
             _canvas = parent.GetComponentInParent<Canvas>();
 
             Root = Ui.Fill("HotspotFlowView", parent);
-            Image dim = Ui.MakeImage("Backdrop", Root, new Color(0.03f, 0.06f, 0.14f, 0.96f), raycast: true);
+            Image dim = Ui.MakeImage("Backdrop", Root, new Color(0.035f, 0.050f, 0.072f, 0.96f), raycast: true);
             Stretch(dim.rectTransform);
 
             _safeRoot = Ui.Fill("SafeRoot", Root);
@@ -175,20 +179,20 @@ namespace Kalyeah.Game
 
             // Top bar (>= 108 px tall)
             _topBar = Ui.Panel("TopBar", _frame, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -8f), new Vector2(-36f, 108f));
-            Button backBtn = MakeActionButton("BackButton", _topBar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(136f, 96f), "BACK", MutedBtn, Ui.Cream, 21, () => HandleBack());
+            Button backBtn = MakeActionButton("BackButton", _topBar, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(136f, 96f), "BACK", MutedBtn, PaperWhite, 21, () => HandleBack());
             _backBtnRect = backBtn.GetComponent<RectTransform>();
 
-            _headerTitle = Ui.MakeText("HeaderTitle", _topBar, "LOCAL HOTSPOT PLAY", 28, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            _headerTitle = Ui.MakeText("HeaderTitle", _topBar, "LOCAL HOTSPOT PLAY", 28, PaperWhite, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             _headerTitle.resizeTextForBestFit = true;
             _headerTitle.resizeTextMinSize = 18;
             _headerTitle.resizeTextMaxSize = 30;
             _headerTitle.horizontalOverflow = HorizontalWrapMode.Wrap;
             _headerTitle.verticalOverflow = VerticalWrapMode.Truncate;
-            SyncOutlineForColor(_headerTitle, Ui.Cream);
+            SyncOutlineForColor(_headerTitle, PaperWhite);
             Stretch(_headerTitle.rectTransform, 156f, 6f, 240f, 6f);
 
             _netBadgePlate = Ui.Panel("NetworkBadgePlate", _topBar, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), Vector2.zero, new Vector2(224f, 56f));
-            StyleCard(_netBadgePlate, new Color(0.05f, 0.08f, 0.16f, 0.96f));
+            StyleCard(_netBadgePlate, SurfaceDark, OkText);
             _networkBadge = Ui.MakeText("NetworkBadge", _netBadgePlate, "", 18, OkText, TextAnchor.MiddleCenter);
             _networkBadge.resizeTextForBestFit = true;
             _networkBadge.resizeTextMinSize = 16;
@@ -474,8 +478,22 @@ namespace Kalyeah.Game
             AndroidLocalLink.SetNfcReading(false);
             BindClient(null);
             ReleaseOwnedQrSprite();
+            ReleaseOwnedMaterials();
             _lastQrPayload = "";
             _lastNfcPayload = "";
+        }
+
+        static bool IsOwnedMaterial(Material mat) =>
+            mat != null && mat != Graphic.defaultGraphicMaterial && mat != Canvas.GetDefaultCanvasMaterial();
+
+        void ReleaseOwnedMaterials()
+        {
+            for (int i = 0; i < _ownedMaterials.Count; i++)
+            {
+                if (IsOwnedMaterial(_ownedMaterials[i]))
+                    KalyeahResources.Kill(_ownedMaterials[i]);
+            }
+            _ownedMaterials.Clear();
         }
 
         void SubscribeViewport(bool subscribe)
@@ -508,13 +526,13 @@ namespace Kalyeah.Game
             _chooseSubtitleRect = subtitle.rectTransform;
 
             _hostRoleCard = Ui.Panel("HostRoleCard", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(_hostRoleCard, SubCardBg);
+            StyleCard(_hostRoleCard, SubCardBg, SignalVermilion);
 
-            Text hostHeader = Ui.MakeText("HostTitle", _hostRoleCard, "1. HOST ROOM", 28, GoldCta, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Text hostHeader = Ui.MakeText("HostTitle", _hostRoleCard, "1. HOST ROOM", 28, PaperWhite, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             hostHeader.resizeTextForBestFit = true;
             hostHeader.resizeTextMinSize = 18;
             hostHeader.resizeTextMaxSize = 30;
-            SyncOutlineForColor(hostHeader, GoldCta);
+            SyncOutlineForColor(hostHeader, PaperWhite);
             hostHeader.rectTransform.anchorMin = new Vector2(0f, 1f);
             hostHeader.rectTransform.anchorMax = new Vector2(1f, 1f);
             hostHeader.rectTransform.pivot = new Vector2(0.5f, 1f);
@@ -526,14 +544,14 @@ namespace Kalyeah.Game
                 _hostRoleCard,
                 "Turn on Personal Hotspot or Wi-Fi on this phone.\nStarts the 30 Hz authoritative room server + UDP beacon & QR code.",
                 19,
-                Ui.Cream,
+                PaperWhite,
                 TextAnchor.MiddleCenter);
             hostDesc.horizontalOverflow = HorizontalWrapMode.Wrap;
             hostDesc.verticalOverflow = VerticalWrapMode.Truncate;
             hostDesc.resizeTextForBestFit = true;
             hostDesc.resizeTextMinSize = 12;
             hostDesc.resizeTextMaxSize = 20;
-            SyncOutlineForColor(hostDesc, Ui.Cream);
+            SyncOutlineForColor(hostDesc, PaperWhite);
             _hostRoleDescRect = hostDesc.rectTransform;
 
             Button startHostBtn = MakeActionButton(
@@ -545,21 +563,21 @@ namespace Kalyeah.Game
                 new Vector2(0f, 16f),
                 new Vector2(300f, 96f),
                 "HOST HOTSPOT",
-                GoldCta,
-                InkDark,
+                SignalVermilion,
+                PaperWhite,
                 22,
-                () => StartHostWizard());
+                () => StartHostWizard(),
+                primaryCta: true);
             _startHostBtnRect = startHostBtn.GetComponent<RectTransform>();
 
             _guestRoleCard = Ui.Panel("GuestRoleCard", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(_guestRoleCard, SubCardBg);
+            StyleCard(_guestRoleCard, SubCardBg, PaperWhite);
 
-            Color guestAccent = new Color(0.45f, 0.95f, 0.88f, 1f);
-            Text guestHeader = Ui.MakeText("GuestTitle", _guestRoleCard, "2. JOIN FRIEND", 28, guestAccent, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Text guestHeader = Ui.MakeText("GuestTitle", _guestRoleCard, "2. JOIN FRIEND", 28, PaperWhite, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             guestHeader.resizeTextForBestFit = true;
             guestHeader.resizeTextMinSize = 18;
             guestHeader.resizeTextMaxSize = 30;
-            SyncOutlineForColor(guestHeader, guestAccent);
+            SyncOutlineForColor(guestHeader, PaperWhite);
             guestHeader.rectTransform.anchorMin = new Vector2(0f, 1f);
             guestHeader.rectTransform.anchorMax = new Vector2(1f, 1f);
             guestHeader.rectTransform.pivot = new Vector2(0.5f, 1f);
@@ -571,14 +589,14 @@ namespace Kalyeah.Game
                 _guestRoleCard,
                 "Connect to your friend's Hotspot or same Wi-Fi.\nAuto-discovers nearby Kalyeah rooms, or join via QR / ws:// IP.",
                 19,
-                Ui.Cream,
+                PaperWhite,
                 TextAnchor.MiddleCenter);
             guestDesc.horizontalOverflow = HorizontalWrapMode.Wrap;
             guestDesc.verticalOverflow = VerticalWrapMode.Truncate;
             guestDesc.resizeTextForBestFit = true;
             guestDesc.resizeTextMinSize = 12;
             guestDesc.resizeTextMaxSize = 20;
-            SyncOutlineForColor(guestDesc, Ui.Cream);
+            SyncOutlineForColor(guestDesc, PaperWhite);
             _guestRoleDescRect = guestDesc.rectTransform;
 
             Button startGuestBtn = MakeActionButton(
@@ -590,8 +608,8 @@ namespace Kalyeah.Game
                 new Vector2(0f, 16f),
                 new Vector2(300f, 96f),
                 "FIND ROOMS",
-                TealCta,
-                Ui.Cream,
+                PaperWhite,
+                InkDark,
                 22,
                 () => StartGuestWizard());
             _startGuestBtnRect = startGuestBtn.GetComponent<RectTransform>();
@@ -606,7 +624,7 @@ namespace Kalyeah.Game
                 new Vector2(256f, 96f),
                 "RECHECK WI-FI",
                 MutedBtn,
-                Ui.Cream,
+                PaperWhite,
                 19,
                 RefreshNetworkBadge);
             _recheckBtnRect = recheckBtn.GetComponent<RectTransform>();
@@ -621,13 +639,13 @@ namespace Kalyeah.Game
             out Text qrCaption)
         {
             _hostInfoCard = Ui.Panel("HostInfoCard", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(_hostInfoCard, SubCardBg);
+            StyleCard(_hostInfoCard, SubCardBg, SignalVermilion);
 
-            Text stepTag = Ui.MakeText("HostStepTitle", _hostInfoCard, "SHARE YOUR LAN ROOM", 26, GoldCta, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            Text stepTag = Ui.MakeText("HostStepTitle", _hostInfoCard, "SHARE YOUR LAN ROOM", 26, PaperWhite, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
             stepTag.resizeTextForBestFit = true;
             stepTag.resizeTextMinSize = 18;
             stepTag.resizeTextMaxSize = 28;
-            SyncOutlineForColor(stepTag, GoldCta);
+            SyncOutlineForColor(stepTag, PaperWhite);
             _hostStepTitleRect = stepTag.rectTransform;
 
             statusLabel = Ui.MakeText("HostStatus", _hostInfoCard, "Starting local server...", 19, SubtleText, TextAnchor.UpperLeft);
@@ -640,7 +658,7 @@ namespace Kalyeah.Game
             _hostStatusRect = statusLabel.rectTransform;
 
             _urlBoxRect = Ui.Panel("UrlBox", _hostInfoCard, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f), Vector2.zero, new Vector2(0f, 112f));
-            StyleCard(_urlBoxRect, new Color(0.05f, 0.08f, 0.16f, 1f));
+            StyleCard(_urlBoxRect, SurfaceDark, OkText);
 
             urlLabel = Ui.MakeText("LanUrlText", _urlBoxRect, "ws://192.168.43.1:8080", 22, OkText, TextAnchor.MiddleLeft);
             urlLabel.resizeTextForBestFit = true;
@@ -661,18 +679,18 @@ namespace Kalyeah.Game
                 new Vector2(140f, 96f),
                 "COPY URL",
                 MutedBtn,
-                Ui.Cream,
+                PaperWhite,
                 19,
                 CopyShareUrl);
             _copyUrlBtnRect = copyBtn.GetComponent<RectTransform>();
 
-            playersLabel = Ui.MakeText("HostPlayers", _hostInfoCard, "Room preparing...", 19, Ui.Cream, TextAnchor.MiddleLeft);
+            playersLabel = Ui.MakeText("HostPlayers", _hostInfoCard, "Room preparing...", 19, PaperWhite, TextAnchor.MiddleLeft);
             playersLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
             playersLabel.verticalOverflow = VerticalWrapMode.Truncate;
             playersLabel.resizeTextForBestFit = true;
             playersLabel.resizeTextMinSize = 12;
             playersLabel.resizeTextMaxSize = 19;
-            SyncOutlineForColor(playersLabel, Ui.Cream);
+            SyncOutlineForColor(playersLabel, PaperWhite);
             _hostPlayersRect = playersLabel.rectTransform;
 
             Button retryBtn = MakeActionButton(
@@ -685,7 +703,7 @@ namespace Kalyeah.Game
                 new Vector2(180f, 96f),
                 "RETRY HOST",
                 MutedBtn,
-                Ui.Cream,
+                PaperWhite,
                 20,
                 () => StartHostWizard(direct: _openedDirectly));
             _retryHostBtnRect = retryBtn.GetComponent<RectTransform>();
@@ -699,20 +717,21 @@ namespace Kalyeah.Game
                 new Vector2(-20f, 16f),
                 new Vector2(300f, 96f),
                 "OPEN ROOM LOBBY",
-                GoldCta,
-                InkDark,
+                SignalVermilion,
+                PaperWhite,
                 21,
-                EnterHostLobby);
+                EnterHostLobby,
+                primaryCta: true);
             _enterLobbyBtnRect = enterBtn.GetComponent<RectTransform>();
 
             _qrCard = Ui.Panel("QrCard", parent, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(0f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(_qrCard, SubCardBg);
+            StyleCard(_qrCard, SubCardBg, PaperWhite);
 
-            Text qrHeader = Ui.MakeText("QrTitle", _qrCard, "SCAN TO JOIN", 24, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Text qrHeader = Ui.MakeText("QrTitle", _qrCard, "SCAN TO JOIN", 24, PaperWhite, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             qrHeader.resizeTextForBestFit = true;
             qrHeader.resizeTextMinSize = 18;
             qrHeader.resizeTextMaxSize = 26;
-            SyncOutlineForColor(qrHeader, Ui.Cream);
+            SyncOutlineForColor(qrHeader, PaperWhite);
             _qrTitleRect = qrHeader.rectTransform;
 
             _qrPlateRect = Ui.Panel("QrWhitePlate", _qrCard, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(248f, 248f));
@@ -741,7 +760,7 @@ namespace Kalyeah.Game
             out Text emptyLabel)
         {
             _guestListCard = Ui.Panel("DiscoveredHostsCard", parent, new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
-            StyleCard(_guestListCard, SubCardBg);
+            StyleCard(_guestListCard, SubCardBg, PaperWhite);
 
             statusLabel = Ui.MakeText("GuestStatus", _guestListCard, "Scanning nearby Wi-Fi...", 20, GoldCta, TextAnchor.MiddleLeft);
             statusLabel.horizontalOverflow = HorizontalWrapMode.Wrap;
@@ -761,10 +780,11 @@ namespace Kalyeah.Game
                 new Vector2(-198f, -10f),
                 new Vector2(156f, 96f),
                 "SCAN QR",
-                CoralCta,
-                Ui.Cream,
+                SignalVermilion,
+                PaperWhite,
                 19,
-                RequestQrScan);
+                RequestQrScan,
+                primaryCta: true);
             _scanQrBtnRect = scanQrBtn.GetComponent<RectTransform>();
 
             Button rescanBtn = MakeActionButton(
@@ -776,16 +796,15 @@ namespace Kalyeah.Game
                 new Vector2(-16f, -10f),
                 new Vector2(168f, 96f),
                 "SCAN AGAIN",
-                TealCta,
-                Ui.Cream,
+                PaperWhite,
+                InkDark,
                 19,
                 RescanHosts);
             _rescanBtnRect = rescanBtn.GetComponent<RectTransform>();
 
             _rowsScrollRect = Ui.Panel("RowsArea", _guestListCard, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
             Image scrollHit = _rowsScrollRect.gameObject.AddComponent<Image>();
-            scrollHit.color = new Color(0.05f, 0.08f, 0.16f, 0.55f);
-            ApplySlicedPlate(scrollHit, scrollHit.color);
+            ApplyGlassSurface(scrollHit, SurfaceDark, new Color(0.835f, 0.875f, 0.914f, 0.16f), Color.clear, 4f, 0f);
             scrollHit.raycastTarget = true;
             _rowsScrollRect.gameObject.AddComponent<RectMask2D>();
 
@@ -836,12 +855,13 @@ namespace Kalyeah.Game
                     Vector2.zero,
                     new Vector2(0f, 96f));
                 Image bg = rowRect.gameObject.AddComponent<Image>();
-                ApplySlicedPlate(bg, new Color(0.14f, 0.23f, 0.42f, 1f));
+                ApplyGlassSurface(bg, MutedBtn, TitaniumBorder, OkText, 4f, 3f);
                 bg.raycastTarget = true;
 
                 Button btn = rowRect.gameObject.AddComponent<Button>();
                 btn.targetGraphic = bg;
                 btn.onClick.AddListener(() => OnDiscoveredRowClicked(captured));
+                UiShaders.AttachPressSpring(btn, 0.96f, 2f);
 
                 var le = rowRect.gameObject.AddComponent<LayoutElement>();
                 le.minHeight = 96f;
@@ -849,9 +869,9 @@ namespace Kalyeah.Game
                 le.flexibleWidth = 1f;
                 _discoveredRowLayouts[i] = le;
 
-                Text rowTitle = Ui.MakeText("HostName", rowRect, "", 20, Ui.Cream, TextAnchor.MiddleLeft);
+                Text rowTitle = Ui.MakeText("HostName", rowRect, "", 20, PaperWhite, TextAnchor.MiddleLeft);
                 rowTitle.verticalOverflow = VerticalWrapMode.Truncate;
-                SyncOutlineForColor(rowTitle, Ui.Cream);
+                SyncOutlineForColor(rowTitle, PaperWhite);
                 rowTitle.rectTransform.anchorMin = new Vector2(0f, 0f);
                 rowTitle.rectTransform.anchorMax = new Vector2(0.56f, 1f);
                 rowTitle.rectTransform.offsetMin = new Vector2(18f, 4f);
@@ -906,7 +926,7 @@ namespace Kalyeah.Game
                 new Vector2(128f, 96f),
                 "PASTE",
                 MutedBtn,
-                Ui.Cream,
+                PaperWhite,
                 19,
                 PasteIntoManualUrl);
             _pasteUrlBtnRect = pasteBtn.GetComponent<RectTransform>();
@@ -921,10 +941,11 @@ namespace Kalyeah.Game
                 Vector2.zero,
                 new Vector2(168f, 96f),
                 "JOIN URL",
-                GoldCta,
-                InkDark,
+                SignalVermilion,
+                PaperWhite,
                 20,
-                () => JoinHostUrl(capturedInput != null ? capturedInput.text : ""));
+                () => JoinHostUrl(capturedInput != null ? capturedInput.text : ""),
+                primaryCta: true);
             _manualJoinBtnRect = joinBtn.GetComponent<RectTransform>();
         }
 
@@ -1644,6 +1665,49 @@ namespace Kalyeah.Game
             }
         }
 
+        static void ApplyGlassSurface(
+            Image img,
+            Color fill,
+            Color border,
+            Color leftAccent,
+            float cornerCut = 4f,
+            float accentW = 3f)
+        {
+            if (img == null) return;
+            img.sprite = null;
+            img.type = Image.Type.Simple;
+            Material mat = UiShaders.CreateTacticalGlass(fill, border, leftAccent, cornerCut, leftAccent.a > 0.001f ? accentW : 0f);
+            if (mat != null && mat != Graphic.defaultGraphicMaterial)
+            {
+                img.material = mat;
+                img.color = Color.white;
+            }
+            else
+            {
+                img.material = null;
+                img.color = fill;
+            }
+        }
+
+        void ApplyMetallicCtaSurface(Image img, Color top, Color bottom, float cornerCut = 8f)
+        {
+            if (img == null) return;
+            img.sprite = null;
+            img.type = Image.Type.Simple;
+            Material mat = UiShaders.CreateMetallicCta(top, bottom, cornerCut);
+            if (IsOwnedMaterial(mat))
+            {
+                _ownedMaterials.Add(mat);
+                img.material = mat;
+                img.color = Color.white;
+            }
+            else
+            {
+                img.material = null;
+                img.color = top;
+            }
+        }
+
         static void ApplySlicedPlate(Image img, Color color)
         {
             if (img == null) return;
@@ -1676,16 +1740,17 @@ namespace Kalyeah.Game
             Color fill,
             Color textColor,
             int fontSize,
-            UnityEngine.Events.UnityAction onClick)
+            UnityEngine.Events.UnityAction onClick,
+            bool primaryCta = false)
         {
             Vector2 clamped = ScreenFitMetrics.ClampTouchSize(size, ScreenFitMetrics.MinTouchDp, _canvas);
             RectTransform rt = Ui.Panel(name, parent, anchorMin, anchorMax, pivot, pos, clamped);
             Image bg = rt.gameObject.AddComponent<Image>();
-            ApplySlicedPlate(bg, fill);
+            if (primaryCta)
+                ApplyMetallicCtaSurface(bg, SignalVermilion, SignalVermilionDeep, 8f);
+            else
+                ApplyGlassSurface(bg, fill, TitaniumBorder, Color.clear, 4f, 0f);
             bg.raycastTarget = true;
-            var outline = rt.gameObject.AddComponent<Outline>();
-            outline.effectColor = new Color(0.03f, 0.05f, 0.12f, 0.90f);
-            outline.effectDistance = new Vector2(2f, -2f);
 
             Text label = Ui.MakeText("Label", rt, caption, fontSize, textColor, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             label.raycastTarget = false;
@@ -1700,10 +1765,15 @@ namespace Kalyeah.Game
             Button btn = rt.gameObject.AddComponent<Button>();
             btn.targetGraphic = bg;
             ColorBlock cb = btn.colors;
+            cb.normalColor = Color.white;
+            cb.highlightedColor = new Color(1.06f, 1.06f, 1.06f, 1f);
+            cb.pressedColor = new Color(0.86f, 0.86f, 0.86f, 1f);
+            cb.selectedColor = Color.white;
             cb.disabledColor = new Color(1f, 1f, 1f, 0.55f);
             btn.colors = cb;
             if (onClick != null)
                 btn.onClick.AddListener(onClick);
+            UiShaders.AttachPressSpring(btn, 0.95f, 2f);
             _touchTargets.Add(rt);
             return btn;
         }
@@ -1713,18 +1783,18 @@ namespace Kalyeah.Game
             float touchH = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, _canvas);
             RectTransform rt = Ui.Panel(name, parent, anchorMin, anchorMax, new Vector2(0f, 0.5f), Vector2.zero, new Vector2(240f, touchH));
             Image bg = rt.gameObject.AddComponent<Image>();
-            ApplySlicedPlate(bg, new Color(0.04f, 0.07f, 0.14f, 1f));
+            ApplyGlassSurface(bg, SurfaceDark, TitaniumBorder, PaperWhite, 3f, 2f);
             bg.raycastTarget = true;
 
-            Text textComp = Ui.MakeText("Text", rt, "", fontSize, Ui.Cream, TextAnchor.MiddleLeft);
+            Text textComp = Ui.MakeText("Text", rt, "", fontSize, PaperWhite, TextAnchor.MiddleLeft);
             textComp.raycastTarget = false;
             textComp.supportRichText = false;
             textComp.horizontalOverflow = HorizontalWrapMode.Overflow;
             textComp.verticalOverflow = VerticalWrapMode.Truncate;
-            SyncOutlineForColor(textComp, Ui.Cream);
+            SyncOutlineForColor(textComp, PaperWhite);
             Stretch(textComp.rectTransform, 14f, 6f, 14f, 6f);
 
-            Text placeholder = Ui.MakeText("Placeholder", rt, placeholderText, Mathf.Max(18, fontSize - 2), new Color(0.62f, 0.70f, 0.84f, 0.85f), TextAnchor.MiddleLeft);
+            Text placeholder = Ui.MakeText("Placeholder", rt, placeholderText, Mathf.Max(18, fontSize - 2), SubtleText, TextAnchor.MiddleLeft);
             placeholder.raycastTarget = false;
             placeholder.horizontalOverflow = HorizontalWrapMode.Wrap;
             placeholder.verticalOverflow = VerticalWrapMode.Truncate;
@@ -1742,15 +1812,13 @@ namespace Kalyeah.Game
             return field;
         }
 
-        static void StyleCard(RectTransform card, Color bg)
+        static void StyleCard(RectTransform card, Color bg, Color? leftAccent = null)
         {
             Image fill = Ui.MakeImage("CardBg", card, bg, raycast: false);
-            ApplySlicedPlate(fill, bg);
+            Color accent = leftAccent ?? Color.clear;
+            ApplyGlassSurface(fill, bg, TitaniumBorder, accent, 5f, accent.a > 0.001f ? 3f : 0f);
             Stretch(fill.rectTransform);
             fill.transform.SetAsFirstSibling();
-            var border = fill.gameObject.AddComponent<Outline>();
-            border.effectColor = new Color(0.02f, 0.04f, 0.10f, 0.90f);
-            border.effectDistance = new Vector2(3f, -3f);
         }
 
         static void Stretch(RectTransform rt, float left = 0f, float bottom = 0f, float right = 0f, float top = 0f)
@@ -1779,7 +1847,7 @@ namespace Kalyeah.Game
             };
             var px = new Color32[n * n];
             var white = new Color32(255, 255, 255, 255);
-            var black = new Color32(16, 22, 38, 255);
+            var black = new Color32(16, 21, 28, 255);
             for (int i = 0; i < px.Length; i++) px[i] = white;
 
             DrawFinderBox(px, n, 1, 1);

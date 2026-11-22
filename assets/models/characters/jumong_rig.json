@@ -1374,7 +1374,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1410,7 +1410,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1452,7 +1452,7 @@
       "deformBones": 64,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4865
+      "fileSizeKb": 4656
     },
     "lod1": {
       "asset": "models/characters/jumong_lod1",
@@ -1460,7 +1460,7 @@
       "deformBones": 44,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 856
+      "fileSizeKb": 860
     },
     "lod2": {
       "asset": "models/characters/jumong_lod2",
@@ -1475,7 +1475,8 @@
     "baseColorEmbedded": true,
     "normal": "models/characters/jumong_2",
     "orm": "models/characters/jumong_orm",
-    "ormChannels": "R=AO,G=Roughness,B=Metallic"
+    "ormChannels": "R=AO,G=Roughness,B=Metallic",
+    "stylizedPolishVersion": 2
   },
   "log": [
     "removed 7 path-breaking bones",
@@ -1484,5 +1485,11 @@
     "rebound to reference rest; added 12 twist/helper bones",
     "stray influences removed: 20550",
     "cross-side influences removed: 0"
+  ],
+  "facialShapes": [
+    "Blink",
+    "Smile",
+    "Determined",
+    "Talk_Open"
   ]
 }

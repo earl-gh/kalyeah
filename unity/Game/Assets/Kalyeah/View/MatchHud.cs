@@ -1,23 +1,34 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using Kalyeah.Sim;
 using UnityEngine;
 using UnityEngine.UI;
+using SVector2 = System.Numerics.Vector2;
 
 namespace Kalyeah.Game
 {
     /// <summary>
-    /// Full Agawang Base match HUD on the 1280 x 720 landscape SafeArea canvas:
+    /// Full Agawang Base match HUD on the 1280 x 720 landscape SafeArea canvas (Locked Option A1 / G3-G8):
     /// - Preserves <see cref="Canvas"/>, <see cref="Joystick"/>, <see cref="Look"/>, <c>SafeArea/Header</c>, and <c>SafeArea/OwnTeam</c>
     ///   bounds invariants verified by <c>ScreenFitBoundsTests</c> across 21:9..4:3 + LeftHanded + 180 deg flips.
-    /// - Wires <see cref="OverheadBarsView"/> (enemy HP hidden), <see cref="CrosshairView"/>, <see cref="BarangayMinimapView"/> (default OFF),
-    ///   <see cref="AbilityArcView"/> + <see cref="CardHandView"/> (toggled via <see cref="CardHandView.ShouldUseCardsTray"/>),
-    ///   and <see cref="MatchOverlaysView"/> (HeroVitalsChip, 5v5 SquadWings, TakedownFeed, CaptureAlert, Tagged/Swap, QuickChat, Pause, Victory).
+    /// - Wires <see cref="OverheadBarsView"/> (enemy HP hidden + smooth amber drain), <see cref="CrosshairView"/> (A3 coral-gold confirm),
+    ///   <see cref="BarangayMinimapView"/> (G3 circular Valorant architectural radar), <see cref="AbilityArcView"/> (G7 frosted titanium discs)
+    ///   + <see cref="CardHandView"/>, <see cref="PingAndBanterView"/> (5-wedge radial ping wheel + Taglish banter strip),
+    ///   and <see cref="MatchOverlaysView"/> (G5 frameless vitals, G4 5v5 bust wings, streak banners, MatchResultsView MVP screen).
     /// - Always builds visible HUD chrome even when <c>!interactive</c> (disabling <see cref="GraphicRaycaster"/> and hiding the intro scrim
     ///   so headless EditMode screenshots capture crisp gameplay + full HUD).
     /// </summary>
     public sealed class MatchHud : IDisposable
     {
+        static readonly Color ScoreCharcoal = new Color(20f / 255f, 24f / 255f, 31f / 255f, 0.94f); // #14181F
+        static readonly Color ScoreAllyDefault = new Color(41f / 255f, 182f / 255f, 246f / 255f, 1f); // #29B6F6
+        static readonly Color ScoreEnemyDefault = MenuArt.SignalVermilion; // #FF4655
+        static readonly string[] PrebuiltScores = BuildScoreTable(30);
+
+        const float BanterTagCooldownSeconds = 8.0f;
+        const float BanterRescueCooldownSeconds = 6.0f;
+
         public readonly Canvas Canvas;
         public readonly SafeArea SafeArea;
         public readonly RectTransform SafeRoot;
@@ -30,6 +41,7 @@ namespace Kalyeah.Game
         public readonly BarangayMinimapView Minimap;
         /// <summary>Aim down sight, under the minimap on the stick side (docs/SPEC.md §8).</summary>
         public readonly AdsButton Ads;
+        public readonly PingAndBanterView PingAndBanter;
         public readonly MatchOverlaysView Overlays;
         public readonly RectTransform HeaderRect;
         public readonly RectTransform OwnTeamRect;
@@ -44,15 +56,23 @@ namespace Kalyeah.Game
         public bool UsingCardsTray { get; private set; }
         public Func<int, Vector3?> WorldFeetOverride { get; set; }
 
-        readonly Text _score;
+        readonly Image _allyScoreBg;
+        readonly Image _enemyScoreBg;
+        readonly Text _allyScoreText;
+        readonly Text _enemyScoreText;
         readonly Text _clock;
         readonly Image _mapToggleRim;
         readonly Image _mapToggleDisc;
         readonly Image _mapToggleRingIcon;
         readonly Text _mapToggleLabel;
         readonly Transform _introOverlay;
+        readonly AudioHub _audio;
         readonly List<RectTransform> _activeControlsScratch = new List<RectTransform>(16);
+        readonly List<string> _banterAlliesScratch = new List<string>(5);
+        readonly List<string> _banterEnemiesScratch = new List<string>(5);
 
+        SimBridge _boundAudioSim;
+        int _lastLocalDamageHp = -1;
         bool _appliedLeftHanded;
         bool _minimapLayoutAssigned;
         bool _lastMapVisible;
@@ -60,10 +80,22 @@ namespace Kalyeah.Game
         int _lastMyScore = int.MinValue;
         int _lastTheirScore = int.MinValue;
         int _lastClockSeconds = int.MinValue;
+        int _lastScoreColorblind = -1;
         MatchPhaseKind _lastHeaderPhase = (MatchPhaseKind)(-1);
         bool _lastOvertime;
         bool _lastTraining;
+        bool _matchStartBanterShown;
+        float _banterCooldownLeft;
+        int _banterSeedCounter = 17;
         bool _disposed;
+
+        static string[] BuildScoreTable(int count)
+        {
+            var table = new string[count];
+            for (int i = 0; i < count; i++)
+                table[i] = i.ToString(CultureInfo.InvariantCulture);
+            return table;
+        }
 
         public MatchHud(Transform parent, Camera camera, bool interactive)
             : this(parent, null, camera, interactive, null, null, null)
@@ -80,6 +112,7 @@ namespace Kalyeah.Game
             Action onBackToHome = null)
         {
             Interactive = interactive;
+            _audio = audio;
             Canvas = Ui.MakeCanvas("MatchHud", parent, camera);
 
             var raycaster = Canvas.GetComponent<GraphicRaycaster>();
@@ -97,42 +130,62 @@ namespace Kalyeah.Game
             //    docs/SPEC.md §8)
             OverheadBars = new OverheadBarsView(SafeRoot, Canvas);
             Crosshair = CrosshairView.Build(SafeRoot);
+            Crosshair.Audio = audio;
             Minimap = new BarangayMinimapView(SafeRoot, null, Canvas, initialVisible: true);
             Minimap.SetLeftHanded(leftHanded);
 
-            // 2. Top-center Score & Clock header (236 px wide so it nests cleanly inside MatchOverlaysView's 256 px SquadWings center gap)
+            // 2. Locked G4 (A3): Minimalist split-color top-center scoreboard (200x46 nests cleanly in SquadWings' 212 px center gap)
+            //    Flat Ally Blue (#29B6F6) | Dark Charcoal (#14181F) clock | Flat Enemy Red (#FF4655) — zero heavy enclosing card!
             RectTransform header = Ui.Panel(
                 "Header",
                 SafeRoot,
                 new Vector2(0.5f, 1f),
                 new Vector2(0.5f, 1f),
                 new Vector2(0.5f, 1f),
-                new Vector2(0f, -10f),
-                new Vector2(236f, 78f));
+                new Vector2(0f, -8f),
+                new Vector2(200f, 46f));
             HeaderRect = header;
-            Image headerPlate = KomiksUi.MakeInkPanel(
-                "Backdrop",
-                header,
-                new Color(0.08f, 0.11f, 0.20f, 0.94f),
-                new Color(0.95f, 0.96f, 1.00f, 0.44f),
-                12,
-                2);
-            headerPlate.rectTransform.anchorMin = Vector2.zero;
-            headerPlate.rectTransform.anchorMax = Vector2.one;
-            headerPlate.rectTransform.offsetMin = Vector2.zero;
-            headerPlate.rectTransform.offsetMax = Vector2.zero;
 
-            _score = Ui.MakeText("Score", header, "0 - 0", 30, Ui.Cream, TextAnchor.UpperCenter, KalyeahResources.DisplayFont());
-            _score.rectTransform.anchorMin = new Vector2(0f, 0.36f);
-            _score.rectTransform.anchorMax = Vector2.one;
-            _score.rectTransform.offsetMin = new Vector2(8f, 0f);
-            _score.rectTransform.offsetMax = new Vector2(-8f, -4f);
+            RectTransform allyBlock = Ui.Panel("AllyScoreBlock", header, new Vector2(0f, 0f), new Vector2(0.28f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            _allyScoreBg = Ui.MakeImage("Bg", allyBlock, ScoreboardAllyColor(), round: false, raycast: false);
+            StretchInset(_allyScoreBg.rectTransform, 0f);
+            _allyScoreText = Ui.MakeText("Score", allyBlock, "0", 24, Color.white, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            StretchInset(_allyScoreText.rectTransform, 0f);
 
-            _clock = Ui.MakeText("Clock", header, "3:00", 18, new Color(1f, 0.92f, 0.60f, 0.98f), TextAnchor.LowerCenter);
-            _clock.rectTransform.anchorMin = Vector2.zero;
-            _clock.rectTransform.anchorMax = new Vector2(1f, 0.44f);
-            _clock.rectTransform.offsetMin = new Vector2(8f, 5f);
-            _clock.rectTransform.offsetMax = new Vector2(-8f, 0f);
+            RectTransform clockBlock = Ui.Panel("ClockBlock", header, new Vector2(0.28f, 0f), new Vector2(0.72f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            Image clockBg = Ui.MakeImage("Bg", clockBlock, ScoreCharcoal, round: false, raycast: false);
+            StretchInset(clockBg.rectTransform, 0f);
+            Image clockBottomHairline = Ui.MakeImage("BottomHairline", clockBlock, new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.34f), round: false, raycast: false);
+            clockBottomHairline.rectTransform.anchorMin = new Vector2(0f, 0f);
+            clockBottomHairline.rectTransform.anchorMax = new Vector2(1f, 0f);
+            clockBottomHairline.rectTransform.pivot = new Vector2(0.5f, 0f);
+            clockBottomHairline.rectTransform.anchoredPosition = Vector2.zero;
+            clockBottomHairline.rectTransform.sizeDelta = new Vector2(0f, 1.5f);
+            _clock = Ui.MakeText("Clock", clockBlock, "3:00", 19, MenuArt.PaperWhite, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            _clock.resizeTextForBestFit = true;
+            _clock.resizeTextMinSize = 13;
+            _clock.resizeTextMaxSize = 19;
+            StretchInset(_clock.rectTransform, 2f);
+
+            RectTransform enemyBlock = Ui.Panel("EnemyScoreBlock", header, new Vector2(0.72f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+            _enemyScoreBg = Ui.MakeImage("Bg", enemyBlock, ScoreboardEnemyColor(), round: false, raycast: false);
+            StretchInset(_enemyScoreBg.rectTransform, 0f);
+            _enemyScoreText = Ui.MakeText("Score", enemyBlock, "0", 24, Color.white, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            StretchInset(_enemyScoreText.rectTransform, 0f);
+
+            Image seamL = Ui.MakeImage("SeamLeft", header, MenuArt.ObsidianSolid, round: false, raycast: false);
+            seamL.rectTransform.anchorMin = new Vector2(0.28f, 0f);
+            seamL.rectTransform.anchorMax = new Vector2(0.28f, 1f);
+            seamL.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            seamL.rectTransform.anchoredPosition = Vector2.zero;
+            seamL.rectTransform.sizeDelta = new Vector2(1.5f, 0f);
+
+            Image seamR = Ui.MakeImage("SeamRight", header, MenuArt.ObsidianSolid, round: false, raycast: false);
+            seamR.rectTransform.anchorMin = new Vector2(0.72f, 0f);
+            seamR.rectTransform.anchorMax = new Vector2(0.72f, 1f);
+            seamR.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            seamR.rectTransform.anchoredPosition = Vector2.zero;
+            seamR.rectTransform.sizeDelta = new Vector2(1.5f, 0f);
 
             // 2b. >= 48 dp top-strip Barangay Radar toggle button (clear of PauseButton, SquadWings, HeroVitalsChip & Header across 21:9..4:3)
             MapToggleButton = BuildMapToggleButton(
@@ -151,8 +204,8 @@ namespace Kalyeah.Game
                 new Vector2(0f, 1f),
                 new Vector2(0f, 1f),
                 new Vector2(0f, 1f),
-                new Vector2(116f, -14f),
-                new Vector2(220f, 48f));
+                new Vector2(116f, -8f),
+                new Vector2(220f, 46f));
 
             // 4. Multi-touch thumb zones + radial ability arc & 4-card cycle tray (always built so screenshots show full controls)
             Look = LookPad.Build(SafeRoot);
@@ -167,11 +220,17 @@ namespace Kalyeah.Game
             Ads.ToggleMode = SettingsStore.Current.AdsToggle;
 
             AbilityArc = AbilityArcView.Build(SafeRoot, leftHanded);
+            AbilityArc.Audio = audio;
             CardHand = CardHandView.Build(SafeRoot, leftHanded, SettingsStore.Current.CardsTrayPlacement);
 
             UsingCardsTray = CardHandView.ShouldUseCardsTray(sim, SettingsStore.Current);
             CardHand.Root.gameObject.SetActive(UsingCardsTray);
             AbilityArc.Root.gameObject.SetActive(!UsingCardsTray);
+
+            // 4b. 5-wedge radial Tactical Ping Wheel & non-sightbox Taglish banter strip (under full-screen Pause/Results modals)
+            PingAndBanter = new PingAndBanterView(SafeRoot, Canvas, interactive);
+            PingAndBanter.ExternalLayoutManaged = true;
+            PingAndBanter.PingEmitted += OnPingEmitted;
 
             // 5. Persistent HUD overlays & modal sheets on top
             Overlays = new MatchOverlaysView(SafeRoot, sim, camera, interactive, onPlayAgain, onBackToHome, audio);
@@ -193,13 +252,20 @@ namespace Kalyeah.Game
                     MapToggleButtonRect.gameObject.SetActive(false);
                 if (Minimap != null && Minimap.Root != null && Minimap.Root.gameObject.activeSelf)
                     Minimap.Root.gameObject.SetActive(false);
+                if (PingAndBanter != null && PingAndBanter.PingButtonRect != null && PingAndBanter.PingButtonRect.gameObject.activeSelf)
+                    PingAndBanter.PingButtonRect.gameObject.SetActive(false);
             }
 
             if (sim != null)
+            {
                 Crosshair.Bind(sim);
+                BindAudioSim(sim);
+            }
 
             SettingsStore.Current.Changed += OnSettingsChanged;
             SafeArea.Changed += OnSafeAreaChanged;
+            // Subscribed AFTER PingAndBanter so MatchHud's zero-overlap Ping/Banter slots always run after PingAndBanter.RefreshLayout
+            ScreenFitMetrics.SimulatedViewportChanged += OnSimulatedViewportChanged;
         }
 
         /// <summary>Returns all active persistent/interactive HUD control RectTransforms for ScreenFitBoundsTests non-overlap audits.</summary>
@@ -222,6 +288,7 @@ namespace Kalyeah.Game
             AddIfActive(output, PauseButtonRect);
             AddIfActive(output, QuickChatButtonRect);
             AddIfActive(output, MapToggleButtonRect);
+            AddIfActive(output, PingAndBanter?.PingButtonRect);
 
             if (UsingCardsTray)
             {
@@ -278,6 +345,7 @@ namespace Kalyeah.Game
             AbilityArc?.RefreshLayout();
             CardHand?.RefreshLayout();
             Overlays?.RefreshLayout();
+            PingAndBanter?.RefreshLayout();
             UpdateMapToggleAndMinimapLayout();
         }
 
@@ -303,11 +371,15 @@ namespace Kalyeah.Game
             }
 
             float stepDt = Mathf.Max(0f, dt);
+            if (_banterCooldownLeft > 0f && stepDt > 0f)
+                _banterCooldownLeft = Mathf.Max(0f, _banterCooldownLeft - stepDt);
+
             Camera effectiveCamera = worldCamera != null
                 ? worldCamera
                 : (Canvas != null ? Canvas.worldCamera : null);
 
             SyncHandedness();
+            BindAudioSim(sim);
             RefreshHeader(sim);
 
             if (layout != null && !_minimapLayoutAssigned)
@@ -337,15 +409,36 @@ namespace Kalyeah.Game
 
             AbilityInputState abilityState = default;
             bool isAimingAbility = false;
+            AimCameraKind activeSkillAim = AimCameraKind.Normal;
             if (!hideCombatControls)
             {
                 if (UsingCardsTray)
                     CardHand.Sync(sim, stepDt, shoulder, effectiveCamera, layout);
                 else
+                {
                     AbilityArc.Sync(sim, stepDt, shoulder, effectiveCamera, layout);
+                    activeSkillAim = AbilityArc.ActiveAimCamera;
+                }
 
                 abilityState = UsingCardsTray ? CardHand.CurrentInput : AbilityArc.CurrentInput;
                 isAimingAbility = (AbilityArc != null && AbilityArc.IsDraggingAim) || abilityState.HeldSlot >= 0 || abilityState.IsDraggingAim;
+            }
+
+            if (shoulder != null)
+            {
+                shoulder.SetSkillAimMode(hideCombatControls ? AimCameraKind.Normal : activeSkillAim);
+                shoulder.ExtraPivotHeight = (!hideCombatControls && localKid.HasValue && localKid.Value.OnStilts) ? 0.95f : 0f;
+                if (localKid.HasValue && !localKid.Value.Tagged)
+                {
+                    int curHp = localKid.Value.Hp;
+                    if (_lastLocalDamageHp > 0 && curHp < _lastLocalDamageHp)
+                        shoulder.AddHitShake(Mathf.Clamp01((_lastLocalDamageHp - curHp) / 30f));
+                    _lastLocalDamageHp = curHp;
+                }
+                else
+                {
+                    _lastLocalDamageHp = -1;
+                }
             }
 
             if (Overlays.SuppressTakedownFeed != isAimingAbility)
@@ -356,13 +449,31 @@ namespace Kalyeah.Game
                     _introOverlay.gameObject.SetActive(false);
             }
 
+            // Ping button hides cleanly during aim-cancel drag, modals, or tagged sidewalk state; banter yields to CaptureAlert/modals
+            if (PingAndBanter != null)
+            {
+                bool showPingBtn = !hideCombatControls && !isAimingAbility && !preAiming;
+                if (PingAndBanter.PingButtonRect != null && PingAndBanter.PingButtonRect.gameObject.activeSelf != showPingBtn)
+                {
+                    PingAndBanter.PingButtonRect.gameObject.SetActive(showPingBtn);
+                    if (!showPingBtn) PingAndBanter.CloseWheel();
+                }
+
+                bool yieldBanter = modalBlocking || isAimingAbility || (Overlays != null && Overlays.IsCaptureAlertVisible);
+                if (yieldBanter && PingAndBanter.IsBanterVisible)
+                    PingAndBanter.HideBanter();
+                else if (Application.isPlaying && !_matchStartBanterShown && !yieldBanter && sim.Phase == MatchPhaseKind.Playing)
+                    TriggerMatchStartBanter(sim);
+            }
+
             float camYaw = shoulder != null ? shoulder.Yaw : 0f;
+            float adsBlend = shoulder != null ? shoulder.AdsBlend : 0f;
             if (Crosshair != null && Crosshair.Root != null && Crosshair.Root.gameObject.activeSelf != !hideCombatControls)
                 Crosshair.Root.gameObject.SetActive(!hideCombatControls);
             if (!hideCombatControls)
             {
                 Crosshair.Bind(sim);
-                Crosshair.Sync(sim, stepDt, camYaw, isAimingAbility, abilityState.IsCancelHovered);
+                Crosshair.Sync(sim, stepDt, camYaw, isAimingAbility, abilityState.IsCancelHovered, effectiveCamera, adsBlend, layout);
             }
 
             OverheadBars.SetVisible(!modalBlocking);
@@ -384,7 +495,7 @@ namespace Kalyeah.Game
                 if (showMapChrome)
                 {
                     SyncMapToggleVisual();
-                    Minimap.Refresh(sim, camYaw);
+                    Minimap.Refresh(sim, camYaw, sim != null ? sim.Neutrals : null);
                 }
             }
         }
@@ -409,6 +520,8 @@ namespace Kalyeah.Game
             AbilityInputState state = UsingCardsTray
                 ? CardHand.SampleInput(sim, shoulder, worldCamera, layout)
                 : AbilityArc.SampleInput(sim, shoulder, worldCamera, layout);
+            if (shoulder != null)
+                shoulder.SetSkillAimMode(UsingCardsTray ? AimCameraKind.Normal : AbilityArc.ActiveAimCamera);
             if (Ads != null)
             {
                 Ads.ToggleMode = SettingsStore.Current.AdsToggle;
@@ -429,20 +542,62 @@ namespace Kalyeah.Game
             Ads?.Cancel();
             AbilityArc?.CancelAll();
             CardHand?.CancelAll();
+            PingAndBanter?.CloseWheel();
             if (Overlays != null)
                 Overlays.SuppressTakedownFeed = false;
         }
 
+        static Color ScoreboardAllyColor()
+        {
+            switch (SettingsStore.Current.ColorblindMode)
+            {
+                case 1:
+                case 2: return new Color(0.22f, 0.64f, 1.00f, 1f);
+                case 3: return new Color(0.16f, 0.86f, 0.80f, 1f);
+                default: return ScoreAllyDefault;
+            }
+        }
+
+        static Color ScoreboardEnemyColor()
+        {
+            switch (SettingsStore.Current.ColorblindMode)
+            {
+                case 1:
+                case 2: return new Color(0.96f, 0.54f, 0.14f, 1f);
+                case 3: return new Color(0.96f, 0.30f, 0.46f, 1f);
+                default: return ScoreEnemyDefault;
+            }
+        }
+
+        static string FormatScoreDigit(int score)
+        {
+            if (score >= 0 && score < PrebuiltScores.Length)
+                return PrebuiltScores[score];
+            return score.ToString(CultureInfo.InvariantCulture);
+        }
+
         void RefreshHeader(SimBridge sim)
         {
+            int cbMode = SettingsStore.Current.ColorblindMode;
+            if (cbMode != _lastScoreColorblind)
+            {
+                _lastScoreColorblind = cbMode;
+                if (_allyScoreBg != null) _allyScoreBg.color = ScoreboardAllyColor();
+                if (_enemyScoreBg != null) _enemyScoreBg.color = ScoreboardEnemyColor();
+            }
+
             int localTeam = sim.LocalPlayerTeam;
             int myScore = sim.ScoreOf(localTeam);
             int theirScore = sim.ScoreOf(1 - localTeam);
-            if (myScore != _lastMyScore || theirScore != _lastTheirScore)
+            if (myScore != _lastMyScore)
             {
                 _lastMyScore = myScore;
+                if (_allyScoreText != null) _allyScoreText.text = FormatScoreDigit(myScore);
+            }
+            if (theirScore != _lastTheirScore)
+            {
                 _lastTheirScore = theirScore;
-                _score.text = myScore.ToString(CultureInfo.InvariantCulture) + " - " + theirScore.ToString(CultureInfo.InvariantCulture);
+                if (_enemyScoreText != null) _enemyScoreText.text = FormatScoreDigit(theirScore);
             }
 
             int seconds = Mathf.Max(0, sim.ClockCountsDown ? Mathf.CeilToInt(sim.ClockSeconds) : Mathf.FloorToInt(sim.ClockSeconds));
@@ -458,15 +613,13 @@ namespace Kalyeah.Game
 
                 string mmss = (seconds / 60).ToString(CultureInfo.InvariantCulture) + ":" + (seconds % 60).ToString("D2", CultureInfo.InvariantCulture);
                 if (training)
-                    _clock.text = "TRAINING";
+                    _clock.text = "TRAIN";
                 else if (overtime && phase == MatchPhaseKind.Playing)
                     _clock.text = "OT " + mmss;
                 else
                     _clock.text = mmss;
 
-                _clock.color = overtime
-                    ? new Color(1f, 0.56f, 0.34f, 1f)
-                    : new Color(1f, 0.90f, 0.58f, 0.98f);
+                _clock.color = overtime ? MenuArt.CoralGold : MenuArt.PaperWhite;
             }
         }
 
@@ -535,43 +688,45 @@ namespace Kalyeah.Game
             float sz = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, Canvas);
             rect = Ui.Panel("MapToggleButton", parent, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(118f, -12f), new Vector2(sz, sz));
 
-            rim = Ui.MakeImage("Rim", rect, new Color(1f, 1f, 1f, 0.85f), round: true, raycast: Interactive);
-            StretchInset(rim.rectTransform, 2f);
+            disc = Ui.MakeImage("Disc", rect, new Color(MenuArt.ObsidianSolid.r, MenuArt.ObsidianSolid.g, MenuArt.ObsidianSolid.b, 0.72f), round: true, raycast: Interactive);
+            StretchInset(disc.rectTransform, 1.5f);
 
-            disc = Ui.MakeImage("Disc", rect, new Color(0.09f, 0.11f, 0.19f, 0.92f), round: true);
-            StretchInset(disc.rectTransform, 4.5f);
+            rim = Ui.MakeImage("Rim", rect, new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.78f), round: false, raycast: false);
+            rim.sprite = KomiksUi.RingSprite(96, 2);
+            StretchInset(rim.rectTransform, 0f);
 
-            ringIcon = Ui.MakeImage("RadarRing", rect, Color.white);
+            ringIcon = Ui.MakeImage("RadarRing", rect, MenuArt.PaperWhite);
             ringIcon.sprite = KomiksUi.RingSprite(64, 5);
             ringIcon.rectTransform.anchorMin = ringIcon.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             ringIcon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            ringIcon.rectTransform.anchoredPosition = new Vector2(0f, 8f);
-            ringIcon.rectTransform.sizeDelta = new Vector2(34f, 34f);
+            ringIcon.rectTransform.anchoredPosition = new Vector2(0f, 7f);
+            ringIcon.rectTransform.sizeDelta = new Vector2(28f, 28f);
 
             Image crossH = Ui.MakeImage("RadarCrossH", ringIcon.transform, new Color(1f, 1f, 1f, 0.45f));
             crossH.rectTransform.anchorMin = crossH.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             crossH.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            crossH.rectTransform.sizeDelta = new Vector2(22f, 2f);
+            crossH.rectTransform.sizeDelta = new Vector2(18f, 1.5f);
 
             Image crossV = Ui.MakeImage("RadarCrossV", ringIcon.transform, new Color(1f, 1f, 1f, 0.45f));
             crossV.rectTransform.anchorMin = crossV.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             crossV.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            crossV.rectTransform.sizeDelta = new Vector2(2f, 22f);
+            crossV.rectTransform.sizeDelta = new Vector2(1.5f, 18f);
 
-            Image ping = Ui.MakeImage("RadarPing", ringIcon.transform, KomiksUi.MangoGold, round: true);
+            Image ping = Ui.MakeImage("RadarPing", ringIcon.transform, MenuArt.WaterCyan, round: true);
             ping.rectTransform.anchorMin = ping.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             ping.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            ping.rectTransform.anchoredPosition = new Vector2(5f, 4f);
-            ping.rectTransform.sizeDelta = new Vector2(7f, 7f);
+            ping.rectTransform.anchoredPosition = new Vector2(4f, 3.5f);
+            ping.rectTransform.sizeDelta = new Vector2(6f, 6f);
 
-            label = Ui.MakeText("Label", rect, "MAP", 13, Color.white, TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
+            label = Ui.MakeText("Label", rect, "MAP", 12, MenuArt.PaperWhite, TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
             label.rectTransform.anchorMin = new Vector2(0f, 0f);
             label.rectTransform.anchorMax = new Vector2(1f, 0.36f);
-            label.rectTransform.offsetMin = new Vector2(4f, 8f);
+            label.rectTransform.offsetMin = new Vector2(4f, 6f);
             label.rectTransform.offsetMax = new Vector2(-4f, 0f);
 
             var btn = rect.gameObject.AddComponent<Button>();
-            btn.targetGraphic = rim;
+            btn.transition = Selectable.Transition.None;
+            btn.targetGraphic = disc;
             btn.interactable = Interactive;
             if (Interactive)
             {
@@ -583,6 +738,7 @@ namespace Kalyeah.Game
                     SyncMapToggleVisual(force: true);
                 });
             }
+            UiShaders.AttachPressSpring(btn, 0.94f, 2f);
             return btn;
         }
 
@@ -601,14 +757,16 @@ namespace Kalyeah.Game
             if (!force && mapOn == _lastMapVisible) return;
             _lastMapVisible = mapOn;
 
-            _mapToggleRim.color = mapOn ? KomiksUi.MangoGold : new Color(1f, 1f, 1f, 0.85f);
+            _mapToggleRim.color = mapOn
+                ? new Color(MenuArt.WaterCyan.r, MenuArt.WaterCyan.g, MenuArt.WaterCyan.b, 0.90f)
+                : new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.72f);
             _mapToggleDisc.color = mapOn
-                ? new Color(0.14f, 0.22f, 0.38f, 0.96f)
-                : new Color(0.09f, 0.11f, 0.19f, 0.92f);
+                ? new Color(0.082f, 0.125f, 0.175f, 0.86f)
+                : new Color(MenuArt.ObsidianSolid.r, MenuArt.ObsidianSolid.g, MenuArt.ObsidianSolid.b, 0.72f);
             if (_mapToggleRingIcon != null)
-                _mapToggleRingIcon.color = mapOn ? KomiksUi.MangoGold : Color.white;
+                _mapToggleRingIcon.color = mapOn ? MenuArt.WaterCyan : MenuArt.PaperWhite;
             if (_mapToggleLabel != null)
-                _mapToggleLabel.color = mapOn ? KomiksUi.MangoGold : Color.white;
+                _mapToggleLabel.color = mapOn ? MenuArt.WaterCyan : MenuArt.PaperWhite;
         }
 
         void UpdateMapToggleAndMinimapLayout()
@@ -627,8 +785,8 @@ namespace Kalyeah.Game
             float cornerW = refCorner != null && refCorner.sizeDelta.x > 1f ? refCorner.sizeDelta.x : minTouch;
             float inlineX = cornerInset + cornerW + 10f;
 
-            float sideReserve = Mathf.Max(140f, minTouch + 28f);
-            float totalWingSpan = ScreenFitMetrics.ClampWingSpread(760f, sideReserve, 920f, Canvas);
+            float sideReserve = Mathf.Max(140f, minTouch * 2f + 44f);
+            float totalWingSpan = ScreenFitMetrics.ClampWingSpread(680f, sideReserve, 740f, Canvas);
             float wingOuterFromEdge = (safe.x - totalWingSpan) * 0.5f;
 
             if (inlineX + minTouch + 8f <= wingOuterFromEdge)
@@ -669,7 +827,7 @@ namespace Kalyeah.Game
                 {
                     Minimap.Root.anchorMin = Minimap.Root.anchorMax = new Vector2(0f, 1f);
                     Minimap.Root.pivot = new Vector2(0f, 1f);
-                    // top-left corner, under the settings button (the HP chip moved to the bottom centre)
+                    // top-left corner, cleanly under the pause button (HeroVitalsChip always stays bottom-center)
                     float pauseBottom = PauseButtonRect != null
                         ? Mathf.Abs(PauseButtonRect.anchoredPosition.y) + PauseButtonRect.sizeDelta.y
                         : minTouch + 12f;
@@ -688,10 +846,8 @@ namespace Kalyeah.Game
                 float map = BarangayMinimapView.PanelSize;
                 if (_appliedLeftHanded)
                 {
-                    // the gap shrinks on narrow 4:3 screens so the button stays out of the centre sightbox (45% of the width)
                     float sightRight = safe.x * 0.725f + 2f;
                     float gap = Mathf.Clamp(safe.x - sightRight - Mathf.Abs(at.x) - map - minTouch, 0f, 12f);
-                    // level with the minimap's top: on 4:3 the stick's base reaches up past the minimap's middle
                     ads.anchoredPosition = new Vector2(at.x - map - gap, at.y);
                 }
                 else
@@ -700,7 +856,52 @@ namespace Kalyeah.Game
                 }
             }
 
+            LayoutPingAndBanter(safe, dp, minTouch);
             LayoutHeroVitals();
+        }
+
+        void LayoutPingAndBanter(Vector2 safe, float dp, float minTouch)
+        {
+            if (PingAndBanter == null) return;
+
+            // Place PingButton on the top strip directly beside QuickChat (RightHanded) or Pause (LeftHanded),
+            // strictly outside SquadWings, Header, Minimap, and the 45%x50% center sightbox across 21:9..4:3!
+            RectTransform pingBtn = PingAndBanter.PingButtonRect;
+            if (pingBtn != null)
+            {
+                pingBtn.sizeDelta = new Vector2(minTouch, minTouch);
+                if (_appliedLeftHanded)
+                {
+                    float pauseInset = PauseButtonRect != null ? Mathf.Max(12f, Mathf.Abs(PauseButtonRect.anchoredPosition.x)) : 12f;
+                    float pauseW = PauseButtonRect != null && PauseButtonRect.sizeDelta.x > 1f ? PauseButtonRect.sizeDelta.x : minTouch;
+                    pingBtn.anchorMin = pingBtn.anchorMax = new Vector2(0f, 1f);
+                    pingBtn.pivot = new Vector2(0f, 1f);
+                    pingBtn.anchoredPosition = new Vector2(pauseInset + pauseW + 10f, -12f);
+                }
+                else
+                {
+                    float chatInset = QuickChatButtonRect != null
+                        ? Mathf.Max(24f, Mathf.Abs(QuickChatButtonRect.anchoredPosition.x))
+                        : Mathf.Max(24f, 12f * dp);
+                    float chatW = QuickChatButtonRect != null && QuickChatButtonRect.sizeDelta.x > 1f ? QuickChatButtonRect.sizeDelta.x : minTouch;
+                    pingBtn.anchorMin = pingBtn.anchorMax = new Vector2(1f, 1f);
+                    pingBtn.pivot = new Vector2(1f, 1f);
+                    pingBtn.anchoredPosition = new Vector2(-(chatInset + chatW + 10f), -12f);
+                }
+            }
+
+            // Place Taglish Banter strip top-center right below the 46 px Header/Wings and strictly ABOVE the 45%x50% center sightbox
+            RectTransform banter = PingAndBanter.BanterRoot;
+            if (banter != null)
+            {
+                float banterW = Mathf.Clamp(safe.x * 0.34f, 260f, 360f);
+                float sightboxTop = safe.y * 0.25f;
+                float banterH = Mathf.Clamp(sightboxTop - 68f, 56f, 72f);
+                banter.anchorMin = banter.anchorMax = new Vector2(0.5f, 1f);
+                banter.pivot = new Vector2(0.5f, 1f);
+                banter.anchoredPosition = new Vector2(0f, -60f);
+                banter.sizeDelta = new Vector2(banterW, banterH);
+            }
         }
 
         static readonly Vector3[] Corners = new Vector3[4];
@@ -708,15 +909,21 @@ namespace Kalyeah.Game
         bool _vitalsFitLeftHanded;
 
         /// <summary>
-        /// HP and water sit bottom centre between the thumbs (docs/SPEC.md §8): centred in the gap between the stick and the ability
-        /// cluster, scaled down when the gap is narrow (4:3 foldables), and back in the top-left corner when even that does not fit.
+        /// Locked G5 (A1): Frameless floating HP + Water vitals ALWAYS stay cleanly anchored at bottom-center
+        /// between the left thumbstick and right ability cluster (never jumping to top-left over the minimap during spawn!).
+        /// Uses analytic fallback bounds when Canvas world corners have not settled on frame 0.
         /// </summary>
         void LayoutHeroVitals()
         {
             if (HeroVitalsRect == null || !(HeroVitalsRect.parent is RectTransform space)) return;
+
+            Vector2 safeSize = ScreenFitMetrics.SafeCanvasSize(Canvas);
             Rect area = space.rect;
-            float lo = area.xMin;
-            float hi = area.xMax;
+            bool rectValid = area.width > 120f;
+            float areaMinX = rectValid ? area.xMin : 0f;
+            float areaMaxX = rectValid ? area.xMax : safeSize.x;
+            float lo = areaMinX;
+            float hi = areaMaxX;
             bool stickOnLeft = !_appliedLeftHanded;
 
             void Bound(RectTransform rt, bool onLeft)
@@ -730,38 +937,53 @@ namespace Kalyeah.Game
                     min = Mathf.Min(min, x);
                     max = Mathf.Max(max, x);
                 }
+                if (max <= min + 1f) return;
                 if (onLeft) lo = Mathf.Max(lo, max);
                 else hi = Mathf.Min(hi, min);
             }
 
-            Bound(JoystickBaseRect, stickOnLeft);
-            if (AbilityArc != null && AbilityArc.Root != null && AbilityArc.Root.gameObject.activeInHierarchy)
+            if (rectValid)
             {
-                IReadOnlyList<RectTransform> buttons = AbilityArc.InteractiveButtonRects;
-                for (int i = 0; i < buttons.Count; i++)
-                    Bound(buttons[i], !stickOnLeft);
+                Bound(JoystickBaseRect, stickOnLeft);
+                if (UsingCardsTray && CardHand != null && CardHand.Root != null && CardHand.Root.gameObject.activeInHierarchy)
+                {
+                    IReadOnlyList<RectTransform> slots = CardHand.CardSlotRects;
+                    for (int i = 0; i < slots.Count; i++)
+                        Bound(slots[i], !stickOnLeft);
+                }
+                else if (AbilityArc != null && AbilityArc.Root != null && AbilityArc.Root.gameObject.activeInHierarchy)
+                {
+                    IReadOnlyList<RectTransform> buttons = AbilityArc.InteractiveButtonRects;
+                    for (int i = 0; i < buttons.Count; i++)
+                        Bound(buttons[i], !stickOnLeft);
+                }
             }
 
-            const float margin = 12f;
+            // Analytic fallback when Canvas layout has not settled yet (e.g. frame-0 spawn freeze capture)
+            float minTouch = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, Canvas);
+            float dp = ScreenFitMetrics.DpToCanvasPx(1f, Canvas);
+            float approxStickReach = Mathf.Clamp(minTouch * 2.5f + 44f, 200f, safeSize.x * 0.30f);
+            float approxArcReach = Mathf.Clamp(264f * dp, 240f, safeSize.x * 0.50f);
+            if (lo <= areaMinX + 4f)
+                lo = areaMinX + (stickOnLeft ? approxStickReach : approxArcReach);
+            if (hi >= areaMaxX - 4f)
+                hi = areaMaxX - (stickOnLeft ? approxArcReach : approxStickReach);
+            if (hi - lo < 120f)
+            {
+                float mid = (areaMinX + areaMaxX) * 0.5f;
+                lo = mid - 96f;
+                hi = mid + 96f;
+            }
+
+            const float margin = 8f;
             float width = Mathf.Max(1f, HeroVitalsRect.sizeDelta.x);
-            float scale = Mathf.Min(1f, (hi - lo - margin * 2f) / width);
-            if (scale >= 0.6f)
-            {
-                HeroVitalsRect.anchorMin = HeroVitalsRect.anchorMax = new Vector2(0f, 0f);
-                HeroVitalsRect.pivot = new Vector2(0.5f, 0f);
-                HeroVitalsRect.localScale = Vector3.one * scale;
-                HeroVitalsRect.anchoredPosition = new Vector2((lo + hi) * 0.5f - area.xMin, 14f);
-            }
-            else
-            {
-                float minTouch = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, Canvas);
-                HeroVitalsRect.anchorMin = HeroVitalsRect.anchorMax = new Vector2(0f, 1f);
-                HeroVitalsRect.pivot = new Vector2(0f, 1f);
-                HeroVitalsRect.localScale = Vector3.one;
-                HeroVitalsRect.anchoredPosition = new Vector2(12f, -(minTouch + 22f));
-                if (!_appliedLeftHanded && Minimap != null && Minimap.Root != null)
-                    Minimap.Root.anchoredPosition = new Vector2(12f, -(minTouch + 22f + HeroVitalsRect.sizeDelta.y + 10f));
-            }
+            float availW = Mathf.Max(96f, hi - lo - margin * 2f);
+            float scale = Mathf.Clamp(availW / width, 0.48f, 1f);
+
+            HeroVitalsRect.anchorMin = HeroVitalsRect.anchorMax = new Vector2(0f, 0f);
+            HeroVitalsRect.pivot = new Vector2(0.5f, 0f);
+            HeroVitalsRect.localScale = Vector3.one * scale;
+            HeroVitalsRect.anchoredPosition = new Vector2((lo + hi) * 0.5f - areaMinX, 14f);
         }
 
         void SyncHandedness()
@@ -776,12 +998,12 @@ namespace Kalyeah.Game
             if (OwnTeamRect == null) return;
             Vector2 safe = ScreenFitMetrics.SafeCanvasSize(Canvas);
             float minTouch = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, Canvas);
-            float sideReserve = Mathf.Max(140f, minTouch + 28f);
-            float totalWingSpan = ScreenFitMetrics.ClampWingSpread(760f, sideReserve, 920f, Canvas);
+            float sideReserve = Mathf.Max(140f, minTouch * 2f + 44f);
+            float totalWingSpan = ScreenFitMetrics.ClampWingSpread(680f, sideReserve, 740f, Canvas);
             float leftX = Mathf.Max(minTouch + 20f, (safe.x - totalWingSpan) * 0.5f);
-            float maxW = Mathf.Clamp(safe.x * 0.5f - 128f - leftX, 96f, 252f);
-            OwnTeamRect.anchoredPosition = new Vector2(leftX, -14f);
-            OwnTeamRect.sizeDelta = new Vector2(maxW, 48f);
+            float maxW = Mathf.Clamp(safe.x * 0.5f - 106f - leftX, 96f, 234f);
+            OwnTeamRect.anchoredPosition = new Vector2(leftX, -8f);
+            OwnTeamRect.sizeDelta = new Vector2(maxW, 46f);
         }
 
         void OnSettingsChanged()
@@ -796,16 +1018,137 @@ namespace Kalyeah.Game
             RefreshLayout();
         }
 
+        void OnSimulatedViewportChanged()
+        {
+            if (_disposed) return;
+            Vector2 safe = ScreenFitMetrics.SafeCanvasSize(Canvas);
+            float dp = ScreenFitMetrics.DpToCanvasPx(1f, Canvas);
+            float minTouch = ScreenFitMetrics.ClampTouchSize(56f, ScreenFitMetrics.MinTouchDp, Canvas);
+            LayoutPingAndBanter(safe, dp, minTouch);
+        }
+
+        void OnPingEmitted(TacticalPingKind kind, string message)
+        {
+            if (_disposed) return;
+            Haptics.LightTap();
+            _audio?.PlayUiTap("confirm");
+            if (_boundAudioSim != null && _boundAudioSim.LocalKid.HasValue && Minimap != null)
+                Minimap.PushSoundRipple(_boundAudioSim.LocalKid.Value.Position, intensity: 1.15f, isSkill: kind == TacticalPingKind.Attack || kind == TacticalPingKind.Danger);
+        }
+
+        /// <summary>Triggers a LoreCodexData match-start Taglish banter toast (Ate Lorna or rival matchup intro).</summary>
+        public void TriggerMatchStartBanter(SimBridge sim)
+        {
+            if (_disposed || PingAndBanter == null || sim == null) return;
+            _matchStartBanterShown = true;
+            _banterAlliesScratch.Clear();
+            _banterEnemiesScratch.Clear();
+            int localTeam = sim.LocalPlayerTeam;
+            IReadOnlyList<KidSnapshot> kids = sim.Kids;
+            for (int i = 0; i < kids.Count; i++)
+            {
+                string cid = kids[i].CharacterId;
+                if (string.IsNullOrEmpty(cid)) continue;
+                if (kids[i].Team == localTeam)
+                {
+                    if (_banterAlliesScratch.Count < 5) _banterAlliesScratch.Add(cid);
+                }
+                else if (_banterEnemiesScratch.Count < 5)
+                {
+                    _banterEnemiesScratch.Add(cid);
+                }
+            }
+            PingAndBanter.ShowMatchStartBanter(_banterAlliesScratch, _banterEnemiesScratch, _banterSeedCounter++);
+            _banterCooldownLeft = BanterRescueCooldownSeconds;
+            _audio?.PlayBanter();
+        }
+
+        void BindAudioSim(SimBridge sim)
+        {
+            if (ReferenceEquals(_boundAudioSim, sim)) return;
+            UnbindAudioSim();
+            _boundAudioSim = sim;
+            _matchStartBanterShown = false;
+            _banterCooldownLeft = 0f;
+            if (_boundAudioSim == null) return;
+            _boundAudioSim.TiradorReloadStarted += OnSimTiradorReloadStarted;
+            _boundAudioSim.WaterInsufficient += OnSimWaterInsufficient;
+            _boundAudioSim.Tagged += OnSimTaggedForBanter;
+            _boundAudioSim.Rescued += OnSimRescuedForBanter;
+        }
+
+        void UnbindAudioSim()
+        {
+            if (_boundAudioSim == null) return;
+            _boundAudioSim.TiradorReloadStarted -= OnSimTiradorReloadStarted;
+            _boundAudioSim.WaterInsufficient -= OnSimWaterInsufficient;
+            _boundAudioSim.Tagged -= OnSimTaggedForBanter;
+            _boundAudioSim.Rescued -= OnSimRescuedForBanter;
+            _boundAudioSim = null;
+        }
+
+        void OnSimTiradorReloadStarted(int playerId)
+        {
+            if (_boundAudioSim != null && playerId == _boundAudioSim.LocalPlayerId)
+                _audio?.PlayReloadClack();
+        }
+
+        void OnSimWaterInsufficient(int playerId)
+        {
+            if (_boundAudioSim != null && playerId == _boundAudioSim.LocalPlayerId)
+                _audio?.PlayWaterEmpty();
+        }
+
+        void OnSimTaggedForBanter(int victimId, int taggerId)
+        {
+            if (_disposed || !Application.isPlaying || _boundAudioSim == null || PingAndBanter == null) return;
+            if (_banterCooldownLeft > 0f || (Overlays != null && (Overlays.IsCaptureAlertVisible || Overlays.IsBlockingGameplayInput))) return;
+
+            int localId = _boundAudioSim.LocalPlayerId;
+            if (taggerId != localId && victimId != localId) return;
+
+            KidSnapshot? attacker = _boundAudioSim.Find(taggerId);
+            KidSnapshot? victim = _boundAudioSim.Find(victimId);
+            if (!attacker.HasValue || !victim.HasValue) return;
+
+            PingAndBanter.ShowTagBanter(attacker.Value.CharacterId, victim.Value.CharacterId, _banterSeedCounter++);
+            _banterCooldownLeft = BanterTagCooldownSeconds;
+            _audio?.PlayBanter();
+        }
+
+        void OnSimRescuedForBanter(int savedId, int rescuerId)
+        {
+            if (_disposed || !Application.isPlaying || _boundAudioSim == null || PingAndBanter == null) return;
+            if (_banterCooldownLeft > 0f || (Overlays != null && (Overlays.IsCaptureAlertVisible || Overlays.IsBlockingGameplayInput))) return;
+            if (rescuerId == MatchSim.ReleasedByRevenge) return;
+
+            int localId = _boundAudioSim.LocalPlayerId;
+            if (savedId != localId && rescuerId != localId) return;
+
+            KidSnapshot? rescuer = _boundAudioSim.Find(rescuerId);
+            KidSnapshot? saved = _boundAudioSim.Find(savedId);
+            if (!rescuer.HasValue || !saved.HasValue) return;
+
+            PingAndBanter.ShowRescueBanter(rescuer.Value.CharacterId, saved.Value.CharacterId, _banterSeedCounter++);
+            _banterCooldownLeft = BanterRescueCooldownSeconds;
+            _audio?.PlayBanter();
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
 
+            UnbindAudioSim();
+            ScreenFitMetrics.SimulatedViewportChanged -= OnSimulatedViewportChanged;
             SettingsStore.Current.Changed -= OnSettingsChanged;
             if (SafeArea != null)
                 SafeArea.Changed -= OnSafeAreaChanged;
+            if (PingAndBanter != null)
+                PingAndBanter.PingEmitted -= OnPingEmitted;
 
             Crosshair?.Unbind();
+            PingAndBanter?.Dispose();
             Minimap?.Dispose();
             Overlays?.Dispose();
 

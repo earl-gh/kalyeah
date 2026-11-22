@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 using SVector2 = System.Numerics.Vector2;
 
 namespace Kalyeah.Game
@@ -100,7 +101,9 @@ namespace Kalyeah.Game
             MapLayoutData mapLayout = MapLayoutData.Load(data);
 
             View = new StreetMatchView(root, mapLayout, cameraRules, Sim);
-            Shoulder = new ShoulderCamera(cameraRules, Sim.LocalPlayerTeam, data, layout: null)
+            MapLayoutData streetCamLayout = ConfigureStreetWorldCollidersAndLighting(View, Sim, mapLayout);
+
+            Shoulder = new ShoulderCamera(cameraRules, Sim.LocalPlayerTeam, data, layout: streetCamLayout)
             {
                 ReduceMotion = SettingsStore.Current.ReduceMotion,
             };
@@ -111,6 +114,10 @@ namespace Kalyeah.Game
             cameraObject.tag = "MainCamera";
             Camera = cameraObject.GetComponent<Camera>();
             Camera.clearFlags = CameraClearFlags.Skybox;
+
+            // Ensure Street mode always has an active AudioListener so BGM & SFX play on Android and desktop.
+            if (cameraObject.GetComponent<AudioListener>() == null && UnityEngine.Object.FindAnyObjectByType<AudioListener>() == null)
+                cameraObject.AddComponent<AudioListener>();
 
             Fx = new FxPool(root, FxPool.DefaultCapacity, SettingsStore.Current.ReduceMotion)
             {
@@ -363,6 +370,212 @@ namespace Kalyeah.Game
             float s = MathF.Sin(radians);
             var rotated = new SVector2(dir.X * c - dir.Y * s, dir.X * s + dir.Y * c);
             return rotated.LengthSquared() > 0.0001f ? SVector2.Normalize(rotated) : new SVector2(0f, -1f);
+        }
+
+        /// <summary>
+        /// Configures Street mode for Option A1 crisp 10:30 AM sunlit Manila lighting, upgrades untextured storefront stand-ins
+        /// to <c>Kalyeah/BarangayBuilding</c>, attaches Default-layer ground/sidewalk/wall <see cref="BoxCollider"/>s for Foot IK
+        /// and camera whisker SphereCasts, and returns an analytic 4-wall <see cref="MapLayoutData"/> so Tumbang Preso / Patintero /
+        /// Langit Lupa cameras never clip through street walls.
+        /// </summary>
+        static MapLayoutData ConfigureStreetWorldCollidersAndLighting(StreetMatchView view, StreetBridge sim, MapLayoutData baseLayout)
+        {
+            float halfW = ComputeStreetHalfWidth(sim);
+            float halfL = ComputeStreetHalfLength(sim);
+
+            if (view != null && view.Root != null)
+            {
+                // 1. Crisp 10:30 AM sunlit Manila lighting (disable dead 2nd Fill directional light + refresh GI probes)
+                Light[] lights = view.Root.GetComponentsInChildren<Light>(true);
+                for (int i = 0; i < lights.Length; i++)
+                {
+                    Light l = lights[i];
+                    if (l.type != LightType.Directional) continue;
+                    if (l.gameObject.name == "Fill")
+                    {
+                        l.enabled = false;
+                        l.intensity = 0f;
+                    }
+                    else if (l.gameObject.name == "Sun")
+                    {
+                        l.color = new Color(1.00f, 0.957f, 0.871f, 1f);
+                        l.intensity = 1.38f;
+                        l.shadows = LightShadows.Soft;
+                        l.shadowStrength = 0.56f;
+                        l.shadowBias = 0.04f;
+                        l.shadowNormalBias = 0.35f;
+                        l.transform.rotation = Quaternion.LookRotation(KalyeahResources.U(GodotSpace.Forward(44f, 60f)));
+                        RenderSettings.sun = l;
+                    }
+                }
+                RenderSettings.ambientMode = AmbientMode.Trilight;
+                RenderSettings.ambientSkyColor = new Color(0.384f, 0.596f, 0.847f, 1f);
+                RenderSettings.ambientEquatorColor = new Color(0.796f, 0.749f, 0.663f, 1f);
+                RenderSettings.ambientGroundColor = new Color(0.490f, 0.431f, 0.361f, 1f);
+                RenderSettings.fogColor = new Color(0.84f, 0.89f, 0.93f, 1f);
+                DynamicGI.UpdateEnvironment();
+
+                // 2. Walkable street floor collider (Default layer) for 2-bone Foot IK
+                var floorColGo = new GameObject("StreetGroundCollider");
+                floorColGo.layer = 0;
+                floorColGo.transform.SetParent(view.Root, false);
+                var floorCol = floorColGo.AddComponent<BoxCollider>();
+                floorCol.center = new Vector3(0f, -0.5f, 0f);
+                floorCol.size = new Vector3(240f, 1f, 240f);
+                floorCol.isTrigger = false;
+
+                // 3. Upgrade untextured street storefront cubes to Kalyeah/BarangayBuilding & add sidewalk colliders
+                Transform[] children = view.Root.GetComponentsInChildren<Transform>(true);
+                int bldgIdx = 0;
+                for (int i = 0; i < children.Length; i++)
+                {
+                    GameObject go = children[i].gameObject;
+                    string n = go.name;
+                    if ((n == "WestSidewalk" || n == "EastSidewalk") && go.GetComponent<Collider>() == null)
+                    {
+                        go.layer = 0;
+                        go.AddComponent<BoxCollider>().isTrigger = false;
+                        continue;
+                    }
+
+                    if (n.EndsWith("_StandIn", StringComparison.Ordinal)
+                        && n.IndexOf("mango", StringComparison.OrdinalIgnoreCase) < 0
+                        && n.IndexOf("coconut", StringComparison.OrdinalIgnoreCase) < 0
+                        && n.IndexOf("banana", StringComparison.OrdinalIgnoreCase) < 0
+                        && go.transform.lossyScale.y >= 2.0f)
+                    {
+                        MeshRenderer mr = go.GetComponent<MeshRenderer>();
+                        if (mr != null)
+                        {
+                            Material bldgMat = GreyBoxKit.GetBarangayBuildingMaterial(GreyBoxKit.PaletteIndexFor(go.transform.position, bldgIdx));
+                            if (bldgMat != null) mr.sharedMaterial = bldgMat;
+                            bldgIdx++;
+                        }
+                    }
+                }
+
+                // 4. Unscaled Default-layer wall BoxColliders for all street buildings + continuous boundary facades (zero shear!)
+                var wallsRoot = new GameObject("StreetBoundaryColliders").transform;
+                wallsRoot.SetParent(view.Root, false);
+                if (view.Occluders != null)
+                {
+                    for (int i = 0; i < view.Occluders.Count; i++)
+                    {
+                        GameObject occ = view.Occluders[i];
+                        if (occ == null || occ.GetComponentInChildren<Collider>(true) != null) continue;
+                        Bounds wb = KalyeahResources.RenderBounds(occ);
+                        if (wb.size.y < 1.8f || (wb.size.x < 1.2f && wb.size.z < 1.2f)) continue;
+                        AddStreetWallCollider(wallsRoot, "StreetOccluderCol_" + i, wb.center, wb.size);
+                    }
+                }
+
+                // 5. Continuous enclosure wall colliders flush with storefront facades (closes alleys between cubes)
+                float wallInnerX = halfW + 3.0f;
+                float wallInnerZ = halfL + 3.6f;
+                float sideSpanZ = (wallInnerZ + 8f) * 2f;
+                float endSpanX = (wallInnerX + 8f) * 2f;
+                AddStreetWallCollider(wallsRoot, "WestFacadeWall", new Vector3(-(wallInnerX + 1.5f), 4f, 0f), new Vector3(3f, 8f, sideSpanZ));
+                AddStreetWallCollider(wallsRoot, "EastFacadeWall", new Vector3(wallInnerX + 1.5f, 4f, 0f), new Vector3(3f, 8f, sideSpanZ));
+                AddStreetWallCollider(wallsRoot, "NorthFacadeWall", new Vector3(0f, 4f, wallInnerZ + 1.5f), new Vector3(endSpanX, 8f, 3f));
+                AddStreetWallCollider(wallsRoot, "SouthFacadeWall", new Vector3(0f, 4f, -(wallInnerZ + 1.5f)), new Vector3(endSpanX, 8f, 3f));
+
+                Physics.SyncTransforms();
+            }
+
+            // Analytic 4-wall layout (MapLayoutData mirrors Obstacles around origin -> West+North mirror to East+South).
+            float camWallX = halfW + 2.95f;
+            float camWallZ = halfL + 3.55f;
+            return new MapLayoutData
+            {
+                ArenaRadius = 0f,
+                BaseInset = baseLayout != null ? baseLayout.BaseInset : 0f,
+                BaseRadius = baseLayout != null ? baseLayout.BaseRadius : 0f,
+                BoundaryThickness = 1.2f,
+                CoverHeight = baseLayout != null ? baseLayout.CoverHeight : 1.35f,
+                Obstacles = new[]
+                {
+                    new GroundRect(-(camWallX + 12f), -(camWallZ + 12f), 12f, (camWallZ + 12f) * 2f),
+                    new GroundRect(-(camWallX + 12f), -(camWallZ + 12f), (camWallX + 12f) * 2f, 12f),
+                },
+                ObstacleYawsDeg = Array.Empty<float>(),
+                ObstacleScales = Array.Empty<float>(),
+                ObstacleProps = Array.Empty<string>(),
+                PowerupSpots = Array.Empty<SVector2>(),
+            };
+        }
+
+        static void AddStreetWallCollider(Transform parent, string name, Vector3 center, Vector3 size)
+        {
+            var go = new GameObject(name);
+            go.layer = 0;
+            go.transform.SetParent(parent, false);
+            go.transform.position = center;
+            var col = go.AddComponent<BoxCollider>();
+            col.size = size;
+            col.isTrigger = false;
+        }
+
+        static float ComputeStreetHalfWidth(StreetBridge bridge)
+        {
+            if (bridge == null) return 12.5f;
+            if (bridge.Kind == StreetGameKind.Patintero)
+            {
+                PatinteroSnapshot pat = bridge.PatinteroState;
+                float halfW = pat.LineSpan > 1f ? pat.LineSpan * 0.5f : 0f;
+                if (pat.GuardLines != null)
+                {
+                    for (int i = 0; i < pat.GuardLines.Count; i++)
+                    {
+                        PatinteroLineSnapshot gl = pat.GuardLines[i];
+                        halfW = gl.IsVertical
+                            ? Mathf.Max(halfW, Mathf.Abs(gl.Coordinate) + 3.5f)
+                            : Mathf.Max(halfW, gl.SpanHalfExtent);
+                    }
+                }
+                return Mathf.Clamp(halfW > 1f ? halfW : 12.5f, 11f, 14f);
+            }
+            if (bridge.Kind == StreetGameKind.TumbangPreso)
+                return 12.5f;
+
+            LangitLupaSnapshot ll = bridge.LangitLupaState;
+            float maxX = 12f;
+            if (ll.Platforms != null)
+            {
+                for (int i = 0; i < ll.Platforms.Count; i++)
+                {
+                    GroundRect b = ll.Platforms[i].Bounds;
+                    maxX = Mathf.Max(maxX, Mathf.Max(Mathf.Abs(b.X), Mathf.Abs(b.End.X)) + 3.5f);
+                }
+            }
+            return Mathf.Clamp(maxX, 12f, 15.5f);
+        }
+
+        static float ComputeStreetHalfLength(StreetBridge bridge)
+        {
+            if (bridge == null) return 20f;
+            if (bridge.Kind == StreetGameKind.Patintero)
+            {
+                PatinteroSnapshot pat = bridge.PatinteroState;
+                float span = Mathf.Max(Mathf.Abs(pat.HomeZ), Mathf.Abs(pat.GoalZ));
+                return Mathf.Clamp((span > 1f ? span : 18f) + 4f, 16f, 28f);
+            }
+            if (bridge.Kind == StreetGameKind.TumbangPreso)
+            {
+                TumbangPresoSnapshot tp = bridge.TumbangPresoState;
+                float span = Mathf.Max(Mathf.Abs(tp.HomeZ), Mathf.Abs(tp.CanSpot.Y) + 6f);
+                return Mathf.Clamp((span > 1f ? span : 16f) + 4f, 16f, 28f);
+            }
+            LangitLupaSnapshot ll = bridge.LangitLupaState;
+            float maxZ = 15f;
+            if (ll.Platforms != null)
+            {
+                for (int i = 0; i < ll.Platforms.Count; i++)
+                {
+                    GroundRect b = ll.Platforms[i].Bounds;
+                    maxZ = Mathf.Max(maxZ, Mathf.Max(Mathf.Abs(b.Y), Mathf.Abs(b.End.Y)) + 4.5f);
+                }
+            }
+            return Mathf.Clamp(maxZ, 15f, 24f);
         }
 
         void OnSettingsChanged()

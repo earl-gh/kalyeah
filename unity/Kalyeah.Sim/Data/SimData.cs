@@ -19,6 +19,7 @@ namespace Kalyeah.Sim
         {
             { "GameRules", typeof(GameRules) },
             { "WeaponDef", typeof(WeaponDef) },
+            { "SkillDef", typeof(SkillDef) },
             { "CharacterDef", typeof(CharacterDef) },
             { "BotLevel", typeof(BotLevel) },
             { "MapLayout", typeof(MapLayout) },
@@ -114,7 +115,11 @@ namespace Kalyeah.Sim
             if (to == typeof(long)) return (long)MiniJson.Num(value);
             if (to == typeof(bool)) return value is bool b ? b : MiniJson.Num(value) != 0.0;
             if (to == typeof(string)) return value == null ? "" : value is string s ? s : System.Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture);
-            if (to.IsEnum) return Enum.ToObject(to, (int)MiniJson.Num(value));
+            if (to.IsEnum)
+            {
+                if (value is string enumName) return Enum.Parse(to, Pascal(enumName), true);
+                return Enum.ToObject(to, (int)MiniJson.Num(value));
+            }
             if (to == typeof(Vec2))
             {
                 var o = (OrderedDict<string, object>)value;

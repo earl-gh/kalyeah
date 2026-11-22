@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using TMPro;
 using UnityEngine;
+using UnityEngine.TextCore.LowLevel;
 using Object = UnityEngine.Object;
 using SVector2 = System.Numerics.Vector2;
 using SVector3 = System.Numerics.Vector3;
@@ -1081,11 +1083,32 @@ namespace Kalyeah.Game
             new Dictionary<string, CharacterRigData>(16, StringComparer.OrdinalIgnoreCase);
         static readonly Dictionary<string, Texture2D> CharacterTexCache =
             new Dictionary<string, Texture2D>(32, StringComparer.OrdinalIgnoreCase);
+        static readonly Dictionary<string, Texture2D> BustTextureCache =
+            new Dictionary<string, Texture2D>(16, StringComparer.OrdinalIgnoreCase);
+        static readonly Dictionary<string, Sprite> BustSpriteCache =
+            new Dictionary<string, Sprite>(16, StringComparer.OrdinalIgnoreCase);
+        static readonly Dictionary<string, Sprite> HeadSpriteCache =
+            new Dictionary<string, Sprite>(16, StringComparer.OrdinalIgnoreCase);
         static RigJointLimitsData s_jointLimitsCache;
         static AnimClipMetricsData s_clipMetricsCache;
         static Material s_nullFallbackMaterial;
         static Material s_blobShadowMaterial;
         static Texture2D s_blobShadowTexture;
+        static TMP_FontAsset s_tmpDisplayFont;
+        static TMP_FontAsset s_tmpBodyFont;
+        static Material s_tmpDisplayHighContrastMat;
+        static Material s_tmpBodyHighContrastMat;
+
+        public const int TmpSamplingPointSize = 84;
+        public const int TmpAtlasPadding = 9;
+        public const int TmpAtlasSize = 1024;
+        const string AvatarPrefix = "ui/avatars/";
+
+        static readonly int TmpUnderlayColorId = Shader.PropertyToID("_UnderlayColor");
+        static readonly int TmpUnderlayOffsetXId = Shader.PropertyToID("_UnderlayOffsetX");
+        static readonly int TmpUnderlayOffsetYId = Shader.PropertyToID("_UnderlayOffsetY");
+        static readonly int TmpUnderlayDilateId = Shader.PropertyToID("_UnderlayDilate");
+        static readonly int TmpUnderlaySoftnessId = Shader.PropertyToID("_UnderlaySoftness");
 
         static readonly int GltfBaseColorId = Shader.PropertyToID("baseColorFactor");
         static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
@@ -1112,6 +1135,8 @@ namespace Kalyeah.Game
         static readonly int CullModeId = Shader.PropertyToID("_CullMode");
         static readonly int SmoothnessId = Shader.PropertyToID("_Smoothness");
         static readonly int MetallicId = Shader.PropertyToID("_Metallic");
+        static readonly int GltfMetallicFactorId = Shader.PropertyToID("metallicFactor");
+        static readonly int GltfRoughnessFactorId = Shader.PropertyToID("roughnessFactor");
         static readonly int AmbientMinId = Shader.PropertyToID("_AmbientMin");
         static readonly int AmbientMaxId = Shader.PropertyToID("_AmbientMax");
         static readonly int EnemyHighlightId = Shader.PropertyToID("_EnemyHighlight");
@@ -1415,12 +1440,245 @@ namespace Kalyeah.Game
             return mat;
         }
 
-        public static Texture2D Texture(string path) => Resources.Load<Texture2D>(path);
+        /// <summary>
+        /// Resolves a synced UI/world texture from Resources. Legacy red-striped <c>ui/avatars/&lt;kid&gt;</c> requests
+        /// automatically route through <see cref="KidBust"/> (clean transparent <c>portraits/busts/&lt;kid&gt;</c>) with safe fallback.
+        /// </summary>
+        public static Texture2D Texture(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+            if (path.StartsWith(AvatarPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                string kidId = path.Substring(AvatarPrefix.Length);
+                Texture2D bust = KidBust(kidId);
+                if (bust != null) return bust;
+            }
+            return Resources.Load<Texture2D>(path);
+        }
+
+        /// <summary>
+        /// Loads &amp; caches a kid's clean transparent bust portrait (<c>portraits/busts/&lt;kid&gt;</c>, synced from
+        /// <c>assets/portraits/busts/*.png</c>), falling back cleanly to <c>portraits/faces/&lt;kid&gt;</c>,
+        /// <c>portraits/&lt;kid&gt;</c>, and finally legacy <c>ui/avatars/&lt;kid&gt;</c> only if absent.
+        /// </summary>
+        public static Texture2D KidBust(string kidId)
+        {
+            string clean = CleanKidId(kidId);
+            if (string.IsNullOrEmpty(clean)) return null;
+            if (BustTextureCache.TryGetValue(clean, out Texture2D cached) && cached != null)
+                return cached;
+
+            Texture2D tex = Resources.Load<Texture2D>("portraits/busts/" + clean)
+                ?? Resources.Load<Texture2D>("portraits/faces/" + clean)
+                ?? Resources.Load<Texture2D>("portraits/" + clean)
+                ?? Resources.Load<Texture2D>(AvatarPrefix + clean);
+
+            if (tex != null) BustTextureCache[clean] = tex;
+            return tex;
+        }
+
+        /// <summary>Returns a cached <see cref="Sprite"/> for <see cref="KidBust"/> (zero per-call allocations).</summary>
+        public static Sprite KidBustSprite(string kidId)
+        {
+            string clean = CleanKidId(kidId);
+            if (string.IsNullOrEmpty(clean)) return null;
+            if (BustSpriteCache.TryGetValue(clean, out Sprite cached) && cached != null)
+                return cached;
+
+            Sprite direct = Resources.Load<Sprite>("portraits/busts/" + clean);
+            if (direct != null)
+            {
+                BustSpriteCache[clean] = direct;
+                return direct;
+            }
+
+            Texture2D tex = KidBust(clean);
+            if (tex == null) return null;
+            Sprite created = Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100f);
+            created.name = "KalyeahBust_" + clean;
+            created.hideFlags = HideFlags.HideAndDontSave;
+            BustSpriteCache[clean] = created;
+            return created;
+        }
+
+        /// <summary>
+        /// Returns a cached head-and-shoulders close-up <see cref="Sprite"/> cropped cleanly from <see cref="KidBust"/>
+        /// (strips top sky margin and lower body so 5v5 scoreboard wings and small medallions stay crisp and readable).
+        /// </summary>
+        public static Sprite KidHeadSprite(string kidId)
+        {
+            string clean = CleanKidId(kidId);
+            if (string.IsNullOrEmpty(clean)) return null;
+            if (HeadSpriteCache.TryGetValue(clean, out Sprite cached) && cached != null)
+                return cached;
+
+            Texture2D tex = KidBust(clean);
+            if (tex == null) return null;
+            float rx = Mathf.Floor(tex.width * 0.19f);
+            float ry = Mathf.Floor(tex.height * 0.40f);
+            float rw = Mathf.Max(1f, Mathf.Floor(tex.width * 0.62f));
+            float rh = Mathf.Max(1f, Mathf.Floor(tex.height * 0.42f));
+            Sprite created = Sprite.Create(tex, new Rect(rx, ry, rw, rh), new Vector2(0.5f, 0.5f), 100f);
+            created.name = "KalyeahHead_" + clean;
+            created.hideFlags = HideFlags.HideAndDontSave;
+            HeadSpriteCache[clean] = created;
+            return created;
+        }
+
+        static string CleanKidId(string raw)
+        {
+            if (string.IsNullOrEmpty(raw)) return "";
+            string s = raw.Trim().ToLowerInvariant();
+            int dot = s.LastIndexOf('.');
+            if (dot > 0) s = s.Substring(0, dot);
+            int slash = s.LastIndexOf('/');
+            if (slash >= 0 && slash + 1 < s.Length) s = s.Substring(slash + 1);
+            return s;
+        }
 
         public static Font UiFont() => FontOr("fonts/brand/KalyeahSans-Variable");
 
         /// <summary>Barlow Condensed Bold, the owner's pick from the home plan (font A); the old signboard face if it is missing.</summary>
         public static Font DisplayFont() => Resources.Load<Font>("fonts/brand/BarlowCondensed-Bold") ?? FontOr("fonts/brand/KalyeahDisplay-Regular");
+
+        /// <summary>
+        /// Cached TextMeshPro SDFAA display font asset (<c>BarlowCondensed-Bold</c>, 84 pt / 9 px pad, 1024x1024 dynamic atlas,
+        /// scale = 1.0) with <see cref="TmpBodyFont"/> linked as glyph fallback for consistent stroke weight.
+        /// Returns null gracefully if TMP shaders are unavailable in minimal headless test contexts.
+        /// </summary>
+        public static TMP_FontAsset TmpDisplayFont()
+        {
+            if (s_tmpDisplayFont != null && s_tmpDisplayFont.material != null)
+                return s_tmpDisplayFont;
+
+            s_tmpDisplayFont = BuildRuntimeTmpFont(DisplayFont(), "KalyeahTmpDisplay_SDF");
+            if (s_tmpDisplayFont != null)
+            {
+                TMP_FontAsset body = TmpBodyFont();
+                if (body != null && !ReferenceEquals(body, s_tmpDisplayFont))
+                {
+                    if (s_tmpDisplayFont.fallbackFontAssetTable == null)
+                        s_tmpDisplayFont.fallbackFontAssetTable = new List<TMP_FontAsset>(1);
+                    if (!s_tmpDisplayFont.fallbackFontAssetTable.Contains(body))
+                        s_tmpDisplayFont.fallbackFontAssetTable.Add(body);
+                }
+            }
+            return s_tmpDisplayFont;
+        }
+
+        /// <summary>
+        /// Cached TextMeshPro SDFAA body font asset (<c>KalyeahSans-Variable</c>, 84 pt / 9 px pad, 1024x1024 dynamic atlas,
+        /// scale = 1.0) matching <see cref="TmpDisplayFont"/>'s padding-to-sampling ratio.
+        /// </summary>
+        public static TMP_FontAsset TmpBodyFont()
+        {
+            if (s_tmpBodyFont != null && s_tmpBodyFont.material != null)
+                return s_tmpBodyFont;
+
+            s_tmpBodyFont = BuildRuntimeTmpFont(UiFont(), "KalyeahTmpBody_SDF");
+            return s_tmpBodyFont;
+        }
+
+        /// <summary>
+        /// Shared <c>Kalyeah_Hud_HighContrast</c> SDF underlay material preset for legible light text over sunlit 3D streets
+        /// (shared across all labels via <c>fontSharedMaterial</c> so zero per-label material instances are duplicated).
+        /// </summary>
+        public static Material TmpHighContrastMaterial(TMP_FontAsset fontAsset, bool isDisplay)
+        {
+            if (fontAsset == null || fontAsset.material == null) return null;
+
+            Material cached = isDisplay ? s_tmpDisplayHighContrastMat : s_tmpBodyHighContrastMat;
+            if (cached != null && cached.shader == fontAsset.material.shader)
+            {
+                if (fontAsset.atlasTexture != null && cached.HasProperty(MainTexId))
+                    cached.SetTexture(MainTexId, fontAsset.atlasTexture);
+                return cached;
+            }
+
+            var mat = new Material(fontAsset.material)
+            {
+                name = isDisplay ? "Kalyeah_Hud_HighContrast_Display" : "Kalyeah_Hud_HighContrast_Body",
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            mat.EnableKeyword("UNDERLAY_ON");
+            if (mat.HasProperty(TmpUnderlayColorId))
+                mat.SetColor(TmpUnderlayColorId, new Color(0.03f, 0.05f, 0.09f, 0.88f));
+            if (mat.HasProperty(TmpUnderlayOffsetXId))
+                mat.SetFloat(TmpUnderlayOffsetXId, 0.55f);
+            if (mat.HasProperty(TmpUnderlayOffsetYId))
+                mat.SetFloat(TmpUnderlayOffsetYId, -0.55f);
+            if (mat.HasProperty(TmpUnderlayDilateId))
+                mat.SetFloat(TmpUnderlayDilateId, 0.12f);
+            if (mat.HasProperty(TmpUnderlaySoftnessId))
+                mat.SetFloat(TmpUnderlaySoftnessId, 0.18f);
+
+            if (isDisplay) s_tmpDisplayHighContrastMat = mat;
+            else s_tmpBodyHighContrastMat = mat;
+            return mat;
+        }
+
+        static TMP_FontAsset BuildRuntimeTmpFont(Font source, string assetName)
+        {
+            if (source == null) return null;
+
+            Shader sdfShader = Shader.Find("TextMeshPro/Mobile/Distance Field")
+                ?? Shader.Find("TextMeshPro/Distance Field");
+            if (sdfShader == null || !sdfShader.isSupported)
+                return null;
+
+            try
+            {
+                TMP_FontAsset asset = TMP_FontAsset.CreateFontAsset(
+                    source,
+                    TmpSamplingPointSize,
+                    TmpAtlasPadding,
+                    GlyphRenderMode.SDFAA,
+                    TmpAtlasSize,
+                    TmpAtlasSize);
+                if (asset == null) return null;
+
+                asset.name = assetName;
+                asset.hideFlags = HideFlags.HideAndDontSave;
+
+                UnityEngine.TextCore.FaceInfo info = asset.faceInfo;
+                if (Mathf.Abs(info.scale - 1f) > 0.001f)
+                {
+                    info.scale = 1f;
+                    asset.faceInfo = info;
+                }
+
+                if (asset.material == null || asset.material.shader == null || !asset.material.shader.isSupported)
+                {
+                    var mat = new Material(sdfShader)
+                    {
+                        name = assetName + "_Mat",
+                        hideFlags = HideFlags.HideAndDontSave,
+                    };
+                    if (asset.atlasTexture != null && mat.HasProperty(MainTexId))
+                        mat.SetTexture(MainTexId, asset.atlasTexture);
+                    asset.material = mat;
+                }
+                else
+                {
+                    asset.material.hideFlags = HideFlags.HideAndDontSave;
+                }
+
+                if (asset.atlasTextures != null)
+                {
+                    for (int i = 0; i < asset.atlasTextures.Length; i++)
+                    {
+                        if (asset.atlasTextures[i] != null)
+                            asset.atlasTextures[i].hideFlags = HideFlags.HideAndDontSave;
+                    }
+                }
+
+                return asset;
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
         static Font FontOr(string path)
         {
@@ -1482,7 +1740,7 @@ namespace Kalyeah.Game
                 for (int i = 0; i < mats.Length; i++)
                 {
                     Material src = mats[i];
-                    if (src != null && !NeedsMaterialSanitize(src.shader)) continue;
+                    if (src != null && !NeedsMaterialSanitize(src.shader) && !NeedsMatteStylizeClamp(src)) continue;
                     Material fixedMat = GetOrCreateSanitizedMaterial(src);
                     if (fixedMat != null && !ReferenceEquals(fixedMat, src))
                     {
@@ -1492,6 +1750,40 @@ namespace Kalyeah.Game
                 }
                 if (changed) renderer.sharedMaterials = mats;
             }
+        }
+
+        const float MaxPropMetallic = 0.15f;
+        const float MinPropRoughness = 0.65f;
+        const float MaxPropSmoothness = 0.35f;
+
+        static bool NeedsMatteStylizeClamp(Material mat)
+        {
+            if (mat == null || mat.shader == null) return false;
+            string n = mat.shader.name;
+            if (!string.IsNullOrEmpty(n) && n.StartsWith("Kalyeah/", StringComparison.Ordinal))
+                return false;
+            if (mat.HasProperty(GltfMetallicFactorId) && mat.GetFloat(GltfMetallicFactorId) > MaxPropMetallic + 0.01f)
+                return true;
+            if (mat.HasProperty(GltfRoughnessFactorId) && mat.GetFloat(GltfRoughnessFactorId) < MinPropRoughness - 0.01f)
+                return true;
+            if (mat.HasProperty(MetallicId) && mat.GetFloat(MetallicId) > MaxPropMetallic + 0.01f)
+                return true;
+            if (mat.HasProperty(SmoothnessId) && mat.GetFloat(SmoothnessId) > MaxPropSmoothness + 0.01f)
+                return true;
+            return false;
+        }
+
+        static void ApplyMatteStylizeClamp(Material mat)
+        {
+            if (mat == null) return;
+            if (mat.HasProperty(GltfMetallicFactorId) && mat.GetFloat(GltfMetallicFactorId) > MaxPropMetallic)
+                mat.SetFloat(GltfMetallicFactorId, MaxPropMetallic);
+            if (mat.HasProperty(GltfRoughnessFactorId) && mat.GetFloat(GltfRoughnessFactorId) < MinPropRoughness)
+                mat.SetFloat(GltfRoughnessFactorId, MinPropRoughness);
+            if (mat.HasProperty(MetallicId) && mat.GetFloat(MetallicId) > MaxPropMetallic)
+                mat.SetFloat(MetallicId, MaxPropMetallic);
+            if (mat.HasProperty(SmoothnessId) && mat.GetFloat(SmoothnessId) > MaxPropSmoothness)
+                mat.SetFloat(SmoothnessId, MaxPropSmoothness);
         }
 
         static bool NeedsMaterialSanitize(Shader shader)
@@ -1528,14 +1820,19 @@ namespace Kalyeah.Game
             if (SanitizedMaterialCache.TryGetValue(src, out Material cached) && cached != null && !NeedsMaterialSanitize(cached.shader))
                 return cached;
 
-            Shader targetShader = ResolveValidPbrShader();
+            bool shaderNeedsSwap = NeedsMaterialSanitize(src.shader);
+            Shader targetShader = shaderNeedsSwap ? ResolveValidPbrShader() : src.shader;
             if (targetShader == null) return src;
 
             bool isGltfShaderGraph = targetShader.name != null && targetShader.name.StartsWith("Shader Graphs/glTF-", StringComparison.Ordinal);
-            Material replacement = isGltfShaderGraph ? new Material(src) { shader = targetShader } : new Material(targetShader);
-            replacement.name = src.name + "_URP";
+            Material replacement = (!shaderNeedsSwap || isGltfShaderGraph)
+                ? new Material(src) { shader = targetShader }
+                : new Material(targetShader);
+            replacement.name = shaderNeedsSwap ? src.name + "_URP" : src.name + "_Matte";
             replacement.hideFlags = HideFlags.DontSave;
-            CopyPbrProperties(src, replacement);
+            if (shaderNeedsSwap)
+                CopyPbrProperties(src, replacement);
+            ApplyMatteStylizeClamp(replacement);
             SanitizedMaterialCache[src] = replacement;
             return replacement;
         }
