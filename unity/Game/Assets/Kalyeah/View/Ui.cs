@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -372,6 +373,77 @@ namespace Kalyeah.Game
             outline.effectDistance = new Vector2(2f, -2f);
             outline.enabled = Luminance(color) >= 0.25f;
             return label;
+        }
+
+        /// <summary>
+        /// Creates a crisp TextMeshPro SDF label backed by cached <see cref="KalyeahResources.TmpDisplayFont"/> or
+        /// <see cref="KalyeahResources.TmpBodyFont"/>. Disables AutoSize by default (per Unity TMP runtime rules),
+        /// disables RaycastTarget, and automatically applies the shared <c>Kalyeah_Hud_HighContrast</c> underlay preset
+        /// only on light text so dark ink never smudges. Safe in headless EditMode tests even without TMP Essentials.
+        /// </summary>
+        public static TextMeshProUGUI MakeTmpText(
+            string name,
+            Transform parent,
+            string text,
+            float size,
+            Color color,
+            TextAlignmentOptions align = TextAlignmentOptions.MidlineLeft,
+            bool displayFont = false,
+            bool highContrastShadow = true,
+            TMP_FontAsset fontOverride = null)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.SetActive(false);
+            var label = go.AddComponent<TextMeshProUGUI>();
+
+            TMP_FontAsset resolvedFont = fontOverride != null
+                ? fontOverride
+                : (displayFont ? KalyeahResources.TmpDisplayFont() : KalyeahResources.TmpBodyFont());
+            if (resolvedFont != null)
+            {
+                label.font = resolvedFont;
+                if (highContrastShadow && Luminance(color) >= 0.25f)
+                {
+                    Material preset = KalyeahResources.TmpHighContrastMaterial(resolvedFont, displayFont);
+                    if (preset != null) label.fontSharedMaterial = preset;
+                }
+            }
+
+            label.fontSize = Mathf.Max(1f, size);
+            label.enableAutoSizing = false;
+            label.color = color;
+            label.alignment = align;
+            label.raycastTarget = false;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.overflowMode = TextOverflowModes.Overflow;
+            label.text = text ?? "";
+
+            go.transform.SetParent(parent, false);
+            go.SetActive(true);
+            return label;
+        }
+
+        /// <summary>
+        /// Updates a <see cref="TMP_Text"/> label's color and swaps between the shared clean base material (dark ink)
+        /// and <c>Kalyeah_Hud_HighContrast</c> underlay preset (light ink) without duplicating materials.
+        /// </summary>
+        public static void SetTmpColor(TMP_Text label, Color color, bool allowHighContrastShadow = true)
+        {
+            if (label == null) return;
+            label.color = color;
+            TMP_FontAsset fontAsset = label.font;
+            if (fontAsset == null) return;
+
+            if (allowHighContrastShadow && Luminance(color) >= 0.25f)
+            {
+                bool isDisplay = ReferenceEquals(fontAsset, KalyeahResources.TmpDisplayFont());
+                Material preset = KalyeahResources.TmpHighContrastMaterial(fontAsset, isDisplay);
+                if (preset != null) label.fontSharedMaterial = preset;
+            }
+            else if (fontAsset.material != null)
+            {
+                label.fontSharedMaterial = fontAsset.material;
+            }
         }
 
         /// <summary>Attaches (or updates) tactile <see cref="UiPressFeel"/> on <paramref name="target"/>; inert in EditMode.</summary>
