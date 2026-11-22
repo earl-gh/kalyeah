@@ -32,47 +32,77 @@ namespace Kalyeah.Game
         const int MaxTimerSeconds = 300;
         const int LegendRowCount = 6;
         const float FullMapRightColumnWidth = 244f;
-        const float FovHalfAngleRad = 0.44f;
-        const float FovRayLengthPx = 22f;
-        const float FullMapFovRayLengthPx = 42f;
+        const float FovHalfAngleRad = 0.48f;
+        const float FovConeLengthPx = 34f;
+        const float FullMapFovConeLengthPx = 60f;
         const float RippleDuration = 0.85f;
         const float StreetHearingRangeM = 28f;
         const float RiverHearingRangeM = 36f;
 
-        // Flat Valorant-style Ink / Paper / Red + neutral objective accents (docs/GRAPHICS.md L155)
-        static readonly Color TacticalInk = new Color(0.059f, 0.086f, 0.122f, 0.95f);
-        static readonly Color TacticalRailBg = new Color(0.043f, 0.067f, 0.098f, 0.96f);
-        static readonly Color TacticalScrim = new Color(0.031f, 0.047f, 0.071f, 0.74f);
-        static readonly Color TacticalPillBg = new Color(0.045f, 0.068f, 0.100f, 0.82f);
-        static readonly Color TacticalPaper = new Color(0.945f, 0.929f, 0.890f, 0.96f);
-        static readonly Color TacticalPaperMuted = new Color(0.860f, 0.845f, 0.810f, 0.82f);
-        static readonly Color TacticalBorder = new Color(0.820f, 0.805f, 0.770f, 0.34f);
-        static readonly Color TacticalSoftOutline = new Color(0.040f, 0.060f, 0.120f, 0.62f);
-        static readonly Color TacticalRed = new Color(0.941f, 0.275f, 0.310f, 0.96f);
+        // Locked G3 Valorant architectural radar + A1 Smoked-Obsidian / Paper-White / Signal-Vermilion palette
+        static readonly Color TacticalInk = MenuArt.ObsidianSolid;
+        static readonly Color TacticalRailBg = new Color(0.039f, 0.055f, 0.078f, 0.96f);
+        static readonly Color TacticalScrim = new Color(0.027f, 0.039f, 0.059f, 0.78f);
+        static readonly Color TacticalPillBg = new Color(MenuArt.ObsidianSolid.r, MenuArt.ObsidianSolid.g, MenuArt.ObsidianSolid.b, 0.88f);
+        static readonly Color TacticalPaper = MenuArt.PaperWhite;
+        static readonly Color TacticalPaperMuted = new Color(MenuArt.PaperWhite.r, MenuArt.PaperWhite.g, MenuArt.PaperWhite.b, 0.78f);
+        static readonly Color TacticalBorder = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.36f);
+        static readonly Color TacticalSoftOutline = new Color(0.035f, 0.050f, 0.085f, 0.68f);
+        static readonly Color TacticalRed = MenuArt.SignalVermilion;
         static readonly Color CaptureGold = new Color(1.00f, 0.82f, 0.32f, 0.94f);
-        static readonly Color RescueCooldownWhite = new Color(1.00f, 1.00f, 1.00f, 0.50f);
+        static readonly Color RescueCooldownWhite = new Color(1.00f, 1.00f, 1.00f, 0.44f);
         static readonly Color VendorReadyColor = new Color(0.980f, 0.745f, 0.235f, 0.96f);
         static readonly Color VendorEmptyColor = new Color(0.620f, 0.620f, 0.640f, 0.42f);
-        static readonly Color SelectaColor = new Color(0.320f, 0.900f, 0.960f, 0.98f);
-        static readonly Color DragonIdleColor = new Color(0.380f, 0.850f, 0.480f, 0.96f);
+        static readonly Color SelectaColor = MenuArt.WaterCyan;
+        static readonly Color DragonIdleColor = new Color(0.320f, 0.880f, 0.520f, 0.96f);
         static readonly Color BaronIdleColor = new Color(0.980f, 0.760f, 0.240f, 0.98f);
-        static readonly Color BossAngryColor = new Color(0.960f, 0.320f, 0.250f, 0.98f);
-        static readonly Color BossDormantColor = new Color(0.760f, 0.770f, 0.800f, 0.52f);
-        static readonly Color TallCoverLegendColor = new Color(0.360f, 0.720f, 0.440f, 0.95f);
+        static readonly Color BossAngryColor = MenuArt.SignalVermilion;
+        static readonly Color BossDormantColor = new Color(0.760f, 0.790f, 0.840f, 0.54f);
+        static readonly Color TallCoverLegendColor = new Color(0.280f, 0.640f, 0.460f, 0.95f);
         static readonly Color ClimbLegendColor = new Color(0.950f, 0.780f, 0.340f, 0.96f);
-        static readonly Color RippleFootstepColor = new Color(0.960f, 0.940f, 0.880f, 0.92f);
-        static readonly Color RippleSkillColor = new Color(1.000f, 0.480f, 0.320f, 0.96f);
+        static readonly Color RippleFootstepColor = new Color(0.960f, 0.945f, 0.900f, 0.92f);
+        static readonly Color RippleSkillColor = MenuArt.CoralGold;
+        static readonly Color RadarCurbColor = new Color(0.145f, 0.200f, 0.247f, 1f);
+        static readonly Color RadarWallStroke = new Color(0.118f, 0.165f, 0.204f, 1f);
+        static readonly Color RadarLowCover = new Color(0.545f, 0.608f, 0.655f, 1f);
+        static readonly Color RadarCanalWater = new Color(0.141f, 0.722f, 0.761f, 1f);
+        static readonly Color RadarCanalHighlight = new Color(0.275f, 0.855f, 0.890f, 1f);
+        static readonly Color RadarCanalBank = new Color(0.075f, 0.145f, 0.175f, 1f);
+        static readonly Color RadarBridgeDeck = new Color(0.510f, 0.580f, 0.635f, 1f);
+        static readonly Color RadarTallCover = new Color(0.176f, 0.380f, 0.302f, 1f);
 
-        // Compact minimap callout coordinates offset cleanly off Uptown/Riverside bases & Crocodile/Eagle icons
-        static readonly SVector2[] CompactCalloutWorldPos =
+        struct ParcelObb
         {
-            new SVector2(0f, -42f),   // HALL (south of Uptown base at -64)
-            new SVector2(-38f, -42f), // COURT
-            new SVector2(20f, 0f),    // BRIDGE (east of Crocodile at -7, 0)
-            new SVector2(0f, 42f),    // CHAPEL (north of Riverside base at +64)
-            new SVector2(-28f, 28f),  // SARI-SARI
-            new SVector2(44f, 20f),   // CREEK (clear of Eagle at 54,-3.8 & Fishball at 42.5,-2.6)
+            public float Cx;
+            public float Cz;
+            public float HalfW;
+            public float HalfH;
+            public float Cos;
+            public float Sin;
+            public bool IsLowCover;
+        }
+
+        // Architectural fallback Barangay building/cover blocks when MapLayoutData is not yet attached (e.g. static EditMode preview)
+        static readonly ParcelObb[] FallbackArchitecturalBlocks =
+        {
+            MakeAxisObb(-22f, -38f, 8.5f, 5.5f, false),
+            MakeAxisObb(22f, -38f, 8.5f, 5.5f, false),
+            MakeAxisObb(-22f, 38f, 8.5f, 5.5f, false),
+            MakeAxisObb(22f, 38f, 8.5f, 5.5f, false),
+            MakeAxisObb(-50f, -18f, 6.0f, 8.0f, false),
+            MakeAxisObb(50f, -18f, 6.0f, 8.0f, false),
+            MakeAxisObb(-50f, 18f, 6.0f, 8.0f, false),
+            MakeAxisObb(50f, 18f, 6.0f, 8.0f, false),
+            MakeAxisObb(-18f, -14f, 4.5f, 3.2f, true),
+            MakeAxisObb(18f, -14f, 4.5f, 3.2f, true),
+            MakeAxisObb(-18f, 14f, 4.5f, 3.2f, true),
+            MakeAxisObb(18f, 14f, 4.5f, 3.2f, true),
         };
+
+        static ParcelObb MakeAxisObb(float cx, float cz, float halfW, float halfH, bool isLowCover)
+        {
+            return new ParcelObb { Cx = cx, Cz = cz, HalfW = halfW, HalfH = halfH, Cos = 1f, Sin = 0f, IsLowCover = isLowCover };
+        }
 
         static readonly string[] LegendCopy =
         {
@@ -134,16 +164,12 @@ namespace Kalyeah.Game
         readonly Image _selectaDot;
         readonly Image _dragonDot;
         readonly Image _baronDot;
-        readonly Text _dragonMiniTimer;
-        readonly Text _baronMiniTimer;
-        readonly Text[] _miniCallouts = new Text[MaxCalloutLabels];
         readonly Text _activeCalloutLabel;
         readonly SoundRippleSlot[] _soundRipples = new SoundRippleSlot[MaxSoundRipples];
         readonly Image[] _kidDots = new Image[MaxKidDots];
         readonly RectTransform _selfDotRect;
         readonly Image _selfDotImage;
-        readonly RectTransform _fovLeftRect;
-        readonly RectTransform _fovRightRect;
+        readonly RectTransform _fovConeRect;
 
         // Landscape Valorant Full-Map Overlay widgets (all pre-allocated, 0 B per-frame GC when open)
         readonly RectTransform _fullScrimRect;
@@ -173,8 +199,7 @@ namespace Kalyeah.Game
         readonly Image[] _fullKidDots = new Image[MaxKidDots];
         readonly RectTransform _fullSelfDotRect;
         readonly Image _fullSelfDotImage;
-        readonly RectTransform _fullFovLeftRect;
-        readonly RectTransform _fullFovRightRect;
+        readonly RectTransform _fullFovConeRect;
 
         readonly RevealedSlot[] _revealedEnemies = new RevealedSlot[MaxRevealedSlots];
         readonly int[] _lastEffectIds = new int[16];
@@ -194,6 +219,10 @@ namespace Kalyeah.Game
         Sprite _backdropSprite;
         Texture2D _fullMapTex;
         Sprite _fullMapSprite;
+        Texture2D _fovConeTex;
+        Sprite _fovConeSprite;
+        Texture2D _playerArrowTex;
+        Sprite _playerArrowSprite;
         bool _disposed;
 
         public BarangayMinimapView(Transform parent, MapLayoutData layout = null, Canvas canvas = null, bool initialVisible = false)
@@ -225,18 +254,13 @@ namespace Kalyeah.Game
             tapBtn.onClick.AddListener(OnMinimapTapped);
 
             RebuildBackdropTexture();
+            BuildFovConeSprite(out _fovConeTex, out _fovConeSprite);
+            BuildPlayerArrowSprite(out _playerArrowTex, out _playerArrowSprite);
 
-            // 6 CODM/Valorant callout labels on the compact minimap (>= 10 px, light outline, offset off bases/bosses)
             Font displayFont = KalyeahResources.DisplayFont();
-            IReadOnlyList<CalloutRegion> defaultCallouts = MapLayout.DefaultBarangayCallouts();
-            for (int i = 0; i < MaxCalloutLabels; i++)
-            {
-                string title = i < defaultCallouts.Count ? defaultCallouts[i].Name : "";
-                Text lbl = Ui.MakeText($"MiniCallout_{i}", Root, title, 10, TacticalPaperMuted, TextAnchor.MiddleCenter, displayFont);
-                SetCenteredPivot(lbl.rectTransform, new Vector2(58f, 14f));
-                SoftenOutline(lbl);
-                _miniCallouts[i] = lbl;
-            }
+
+            // Compact 148x148 circle stays decluttered (G3): crisp dots + bottom-rim callout pill only;
+            // all 6 Barangay callouts & boss countdown timers live inside the tap-to-expand Valorant Full Map overlay.
 
             // 2 Rescue Zones (own + enemy)
             for (int i = 0; i < 2; i++)
@@ -262,7 +286,7 @@ namespace Kalyeah.Game
                 _baseRings[i] = ring;
 
                 Image post = Ui.MakeImage($"BasePost_{i}", Root, Color.white, round: true);
-                SetCenteredPivot(post.rectTransform, new Vector2(6f, 6f));
+                SetCenteredPivot(post.rectTransform, new Vector2(5.5f, 5.5f));
                 _basePosts[i] = post;
             }
 
@@ -270,62 +294,55 @@ namespace Kalyeah.Game
             for (int i = 0; i < MaxMeriendaDots; i++)
             {
                 Image stand = Ui.MakeImage($"Merienda_{i}", Root, KomiksUi.MangoGold, round: true);
-                SetCenteredPivot(stand.rectTransform, new Vector2(6f, 6f));
+                SetCenteredPivot(stand.rectTransform, new Vector2(5.5f, 5.5f));
                 stand.gameObject.SetActive(false);
                 _meriendaDots[i] = stand;
             }
 
-            // 2 Fixed Vendors (Mang Taho & Fishball Cart) with restock rings
+            // 2 Fixed Vendors (Mang Taho & Fishball Cart) with crisp restock rings
             for (int i = 0; i < MaxVendorMarkers; i++)
             {
                 Image vRing = Ui.MakeImage($"VendorRing_{i}", Root, VendorReadyColor);
                 vRing.sprite = ringSprite;
-                SetCenteredPivot(vRing.rectTransform, new Vector2(12f, 12f));
+                SetCenteredPivot(vRing.rectTransform, new Vector2(11f, 11f));
                 _vendorRings[i] = vRing;
 
                 Image vDot = Ui.MakeImage($"VendorDot_{i}", Root, VendorReadyColor, round: true);
-                SetCenteredPivot(vDot.rectTransform, new Vector2(6f, 6f));
+                SetCenteredPivot(vDot.rectTransform, new Vector2(5.5f, 5.5f));
                 _vendorDots[i] = vDot;
             }
 
             // Selecta ice-cream bike moving dot
             _selectaDot = Ui.MakeImage("SelectaDot", Root, SelectaColor, round: true);
-            SetCenteredPivot(_selectaDot.rectTransform, new Vector2(7f, 7f));
+            SetCenteredPivot(_selectaDot.rectTransform, new Vector2(6.5f, 6.5f));
             _selectaDot.gameObject.SetActive(false);
 
-            // Crocodile (Dragon) & Philippine Eagle (Baron) markers + compact >= 10 px timers
+            // Crocodile (Dragon) & Philippine Eagle (Baron) crisp diamond markers (compact: dot only; timers on Full Map)
             _dragonDot = Ui.MakeImage("DragonMarker", Root, DragonIdleColor);
-            SetCenteredPivot(_dragonDot.rectTransform, new Vector2(9.5f, 9.5f));
+            SetCenteredPivot(_dragonDot.rectTransform, new Vector2(8.5f, 8.5f));
             _dragonDot.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
-            _dragonMiniTimer = Ui.MakeText("DragonTimer", Root, "", 10, TacticalPaper, TextAnchor.MiddleCenter, displayFont);
-            SetCenteredPivot(_dragonMiniTimer.rectTransform, new Vector2(44f, 14f));
-            SoftenOutline(_dragonMiniTimer);
-            _dragonMiniTimer.gameObject.SetActive(false);
 
             _baronDot = Ui.MakeImage("BaronMarker", Root, BaronIdleColor);
-            SetCenteredPivot(_baronDot.rectTransform, new Vector2(10f, 10f));
+            SetCenteredPivot(_baronDot.rectTransform, new Vector2(9f, 9f));
             _baronDot.rectTransform.localEulerAngles = new Vector3(0f, 0f, 45f);
-            _baronMiniTimer = Ui.MakeText("BaronTimer", Root, "", 10, TacticalPaper, TextAnchor.MiddleCenter, displayFont);
-            SetCenteredPivot(_baronMiniTimer.rectTransform, new Vector2(44f, 14f));
-            SoftenOutline(_baronMiniTimer);
-            _baronMiniTimer.gameObject.SetActive(false);
 
             // Remote ally & seen/revealed enemy dots
             for (int i = 0; i < MaxKidDots; i++)
             {
                 Image dot = Ui.MakeImage($"KidDot_{i}", Root, Color.white, round: true);
-                SetCenteredPivot(dot.rectTransform, new Vector2(8f, 8f));
+                SetCenteredPivot(dot.rectTransform, new Vector2(7.5f, 7.5f));
                 dot.gameObject.SetActive(false);
                 _kidDots[i] = dot;
             }
 
-            // Local camera FOV rays + self dot on top
-            _fovLeftRect = BuildFovRay(Root, "FovRayLeft", FovRayLengthPx);
-            _fovRightRect = BuildFovRay(Root, "FovRayRight", FovRayLengthPx);
+            // Directional white/teal Valorant player FOV vision-cone wedge + directional self arrow on top
+            _fovConeRect = BuildFovCone(Root, "FovVisionCone", _fovConeSprite, FovConeLengthPx);
 
-            _selfDotImage = Ui.MakeImage("SelfDot", Root, KomiksUi.SelfHealthColor(0), round: true);
+            _selfDotImage = Ui.MakeImage("SelfDot", Root, Color.white);
+            _selfDotImage.sprite = _playerArrowSprite;
+            _selfDotImage.preserveAspect = true;
             _selfDotRect = _selfDotImage.rectTransform;
-            SetCenteredPivot(_selfDotRect, new Vector2(10f, 10f));
+            SetCenteredPivot(_selfDotRect, new Vector2(13f, 13f));
             _selfDotImage.gameObject.SetActive(false);
 
             // Accessibility sound-direction ripples at minimap edge (docs/GRAPHICS.md L74)
@@ -338,14 +355,16 @@ namespace Kalyeah.Game
                 _soundRipples[i] = new SoundRippleSlot { Graphic = rip, Rect = rip.rectTransform };
             }
 
-            // Subtle CODM-style bottom-rim active-callout pill strictly inside Root's 148x148 bounds
+            // Sleek CODM/Valorant bottom-rim active-callout pill strictly inside Root's 148x148 bounds
             Image activePill = KomiksUi.MakeSlicedFill("ActiveCalloutPill", Root, TacticalPillBg, 4);
             RectTransform pillRt = activePill.rectTransform;
             pillRt.anchorMin = pillRt.anchorMax = new Vector2(0.5f, 0f);
             pillRt.pivot = new Vector2(0.5f, 0f);
             pillRt.anchoredPosition = new Vector2(0f, 2f);
-            pillRt.sizeDelta = new Vector2(96f, 16f);
-            _activeCalloutLabel = Ui.MakeText("ActiveCalloutText", pillRt, "BARANGAY", 11, TacticalPaper, TextAnchor.MiddleCenter, displayFont);
+            pillRt.sizeDelta = new Vector2(88f, 16f);
+            Image pillBorder = KomiksUi.MakeInkPanel("ActiveCalloutBorder", pillRt, Color.clear, TacticalBorder, radiusPx: 4, borderPx: 1);
+            StretchFill(pillBorder.rectTransform);
+            _activeCalloutLabel = Ui.MakeText("ActiveCalloutText", pillRt, "BARANGAY", 10, TacticalPaper, TextAnchor.MiddleCenter, displayFont);
             StretchFill(_activeCalloutLabel.rectTransform);
             SoftenOutline(_activeCalloutLabel);
 
@@ -371,8 +390,7 @@ namespace Kalyeah.Game
                 out _fullBaronLabel,
                 out _fullSelfDotRect,
                 out _fullSelfDotImage,
-                out _fullFovLeftRect,
-                out _fullFovRightRect);
+                out _fullFovConeRect);
             RebuildFullMapTexture();
             FullMapRoot.gameObject.SetActive(false);
 
@@ -402,8 +420,7 @@ namespace Kalyeah.Game
             out Text baronLbl,
             out RectTransform selfDotRect,
             out Image selfDotImg,
-            out RectTransform fovL,
-            out RectTransform fovR)
+            out RectTransform fovCone)
         {
             // Full-bleed tap scrim (sibling before FullMapFrame — zero nested Selectables; covers notch + gesture pill)
             Image scrim = Ui.MakeImage("FullMapScrim", FullMapRoot, TacticalScrim, raycast: true);
@@ -520,6 +537,7 @@ namespace Kalyeah.Game
             var closeBtn = closeBtnRect.gameObject.AddComponent<Button>();
             closeBtn.targetGraphic = closeBg;
             closeBtn.onClick.AddListener(() => SetFullMapOpen(false));
+            UiShaders.AttachPressSpring(closeBtn, 0.94f, 2f);
 
             Text legendHeader = Ui.MakeText("LegendHeader", rightColRect, "MAP KEY", 14, TacticalPaper, TextAnchor.MiddleLeft, displayFont);
             legendHeaderRect = legendHeader.rectTransform;
@@ -639,24 +657,138 @@ namespace Kalyeah.Game
                 _fullKidDots[i] = dot;
             }
 
-            fovL = BuildFovRay(mapAreaRect, "FullFovLeft", FullMapFovRayLengthPx);
-            fovR = BuildFovRay(mapAreaRect, "FullFovRight", FullMapFovRayLengthPx);
+            fovCone = BuildFovCone(mapAreaRect, "FullFovVisionCone", _fovConeSprite, FullMapFovConeLengthPx);
 
-            selfDotImg = Ui.MakeImage("FullSelfDot", mapAreaRect, KomiksUi.SelfHealthColor(0), round: true);
+            selfDotImg = Ui.MakeImage("FullSelfDot", mapAreaRect, Color.white);
+            selfDotImg.sprite = _playerArrowSprite;
+            selfDotImg.preserveAspect = true;
             selfDotRect = selfDotImg.rectTransform;
-            SetCenteredPivot(selfDotRect, new Vector2(16f, 16f));
+            SetCenteredPivot(selfDotRect, new Vector2(18f, 18f));
             selfDotImg.gameObject.SetActive(false);
         }
 
-        static RectTransform BuildFovRay(Transform parent, string name, float lengthPx)
+        static RectTransform BuildFovCone(Transform parent, string name, Sprite coneSprite, float lengthPx)
         {
-            Image ray = Ui.MakeImage(name, parent, new Color(1f, 1f, 1f, 0.36f));
-            RectTransform rt = ray.rectTransform;
+            Image cone = Ui.MakeImage(name, parent, Color.white);
+            cone.sprite = coneSprite;
+            RectTransform rt = cone.rectTransform;
             rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
             rt.pivot = new Vector2(0.5f, 0f);
-            rt.sizeDelta = new Vector2(2f, lengthPx);
-            ray.gameObject.SetActive(false);
+            float widthPx = lengthPx * Mathf.Tan(FovHalfAngleRad) * 2.15f;
+            rt.sizeDelta = new Vector2(widthPx, lengthPx);
+            cone.gameObject.SetActive(false);
             return rt;
+        }
+
+        static void BuildFovConeSprite(out Texture2D tex, out Sprite sprite)
+        {
+            const int w = 64;
+            const int h = 64;
+            tex = new Texture2D(w, h, TextureFormat.RGBA32, false)
+            {
+                name = "BarangayMinimapFovCone",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            var px = new Color32[w * h];
+            float tanHalf = Mathf.Tan(FovHalfAngleRad);
+            Color coneCore = Color.Lerp(MenuArt.PaperWhite, MenuArt.WaterCyan, 0.42f);
+            Color coneEdge = Color.Lerp(MenuArt.PaperWhite, MenuArt.WaterCyan, 0.18f);
+
+            for (int y = 0; y < h; y++)
+            {
+                float ny = (y + 0.5f) / h; // 0 apex (bottom) .. 1 outer tip (top)
+                for (int x = 0; x < w; x++)
+                {
+                    float nx = ((x + 0.5f) / w - 0.5f) * 2f; // -1 .. +1
+                    float dist = Mathf.Sqrt(nx * nx * tanHalf * tanHalf + ny * ny);
+                    if (dist > 1f || ny <= 0.01f)
+                    {
+                        px[y * w + x] = new Color32(0, 0, 0, 0);
+                        continue;
+                    }
+
+                    // Angular fraction from cone center (0) to cone edge (1)
+                    float edgeX = ny;
+                    float absNx = Mathf.Abs(nx);
+                    float angDist = (edgeX - absNx) * w * 0.5f;
+                    float insideMask = Mathf.Clamp01(angDist + 0.5f);
+                    if (insideMask <= 0.001f)
+                    {
+                        px[y * w + x] = new Color32(0, 0, 0, 0);
+                        continue;
+                    }
+
+                    float radialFade = Mathf.Pow(Mathf.Clamp01(1f - dist), 1.35f);
+                    float rimLine = Mathf.Clamp01(1f - Mathf.Abs(angDist - 0.6f) * 0.85f) * Mathf.Clamp01(1f - dist * 0.72f);
+                    float fillAlpha = 0.36f * radialFade * insideMask;
+                    float edgeAlpha = 0.42f * rimLine * insideMask;
+                    float a = Mathf.Clamp01(Mathf.Max(fillAlpha, edgeAlpha));
+                    Color c = Color.Lerp(coneCore, coneEdge, rimLine);
+                    c.a = a;
+                    px[y * w + x] = c;
+                }
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            sprite = Sprite.Create(tex, new Rect(0f, 0f, w, h), new Vector2(0.5f, 0f), 100f);
+            sprite.name = "BarangayMinimapFovCone";
+        }
+
+        static void BuildPlayerArrowSprite(out Texture2D tex, out Sprite sprite)
+        {
+            const int size = 32;
+            tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = "BarangayMinimapPlayerArrow",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            var px = new Color32[size * size];
+            Color darkOutline = MenuArt.ObsidianSolid;
+            Color fillWhite = Color.white;
+
+            for (int y = 0; y < size; y++)
+            {
+                float ny = ((y + 0.5f) / size) * 2f - 1f; // -1 bottom .. +1 top
+                for (int x = 0; x < size; x++)
+                {
+                    float nx = ((x + 0.5f) / size) * 2f - 1f;
+                    // Crisp Valorant chevron arrow pointing +Y with clean V-notch at tail
+                    float halfW = Mathf.Lerp(0.68f, 0.0f, Mathf.Clamp01((ny + 0.70f) / 1.54f));
+                    float tailCut = -0.34f - Mathf.Abs(nx) * 0.44f;
+                    float dSide = (halfW - Mathf.Abs(nx)) * (size * 0.5f);
+                    float dTop = (0.84f - ny) * (size * 0.5f);
+                    float dTail = (ny - tailCut) * (size * 0.5f);
+                    float d = Mathf.Min(dSide, Mathf.Min(dTop, dTail));
+
+                    float outerA = Mathf.Clamp01((d + 1.55f) * 1.15f);
+                    if (outerA <= 0.001f)
+                    {
+                        px[y * size + x] = new Color32(0, 0, 0, 0);
+                        continue;
+                    }
+
+                    float innerT = Mathf.Clamp01((d - 0.15f) * 1.2f);
+                    Color c = Color.Lerp(darkOutline, fillWhite, innerT);
+                    c.a = outerA;
+                    px[y * size + x] = c;
+                }
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            sprite = Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
+            sprite.name = "BarangayMinimapPlayerArrow";
+        }
+
+        static float ClampRayLengthInsideCircle(Vector2 origin, Vector2 dirNorm, float circleRadius, float desiredLength)
+        {
+            float b = Vector2.Dot(origin, dirNorm);
+            float c = origin.sqrMagnitude - circleRadius * circleRadius;
+            float disc = b * b - c;
+            if (disc <= 0f) return Mathf.Min(desiredLength, 10f);
+            float tHit = -b + Mathf.Sqrt(disc);
+            return Mathf.Clamp(tHit, 10f, desiredLength);
         }
 
         static void SetCenteredPivot(RectTransform rt, Vector2 size)
@@ -997,6 +1129,7 @@ namespace Kalyeah.Game
 
         void SyncCalloutLabels(float worldR, int ownSide)
         {
+            if (!IsFullMapOpen) return;
             IReadOnlyList<CalloutRegion> regions = _neutrals != null
                 ? _neutrals.Layout.GetCalloutRegions()
                 : MapLayout.DefaultBarangayCallouts();
@@ -1004,22 +1137,12 @@ namespace Kalyeah.Game
             for (int i = 0; i < MaxCalloutLabels; i++)
             {
                 bool active = i < count;
-                Text mini = _miniCallouts[i];
-                SetActiveIfNeeded(mini.gameObject, active);
+                SetActiveIfNeeded(_fullCallouts[i].gameObject, active);
                 if (active)
                 {
-                    // Compact minimap uses base/boss-clear label offsets; full map uses true architectural label centers
-                    SVector2 compactPos = i < CompactCalloutWorldPos.Length
-                        ? CompactCalloutWorldPos[i]
-                        : ToSVec2(regions[i].LabelPos);
-                    mini.rectTransform.anchoredPosition = WorldToRadar(compactPos, worldR, ownSide);
-                    if (IsFullMapOpen)
-                    {
-                        SVector2 fullPos = ToSVec2(regions[i].LabelPos);
-                        _fullCallouts[i].rectTransform.anchoredPosition = WorldToFullMap(fullPos, worldR, ownSide, _fullMapRadiusPx);
-                    }
+                    SVector2 fullPos = ToSVec2(regions[i].LabelPos);
+                    _fullCallouts[i].rectTransform.anchoredPosition = WorldToFullMap(fullPos, worldR, ownSide, _fullMapRadiusPx);
                 }
-                if (IsFullMapOpen) SetActiveIfNeeded(_fullCallouts[i].gameObject, active);
             }
         }
 
@@ -1312,7 +1435,7 @@ namespace Kalyeah.Game
                 }
             }
 
-            // 3. Crocodile (Dragon) & Philippine Eagle (Baron) markers + countdowns
+            // 3. Crocodile (Dragon) & Philippine Eagle (Baron) markers (compact: crisp dots only; Full Map: countdowns + tags)
             SyncBossMarker(
                 neutrals != null ? neutrals.Dragon : null,
                 new SVector2(-7f, 0f),
@@ -1324,7 +1447,6 @@ namespace Kalyeah.Game
                 ownSide,
                 reduceMotion,
                 _dragonDot,
-                _dragonMiniTimer,
                 _fullDragonDot,
                 _fullDragonLabel);
 
@@ -1339,7 +1461,6 @@ namespace Kalyeah.Game
                 ownSide,
                 reduceMotion,
                 _baronDot,
-                _baronMiniTimer,
                 _fullBaronDot,
                 _fullBaronLabel);
         }
@@ -1355,7 +1476,6 @@ namespace Kalyeah.Game
             int ownSide,
             bool reduceMotion,
             Image miniDot,
-            Text miniTimer,
             Image fullDot,
             Text fullLabel)
         {
@@ -1391,16 +1511,9 @@ namespace Kalyeah.Game
             Vector2 miniPos = WorldToRadar(pos, worldR, ownSide);
             miniDot.rectTransform.anchoredPosition = miniPos;
             miniDot.color = col;
-            miniDot.rectTransform.sizeDelta = new Vector2(9.5f * scale, 9.5f * scale);
+            miniDot.rectTransform.sizeDelta = new Vector2(8.5f * scale, 8.5f * scale);
 
             bool showTimer = state == NeutralBossState.Dormant && respawnLeft > 0.5f;
-            SetActiveIfNeeded(miniTimer.gameObject, showTimer);
-            if (showTimer)
-            {
-                miniTimer.rectTransform.anchoredPosition = miniPos + new Vector2(0f, -12f);
-                string tStr = FormatTimer(respawnLeft);
-                if (miniTimer.text != tStr) miniTimer.text = tStr;
-            }
 
             if (IsFullMapOpen)
             {
@@ -1448,7 +1561,7 @@ namespace Kalyeah.Game
                     hasSelf = true;
                     Vector2 selfPos = WorldToRadar(kid.Position, worldR, ownSide);
                     _selfDotRect.anchoredPosition = selfPos;
-                    Color selfCol = KomiksUi.SelfHealthColor(cbMode);
+                    Color selfCol = Color.Lerp(Color.white, MenuArt.WaterCyan, 0.16f);
                     selfCol.a = kid.Tagged ? 0.48f : 1f;
                     _selfDotImage.color = selfCol;
 
@@ -1459,22 +1572,24 @@ namespace Kalyeah.Game
                     else radarFwd.Normalize();
 
                     float centerAngleDeg = Mathf.Atan2(-radarFwd.x, radarFwd.y) * Mathf.Rad2Deg;
-                    float halfDeg = FovHalfAngleRad * Mathf.Rad2Deg;
+                    _selfDotRect.localEulerAngles = new Vector3(0f, 0f, centerAngleDeg);
 
-                    _fovLeftRect.anchoredPosition = selfPos;
-                    _fovLeftRect.localEulerAngles = new Vector3(0f, 0f, centerAngleDeg + halfDeg);
-                    _fovRightRect.anchoredPosition = selfPos;
-                    _fovRightRect.localEulerAngles = new Vector3(0f, 0f, centerAngleDeg - halfDeg);
+                    float clampedConeLen = ClampRayLengthInsideCircle(selfPos, radarFwd, RadarRadiusPx - 3f, FovConeLengthPx);
+                    _fovConeRect.anchoredPosition = selfPos;
+                    _fovConeRect.localEulerAngles = new Vector3(0f, 0f, centerAngleDeg);
+                    _fovConeRect.sizeDelta = new Vector2(clampedConeLen * Mathf.Tan(FovHalfAngleRad) * 2.15f, clampedConeLen);
 
                     if (IsFullMapOpen)
                     {
                         Vector2 fullSelf = WorldToFullMap(kid.Position, worldR, ownSide, _fullMapRadiusPx);
                         _fullSelfDotRect.anchoredPosition = fullSelf;
+                        _fullSelfDotRect.localEulerAngles = new Vector3(0f, 0f, centerAngleDeg);
                         _fullSelfDotImage.color = selfCol;
-                        _fullFovLeftRect.anchoredPosition = fullSelf;
-                        _fullFovLeftRect.localEulerAngles = new Vector3(0f, 0f, centerAngleDeg + halfDeg);
-                        _fullFovRightRect.anchoredPosition = fullSelf;
-                        _fullFovRightRect.localEulerAngles = new Vector3(0f, 0f, centerAngleDeg - halfDeg);
+
+                        float fullConeLen = ClampRayLengthInsideCircle(fullSelf, radarFwd, _fullMapRadiusPx - 4f, FullMapFovConeLengthPx);
+                        _fullFovConeRect.anchoredPosition = fullSelf;
+                        _fullFovConeRect.localEulerAngles = new Vector3(0f, 0f, centerAngleDeg);
+                        _fullFovConeRect.sizeDelta = new Vector2(fullConeLen * Mathf.Tan(FovHalfAngleRad) * 2.15f, fullConeLen);
                     }
                     continue;
                 }
@@ -1513,13 +1628,11 @@ namespace Kalyeah.Game
             }
 
             SetActiveIfNeeded(_selfDotImage.gameObject, hasSelf);
-            SetActiveIfNeeded(_fovLeftRect.gameObject, hasSelf);
-            SetActiveIfNeeded(_fovRightRect.gameObject, hasSelf);
+            SetActiveIfNeeded(_fovConeRect.gameObject, hasSelf);
             if (IsFullMapOpen)
             {
                 SetActiveIfNeeded(_fullSelfDotImage.gameObject, hasSelf);
-                SetActiveIfNeeded(_fullFovLeftRect.gameObject, hasSelf);
-                SetActiveIfNeeded(_fullFovRightRect.gameObject, hasSelf);
+                SetActiveIfNeeded(_fullFovConeRect.gameObject, hasSelf);
             }
 
             for (int i = dotCursor; i < MaxKidDots; i++)
@@ -1732,12 +1845,57 @@ namespace Kalyeah.Game
             IReadOnlyList<Rect2> tallZones = MapLayout.DefaultBarangayTallCoverZones();
             IReadOnlyList<ClimbSpot> climbs = MapLayout.DefaultBarangayClimbSpots();
 
-            Color uptownTint = new Color(0.11f, 0.14f, 0.18f, highDetail ? 0.96f : 0.72f);
-            Color riversideTint = new Color(0.15f, 0.13f, 0.11f, highDetail ? 0.96f : 0.72f);
-            Color riverColor = new Color(0.18f, 0.58f, 0.62f, 0.90f);
-            Color bridgeColor = new Color(0.82f, 0.78f, 0.70f, 0.92f);
-            Color tallCoverColor = new Color(0.24f, 0.50f, 0.30f, 0.88f);
-            Color climbColor = new Color(0.95f, 0.78f, 0.34f, 0.96f);
+            // Pre-extract oriented building & cover OBBs once per texture bake (zero per-pixel overhead)
+            ParcelObb[] parcels;
+            if (_layout != null && _layout.Obstacles != null && _layout.ParcelCount > 0)
+            {
+                int count = _layout.ParcelCount;
+                bool oriented = _layout.HasOrientedParcels;
+                parcels = new ParcelObb[count];
+                for (int p = 0; p < count; p++)
+                {
+                    GroundRect r = _layout.ParcelRect(p);
+                    float yaw = oriented ? _layout.ParcelYawRad(p) : 0f;
+                    string prop = _layout.ParcelProp(p);
+                    bool lowCover = string.Equals(prop, "cover_wall", StringComparison.Ordinal)
+                                 || string.Equals(prop, "bench", StringComparison.Ordinal);
+                    parcels[p] = new ParcelObb
+                    {
+                        Cx = r.Center.X,
+                        Cz = r.Center.Y,
+                        HalfW = r.W * 0.5f,
+                        HalfH = r.H * 0.5f,
+                        Cos = Mathf.Cos(yaw),
+                        Sin = Mathf.Sin(yaw),
+                        IsLowCover = lowCover,
+                    };
+                }
+            }
+            else
+            {
+                parcels = FallbackArchitecturalBlocks;
+            }
+
+            // Base site centers & radius in Team 0 view (+Z bottom = Ally Base, -Z top = Enemy Base)
+            SVector2 allyBase = _layout != null ? _layout.BaseCenter(1) : new SVector2(0f, worldR - 20f);
+            SVector2 enemyBase = _layout != null ? _layout.BaseCenter(-1) : new SVector2(0f, -(worldR - 20f));
+            float baseRadiusM = _layout != null && _layout.BaseRadius > 1f ? _layout.BaseRadius : 12.5f;
+
+            float baseAlpha = highDetail ? 0.98f : 0.92f;
+            Color bgCol = MenuArt.ValorantRadarBg;
+            Color roadCol = MenuArt.ValorantRadarRoad;
+            Color wallCol = MenuArt.ValorantRadarWall;
+            Color allySiteCol = MenuArt.AllyBlue;
+            Color enemySiteCol = MenuArt.EnemyRed;
+            Color bezelDark = MenuArt.ObsidianSolid;
+            Color bezelHairline = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 1f);
+            Color climbColor = ClimbLegendColor;
+
+            // 2 px dark-obsidian outer bezel scaled to texture resolution + 1 px inner brushed-titanium hairline
+            float texScale = texSize / PanelSize;
+            float bezelPx = highDetail ? 3.2f : Mathf.Max(2.8f, 2.0f * texScale);
+            float hairlinePx = highDetail ? 1.4f : 1.25f;
+            float wallStrokeM = Mathf.Max(1.05f, mPerPx * 1.15f);
 
             for (int y = 0; y < texSize; y++)
             {
@@ -1746,58 +1904,130 @@ namespace Kalyeah.Game
                     float dx = x + 0.5f - half;
                     float dy = y + 0.5f - half;
                     float dist = Mathf.Sqrt(dx * dx + dy * dy);
-                    float edgeAlpha = Mathf.Clamp01(rPx + 0.6f - dist);
+                    float edgeAlpha = Mathf.Clamp01(rPx + 0.65f - dist);
                     if (edgeAlpha <= 0.001f)
                     {
                         pixels[y * texSize + x] = new Color32(0, 0, 0, 0);
                         continue;
                     }
 
+                    // Crisp 2 px dark-obsidian outer bezel around circular radar
+                    float innerEdge = rPx - bezelPx;
+                    if (dist >= innerEdge)
+                    {
+                        float innerBlend = Mathf.Clamp01((dist - innerEdge) * 1.4f);
+                        Color rimCol = Color.Lerp(bezelHairline, bezelDark, innerBlend);
+                        rimCol.a = edgeAlpha * 0.98f;
+                        pixels[y * texSize + x] = rimCol;
+                        continue;
+                    }
+
                     // Sim ground coords for Team 0 view (+X right, -Z up)
                     float wx = dx * mPerPx;
                     float wz = -dy * mPerPx;
+                    float worldDist = dist * mPerPx;
 
-                    float halfBlend = Mathf.Clamp01((wz + 12f) / 24f);
-                    Color col = Color.Lerp(uptownTint, riversideTint, halfBlend);
+                    // 1. Base slate-teal architectural void
+                    Color col = bgCol;
 
-                    bool onPath = Mathf.Abs(wx) < 3.8f || Mathf.Abs(Mathf.Abs(wx) - 35.5f) < 3.6f || Mathf.Abs(Mathf.Abs(wz) - 27f) < 3.0f;
-                    if (onPath)
-                        col = Color.Lerp(col, TacticalPaper, highDetail ? 0.12f : 0.09f);
+                    // 2. Walkable Barangay street grid, central plaza & perimeter boulevard
+                    float ax = Mathf.Abs(wx);
+                    float az = Mathf.Abs(wz);
+                    float dMainAve = ax - 5.8f;
+                    float dSideLane = Mathf.Abs(ax - 35.5f) - 5.2f;
+                    float dMidCross = Mathf.Abs(az - 27.5f) - 4.4f;
+                    float dOuterCross = Mathf.Abs(az - 52.0f) - 3.6f;
+                    float dPlaza = Mathf.Sqrt(wx * wx * 0.65f + wz * wz) - 16.5f;
+                    float dPerim = Mathf.Max(worldDist - (worldR - 2.4f), (worldR - 13.5f) - worldDist);
+                    float roadSd = Mathf.Min(
+                        Mathf.Min(dMainAve, dSideLane),
+                        Mathf.Min(Mathf.Min(dMidCross, dOuterCross), Mathf.Min(dPlaza, dPerim)));
 
-                    float canalZ = MapLayoutData.CanalZ(wx);
-                    if (Mathf.Abs(wz - canalZ) < 3.4f)
+                    if (roadSd <= 0f)
                     {
-                        bool onBridge = Mathf.Abs(wx) < 4.8f || Mathf.Abs(Mathf.Abs(wx) - 36.5f) < 4.8f;
-                        col = onBridge
-                            ? Color.Lerp(col, bridgeColor, highDetail ? 0.55f : 0.45f)
-                            : Color.Lerp(col, riverColor, highDetail ? 0.52f : 0.40f);
+                        col = roadCol;
+                    }
+                    else if (roadSd <= 1.35f)
+                    {
+                        col = Color.Lerp(RadarCurbColor, col, roadSd / 1.35f);
                     }
 
+                    // 3. Translucent Ally Blue (bottom) & Enemy Red (top) Base site fills + site borders
+                    float allyDist = Mathf.Sqrt((wx - allyBase.X) * (wx - allyBase.X) + (wz - allyBase.Y) * (wz - allyBase.Y));
+                    if (allyDist <= baseRadiusM + 1.2f)
+                    {
+                        if (allyDist <= baseRadiusM)
+                            col = Color.Lerp(col, allySiteCol, 0.34f);
+                        float ringT = Mathf.Clamp01(1f - Mathf.Abs(allyDist - baseRadiusM) / 1.15f);
+                        if (ringT > 0f)
+                            col = Color.Lerp(col, allySiteCol, ringT * 0.72f);
+                    }
+
+                    float enemyDist = Mathf.Sqrt((wx - enemyBase.X) * (wx - enemyBase.X) + (wz - enemyBase.Y) * (wz - enemyBase.Y));
+                    if (enemyDist <= baseRadiusM + 1.2f)
+                    {
+                        if (enemyDist <= baseRadiusM)
+                            col = Color.Lerp(col, enemySiteCol, 0.34f);
+                        float ringT = Mathf.Clamp01(1f - Mathf.Abs(enemyDist - baseRadiusM) / 1.15f);
+                        if (ringT > 0f)
+                            col = Color.Lerp(col, enemySiteCol, ringT * 0.72f);
+                    }
+
+                    // 4. Subtle muted-sage tall cover patches (under canal & buildings)
                     var simPt = new Vec2(wx, wz);
                     for (int t = 0; t < tallZones.Count; t++)
                     {
                         if (tallZones[t].HasPoint(simPt))
                         {
                             bool hatch = ((x + y) & 3) < 2;
-                            col = Color.Lerp(col, tallCoverColor, hatch ? 0.50f : 0.25f);
+                            col = Color.Lerp(col, RadarTallCover, hatch ? 0.42f : 0.24f);
                             break;
                         }
                     }
 
-                    if (_layout != null && _layout.Obstacles != null)
+                    // 5. Bright turquoise Estero canal strip + concrete bridges with light-grey railings
+                    float canalZ = MapLayoutData.CanalZ(wx);
+                    float canalAbs = Mathf.Abs(wz - canalZ);
+                    if (canalAbs < 4.5f)
                     {
-                        int parcels = _layout.ParcelCount;
-                        var pt = new SVector2(wx, wz);
-                        for (int p = 0; p < parcels; p++)
+                        bool onCenterBridge = ax < 5.0f;
+                        bool onSideBridge = Mathf.Abs(ax - 36.5f) < 5.0f;
+                        if (onCenterBridge || onSideBridge)
                         {
-                            if (_layout.ParcelRect(p).Contains(pt))
-                            {
-                                col = Color.Lerp(col, KomiksUi.SandBorder, highDetail ? 0.34f : 0.24f);
-                                break;
-                            }
+                            float railDist = onCenterBridge ? Mathf.Abs(ax - 4.7f) : Mathf.Abs(Mathf.Abs(ax - 36.5f) - 4.7f);
+                            col = railDist < 0.75f ? wallCol : RadarBridgeDeck;
+                        }
+                        else if (canalAbs < 3.55f)
+                        {
+                            float centerShimmer = Mathf.Clamp01(1f - canalAbs / 1.65f);
+                            col = Color.Lerp(RadarCanalWater, RadarCanalHighlight, centerShimmer * 0.55f);
+                        }
+                        else
+                        {
+                            col = RadarCanalBank;
                         }
                     }
 
+                    // 6. Crisp Valorant light-grey architectural building & cover footprints with dark edge outline
+                    for (int p = 0; p < parcels.Length; p++)
+                    {
+                        ParcelObb obb = parcels[p];
+                        float fdx = wx - obb.Cx;
+                        float fdz = wz - obb.Cz;
+                        float lx = fdx * obb.Cos - fdz * obb.Sin;
+                        float lz = fdx * obb.Sin + fdz * obb.Cos;
+                        float sd = Mathf.Max(Mathf.Abs(lx) - obb.HalfW, Mathf.Abs(lz) - obb.HalfH);
+                        if (sd <= 0f)
+                        {
+                            Color fill = obb.IsLowCover ? RadarLowCover : wallCol;
+                            col = sd > -wallStrokeM
+                                ? Color.Lerp(RadarWallStroke, fill, 0.28f)
+                                : fill;
+                            break;
+                        }
+                    }
+
+                    // 7. High-detail climb spots (Full Map only)
                     if (highDetail)
                     {
                         for (int c = 0; c < climbs.Count; c++)
@@ -1806,15 +2036,18 @@ namespace Kalyeah.Game
                             float cdz = wz - climbs[c].Position.Y;
                             if (cdx * cdx + cdz * cdz <= 4.5f)
                             {
-                                col = Color.Lerp(col, climbColor, 0.65f);
+                                col = Color.Lerp(col, climbColor, 0.72f);
                                 break;
                             }
                         }
                     }
 
-                    float rimBlend = Mathf.Clamp01(1f - Mathf.Abs(dist - (rPx - 1.2f)) * 0.85f);
-                    col = Color.Lerp(col, new Color(0.95f, 0.94f, 0.90f, 0.58f), rimBlend * 0.80f);
-                    col.a *= edgeAlpha;
+                    // 8. Razor 1 px inner brushed-titanium hairline right inside the obsidian bezel
+                    float hairlineT = Mathf.Clamp01(1f - Mathf.Abs(dist - (innerEdge - hairlinePx * 0.65f)) / hairlinePx);
+                    if (hairlineT > 0f)
+                        col = Color.Lerp(col, bezelHairline, hairlineT * 0.58f);
+
+                    col.a = baseAlpha * edgeAlpha;
                     pixels[y * texSize + x] = col;
                 }
             }
@@ -1835,6 +2068,10 @@ namespace Kalyeah.Game
                 _backdropImage.sprite = null;
             if (_fullBackdropImage != null)
                 _fullBackdropImage.sprite = null;
+            if (_selfDotImage != null)
+                _selfDotImage.sprite = null;
+            if (_fullSelfDotImage != null)
+                _fullSelfDotImage.sprite = null;
 
             if (_backdropSprite != null)
             {
@@ -1855,6 +2092,26 @@ namespace Kalyeah.Game
             {
                 KalyeahResources.Kill(_fullMapTex);
                 _fullMapTex = null;
+            }
+            if (_fovConeSprite != null)
+            {
+                KalyeahResources.Kill(_fovConeSprite);
+                _fovConeSprite = null;
+            }
+            if (_fovConeTex != null)
+            {
+                KalyeahResources.Kill(_fovConeTex);
+                _fovConeTex = null;
+            }
+            if (_playerArrowSprite != null)
+            {
+                KalyeahResources.Kill(_playerArrowSprite);
+                _playerArrowSprite = null;
+            }
+            if (_playerArrowTex != null)
+            {
+                KalyeahResources.Kill(_playerArrowTex);
+                _playerArrowTex = null;
             }
             if (FullMapRoot != null)
             {

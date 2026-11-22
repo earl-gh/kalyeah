@@ -68,7 +68,7 @@ namespace Kalyeah.Game
         static readonly string[] AmmoSlashTable = BuildAmmoSlashTable();
 
         static Sprite _dropSprite;
-        static Sprite _reloadSprite;
+        static Sprite _stonePipSprite;
 
         public static string Tenths(float seconds)
         {
@@ -166,9 +166,52 @@ namespace Kalyeah.Game
                 tex = KalyeahResources.Texture(iconPath);
 
             Sprite sp = MakeSprite(tex);
+            if (sp == null)
+                sp = MenuArt.SkillEmblem(weaponId);
             if (sp != null)
                 map[weaponId] = sp;
             return sp;
+        }
+
+        public static Sprite StonePipSprite()
+        {
+            if (_stonePipSprite != null) return _stonePipSprite;
+            const int size = 24;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = "KalyeahStonePip",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            var px = new Color32[size * size];
+            float half = size * 0.5f;
+            float outerR = size * 0.44f;
+            float coreR = size * 0.31f;
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = x + 0.5f - half;
+                    float dy = y + 0.5f - half;
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    float outerA = Mathf.Clamp01(outerR + 0.7f - dist);
+                    if (outerA <= 0.001f)
+                    {
+                        px[y * size + x] = new Color32(0, 0, 0, 0);
+                        continue;
+                    }
+                    float coreT = Mathf.Clamp01((coreR + 0.8f - dist) * 0.9f);
+                    // Subtle obsidian contrast ring around luminous pure-white core so stone dots stay crisp on bright asphalt
+                    Color c = Color.Lerp(new Color(0.18f, 0.22f, 0.28f, 0.92f), Color.white, coreT);
+                    c.a *= outerA;
+                    px[y * size + x] = c;
+                }
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, true);
+            _stonePipSprite = Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
+            _stonePipSprite.name = "KalyeahStonePip";
+            return _stonePipSprite;
         }
 
         public static Sprite RingSprite() => KomiksUi.RingSprite(128, 3);
@@ -208,54 +251,7 @@ namespace Kalyeah.Game
             return _dropSprite;
         }
 
-        public static Sprite ReloadSprite()
-        {
-            if (_reloadSprite != null) return _reloadSprite;
-            const int size = 64;
-            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
-            {
-                name = "KalyeahReloadArc",
-                wrapMode = TextureWrapMode.Clamp,
-                filterMode = FilterMode.Bilinear,
-            };
-            var px = new Color32[size * size];
-            float c = size * 0.5f;
-            float rMid = size * 0.31f;
-            float thick = size * 0.075f;
-
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++)
-                {
-                    float dx = x + 0.5f - c;
-                    float dy = y + 0.5f - c;
-                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
-                    float ang = Mathf.Atan2(dy, dx) * Mathf.Rad2Deg;
-                    if (ang < 0f) ang += 360f;
-
-                    // 280-degree open circular sweep + triangular arrowhead at top-right (45 deg)
-                    bool inArc = ang >= 55f && ang <= 345f;
-                    float ring = inArc ? Mathf.Clamp01(1f - Mathf.Abs(dist - rMid) / thick) : 0f;
-
-                    // Arrowhead near angle ~50 deg on outer ring
-                    float ax = c + Mathf.Cos(50f * Mathf.Deg2Rad) * rMid;
-                    float ay = c + Mathf.Sin(50f * Mathf.Deg2Rad) * rMid;
-                    float adx = (x + 0.5f) - ax;
-                    float ady = (y + 0.5f) - ay;
-                    float arrow = (adx >= -8f && adx <= 7f && ady >= -7f && ady <= 7f && (Mathf.Abs(adx + ady * 0.3f) + Mathf.Abs(ady - adx * 0.3f)) < 8.5f)
-                        ? 1f
-                        : 0f;
-
-                    float a = Mathf.Clamp01(Mathf.Max(ring, arrow));
-                    px[y * size + x] = new Color32(255, 255, 255, (byte)(a * 255f));
-                }
-            }
-            tex.SetPixels32(px);
-            tex.Apply(false, true);
-            _reloadSprite = Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
-            _reloadSprite.name = "KalyeahReloadArc";
-            return _reloadSprite;
-        }
+        public static Sprite ReloadSprite() => MenuArt.SkillEmblem("reload");
 
         public static Sprite MakeSprite(Texture2D tex)
         {
@@ -339,29 +335,32 @@ namespace Kalyeah.Game
         static readonly Vector2 JumpDp = new Vector2(38f, 218f);
         static readonly Vector2 CrouchDp = new Vector2(240f, 34f);
 
-        static readonly Color DiscBgReady = new Color(0.06f, 0.10f, 0.20f, 0.66f);
-        static readonly Color DiscBgPrimary = new Color(0.11f, 0.19f, 0.36f, 0.94f);
-        static readonly Color DiscBgLocked = new Color(0.08f, 0.09f, 0.13f, 0.48f);
-        static readonly Color RimReady = new Color(0.95f, 0.97f, 1.00f, 0.86f);
-        static readonly Color RimPrimaryReady = new Color(0.96f, 0.98f, 1.00f, 0.96f);
-        static readonly Color RimHeld = new Color(1.00f, 0.84f, 0.32f, 0.98f);
-        static readonly Color RimUltReady = new Color(1.00f, 0.78f, 0.22f, 1.00f);
-        static readonly Color RimLocked = new Color(0.55f, 0.58f, 0.66f, 0.36f);
-        static readonly Color SweepShade = new Color(0.03f, 0.05f, 0.10f, 0.74f);
-        static readonly Color PrimaryCadenceShade = new Color(1.00f, 0.88f, 0.42f, 0.16f);
-        static readonly Color DenyTint = new Color(0.96f, 0.22f, 0.20f, 0.86f);
-        static readonly Color WaterBadgeReady = new Color(0.32f, 0.88f, 1.00f, 1.00f);
-        static readonly Color WaterBadgeLow = new Color(1.00f, 0.42f, 0.36f, 1.00f);
-        static readonly Color WaterLowRimA = new Color(0.24f, 0.62f, 0.90f, 0.52f);
-        static readonly Color WaterLowRimB = new Color(0.96f, 0.34f, 0.30f, 0.86f);
-        static readonly Color ChargePipLit = new Color(1.00f, 0.90f, 0.34f, 1.00f);
+        // Locked G7 A2 Frosted Smoked-Glass + Brushed-Titanium Combat Cluster palette
+        static readonly Color DiscBgReady = new Color(0.068f, 0.098f, 0.142f, 0.76f);
+        static readonly Color DiscBgPrimary = new Color(0.086f, 0.128f, 0.190f, 0.84f);
+        static readonly Color DiscBgLocked = new Color(0.048f, 0.062f, 0.088f, 0.62f);
+        static readonly Color DiscBgUltReady = new Color(0.075f, 0.145f, 0.205f, 0.86f);
+        static readonly Color DiscBgRecast = new Color(0.200f, 0.145f, 0.055f, 0.86f);
+        static readonly Color RimReady = new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.90f);
+        static readonly Color RimPrimaryReady = new Color(MenuArt.PaperWhite.r, MenuArt.PaperWhite.g, MenuArt.PaperWhite.b, 0.96f);
+        static readonly Color RimHeld = MenuArt.CoralGold;
+        static readonly Color RimUltReady = MenuArt.WaterCyan;
+        static readonly Color RimLocked = new Color(0.46f, 0.52f, 0.60f, 0.42f);
+        static readonly Color SweepShade = new Color(0.03f, 0.05f, 0.09f, 0.78f);
+        static readonly Color PrimaryCadenceShade = new Color(MenuArt.CoralGold.r, MenuArt.CoralGold.g, MenuArt.CoralGold.b, 0.22f);
+        static readonly Color DenyTint = new Color(MenuArt.SignalVermilionDeep.r, MenuArt.SignalVermilionDeep.g, MenuArt.SignalVermilionDeep.b, 0.86f);
+        static readonly Color WaterBadgeReady = MenuArt.WaterCyan;
+        static readonly Color WaterBadgeLow = MenuArt.SignalVermilion;
+        static readonly Color WaterLowRimA = new Color(0.24f, 0.62f, 0.90f, 0.56f);
+        static readonly Color WaterLowRimB = MenuArt.SignalVermilion;
+        static readonly Color ChargePipLit = MenuArt.GoldLight;
         static readonly Color ChargePipSpent = new Color(0.14f, 0.18f, 0.26f, 0.72f);
-        static readonly Color AmmoPipLit = new Color(0.98f, 0.95f, 0.84f, 0.98f);
-        static readonly Color AmmoPipEmpowered = new Color(0.34f, 0.94f, 1.00f, 1.00f);
-        static readonly Color AmmoPipSpent = new Color(0.10f, 0.13f, 0.20f, 0.60f);
-        static readonly Color RecastRimGold = new Color(1.00f, 0.78f, 0.20f, 1.00f);
-        static readonly Color CancelIdlePlate = new Color(0.68f, 0.12f, 0.14f, 0.92f);
-        static readonly Color CancelHotPlate = new Color(0.94f, 0.16f, 0.16f, 0.98f);
+        static readonly Color AmmoPipLit = new Color(1.00f, 0.99f, 0.96f, 1.00f);
+        static readonly Color AmmoPipEmpowered = MenuArt.WaterCyan;
+        static readonly Color AmmoPipSpent = new Color(0.14f, 0.18f, 0.24f, 0.44f);
+        static readonly Color RecastRimGold = MenuArt.Gold;
+        static readonly Color CancelIdlePlate = new Color(MenuArt.SignalVermilionDeep.r, MenuArt.SignalVermilionDeep.g, MenuArt.SignalVermilionDeep.b, 0.92f);
+        static readonly Color CancelHotPlate = new Color(MenuArt.SignalVermilion.r, MenuArt.SignalVermilion.g, MenuArt.SignalVermilion.b, 0.98f);
 
         const int MaxAmmoPips = 7;
         const int MaxChargePips = 3;
@@ -394,8 +393,12 @@ namespace Kalyeah.Game
             public ButtonRole Role;
             public RectTransform Rect;
             public Image Bg;
+            public Material DiscMat;
+            public bool HasDiscShader;
+            public UiPressSpring PressSpring;
             public Image Rim;
             public Image Halo;
+            public bool HasSoftGlowHalo;
             public Image Icon;
             public Image CooldownSweep;
             public Text CenterText;
@@ -548,11 +551,14 @@ namespace Kalyeah.Game
             CreateButton(ButtonRole.Jump, "JumpButton", DiscBgReady, includeHalo: false);
             CreateButton(ButtonRole.CrouchSlide, "CrouchSlideButton", DiscBgReady, includeHalo: false);
 
-            AssignStaticIcon(ButtonRole.Primary, "ui/hud_icons/tirador", "FIRE");
-            AssignStaticIcon(ButtonRole.Dash, "ui/hud_icons/vault", "DASH");
-            AssignStaticIcon(ButtonRole.Ultimate, "ui/hud_icons/ult_bagsak", "ULT");
-            AssignStaticIcon(ButtonRole.Jump, "ui/hud_icons/jump", "JUMP");
-            AssignStaticIcon(ButtonRole.CrouchSlide, "ui/hud_icons/crouch", "DUCK");
+            AssignStaticIcon(ButtonRole.Primary, "tirador");
+            AssignStaticIcon(ButtonRole.Slot0, "luksong_tinik");
+            AssignStaticIcon(ButtonRole.Slot1, "tira_holens");
+            AssignStaticIcon(ButtonRole.Slot2, "reload");
+            AssignStaticIcon(ButtonRole.Dash, "vault");
+            AssignStaticIcon(ButtonRole.Ultimate, "ult_bagsak");
+            AssignStaticIcon(ButtonRole.Jump, "jump");
+            AssignStaticIcon(ButtonRole.CrouchSlide, "slide");
 
             // Unmistakable top-band red cancel target (shown only while holding/dragging a superpower)
             _cancelZone = Ui.Panel("CancelAimZone", _root, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-132f, -12f), new Vector2(224f, 96f));
@@ -561,7 +567,7 @@ namespace Kalyeah.Game
             _cancelPlate.type = Image.Type.Sliced;
             FillRect(_cancelPlate.rectTransform, Vector2.zero);
 
-            Image cancelBorder = Ui.MakeImage("CancelBorder", _cancelZone, new Color(1f, 0.90f, 0.88f, 0.72f), round: false, raycast: false);
+            Image cancelBorder = Ui.MakeImage("CancelBorder", _cancelZone, new Color(MenuArt.PaperWhite.r, MenuArt.PaperWhite.g, MenuArt.PaperWhite.b, 0.72f), round: false, raycast: false);
             cancelBorder.sprite = HudIconCache.RoundedPlateSprite();
             cancelBorder.type = Image.Type.Sliced;
             cancelBorder.fillCenter = false;
@@ -574,10 +580,10 @@ namespace Kalyeah.Game
             _cancelRim.rectTransform.anchoredPosition = new Vector2(28f, 0f);
             _cancelRim.rectTransform.sizeDelta = new Vector2(36f, 36f);
 
-            Text xGlyph = Ui.MakeText("CancelX", _cancelRim.transform, "X", 20, Color.white, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Text xGlyph = Ui.MakeText("CancelX", _cancelRim.transform, "X", 20, MenuArt.PaperWhite, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             FillRect(xGlyph.rectTransform, Vector2.zero);
 
-            _cancelLabel = Ui.MakeText("CancelLabel", _cancelZone, "Release to\ncancel", 18, Color.white, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _cancelLabel = Ui.MakeText("CancelLabel", _cancelZone, "Release to\ncancel", 18, MenuArt.PaperWhite, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
             _cancelLabel.lineSpacing = 0.95f;
             _cancelLabel.resizeTextForBestFit = true;
             _cancelLabel.resizeTextMinSize = 14;
@@ -590,13 +596,38 @@ namespace Kalyeah.Game
 
             // Compact lockout pill right above primary cluster when in rescue zone / enemy base
             _statusBanner = Ui.Panel("CastLockoutPill", _clusterRoot, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-18f, 10f), new Vector2(168f, 28f));
-            Image lockBg = Ui.MakeImage("Bg", _statusBanner, new Color(0.12f, 0.08f, 0.10f, 0.82f), round: false, raycast: false);
-            lockBg.sprite = HudIconCache.RoundedPlateSprite();
-            lockBg.type = Image.Type.Sliced;
+            Image lockBg = Ui.MakeImage("Bg", _statusBanner, Color.white, round: false, raycast: false);
+            Material lockMat = UiShaders.CreateTacticalGlass(
+                MenuArt.ObsidianSolid,
+                new Color(MenuArt.TitaniumRim.r, MenuArt.TitaniumRim.g, MenuArt.TitaniumRim.b, 0.42f),
+                MenuArt.CoralGold,
+                cornerCut: 4f,
+                accentW: 3f,
+                topHighlight: 0.14f);
+            if (IsCustomUiMaterial(lockMat))
+            {
+                lockBg.material = lockMat;
+                lockBg.sprite = null;
+                lockBg.type = Image.Type.Simple;
+                lockBg.color = Color.white;
+            }
+            else
+            {
+                lockBg.sprite = HudIconCache.RoundedPlateSprite();
+                lockBg.type = Image.Type.Sliced;
+                lockBg.color = MenuArt.ObsidianSolid;
+            }
             FillRect(lockBg.rectTransform, Vector2.zero);
-            _statusBannerText = Ui.MakeText("Label", _statusBanner, "NO CAST ZONE", 15, new Color(1f, 0.76f, 0.34f, 0.96f), TextAnchor.MiddleCenter);
+            _statusBannerText = Ui.MakeText("Label", _statusBanner, "NO CAST ZONE", 14, MenuArt.CoralGold, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             FillRect(_statusBannerText.rectTransform, Vector2.zero);
             _statusBanner.gameObject.SetActive(false);
+        }
+
+        static bool IsCustomUiMaterial(Material mat)
+        {
+            return mat != null
+                && mat != Graphic.defaultGraphicMaterial
+                && mat != Canvas.GetDefaultCanvasMaterial();
         }
 
         void CreateButton(ButtonRole role, string name, Color bgColor, bool includeHalo)
@@ -605,28 +636,61 @@ namespace Kalyeah.Game
             RectTransform rect = Ui.Panel(name, _clusterRoot, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(96f, 96f));
             Image bg = rect.gameObject.AddComponent<Image>();
             bg.sprite = Ui.Circle();
-            bg.color = bgColor;
+            bg.type = Image.Type.Simple;
             bg.raycastTarget = true;
+
+            float innerRing = (role == ButtonRole.Primary || role == ButtonRole.Ultimate) ? 0.79f : 0.74f;
+            Color initRim = role == ButtonRole.Primary ? RimPrimaryReady : RimReady;
+            Material discMat = UiShaders.CreateFrostedTitaniumDisc(bgColor, initRim, innerRing);
+            bool hasDiscShader = IsCustomUiMaterial(discMat) && discMat.HasProperty(UiShaders.PropCooldown01);
+            if (hasDiscShader)
+            {
+                bg.material = discMat;
+                bg.color = Color.white;
+            }
+            else
+            {
+                discMat = null;
+                bg.color = bgColor;
+            }
+
+            // Base Selectable (not Button/Toggle/InputField) pairs with UiPressSpring for PlayMode press squash + lip dip
+            Selectable springSelectable = rect.gameObject.AddComponent<Selectable>();
+            springSelectable.transition = Selectable.Transition.None;
+            springSelectable.navigation = new Navigation { mode = Navigation.Mode.None };
+            springSelectable.targetGraphic = bg;
+            UiPressSpring pressSpring = UiShaders.AttachPressSpring(springSelectable, 0.94f, 2.5f);
 
             var hit = rect.gameObject.AddComponent<ArcButtonHit>();
             hit.Owner = this;
             hit.Role = role;
 
             Image halo = null;
+            bool hasSoftGlowHalo = false;
             if (includeHalo)
             {
-                halo = Ui.MakeImage("ReadyHalo", rect, new Color(1f, 0.82f, 0.25f, 0f), round: true, raycast: false);
-                FillRect(halo.rectTransform, new Vector2(-10f, -10f));
+                halo = Ui.MakeImage("ReadyHalo", rect, new Color(MenuArt.WaterCyan.r, MenuArt.WaterCyan.g, MenuArt.WaterCyan.b, 0f), round: true, raycast: false);
+                Material glowMat = UiShaders.CreateSoftGlow(MenuArt.WaterCyan);
+                if (IsCustomUiMaterial(glowMat))
+                {
+                    halo.material = glowMat;
+                    halo.sprite = null;
+                    halo.type = Image.Type.Simple;
+                    halo.color = new Color(1f, 1f, 1f, 0f);
+                    hasSoftGlowHalo = true;
+                }
+                FillRect(halo.rectTransform, new Vector2(-14f, -14f));
             }
 
-            Image icon = Ui.MakeImage("Icon", rect, Color.white, round: false, raycast: false);
+            Image icon = Ui.MakeImage("Icon", rect, MenuArt.PaperWhite, round: false, raycast: false);
             icon.preserveAspect = true;
-            icon.rectTransform.anchorMin = new Vector2(0.18f, 0.18f);
-            icon.rectTransform.anchorMax = new Vector2(0.82f, 0.82f);
+            bool hasBottomBadge = role == ButtonRole.Slot0 || role == ButtonRole.Slot1 || role == ButtonRole.Slot2 || role == ButtonRole.Ultimate;
+            icon.rectTransform.anchorMin = hasBottomBadge ? new Vector2(0.20f, 0.27f) : new Vector2(0.18f, 0.18f);
+            icon.rectTransform.anchorMax = hasBottomBadge ? new Vector2(0.80f, 0.85f) : new Vector2(0.82f, 0.82f);
             icon.rectTransform.offsetMin = Vector2.zero;
             icon.rectTransform.offsetMax = Vector2.zero;
 
-            Text centerText = Ui.MakeText("FallbackLabel", rect, "", 16, Ui.Cream, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Text centerText = Ui.MakeText("FallbackLabel", rect, "", 16, MenuArt.PaperWhite, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             centerText.resizeTextForBestFit = true;
             centerText.resizeTextMinSize = 10;
             centerText.resizeTextMaxSize = 16;
@@ -638,24 +702,26 @@ namespace Kalyeah.Game
             sweep.fillOrigin = (int)Image.Origin360.Top;
             sweep.fillClockwise = true;
             sweep.fillAmount = 0f;
+            sweep.enabled = !hasDiscShader;
             FillRect(sweep.rectTransform, Vector2.zero);
 
-            Image rim = Ui.MakeImage("Rim", rect, RimReady, round: false, raycast: false);
+            Image rim = Ui.MakeImage("Rim", rect, initRim, round: false, raycast: false);
             rim.sprite = HudIconCache.RingSprite();
+            rim.enabled = !hasDiscShader;
             FillRect(rim.rectTransform, new Vector2(-2f, -2f));
 
-            Text cdText = Ui.MakeText("CooldownText", rect, "", 20, Color.white, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
+            Text cdText = Ui.MakeText("CooldownText", rect, "", 20, MenuArt.PaperWhite, TextAnchor.MiddleCenter, KalyeahResources.DisplayFont());
             cdText.resizeTextForBestFit = true;
             cdText.resizeTextMinSize = 11;
             cdText.resizeTextMaxSize = 20;
             FillRect(cdText.rectTransform, Vector2.zero);
 
-            Text badgeText = Ui.MakeText("BadgeText", rect, "", 14, new Color(1f, 0.90f, 0.45f, 0.98f), TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
+            Text badgeText = Ui.MakeText("BadgeText", rect, "", 13, WaterBadgeReady, TextAnchor.LowerCenter, KalyeahResources.DisplayFont());
             badgeText.resizeTextForBestFit = true;
             badgeText.resizeTextMinSize = 10;
-            badgeText.resizeTextMaxSize = 14;
+            badgeText.resizeTextMaxSize = 13;
             badgeText.rectTransform.anchorMin = new Vector2(0f, 0f);
-            badgeText.rectTransform.anchorMax = new Vector2(1f, 0.36f);
+            badgeText.rectTransform.anchorMax = new Vector2(1f, 0.34f);
             badgeText.rectTransform.offsetMin = new Vector2(4f, 4f);
             badgeText.rectTransform.offsetMax = new Vector2(-4f, 0f);
 
@@ -677,20 +743,19 @@ namespace Kalyeah.Game
 
             if (role == ButtonRole.Primary)
             {
-                _ammoPipGroup = Ui.Panel("AmmoPips", rect, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, 10f), new Vector2(66f, 12f));
+                // Exact 7 glowing white stone dots curving cleanly along Primary's outer upper-left arc (repositioned in CommitButtonPlacements)
+                _ammoPipGroup = Ui.Panel("AmmoPips", rect, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, Vector2.zero);
+                Sprite pipSprite = HudIconCache.StonePipSprite();
                 for (int p = 0; p < MaxAmmoPips; p++)
                 {
-                    float t = (p / (float)(MaxAmmoPips - 1)) - 0.5f; // -0.5 .. +0.5
-                    float x = t * 52f;
-                    float arcLift = (1f - 4f * t * t) * 3.5f;
-                    Image pip = Ui.MakeImage("StonePip_" + p, _ammoPipGroup, AmmoPipLit, round: true, raycast: false);
+                    Image pip = Ui.MakeImage("StonePip_" + p, _ammoPipGroup, AmmoPipLit, round: false, raycast: false);
+                    pip.sprite = pipSprite;
                     pip.rectTransform.anchorMin = pip.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
                     pip.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-                    pip.rectTransform.anchoredPosition = new Vector2(x, -arcLift);
-                    pip.rectTransform.sizeDelta = new Vector2(6f, 6f);
+                    pip.rectTransform.sizeDelta = new Vector2(7f, 7f);
                     _ammoPips[p] = pip;
                 }
-                _ammoPipGroup.gameObject.SetActive(false);
+                _ammoPipGroup.gameObject.SetActive(true);
             }
 
             _buttons[idx] = new ButtonWidget
@@ -698,8 +763,12 @@ namespace Kalyeah.Game
                 Role = role,
                 Rect = rect,
                 Bg = bg,
+                DiscMat = discMat,
+                HasDiscShader = hasDiscShader,
+                PressSpring = pressSpring,
                 Rim = rim,
                 Halo = halo,
+                HasSoftGlowHalo = hasSoftGlowHalo,
                 Icon = icon,
                 CooldownSweep = sweep,
                 CenterText = centerText,
@@ -711,21 +780,16 @@ namespace Kalyeah.Game
             _buttonRects[idx] = rect;
         }
 
-        void AssignStaticIcon(ButtonRole role, string resourcePath, string fallbackText)
+        void AssignStaticIcon(ButtonRole role, string skillEmblemId)
         {
             ButtonWidget w = _buttons[(int)role];
-            Sprite sp = HudIconCache.LoadHudSprite(resourcePath);
-            if (sp != null)
-            {
-                w.Icon.sprite = sp;
-                w.Icon.enabled = true;
-                HudIconCache.SetTextIfChanged(w.CenterText, "");
-            }
-            else
-            {
-                w.Icon.enabled = false;
-                HudIconCache.SetTextIfChanged(w.CenterText, fallbackText);
-            }
+            if (w == null || w.Icon == null) return;
+            if (string.Equals(w.LastWeaponId, skillEmblemId, StringComparison.Ordinal)) return;
+            w.LastWeaponId = skillEmblemId;
+
+            w.Icon.sprite = MenuArt.SkillEmblem(skillEmblemId);
+            w.Icon.enabled = true;
+            HudIconCache.SetTextIfChanged(w.CenterText, "");
         }
 
         static void FillRect(RectTransform rt, Vector2 inset)
@@ -751,7 +815,22 @@ namespace Kalyeah.Game
             CancelAll();
         }
 
-        void OnDestroy() => Unsubscribe();
+        void OnDestroy()
+        {
+            Unsubscribe();
+            for (int i = 0; i < _buttons.Length; i++)
+            {
+                ButtonWidget w = _buttons[i];
+                if (w == null) continue;
+                if (w.Bg != null && w.DiscMat != null && ReferenceEquals(w.Bg.material, w.DiscMat))
+                    w.Bg.material = null;
+                if (w.DiscMat != null && IsCustomUiMaterial(w.DiscMat))
+                {
+                    KalyeahResources.Kill(w.DiscMat);
+                    w.DiscMat = null;
+                }
+            }
+        }
 
         void EnsureSubscribed()
         {
@@ -1010,6 +1089,7 @@ namespace Kalyeah.Game
             {
                 ButtonWidget w = _buttons[i];
                 if (w == null || w.Rect == null) continue;
+                w.PressSpring?.SnapToRest();
                 float sizeCanvas = _layoutRadii[i] * 2f;
                 Vector2 c = _layoutCenters[i];
 
@@ -1018,6 +1098,23 @@ namespace Kalyeah.Game
                 w.Rect.sizeDelta = new Vector2(sizeCanvas, sizeCanvas);
                 w.RestPos = new Vector2(_leftHanded ? c.x : -c.x, c.y);
                 w.Rect.anchoredPosition = w.RestPos;
+            }
+
+            // Position the exact 7 glowing white stone dots curving cleanly along Primary's outer upper-left arc
+            // (mirrored to upper-right when LeftHanded), strictly inside the >= 8.8 dp button gutter
+            if (_ammoPipGroup != null)
+            {
+                float primaryRadius = Mathf.Max(36f, _layoutRadii[(int)ButtonRole.Primary]);
+                float arcRadius = primaryRadius + 6.0f;
+                for (int p = 0; p < MaxAmmoPips; p++)
+                {
+                    Image pip = _ammoPips[p];
+                    if (pip == null) continue;
+                    float deg = 192f - p * 18f; // 192 -> 84 deg (upper-left arc of Primary fire button)
+                    if (_leftHanded) deg = 180f - deg;
+                    float rad = deg * Mathf.Deg2Rad;
+                    pip.rectTransform.anchoredPosition = new Vector2(Mathf.Cos(rad) * arcRadius, Mathf.Sin(rad) * arcRadius);
+                }
             }
         }
 
@@ -1269,7 +1366,7 @@ namespace Kalyeah.Game
             bool runningFast = _canMove && !kid.Walking && !kid.Crouching && !kid.Overclocked && (kid.Sprinting || kid.Speed01 >= VirtualJoystick.WalkRunThreshold);
             _canSlideNow = runningFast && !inAir && !kid.Sliding && slideCd <= 0.01f;
             ButtonWidget crouchBtn = _buttons[(int)ButtonRole.CrouchSlide];
-            AssignStaticIcon(ButtonRole.CrouchSlide, (_canSlideNow || kid.Sliding) ? "ui/hud_icons/slide" : "ui/hud_icons/crouch", _canSlideNow ? "SLIDE" : "DUCK");
+            AssignStaticIcon(ButtonRole.CrouchSlide, "slide");
             UpdateButtonState(crouchBtn, _canMove, _canSlideNow ? 0f : slideCd, 3.2f, _crouchPointer != NoPointer || kid.Crouching || kid.Sliding, "");
 
             // 7. Cancel Zone highlight
@@ -1724,22 +1821,53 @@ namespace Kalyeah.Game
             if (string.Equals(w.LastWeaponId, weaponId, StringComparison.Ordinal)) return;
             w.LastWeaponId = weaponId;
 
-            string iconPath = info.HasValue ? info.Value.IconPath : null;
-            Sprite sp = HudIconCache.LoadWeaponSprite(weaponId, iconPath, preferCardArt: false);
-            if (sp != null)
+            // Locked G7: always render crisp illustrated MenuArt.SkillEmblem vector icon (never raw text labels)
+            w.Icon.sprite = MenuArt.SkillEmblem(weaponId);
+            w.Icon.enabled = true;
+            HudIconCache.SetTextIfChanged(w.CenterText, "");
+        }
+
+        void ApplyDiscVisual(
+            ButtonWidget w,
+            Color glassTint,
+            Color rimColor,
+            float rimGlow,
+            float cooldown01,
+            float arc01,
+            float lockedDesat,
+            float ultPulse,
+            Color fallbackSweepColor,
+            bool scaleBoostActive,
+            float boostScale)
+        {
+            if (w.HasDiscShader && w.DiscMat != null)
             {
-                w.Icon.sprite = sp;
-                w.Icon.enabled = true;
-                HudIconCache.SetTextIfChanged(w.CenterText, "");
+                w.Bg.color = Color.white;
+                w.DiscMat.SetColor(UiShaders.PropGlassTint, glassTint);
+                w.DiscMat.SetColor(UiShaders.PropRimColor, rimColor);
+                w.DiscMat.SetFloat(UiShaders.PropRimGlow, rimGlow);
+                w.DiscMat.SetFloat(UiShaders.PropCooldown01, Mathf.Clamp01(cooldown01));
+                w.DiscMat.SetFloat(UiShaders.PropArc01, Mathf.Clamp01(arc01));
+                w.DiscMat.SetFloat(UiShaders.PropLockedDesat, Mathf.Clamp01(lockedDesat));
+                w.DiscMat.SetFloat(UiShaders.PropUltPulse, Mathf.Clamp01(ultPulse));
+                w.DiscMat.SetFloat(UiShaders.PropReduceMotion, _reduceMotion ? 1f : 0f);
             }
             else
             {
-                w.Icon.enabled = false;
-                string shortLabel = HudIconCache.ShortLabel(
-                    weaponId,
-                    info.HasValue ? info.Value.ShortName : "",
-                    info.HasValue ? info.Value.DisplayName : "");
-                HudIconCache.SetTextIfChanged(w.CenterText, shortLabel);
+                w.Bg.color = glassTint;
+                w.Rim.color = rimColor;
+                w.CooldownSweep.color = fallbackSweepColor;
+                w.CooldownSweep.fillAmount = Mathf.Clamp01(cooldown01);
+            }
+
+            if (!Application.isPlaying)
+            {
+                w.Rect.localScale = Vector3.one;
+            }
+            else if (w.PressSpring == null)
+            {
+                float s = (!_reduceMotion && scaleBoostActive) ? boostScale : 1f;
+                w.Rect.localScale = new Vector3(s, s, 1f);
             }
         }
 
@@ -1760,77 +1888,106 @@ namespace Kalyeah.Game
                     if (_ammoPips[i].gameObject.activeSelf != usePip)
                         _ammoPips[i].gameObject.SetActive(usePip);
                     if (usePip)
-                        _ammoPips[i].color = i < ammo ? litCol : AmmoPipSpent;
+                    {
+                        bool lit = i < ammo;
+                        _ammoPips[i].color = lit ? litCol : AmmoPipSpent;
+                        float pipSz = lit ? 7.2f : 5.2f;
+                        _ammoPips[i].rectTransform.sizeDelta = new Vector2(pipSz, pipSz);
+                    }
                 }
 
                 bool reloading = kid.TiradorReloadLeft > 0.01f;
                 if (reloading)
                 {
                     float total = Mathf.Max(0.1f, kid.TiradorReloadTotal);
+                    float reloadFrac = Mathf.Clamp01(kid.TiradorReloadLeft / total);
                     w.Ready = false;
-                    w.CooldownSweep.color = SweepShade;
-                    w.CooldownSweep.fillAmount = Mathf.Clamp01(kid.TiradorReloadLeft / total);
                     HudIconCache.SetTextIfChanged(w.CooldownText, HudIconCache.Tenths(kid.TiradorReloadLeft));
                     HudIconCache.SetTextIfChanged(w.BadgeText, "RLD");
                     w.BadgeText.color = RimHeld;
-                    w.Bg.color = DiscBgLocked;
-                    w.Rim.color = RimHeld;
-                    w.Icon.color = new Color(0.68f, 0.72f, 0.80f, 0.56f);
-                    w.Rect.localScale = Vector3.one;
+                    w.Icon.color = new Color(0.68f, 0.74f, 0.82f, 0.54f);
+                    ApplyDiscVisual(
+                        w,
+                        DiscBgLocked,
+                        RimHeld,
+                        0.45f,
+                        reloadFrac,
+                        1f - reloadFrac,
+                        0.60f,
+                        0f,
+                        SweepShade,
+                        false,
+                        1f);
                     return;
                 }
 
                 bool charging = kid.TiradorCharge01 >= 0f;
                 w.Ready = canCast && cd <= 0.01f && ammo > 0;
-                w.CooldownSweep.color = PrimaryCadenceShade;
-                w.CooldownSweep.fillAmount = cd > 0.04f ? Mathf.Clamp01(cd / Mathf.Max(0.1f, maxCd)) : 0f;
                 HudIconCache.SetTextIfChanged(w.CooldownText, "");
                 HudIconCache.SetTextIfChanged(w.BadgeText, "");
 
                 bool denyingSpec = w.DenyTimer > 0.001f;
                 bool activeSpec = isHeld || charging || w.FlashTimer > 0f;
-                w.Bg.color = denyingSpec ? DenyTint : (canCast ? DiscBgPrimary : DiscBgLocked);
-                w.Rim.color = charging
+                Color bgCol = denyingSpec ? DenyTint : (canCast ? DiscBgPrimary : DiscBgLocked);
+                Color rimCol = charging
                     ? Color.Lerp(RimHeld, AmmoPipEmpowered, Mathf.Clamp01(kid.TiradorCharge01))
                     : (activeSpec ? RimHeld : (kid.EmpoweredShotReady ? AmmoPipEmpowered : RimPrimaryReady));
-                w.Icon.color = canCast ? new Color(1f, 1f, 1f, 0.98f) : new Color(0.62f, 0.65f, 0.72f, 0.52f);
+                float rimGlow = activeSpec || kid.EmpoweredShotReady ? 0.82f : (canCast ? 0.42f : 0.08f);
+                float chargeArc = charging ? Mathf.Clamp01(kid.TiradorCharge01) : (kid.EmpoweredShotReady ? 1f : 0f);
+                float cadenceSweep = cd > 0.04f ? Mathf.Clamp01(cd / Mathf.Max(0.1f, maxCd)) : 0f;
 
-                float scaleSpec = (!_reduceMotion && activeSpec) ? 1.06f : 1f;
-                w.Rect.localScale = new Vector3(scaleSpec, scaleSpec, 1f);
+                w.Icon.color = canCast ? MenuArt.PaperWhite : new Color(0.60f, 0.65f, 0.72f, 0.50f);
+                ApplyDiscVisual(
+                    w,
+                    bgCol,
+                    rimCol,
+                    rimGlow,
+                    w.HasDiscShader ? 0f : cadenceSweep,
+                    chargeArc,
+                    canCast ? 0f : 0.75f,
+                    0f,
+                    PrimaryCadenceShade,
+                    activeSpec,
+                    1.06f);
                 return;
             }
 
             bool shortCadence = canCast && cd < 1.0f;
             if (!shortCadence)
             {
-                w.CooldownSweep.color = SweepShade;
                 UpdateButtonState(w, false, cd, maxCd, isHeld, "");
                 return;
             }
 
             w.Ready = cd <= 0.01f;
-            w.CooldownSweep.color = PrimaryCadenceShade;
-            w.CooldownSweep.fillAmount = cd > 0.04f ? Mathf.Clamp01(cd / Mathf.Max(0.1f, maxCd)) : 0f;
             HudIconCache.SetTextIfChanged(w.CooldownText, "");
             HudIconCache.SetTextIfChanged(w.BadgeText, "");
 
             bool denying = w.DenyTimer > 0.001f;
             bool activePulse = isHeld || w.FlashTimer > 0f;
-            w.Bg.color = denying ? DenyTint : DiscBgPrimary;
-            w.Rim.color = activePulse ? RimHeld : RimPrimaryReady;
-            w.Icon.color = new Color(1f, 1f, 1f, 0.98f);
-
-            float scale = (!_reduceMotion && activePulse) ? 1.06f : 1f;
-            w.Rect.localScale = new Vector3(scale, scale, 1f);
+            float legSweep = cd > 0.04f ? Mathf.Clamp01(cd / Mathf.Max(0.1f, maxCd)) : 0f;
+            w.Icon.color = MenuArt.PaperWhite;
+            ApplyDiscVisual(
+                w,
+                denying ? DenyTint : DiscBgPrimary,
+                activePulse ? RimHeld : RimPrimaryReady,
+                activePulse ? 0.80f : 0.42f,
+                w.HasDiscShader ? 0f : legSweep,
+                0f,
+                0f,
+                0f,
+                PrimaryCadenceShade,
+                activePulse,
+                1.06f);
         }
 
         void UpdateReloadVisual(ButtonWidget w, in KidSnapshot kid)
         {
-            w.LastWeaponId = "__reload__";
+            w.LastWeaponId = "reload";
             w.InsufficientWater = false;
             HideChargePips(w);
 
-            w.Icon.sprite = HudIconCache.ReloadSprite();
+            w.Icon.sprite = MenuArt.SkillEmblem("reload");
             w.Icon.enabled = true;
             HudIconCache.SetTextIfChanged(w.CenterText, "");
 
@@ -1843,24 +2000,32 @@ namespace Kalyeah.Game
             float sweep = reloading && kid.TiradorReloadTotal > 0.01f
                 ? Mathf.Clamp01(kid.TiradorReloadLeft / kid.TiradorReloadTotal)
                 : 0f;
-            w.CooldownSweep.color = SweepShade;
-            w.CooldownSweep.fillAmount = sweep;
             HudIconCache.SetTextIfChanged(w.CooldownText, reloading ? HudIconCache.Tenths(kid.TiradorReloadLeft) : "");
             HudIconCache.SetTextIfChanged(w.BadgeText, HudIconCache.AmmoFraction(ammo, maxAmmo));
-            w.BadgeText.color = reloading ? RimHeld : (ammo <= 2 ? WaterBadgeLow : AmmoPipLit);
+            w.BadgeText.color = reloading ? RimHeld : (ammo <= 2 ? WaterBadgeLow : WaterBadgeReady);
 
             bool denying = w.DenyTimer > 0.001f;
             bool lowAmmoAlert = !reloading && ammo <= 2 && _canCast;
-            w.Bg.color = denying ? DenyTint : (w.Ready ? DiscBgReady : DiscBgLocked);
-            w.Rim.color = reloading
+            Color bgCol = denying ? DenyTint : (w.Ready || reloading ? DiscBgReady : DiscBgLocked);
+            Color rimCol = reloading
                 ? RimHeld
                 : (lowAmmoAlert ? Color.Lerp(RimReady, RimHeld, 0.5f + 0.5f * Mathf.Sin(_waterPulsePhase)) : (w.Ready ? RimReady : RimLocked));
             w.Icon.color = reloading
                 ? RimHeld
-                : (w.Ready ? Color.white : new Color(0.62f, 0.65f, 0.72f, 0.52f));
+                : (w.Ready ? MenuArt.PaperWhite : new Color(0.62f, 0.67f, 0.74f, 0.56f));
 
-            float scale = (!_reduceMotion && w.FlashTimer > 0f) ? 1.07f : 1f;
-            w.Rect.localScale = new Vector3(scale, scale, 1f);
+            ApplyDiscVisual(
+                w,
+                bgCol,
+                rimCol,
+                reloading || lowAmmoAlert ? 0.65f : (w.Ready ? 0.28f : 0.08f),
+                sweep,
+                reloading ? 1f - sweep : (ammo / (float)maxAmmo),
+                w.Ready || reloading ? 0f : 0.45f,
+                0f,
+                SweepShade,
+                w.FlashTimer > 0f,
+                1.07f);
         }
 
         void UpdateSpecSlotVisual(
@@ -1876,8 +2041,6 @@ namespace Kalyeah.Game
             int maxCharges)
         {
             w.Ready = ready;
-            w.CooldownSweep.color = SweepShade;
-            w.CooldownSweep.fillAmount = sweepRatio;
             HudIconCache.SetTextIfChanged(w.CooldownText, cd > 0.04f ? HudIconCache.Tenths(cd) : "");
             HudIconCache.SetTextIfChanged(w.BadgeText, badge);
             w.BadgeText.color = recastReady
@@ -1904,20 +2067,31 @@ namespace Kalyeah.Game
 
             bool denying = w.DenyTimer > 0.001f;
             float pulse = _reduceMotion ? 0.5f : (0.5f + 0.5f * Mathf.Sin(_waterPulsePhase));
-            w.Bg.color = denying
+            Color bgCol = denying
                 ? DenyTint
-                : (recastReady ? new Color(0.24f, 0.18f, 0.06f, 0.88f) : (ready ? DiscBgReady : DiscBgLocked));
-            w.Rim.color = isHeld
+                : (recastReady ? DiscBgRecast : (ready ? DiscBgReady : DiscBgLocked));
+            Color rimCol = isHeld
                 ? RimHeld
                 : (recastReady
                     ? RecastRimGold
                     : (insufficientWater
                         ? Color.Lerp(WaterLowRimA, WaterLowRimB, pulse)
                         : (ready ? RimReady : RimLocked)));
-            w.Icon.color = ready ? Color.white : new Color(0.56f, 0.60f, 0.68f, insufficientWater ? 0.42f : 0.50f);
+            float rimGlow = isHeld || recastReady ? 0.85f : (ready ? 0.28f : 0.08f);
+            w.Icon.color = ready ? MenuArt.PaperWhite : new Color(0.56f, 0.62f, 0.70f, insufficientWater ? 0.44f : 0.52f);
 
-            float scale = (!_reduceMotion && (isHeld || w.FlashTimer > 0f)) ? 1.08f : 1f;
-            w.Rect.localScale = new Vector3(scale, scale, 1f);
+            ApplyDiscVisual(
+                w,
+                bgCol,
+                rimCol,
+                rimGlow,
+                sweepRatio,
+                recastReady ? 1f : 0f,
+                ready ? 0f : 0.75f,
+                0f,
+                SweepShade,
+                isHeld || w.FlashTimer > 0f,
+                1.08f);
         }
 
         void UpdateSpecUltimateVisual(ButtonWidget w, bool ready, float cd, float maxCd, bool isHeld, float dt)
@@ -1925,33 +2099,48 @@ namespace Kalyeah.Game
             w.Ready = ready;
             w.InsufficientWater = false;
             float sweep = (!ready && cd > 0.04f) ? Mathf.Clamp01(cd / Mathf.Max(0.1f, maxCd)) : 0f;
-            w.CooldownSweep.color = SweepShade;
-            w.CooldownSweep.fillAmount = sweep;
             HudIconCache.SetTextIfChanged(w.CooldownText, (!ready && cd > 0.04f) ? HudIconCache.Tenths(cd) : "");
             HudIconCache.SetTextIfChanged(w.BadgeText, ready ? "ULT" : "");
             w.BadgeText.color = RimUltReady;
 
             bool denying = w.DenyTimer > 0.001f;
-            w.Bg.color = denying ? DenyTint : (ready ? new Color(0.24f, 0.16f, 0.04f, 0.86f) : DiscBgLocked);
-            w.Rim.color = isHeld ? RimHeld : (ready ? RimUltReady : RimLocked);
-            w.Icon.color = ready ? new Color(1f, 0.96f, 0.80f, 1f) : new Color(0.65f, 0.67f, 0.74f, 0.52f);
+            Color bgCol = denying ? DenyTint : (ready ? DiscBgUltReady : DiscBgLocked);
+            Color rimCol = isHeld ? RimHeld : (ready ? RimUltReady : RimLocked);
+            w.Icon.color = ready ? MenuArt.GoldLight : new Color(0.62f, 0.67f, 0.74f, 0.52f);
 
-            if (w.Halo != null)
+            ApplyDiscVisual(
+                w,
+                bgCol,
+                rimCol,
+                ready || isHeld ? 0.92f : 0.12f,
+                sweep,
+                1f - sweep,
+                ready ? 0f : 0.72f,
+                ready ? 1f : 0f,
+                SweepShade,
+                isHeld || w.FlashTimer > 0f,
+                1.10f);
+
+            SyncUltimateHalo(w, ready, dt);
+        }
+
+        void SyncUltimateHalo(ButtonWidget w, bool ready, float dt)
+        {
+            if (w.Halo == null) return;
+            if (ready)
             {
-                if (ready)
-                {
-                    if (!_reduceMotion) _ultPulsePhase = Mathf.Repeat(_ultPulsePhase + dt * 3.2f, Mathf.PI * 2f);
-                    float alpha = _reduceMotion ? 0.34f : (0.24f + 0.18f * (0.5f + 0.5f * Mathf.Sin(_ultPulsePhase)));
-                    w.Halo.color = new Color(1f, 0.82f, 0.24f, alpha);
-                }
-                else
-                {
-                    w.Halo.color = new Color(1f, 0.82f, 0.24f, 0f);
-                }
+                if (!_reduceMotion) _ultPulsePhase = Mathf.Repeat(_ultPulsePhase + dt * 3.2f, Mathf.PI * 2f);
+                float alpha = _reduceMotion ? 0.62f : (0.48f + 0.28f * (0.5f + 0.5f * Mathf.Sin(_ultPulsePhase)));
+                w.Halo.color = w.HasSoftGlowHalo
+                    ? new Color(1f, 1f, 1f, alpha)
+                    : new Color(MenuArt.WaterCyan.r, MenuArt.WaterCyan.g, MenuArt.WaterCyan.b, alpha * 0.55f);
             }
-
-            float scale = (!_reduceMotion && (isHeld || w.FlashTimer > 0f)) ? 1.10f : 1f;
-            w.Rect.localScale = new Vector3(scale, scale, 1f);
+            else
+            {
+                w.Halo.color = w.HasSoftGlowHalo
+                    ? new Color(1f, 1f, 1f, 0f)
+                    : new Color(MenuArt.WaterCyan.r, MenuArt.WaterCyan.g, MenuArt.WaterCyan.b, 0f);
+            }
         }
 
         static void HideChargePips(ButtonWidget w)
@@ -1966,65 +2155,81 @@ namespace Kalyeah.Game
         {
             w.Ready = ready;
             float sweep = cd > 0.04f ? Mathf.Clamp01(cd / Mathf.Max(0.1f, maxCd)) : 0f;
-            w.CooldownSweep.fillAmount = sweep;
             HudIconCache.SetTextIfChanged(w.CooldownText, cd > 0.04f ? HudIconCache.Tenths(cd) : "");
             HudIconCache.SetTextIfChanged(w.BadgeText, badge);
 
             bool denying = w.DenyTimer > 0.001f;
-            w.Bg.color = denying ? DenyTint : (ready ? (w.Role == ButtonRole.Primary ? DiscBgPrimary : DiscBgReady) : DiscBgLocked);
-            w.Rim.color = heldOrActive ? RimHeld : (ready ? RimReady : RimLocked);
-            w.Icon.color = ready ? Color.white : new Color(0.62f, 0.65f, 0.72f, 0.52f);
+            Color bgCol = denying ? DenyTint : (ready ? (w.Role == ButtonRole.Primary ? DiscBgPrimary : DiscBgReady) : DiscBgLocked);
+            Color rimCol = heldOrActive ? RimHeld : (ready ? RimReady : RimLocked);
+            w.Icon.color = ready ? MenuArt.PaperWhite : new Color(0.60f, 0.65f, 0.72f, 0.52f);
 
-            float scale = (!_reduceMotion && (heldOrActive || w.FlashTimer > 0f)) ? 1.06f : 1f;
-            w.Rect.localScale = new Vector3(scale, scale, 1f);
+            ApplyDiscVisual(
+                w,
+                bgCol,
+                rimCol,
+                heldOrActive ? 0.80f : (ready ? 0.26f : 0.08f),
+                sweep,
+                0f,
+                ready ? 0f : 0.75f,
+                0f,
+                SweepShade,
+                heldOrActive || w.FlashTimer > 0f,
+                1.06f);
         }
 
         void UpdateSlotVisual(ButtonWidget w, bool ready, float cd, float sweepRatio, bool isHeld, string badge)
         {
             w.Ready = ready;
-            w.CooldownSweep.fillAmount = sweepRatio;
             HudIconCache.SetTextIfChanged(w.CooldownText, cd > 0.04f ? HudIconCache.Tenths(cd) : "");
             HudIconCache.SetTextIfChanged(w.BadgeText, badge);
-            w.BadgeText.color = new Color(1f, 0.90f, 0.45f, 0.98f);
+            w.BadgeText.color = WaterBadgeReady;
 
             bool denying = w.DenyTimer > 0.001f;
-            w.Bg.color = denying ? DenyTint : (ready ? DiscBgReady : DiscBgLocked);
-            w.Rim.color = isHeld ? RimHeld : (ready ? RimReady : RimLocked);
-            w.Icon.color = ready ? Color.white : new Color(0.62f, 0.65f, 0.72f, 0.50f);
+            Color bgCol = denying ? DenyTint : (ready ? DiscBgReady : DiscBgLocked);
+            Color rimCol = isHeld ? RimHeld : (ready ? RimReady : RimLocked);
+            w.Icon.color = ready ? MenuArt.PaperWhite : new Color(0.60f, 0.65f, 0.72f, 0.50f);
 
-            float scale = (!_reduceMotion && (isHeld || w.FlashTimer > 0f)) ? 1.08f : 1f;
-            w.Rect.localScale = new Vector3(scale, scale, 1f);
+            ApplyDiscVisual(
+                w,
+                bgCol,
+                rimCol,
+                isHeld ? 0.82f : (ready ? 0.28f : 0.08f),
+                sweepRatio,
+                0f,
+                ready ? 0f : 0.75f,
+                0f,
+                SweepShade,
+                isHeld || w.FlashTimer > 0f,
+                1.08f);
         }
 
         void UpdateUltimateVisual(ButtonWidget w, bool ready, float charge0To100, float dt)
         {
             w.Ready = ready;
             float missing = ready ? 0f : Mathf.Clamp01(1f - charge0To100 / 100f);
-            w.CooldownSweep.fillAmount = missing;
             HudIconCache.SetTextIfChanged(w.CooldownText, "");
-            HudIconCache.SetTextIfChanged(w.BadgeText, ready ? "READY" : HudIconCache.Percent(charge0To100));
+            HudIconCache.SetTextIfChanged(w.BadgeText, ready ? "ULT" : HudIconCache.Percent(charge0To100));
+            w.BadgeText.color = ready ? RimUltReady : WaterBadgeReady;
 
             bool denying = w.DenyTimer > 0.001f;
-            w.Bg.color = denying ? DenyTint : (ready ? new Color(0.24f, 0.16f, 0.04f, 0.84f) : DiscBgLocked);
-            w.Rim.color = ready ? RimUltReady : RimLocked;
-            w.Icon.color = ready ? new Color(1f, 0.96f, 0.80f, 1f) : new Color(0.65f, 0.67f, 0.74f, 0.55f);
+            Color bgCol = denying ? DenyTint : (ready ? DiscBgUltReady : DiscBgLocked);
+            Color rimCol = ready ? RimUltReady : RimLocked;
+            w.Icon.color = ready ? MenuArt.GoldLight : new Color(0.62f, 0.67f, 0.74f, 0.55f);
 
-            if (w.Halo != null)
-            {
-                if (ready)
-                {
-                    if (!_reduceMotion) _ultPulsePhase = Mathf.Repeat(_ultPulsePhase + dt * 3.2f, Mathf.PI * 2f);
-                    float alpha = _reduceMotion ? 0.34f : (0.24f + 0.18f * (0.5f + 0.5f * Mathf.Sin(_ultPulsePhase)));
-                    w.Halo.color = new Color(1f, 0.82f, 0.24f, alpha);
-                }
-                else
-                {
-                    w.Halo.color = new Color(1f, 0.82f, 0.24f, 0f);
-                }
-            }
+            ApplyDiscVisual(
+                w,
+                bgCol,
+                rimCol,
+                ready ? 0.92f : 0.14f,
+                missing,
+                Mathf.Clamp01(charge0To100 / 100f),
+                ready ? 0f : 0.70f,
+                ready ? 1f : 0f,
+                SweepShade,
+                w.FlashTimer > 0f,
+                1.10f);
 
-            float scale = (!_reduceMotion && w.FlashTimer > 0f) ? 1.10f : 1f;
-            w.Rect.localScale = new Vector3(scale, scale, 1f);
+            SyncUltimateHalo(w, ready, dt);
         }
     }
 }

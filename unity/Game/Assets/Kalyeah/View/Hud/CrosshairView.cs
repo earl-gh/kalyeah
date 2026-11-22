@@ -17,27 +17,28 @@ namespace Kalyeah.Game
     public sealed class CrosshairView : MonoBehaviour
     {
         public static readonly Vector2 ReticleViewport = new Vector2(0.50f, 0.54f);
-        public const float HitConfirmSeconds = 0.085f;
-        public const float HeadshotConfirmSeconds = 0.155f;
+        public const float HitConfirmSeconds = 0.095f;
+        public const float HeadshotConfirmSeconds = 0.165f;
         public const float TagStingSeconds = 0.34f;
         public const float DamageArcSeconds = 0.65f;
 
         const int DamageArcPoolSize = 4;
-        const float BaseRingSize = 26f;
-        const float BaseHairGap = 6f;
-        const float HairLength = 6f;
+        const float BaseRingSize = 24f;
+        const float BaseHairGap = 5.5f;
+        const float HairLength = 7.5f;
 
-        static readonly Color IdleColor = new Color(1f, 1f, 1f, 0.88f);
-        static readonly Color IdleRingColor = new Color(1f, 1f, 1f, 0.44f);
-        static readonly Color EmpoweredColor = new Color(0.34f, 0.94f, 1.00f, 0.98f);
-        static readonly Color AimHeldColor = new Color(1f, 0.92f, 0.62f, 0.96f);
-        static readonly Color CancelAimColor = new Color(1f, 0.30f, 0.28f, 0.96f);
-        static readonly Color BodyHitWhite = new Color(1f, 1f, 1f, 1f);
-        static readonly Color HeadshotGold = new Color(1f, 0.85f, 0.22f, 1f);
-        static readonly Color TagStingGold = new Color(1f, 0.86f, 0.28f, 1f);
-        static readonly Color ChargeStartColor = new Color(0.98f, 0.94f, 0.78f, 0.96f);
-        static readonly Color ChargeMaxColor = new Color(0.24f, 0.86f, 1.00f, 0.98f);
-        static readonly Color ReloadBarColor = new Color(1f, 0.78f, 0.26f, 0.96f);
+        // Option A3 G8: razor-clean white 4-tick Valorant crosshair + warm Coral-Gold (#FF9B6A) hit-confirm & headshot X-ticks
+        static readonly Color IdleColor = new Color(1f, 1f, 1f, 0.94f);
+        static readonly Color IdleRingColor = new Color(1f, 1f, 1f, 0.18f);
+        static readonly Color EmpoweredColor = MenuArt.WaterCyan;
+        static readonly Color AimHeldColor = MenuArt.CoralGold;
+        static readonly Color CancelAimColor = MenuArt.SignalVermilion;
+        static readonly Color BodyHitCoralGold = MenuArt.CoralGold;
+        static readonly Color HeadshotCoralBright = new Color(1f, 0.72f, 0.48f, 1f);
+        static readonly Color TagStingCoralGold = MenuArt.CoralGold;
+        static readonly Color ChargeStartColor = MenuArt.PaperWhite;
+        static readonly Color ChargeMaxColor = MenuArt.WaterCyan;
+        static readonly Color ReloadBarColor = MenuArt.CoralGold;
 
         static readonly string[] MeterStrings = BuildMeterStrings();
 
@@ -126,30 +127,30 @@ namespace Kalyeah.Game
             _outerRing.sprite = HudIconCache.RingSprite();
             _outerRing.rectTransform.sizeDelta = new Vector2(BaseRingSize, BaseRingSize);
 
-            _tagStingRing = Ui.MakeImage("TagStingRing", _reticleCenter, new Color(1f, 0.86f, 0.28f, 0f), round: false, raycast: false);
+            _tagStingRing = Ui.MakeImage("TagStingRing", _reticleCenter, new Color(TagStingCoralGold.r, TagStingCoralGold.g, TagStingCoralGold.b, 0f), round: false, raycast: false);
             _tagStingRing.sprite = HudIconCache.RingSprite();
             _tagStingRing.rectTransform.sizeDelta = new Vector2(BaseRingSize + 10f, BaseRingSize + 10f);
             _tagStingRing.enabled = false;
 
-            // 4 cardinal hairlines (0=Up, 1=Right, 2=Down, 3=Left)
+            // 4 razor-clean white Valorant cardinal hairlines (0=Up, 1=Right, 2=Down, 3=Left)
             for (int i = 0; i < 4; i++)
             {
-                Image tick = CreateStrokedTick($"Hair_{i}", _reticleCenter, IdleColor, new Vector2(2f, HairLength));
+                Image tick = CreateStrokedTick($"Hair_{i}", _reticleCenter, IdleColor, new Vector2(2.2f, HairLength));
                 tick.rectTransform.localRotation = Quaternion.Euler(0f, 0f, -i * 90f);
                 _cardinalTicks[i] = tick.rectTransform;
                 _cardinalImages[i] = tick;
             }
 
             _centerDot = Ui.MakeImage("CenterDot", _reticleCenter, IdleColor, round: true, raycast: false);
-            _centerDot.rectTransform.sizeDelta = new Vector2(3.6f, 3.6f);
+            _centerDot.rectTransform.sizeDelta = new Vector2(3.2f, 3.2f);
             var dotShadow = _centerDot.gameObject.AddComponent<Outline>();
-            dotShadow.effectColor = new Color(0f, 0f, 0f, 0.55f);
+            dotShadow.effectColor = new Color(0f, 0f, 0f, 0.62f);
             dotShadow.effectDistance = new Vector2(1f, -1f);
 
-            // 4 diagonal X-ticks for white body hit, gold headshot, and heavy tag sting (45, 135, 225, 315 deg)
+            // 4 diagonal X-ticks in warm Coral-Gold (#FF9B6A) for hit-confirm, headshot, and heavy tag sting (45, 135, 225, 315 deg)
             for (int i = 0; i < 4; i++)
             {
-                Image xTick = CreateStrokedTick($"HitX_{i}", _reticleCenter, BodyHitWhite, new Vector2(2.5f, 9f));
+                Image xTick = CreateStrokedTick($"HitX_{i}", _reticleCenter, BodyHitCoralGold, new Vector2(2.6f, 9.5f));
                 xTick.rectTransform.localRotation = Quaternion.Euler(0f, 0f, 45f + i * 90f);
                 xTick.enabled = false;
                 _hitTicks[i] = xTick.rectTransform;
@@ -158,12 +159,12 @@ namespace Kalyeah.Game
 
             // Compact primary fire cooldown pip tucked 19 px below reticle (hidden at 0 cooldown)
             _primaryPipRoot = Ui.Panel("PrimaryCooldownPip", _reticleCenter, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -19f), new Vector2(22f, 4.5f));
-            Image pipBg = Ui.MakeImage("Track", _primaryPipRoot, new Color(0.04f, 0.07f, 0.14f, 0.72f), round: false, raycast: false);
+            Image pipBg = Ui.MakeImage("Track", _primaryPipRoot, new Color(14f / 255f, 19f / 255f, 26f / 255f, 0.78f), round: false, raycast: false);
             pipBg.rectTransform.anchorMin = Vector2.zero;
             pipBg.rectTransform.anchorMax = Vector2.one;
             pipBg.rectTransform.sizeDelta = Vector2.zero;
 
-            _primaryPipFill = Ui.MakeImage("Fill", _primaryPipRoot, new Color(1f, 0.96f, 0.82f, 0.92f), round: false, raycast: false);
+            _primaryPipFill = Ui.MakeImage("Fill", _primaryPipRoot, MenuArt.PaperWhite, round: false, raycast: false);
             _primaryPipFill.type = Image.Type.Filled;
             _primaryPipFill.fillMethod = Image.FillMethod.Horizontal;
             _primaryPipFill.fillOrigin = (int)Image.OriginHorizontal.Left;
@@ -176,7 +177,7 @@ namespace Kalyeah.Game
 
             // Tirador hold-to-charge range bar (18 m -> 30 m) & reload progress bar directly under reticle (hidden when idle)
             _chargeBarRoot = Ui.Panel("ChargeRangeBar", _reticleCenter, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -22f), new Vector2(58f, 6f));
-            Image chargeBg = Ui.MakeImage("Track", _chargeBarRoot, new Color(0.05f, 0.07f, 0.13f, 0.86f), round: false, raycast: false);
+            Image chargeBg = Ui.MakeImage("Track", _chargeBarRoot, new Color(14f / 255f, 19f / 255f, 26f / 255f, 0.86f), round: false, raycast: false);
             chargeBg.rectTransform.anchorMin = Vector2.zero;
             chargeBg.rectTransform.anchorMax = Vector2.one;
             chargeBg.rectTransform.sizeDelta = Vector2.zero;
@@ -191,7 +192,7 @@ namespace Kalyeah.Game
             _chargeBarFill.rectTransform.offsetMin = new Vector2(1f, 1f);
             _chargeBarFill.rectTransform.offsetMax = new Vector2(-1f, -1f);
 
-            _chargeRangeText = Ui.MakeText("RangeMeters", _chargeBarRoot, "18m", 11, Ui.Cream, TextAnchor.UpperCenter, KalyeahResources.DisplayFont());
+            _chargeRangeText = Ui.MakeText("RangeMeters", _chargeBarRoot, "18m", 11, MenuArt.PaperWhite, TextAnchor.UpperCenter, KalyeahResources.DisplayFont());
             _chargeRangeText.resizeTextForBestFit = true;
             _chargeRangeText.resizeTextMinSize = 9;
             _chargeRangeText.resizeTextMaxSize = 11;
@@ -206,7 +207,7 @@ namespace Kalyeah.Game
             _tagStampGroup = _tagStampRoot.gameObject.AddComponent<CanvasGroup>();
             _tagStampGroup.interactable = false;
             _tagStampGroup.blocksRaycasts = false;
-            Image stampBg = KomiksUi.MakeInkPanel("Plate", _tagStampRoot, new Color(0.76f, 0.12f, 0.14f, 0.94f), TagStingGold, 6, 2, raycast: false);
+            Image stampBg = KomiksUi.MakeInkPanel("Plate", _tagStampRoot, new Color(MenuArt.SignalVermilionDeep.r, MenuArt.SignalVermilionDeep.g, MenuArt.SignalVermilionDeep.b, 0.94f), TagStingCoralGold, 4, 2, raycast: false);
             stampBg.rectTransform.anchorMin = Vector2.zero;
             stampBg.rectTransform.anchorMax = Vector2.one;
             stampBg.rectTransform.sizeDelta = Vector2.zero;
@@ -778,8 +779,8 @@ namespace Kalyeah.Game
                     ? new Vector2(3.4f, 13.0f)
                     : (_hitIsHeadshot ? new Vector2(3.2f, 11.5f) : new Vector2(2.4f, 8.8f));
 
-                // Body hit = crisp WHITE X; Headshot or Tag = crisp GOLD X
-                Color baseHit = big ? HeadshotGold : BodyHitWhite;
+                // Option A3 G8: warm Coral-Gold (#FF9B6A) hit-confirm X; luminous Coral-Gold-White + sting ring on headshot/tag
+                Color baseHit = big ? HeadshotCoralBright : BodyHitCoralGold;
                 var col = new Color(baseHit.r, baseHit.g, baseHit.b, alpha);
 
                 const float invSqrt2 = 0.70710678f;
@@ -801,7 +802,7 @@ namespace Kalyeah.Game
                     float ringExpand = _hitIsTag ? 20f : 10f;
                     float stingSize = BaseRingSize + 8f + (_reduceMotion ? 4f : progress * ringExpand);
                     _tagStingRing.rectTransform.sizeDelta = new Vector2(stingSize, stingSize);
-                    _tagStingRing.color = new Color(TagStingGold.r, TagStingGold.g, TagStingGold.b, alpha * (_hitIsTag ? 0.80f : 0.56f));
+                    _tagStingRing.color = new Color(TagStingCoralGold.r, TagStingCoralGold.g, TagStingCoralGold.b, alpha * (_hitIsTag ? 0.84f : 0.60f));
                 }
                 else
                 {

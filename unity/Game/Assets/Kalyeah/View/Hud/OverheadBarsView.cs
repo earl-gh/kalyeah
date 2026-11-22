@@ -43,16 +43,37 @@ namespace Kalyeah.Game
         public static readonly Vector2 CrosshairViewport = new Vector2(0.50f, 0.54f);
 
         const int DamageTrackSlots = 32;
+        const float DamageTrailHoldSeconds = 0.16f;
+        const float DamageTrailDecayPerSec = 1.25f;
 
         static readonly string[] NumberStrings =
         {
             "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
         };
 
-        static readonly Color WaterBarColor = new Color(0.16f, 0.78f, 1.00f, 0.98f);
+        static readonly Color WaterBarColor = MenuArt.WaterCyan;
         static readonly Color ShieldBarColor = new Color(0.54f, 0.92f, 1.00f, 0.92f);
         static readonly Color RevealEyeColor = new Color(1.00f, 0.80f, 0.24f, 0.98f);
+        static readonly Color TrailAmberColor = new Color(1.00f, 0.68f, 0.24f, 0.94f);
+        static readonly Color OverheadTrackObsidian = new Color(14f / 255f, 19f / 255f, 26f / 255f, 0.86f);
         static Sprite s_eyeSprite;
+
+        sealed class MaterialCleanupBehaviour : MonoBehaviour
+        {
+            [NonSerialized] public Material[] Materials;
+
+            void OnDestroy()
+            {
+                if (Materials == null) return;
+                for (int i = 0; i < Materials.Length; i++)
+                {
+                    Material m = Materials[i];
+                    if (m != null && m != Graphic.defaultGraphicMaterial && m != Canvas.GetDefaultCanvasMaterial())
+                        KalyeahResources.Kill(m);
+                    Materials[i] = null;
+                }
+            }
+        }
 
         /// <summary>Cached crisp almond-eye icon sprite shared by revealed overhead markers and local REVEALED badge.</summary>
         internal static Sprite EyeIconSprite()
@@ -106,8 +127,12 @@ namespace Kalyeah.Game
 
             public GameObject HpPlateObj;
             public RectTransform HpPlateRect;
+            public RectTransform HpTrailRect;
+            public Image HpTrailImage;
             public RectTransform HpFillRect;
             public Image HpFillImage;
+            public Material HpGaugeMat;
+            public bool HasLiquidShader;
             public GameObject ShieldFillObj;
             public RectTransform ShieldFillRect;
 
@@ -176,6 +201,9 @@ namespace Kalyeah.Game
         readonly int[] _trackedPlayerIds = new int[DamageTrackSlots];
         readonly int[] _trackedPrevHp = new int[DamageTrackSlots];
         readonly float[] _lastDamagedClock = new float[DamageTrackSlots];
+        readonly float[] _trackedTrailRatio = new float[DamageTrackSlots];
+        readonly float[] _trackedTrailHold = new float[DamageTrackSlots];
+        readonly Material[] _ownedGaugeMats = new Material[MaxPlates];
         int _trackedCount;
         float _prevClockSeconds = -1f;
         float _barScale = DefaultBarScale;
@@ -196,7 +224,12 @@ namespace Kalyeah.Game
 
             Root = Ui.Fill("OverheadBars", parent);
             for (int i = 0; i < MaxPlates; i++)
+            {
                 _plates[i] = BuildPlate(i);
+                _ownedGaugeMats[i] = _plates[i].HasLiquidShader ? _plates[i].HpGaugeMat : null;
+            }
+            var cleanup = Root.gameObject.AddComponent<MaterialCleanupBehaviour>();
+            cleanup.Materials = _ownedGaugeMats;
         }
 
         /// <summary>Loads <c>bar_scale</c>, <c>shoulder_name_reach</c>, and <c>kid_view_scale</c> from <c>rules__camera_rules</c>.</summary>
@@ -274,7 +307,7 @@ namespace Kalyeah.Game
             int barR = KomiksUi.BarRadius(barH);
 
             // HP Plate (shown ONLY for local player and allies; strictly hidden on enemies)
-            Image hpPlate = KomiksUi.MakeInkPanel("HpPlate", root, KomiksUi.EmptyBar, KomiksUi.SoftBorder, barR, 2);
+            Image hpPlate = KomiksUi.MakeInkPanel("HpPlate", root, OverheadTrackObsidian, KomiksUi.SoftBorder, barR, 2);
             RectTransform hpRect = hpPlate.rectTransform;
             hpRect.anchorMin = hpRect.anchorMax = new Vector2(0f, 0.5f);
             hpRect.pivot = new Vector2(0f, 0.5f);
@@ -284,7 +317,34 @@ namespace Kalyeah.Game
             slot.HpPlateRect = hpRect;
 
             RectTransform hpInner = Ui.Panel("HpInner", hpRect, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(-BorderPx * 2f, -BorderPx * 2f));
-            Image hpFill = KomiksUi.MakeSlicedFill("HpFill", hpInner, KomiksUi.SelfHealthColor(0), Mathf.Max(2, barR - 1));
+
+            // Smooth delayed amber damage-drain trail (GPU UI_LiquidGauge with fallback RectTransform trail)
+            Image hpTrail = KomiksUi.MakeSlicedFill("HpTrail", hpInner, TrailAmberColor, Mathf.Max(2, barR - 1));
+            RectTransform trailRect = hpTrail.rectTransform;
+            trailRect.anchorMin = Vector2.zero;
+            trailRect.anchorMax = Vector2.one;
+            trailRect.pivot = new Vector2(0f, 0.5f);
+            trailRect.sizeDelta = Vector2.zero;
+            slot.HpTrailImage = hpTrail;
+            slot.HpTrailRect = trailRect;
+
+            Material gaugeMat = UiShaders.CreateLiquidGauge(KomiksUi.SelfHealthColor(0), TrailAmberColor, segments: 4, animatedLiquid: false);
+            bool hasLiquidShader = gaugeMat != null
+                && gaugeMat != Graphic.defaultGraphicMaterial
+                && gaugeMat != Canvas.GetDefaultCanvasMaterial()
+                && gaugeMat.HasProperty(UiShaders.PropFill);
+
+            Image hpFill;
+            if (hasLiquidShader)
+            {
+                hpFill = Ui.MakeImage("HpFill", hpInner, Color.white, round: false, raycast: false);
+                hpFill.material = gaugeMat;
+                hpTrail.enabled = false;
+            }
+            else
+            {
+                hpFill = KomiksUi.MakeSlicedFill("HpFill", hpInner, KomiksUi.SelfHealthColor(0), Mathf.Max(2, barR - 1));
+            }
             RectTransform fillRect = hpFill.rectTransform;
             fillRect.anchorMin = Vector2.zero;
             fillRect.anchorMax = Vector2.one;
@@ -292,6 +352,8 @@ namespace Kalyeah.Game
             fillRect.sizeDelta = Vector2.zero;
             slot.HpFillImage = hpFill;
             slot.HpFillRect = fillRect;
+            slot.HpGaugeMat = gaugeMat;
+            slot.HasLiquidShader = hasLiquidShader;
 
             Image shieldFill = KomiksUi.MakeSlicedFill("ShieldFill", hpInner, ShieldBarColor, Mathf.Max(2, barR - 1));
             RectTransform shRect = shieldFill.rectTransform;
@@ -489,17 +551,21 @@ namespace Kalyeah.Game
 
             float nowClock = sim.ClockSeconds;
             bool clockRewound = _prevClockSeconds >= 0f && nowClock < _prevClockSeconds - 0.25f;
+            float clockDelta = (_prevClockSeconds >= 0f && !clockRewound)
+                ? Mathf.Clamp(nowClock - _prevClockSeconds, 0f, 0.25f)
+                : 0f;
+            float trailDt = Application.isPlaying ? Mathf.Min(Time.unscaledDeltaTime, 0.1f) : clockDelta;
             _prevClockSeconds = nowClock;
             if (clockRewound)
                 _trackedCount = 0;
 
-            UpdateRecentDamageTracking(kids, totalKids, nowClock);
+            int maxHp = Mathf.Max(1, sim.MaxHp);
+            bool reduceMotion = SettingsStore.Current.ReduceMotion;
+            UpdateRecentDamageTracking(kids, totalKids, nowClock, maxHp, trailDt, reduceMotion);
 
             int localId = sim.LocalPlayerId;
             int localTeam = sim.LocalPlayerTeam;
-            int maxHp = Mathf.Max(1, sim.MaxHp);
             int cbMode = SettingsStore.Current.ColorblindMode;
-            bool reduceMotion = SettingsStore.Current.ReduceMotion;
 
             float reachScale = _shoulderNameReach > 0.01f ? (_shoulderNameReach / DefaultShoulderNameReach) : 1f;
             float maxEnemyDist = MaxEnemyDistanceMeters * reachScale;
@@ -676,6 +742,7 @@ namespace Kalyeah.Game
 
                 _placedRects[placedCount] = candidate;
                 float targetAlpha = (!isLocal && nearCrosshair) ? CrosshairNearAlpha : 1f;
+                float trailRatio = GetTrackedTrailRatio(kid.Id, Mathf.Clamp01((float)kid.Hp / maxHp));
 
                 ApplyPlate(
                     slot,
@@ -689,6 +756,7 @@ namespace Kalyeah.Game
                     scale,
                     targetAlpha,
                     maxHp,
+                    trailRatio,
                     localTeam,
                     cbMode,
                     reduceMotion,
@@ -756,25 +824,58 @@ namespace Kalyeah.Game
             return true;
         }
 
-        void UpdateRecentDamageTracking(IReadOnlyList<KidSnapshot> kids, int totalKids, float nowClock)
+        void UpdateRecentDamageTracking(
+            IReadOnlyList<KidSnapshot> kids,
+            int totalKids,
+            float nowClock,
+            int maxHp,
+            float dt,
+            bool reduceMotion)
         {
+            float safeMaxHp = Mathf.Max(1f, maxHp);
             for (int i = 0; i < totalKids; i++)
             {
                 KidSnapshot k = kids[i];
-                int slot = FindOrAddDamageTrackSlot(k.Id, k.Hp);
+                float liveRatio = k.Tagged ? 0f : Mathf.Clamp01(k.Hp / safeMaxHp);
+                int slot = FindOrAddDamageTrackSlot(k.Id, k.Hp, liveRatio);
                 if (slot < 0) continue;
 
                 int prevHp = _trackedPrevHp[slot];
                 if (!k.Tagged && k.Hp < prevHp)
+                {
                     _lastDamagedClock[slot] = nowClock;
+                    _trackedTrailHold[slot] = DamageTrailHoldSeconds;
+                }
                 else if (k.Tagged || k.Hp > prevHp)
+                {
                     _lastDamagedClock[slot] = -999f;
+                    _trackedTrailRatio[slot] = liveRatio;
+                    _trackedTrailHold[slot] = 0f;
+                }
+
+                if (reduceMotion)
+                {
+                    _trackedTrailRatio[slot] = liveRatio;
+                    _trackedTrailHold[slot] = 0f;
+                }
+                else if (liveRatio > _trackedTrailRatio[slot])
+                {
+                    _trackedTrailRatio[slot] = liveRatio;
+                    _trackedTrailHold[slot] = 0f;
+                }
+                else if (dt > 0f && _trackedTrailRatio[slot] > liveRatio)
+                {
+                    if (_trackedTrailHold[slot] > 0f)
+                        _trackedTrailHold[slot] = Mathf.Max(0f, _trackedTrailHold[slot] - dt);
+                    else
+                        _trackedTrailRatio[slot] = Mathf.Max(liveRatio, _trackedTrailRatio[slot] - DamageTrailDecayPerSec * dt);
+                }
 
                 _trackedPrevHp[slot] = k.Hp;
             }
         }
 
-        int FindOrAddDamageTrackSlot(int playerId, int initialHp)
+        int FindOrAddDamageTrackSlot(int playerId, int initialHp, float initialRatio)
         {
             for (int i = 0; i < _trackedCount; i++)
             {
@@ -788,7 +889,19 @@ namespace Kalyeah.Game
             _trackedPlayerIds[idx] = playerId;
             _trackedPrevHp[idx] = initialHp;
             _lastDamagedClock[idx] = -999f;
+            _trackedTrailRatio[idx] = initialRatio;
+            _trackedTrailHold[idx] = 0f;
             return idx;
+        }
+
+        float GetTrackedTrailRatio(int playerId, float liveRatio)
+        {
+            for (int i = 0; i < _trackedCount; i++)
+            {
+                if (_trackedPlayerIds[i] == playerId)
+                    return Mathf.Clamp(_trackedTrailRatio[i], liveRatio, 1f);
+            }
+            return liveRatio;
         }
 
         bool WasDamagedRecently(int playerId, float nowClock)
@@ -922,6 +1035,7 @@ namespace Kalyeah.Game
             float scale,
             float alpha,
             int maxHp,
+            float trailRatio,
             int localTeam,
             int cbMode,
             bool reduceMotion,
@@ -965,8 +1079,31 @@ namespace Kalyeah.Game
             if (showHp)
             {
                 float hpRatio = Mathf.Clamp01((float)kid.Hp / maxHp);
-                slot.HpFillRect.anchorMax = new Vector2(hpRatio, 1f);
-                slot.HpFillImage.color = isLocal ? KomiksUi.SelfHealthColor(cbMode) : KomiksUi.AllyHealthColor(cbMode);
+                float clampedTrail = Mathf.Clamp(trailRatio, hpRatio, 1f);
+                Color hpCol = isLocal ? KomiksUi.SelfHealthColor(cbMode) : KomiksUi.AllyHealthColor(cbMode);
+
+                if (slot.HasLiquidShader && slot.HpGaugeMat != null)
+                {
+                    slot.HpFillRect.anchorMax = Vector2.one;
+                    slot.HpFillImage.color = Color.white;
+                    slot.HpGaugeMat.SetFloat(UiShaders.PropFill, hpRatio);
+                    slot.HpGaugeMat.SetFloat(UiShaders.PropTrailFill, clampedTrail);
+                    slot.HpGaugeMat.SetColor(UiShaders.PropFillColor, hpCol);
+                    slot.HpGaugeMat.SetFloat(UiShaders.PropLowPulse, isLocal && hpRatio <= 0.30f ? 1f : 0f);
+                    slot.HpGaugeMat.SetFloat(UiShaders.PropReduceMotion, reduceMotion ? 1f : 0f);
+                }
+                else
+                {
+                    if (slot.HpTrailRect != null)
+                    {
+                        slot.HpTrailRect.anchorMin = new Vector2(hpRatio, 0f);
+                        slot.HpTrailRect.anchorMax = new Vector2(clampedTrail, 1f);
+                        if (slot.HpTrailImage != null)
+                            slot.HpTrailImage.enabled = clampedTrail > hpRatio + 0.002f;
+                    }
+                    slot.HpFillRect.anchorMax = new Vector2(hpRatio, 1f);
+                    slot.HpFillImage.color = hpCol;
+                }
 
                 bool hasShield = kid.ShieldHp > 0.5f;
                 if (slot.ShieldFillObj.activeSelf != hasShield)
