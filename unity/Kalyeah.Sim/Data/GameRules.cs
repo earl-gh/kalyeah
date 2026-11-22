@@ -41,6 +41,12 @@ namespace Kalyeah.Sim
         public double SlideSpeed = 10.2;
         public double SlideDuration = 0.46;
         public double SlideCooldown = 3.2;
+        /// <summary>The highest low cover a kid vaults with the jump button (docs/SPEC.md §7); 0 turns vaulting off.</summary>
+        public double VaultMaxHeight;
+        /// <summary>Seconds a vault takes (docs/SPEC.md §7: 0.4 s).</summary>
+        public double VaultDuration;
+        /// <summary>How close (metres from the kid's edge) a low cover must be ahead for the jump button to vault it.</summary>
+        public double VaultReach;
         public double DashSpeed = 18.5;
         public double DashDuration = 0.24;
         public double DashCooldown = 4.2;

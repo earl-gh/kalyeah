@@ -41,7 +41,7 @@ namespace Kalyeah.Net.Tests
             JsonElement session = doc.RootElement.GetProperty(name);
             bool hashed = session.TryGetProperty("hashed", out JsonElement h) && h.GetBoolean();
             using IDisposable recorded = Lobby.UseAvatars(NetKit.RecordedRoster);
-            var server = new GameServer(NetKit.WithRecordedRoster(NetKit.Rules.Duplicate()), NetKit.Layout, NetKit.Net, session.GetProperty("seed").GetInt64(), NetKit.Games)
+            var server = new GameServer(NetKit.WithRecordedRoster(NetKit.Rules.Duplicate()), NetKit.RecordedLayout(), NetKit.Net, session.GetProperty("seed").GetInt64(), NetKit.Games)
             {
                 AutoJoin = session.GetProperty("auto_join").GetBoolean(),
             };

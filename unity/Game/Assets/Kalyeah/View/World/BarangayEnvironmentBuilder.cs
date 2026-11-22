@@ -390,6 +390,7 @@ namespace Kalyeah.Game
             }
 
             BuildLandmarks(rootGo.transform, layout, env, naturalSizes, litTemplate);
+            BuildLowCovers(rootGo.transform, layout, env, litTemplate);
             if (layout.ArenaRadius > 0f)
             {
                 BuildAsymmetricLandmarksAndLivingWorld(rootGo.transform, layout, env, litTemplate);
@@ -1357,6 +1358,29 @@ namespace Kalyeah.Game
                         PlaceKit(landmarksRoot, posterPrefab, $"CornerWayfindingSign_{i}", cs, 0f, yaw, Vector3.one * 0.95f);
                 }
             }
+        }
+
+        // ---- Low covers ---------------------------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// The vaultable low walls (docs/SPEC.md §7) as grey-box concrete blocks at their data heights, own half and mirrored enemy
+        /// half, until modelled props replace them (docs/SPEC.md §12: grey-box blocks).
+        /// </summary>
+        static void BuildLowCovers(Transform parent, MapLayoutData layout, BarangayEnvironment env, Material litTemplate)
+        {
+            int count = layout.LowCovers.Length;
+            if (count == 0) return;
+            var blocks = new MeshBatchBuilder();
+            for (int i = 0; i < count * 2; i++)
+            {
+                GroundRect rect = i < count ? layout.LowCovers[i] : layout.LowCovers[i - count].Mirrored;
+                int baseIdx = i % count;
+                float height = baseIdx < layout.LowCoverHeights.Length ? layout.LowCoverHeights[baseIdx] : layout.CoverHeight;
+                Vector3 centre = KalyeahResources.World(new SVector2(rect.Center.X, rect.Center.Y), height * 0.5f);
+                blocks.AddChamferedBox(centre, Quaternion.identity, new Vector3(rect.W, height, rect.H), 0.04f);
+            }
+            Material mat = MakeLitMaterial(env, litTemplate, "LowCoverConcrete", new Color(0.66f, 0.63f, 0.58f), 0.12f, 0f);
+            CreateMeshObject("LowCovers", parent, env.Track(blocks.ToMesh("LowCoversMesh")), mat, Vector3.zero, receiveShadows: true, castShadows: true);
         }
 
         // ---- Asymmetric Uptown vs Riverside Silhouettes & Living World Props (docs/MAPS.md, docs/GRAPHICS.md) ----------------

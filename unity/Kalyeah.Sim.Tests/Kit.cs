@@ -18,12 +18,26 @@ namespace Kalyeah.Sim.Tests
         }
         public static MapLayout Layout => Data.MapLayout;
 
+        /// <summary>
+        /// The map the Godot golden recordings were made on: today's layout without the low covers added since (docs/SPEC.md §7
+        /// vault), so the recorded matches replay tick for tick.
+        /// </summary>
+        public static MapLayout RecordedLayout()
+        {
+            MapLayout recorded = Layout.Duplicate();
+            recorded.LowCovers = new List<Rect2>();
+            recorded.LowCoverHeights = new List<float>();
+            return recorded;
+        }
+
         /// <summary>The street with one cover wall and nothing else (test_collision / test_weapons).</summary>
         public static MapLayout CoverStreet()
         {
             MapLayout street = Layout.Duplicate();
             street.Obstacles = new List<Rect2> { new Rect2(-13.5, 10.5, 3.0, 0.5) };
             street.WaterObstacles = new List<Rect2>();
+            street.LowCovers = new List<Rect2>();
+            street.LowCoverHeights = new List<float>();
             street.PowerupSpots = new List<Vec2> { new Vec2(-70.0, 70.0) };
             return street;
         }
@@ -33,6 +47,8 @@ namespace Kalyeah.Sim.Tests
             MapLayout street = Layout.Duplicate();
             street.Obstacles = new List<Rect2>();
             street.WaterObstacles = new List<Rect2>();
+            street.LowCovers = new List<Rect2>();
+            street.LowCoverHeights = new List<float>();
             street.PowerupSpots = new List<Vec2> { new Vec2(-70.0, 70.0) };
             return street;
         }

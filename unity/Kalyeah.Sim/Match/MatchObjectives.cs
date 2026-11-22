@@ -174,6 +174,7 @@ namespace Kalyeah.Sim
             state.VelY = 0.0;
             state.SlideLeft = 0.0;
             state.SlideDir = Vec2.Zero;
+            state.VaultLeft = 0.0;
             state.RunTime = 0.0;
             state.JogTime = 0.0;
             state.BuffType = 0;

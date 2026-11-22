@@ -60,7 +60,7 @@ namespace Kalyeah.Sim.Tests.Bots
             Assert.AreEqual(level, root.GetProperty("level").GetString());
             GameRules rules = RecordedRoster.Apply(GoldenMatchTests.Data.GameRules.WithBotLevel(level));
             Assert.AreEqual(root.GetProperty("bot_skill").GetDouble(), rules.BotSkill, 1e-12, "the level's skill");
-            var sim = new MatchSim(rules, GoldenMatchTests.Data.MapLayout, root.GetProperty("seed").GetInt64());
+            var sim = new MatchSim(rules, Kit.RecordedLayout(), root.GetProperty("seed").GetInt64());
             // _setup_bot_match
             sim.AddPlayer(1, 0);
             var allies = new TeamCoach(0, 1);

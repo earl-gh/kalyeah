@@ -154,6 +154,9 @@ namespace Kalyeah.Game
         public float[] ObstacleYawsDeg;
         public float[] ObstacleScales;
         public string[] ObstacleProps;
+        /// <summary>Own-half low covers (vaultable walls and benches, docs/SPEC.md §7) and their heights; mirrored like the parcels.</summary>
+        public GroundRect[] LowCovers = new GroundRect[0];
+        public float[] LowCoverHeights = new float[0];
         public Vector2[] PowerupSpots;
 
         public static MapLayoutData Load(DataSource data)
@@ -182,6 +185,12 @@ namespace Kalyeah.Game
             };
             for (int i = 0; i < obstacles.Count; i++) layout.Obstacles[i] = DataSource.R(obstacles[i]);
             for (int i = 0; i < spots.Count; i++) layout.PowerupSpots[i] = DataSource.V2(spots[i]);
+            if (p.TryGetValue("low_covers", out object lowCovers) && lowCovers is List<object> covers)
+            {
+                layout.LowCovers = new GroundRect[covers.Count];
+                for (int i = 0; i < covers.Count; i++) layout.LowCovers[i] = DataSource.R(covers[i]);
+                layout.LowCoverHeights = p.TryGetValue("low_cover_heights", out object heights) ? DataSource.Floats(heights) : new float[0];
+            }
             return layout;
         }
 

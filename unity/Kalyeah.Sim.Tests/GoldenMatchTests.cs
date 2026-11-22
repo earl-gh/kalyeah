@@ -41,7 +41,7 @@ namespace Kalyeah.Sim.Tests
             GameRules rules = RecordedRoster.Apply(Data.GameRules.Duplicate());
             if (root.TryGetProperty("rules", out JsonElement overrides) && overrides.ValueKind == JsonValueKind.Object)
                 foreach (JsonProperty o in overrides.EnumerateObject()) SetRule(rules, o.Name, o.Value);
-            var sim = new MatchSim(rules, Data.MapLayout, root.GetProperty("seed").GetInt64());
+            var sim = new MatchSim(rules, Kit.RecordedLayout(), root.GetProperty("seed").GetInt64());
             var ids = new List<int>();
             foreach (JsonElement entry in root.GetProperty("roster").EnumerateArray())
             {
