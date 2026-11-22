@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -93,7 +94,11 @@ namespace Kalyeah.Game
 
             void OnDisable() => Unsubscribe();
 
-            void OnDestroy() => Unsubscribe();
+            void OnDestroy()
+            {
+                Unsubscribe();
+                Owner?.ReleaseOwnedMaterials();
+            }
 
             void OnRectTransformDimensionsChange() => Owner?.RefreshLayout();
 
@@ -281,6 +286,7 @@ namespace Kalyeah.Game
         readonly RectTransform _percentRect;
         readonly RectTransform _progressInnerRect;
         readonly Material _gaugeMat;
+        readonly List<Material> _ownedMaterials = new List<Material>(4);
 
         int _tipIndex;
         string _statusOverride;
@@ -608,7 +614,8 @@ namespace Kalyeah.Game
             Image trackBg = Ui.MakeImage("ProgressTrack", ProgressCardRect, TrackFill, round: false, raycast: false);
             ProgressTrackRect = trackBg.rectTransform;
             _gaugeMat = UiShaders.CreateLiquidGauge(Vermilion, CoralGold, segments: 0, animatedLiquid: true);
-            bool hasShaderGauge = _gaugeMat != null && _gaugeMat != Graphic.defaultGraphicMaterial;
+            TrackOwnedMaterial(_gaugeMat);
+            bool hasShaderGauge = IsOwnedMaterial(_gaugeMat);
             if (hasShaderGauge)
             {
                 trackBg.material = _gaugeMat;
@@ -632,7 +639,7 @@ namespace Kalyeah.Game
             RefreshLayout();
         }
 
-        static void BuildFaceoffRow(RectTransform logoFrame, Font displayFont)
+        void BuildFaceoffRow(RectTransform logoFrame, Font displayFont)
         {
             RectTransform faceoff = Ui.Panel("Faceoff5v5", logoFrame, new Vector2(0f, 0f), new Vector2(1f, 0.58f), new Vector2(0.5f, 0f), Vector2.zero, Vector2.zero);
 
@@ -649,7 +656,8 @@ namespace Kalyeah.Game
             Image vsSlash = Ui.MakeImage("VsSlash", vsBox, Vermilion, round: false, raycast: false);
             FillInset(vsSlash.rectTransform, 6f, 14f, 6f, 14f);
             Material vsMat = UiShaders.CreateMetallicCta(Vermilion, VermilionDeep, cornerCut: 6f);
-            if (vsMat != null && vsMat != Graphic.defaultGraphicMaterial)
+            TrackOwnedMaterial(vsMat);
+            if (IsOwnedMaterial(vsMat))
             {
                 vsSlash.material = vsMat;
                 vsSlash.color = Color.white;
@@ -892,6 +900,24 @@ namespace Kalyeah.Game
                 LayoutRebuilder.ForceRebuildLayoutImmediate(_tipIconWellRect);
         }
 
+        static bool IsOwnedMaterial(Material mat) =>
+            mat != null && mat != Graphic.defaultGraphicMaterial && mat != Canvas.GetDefaultCanvasMaterial();
+
+        void TrackOwnedMaterial(Material mat)
+        {
+            if (IsOwnedMaterial(mat)) _ownedMaterials.Add(mat);
+        }
+
+        void ReleaseOwnedMaterials()
+        {
+            for (int i = 0; i < _ownedMaterials.Count; i++)
+            {
+                if (IsOwnedMaterial(_ownedMaterials[i]))
+                    KalyeahResources.Kill(_ownedMaterials[i]);
+            }
+            _ownedMaterials.Clear();
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
@@ -902,6 +928,8 @@ namespace Kalyeah.Game
 
             if (_layoutHook != null)
                 _layoutHook.Owner = null;
+
+            ReleaseOwnedMaterials();
 
             if (_ownsCanvas && Canvas != null)
                 KalyeahResources.Kill(Canvas.gameObject);

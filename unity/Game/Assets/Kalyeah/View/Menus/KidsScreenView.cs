@@ -129,6 +129,7 @@ namespace Kalyeah.Game
         Image _homePlate;
         Image _homeIcon;
         Material _homeCtaMat;
+        readonly List<Material> _dynamicMaterials = new List<Material>(6);
 
         public RectTransform Root { get; }
         public RectTransform SafeRoot { get; }
@@ -145,6 +146,8 @@ namespace Kalyeah.Game
             _stage = new HeroStage();
 
             Root = Ui.Fill("KidsScreen", parent);
+            var lifecycle = Root.gameObject.AddComponent<KidsLifecycle>();
+            lifecycle.Owner = this;
             Image bg = Root.gameObject.AddComponent<Image>();
             bg.color = Shade;
 
@@ -718,6 +721,7 @@ namespace Kalyeah.Game
                 SetLabelColor(_tabLabels[i], on ? Paper : MutedSoft);
                 _tabBars[i].gameObject.SetActive(on);
             }
+            ClearDynamicMaterials();
             for (int i = _content.childCount - 1; i >= 0; i--) KalyeahResources.Kill(_content.GetChild(i).gameObject);
             _rowTop = 0f;
             if (OpenKid == null) return;
@@ -947,8 +951,9 @@ namespace Kalyeah.Game
                     new Color(0.075f, 0.105f, 0.145f, on ? 0.90f : 0.74f),
                     rimColor,
                     innerRing: 0.78f);
-                if (discMat != null && discMat != Graphic.defaultGraphicMaterial)
+                if (IsOwnedMaterial(discMat))
                 {
+                    _dynamicMaterials.Add(discMat);
                     if (discMat.HasProperty(UiShaders.PropRimGlow)) discMat.SetFloat(UiShaders.PropRimGlow, on ? 0.90f : 0.25f);
                     if (discMat.HasProperty(UiShaders.PropUltPulse)) discMat.SetFloat(UiShaders.PropUltPulse, ultimate ? (on ? 0.85f : 0.35f) : 0f);
                 }
@@ -1181,10 +1186,38 @@ namespace Kalyeah.Game
             return raw.Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_');
         }
 
+        sealed class KidsLifecycle : MonoBehaviour
+        {
+            [NonSerialized] public KidsScreenView Owner;
+            void OnDestroy() => Owner?.ReleaseOwnedMaterials();
+        }
+
+        static bool IsOwnedMaterial(Material mat) =>
+            mat != null && mat != Graphic.defaultGraphicMaterial && mat != Canvas.GetDefaultCanvasMaterial();
+
+        void ClearDynamicMaterials()
+        {
+            for (int i = 0; i < _dynamicMaterials.Count; i++)
+            {
+                if (IsOwnedMaterial(_dynamicMaterials[i]))
+                    KalyeahResources.Kill(_dynamicMaterials[i]);
+            }
+            _dynamicMaterials.Clear();
+        }
+
+        void ReleaseOwnedMaterials()
+        {
+            ClearDynamicMaterials();
+            if (IsOwnedMaterial(_homeCtaMat))
+                KalyeahResources.Kill(_homeCtaMat);
+            _homeCtaMat = null;
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
+            ReleaseOwnedMaterials();
             _stage?.Dispose();
             if (Root != null) KalyeahResources.Kill(Root.gameObject);
         }

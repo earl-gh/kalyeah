@@ -178,6 +178,7 @@ namespace Kalyeah.Game
         readonly List<Text> _monthButtonLabels = new List<Text>(12);
         readonly List<LayoutElement> _monthButtonLayouts = new List<LayoutElement>(12);
         readonly MiniSkillBadgeUi[] _kidInspectorSkills = new MiniSkillBadgeUi[3];
+        readonly List<Material> _ownedMaterials = new List<Material>(44);
 
         RectTransform _headerRect;
         RectTransform _backBtnRect;
@@ -335,6 +336,26 @@ namespace Kalyeah.Game
             SettingsStore.Current.Changed -= RefreshLocalization;
             ScreenFitMetrics.SimulatedViewportChanged -= RefreshLayout;
             if (_safeArea != null) _safeArea.Changed -= OnSafeAreaChanged;
+            ReleaseOwnedMaterials();
+        }
+
+        static bool IsOwnedMaterial(Material mat) =>
+            mat != null && mat != Graphic.defaultGraphicMaterial && mat != Canvas.GetDefaultCanvasMaterial();
+
+        void TrackOwnedMaterial(Material mat)
+        {
+            if (IsOwnedMaterial(mat)) _ownedMaterials.Add(mat);
+        }
+
+        void ReleaseOwnedMaterials()
+        {
+            for (int i = 0; i < _ownedMaterials.Count; i++)
+            {
+                if (IsOwnedMaterial(_ownedMaterials[i]))
+                    KalyeahResources.Kill(_ownedMaterials[i]);
+            }
+            _ownedMaterials.Clear();
+            _skillDiscMat = null;
         }
 
         void DisposeFromLifecycle() => Dispose();
@@ -741,6 +762,7 @@ namespace Kalyeah.Game
                     new Color(0.075f, 0.105f, 0.145f, 0.82f),
                     isUlt ? CoralGold : MenuArt.TitaniumRim,
                     0.76f);
+                TrackOwnedMaterial(discMat);
                 ApplyDiscMaterial(discImg, discMat, isUlt ? CoralGold : ObsidianCard);
 
                 Image emblemImg = Ui.MakeImage("Emblem", discBox, Paper, round: false, raycast: false);
@@ -831,6 +853,7 @@ namespace Kalyeah.Game
                     new Color(0.075f, 0.105f, 0.145f, 0.80f),
                     sk.IsUltimate ? CoralGold : MenuArt.TitaniumRim,
                     0.78f);
+                TrackOwnedMaterial(discMat);
                 ApplyDiscMaterial(discImg, discMat, ObsidianDeep);
 
                 Image emblem = Ui.MakeImage("Emblem", discHolder, Paper, round: false, raycast: false);
@@ -874,6 +897,7 @@ namespace Kalyeah.Game
             _skillDiscImg = Ui.MakeImage("DiscFace", discFrame, Color.white, round: false, raycast: false);
             Stretch(_skillDiscImg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             _skillDiscMat = UiShaders.CreateFrostedTitaniumDisc(new Color(0.075f, 0.105f, 0.145f, 0.84f), MenuArt.TitaniumRim, 0.78f);
+            TrackOwnedMaterial(_skillDiscMat);
             ApplyDiscMaterial(_skillDiscImg, _skillDiscMat, ObsidianDeep);
 
             _skillEmblemImg = Ui.MakeImage("Emblem", discFrame, Paper, round: false, raycast: false);

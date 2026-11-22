@@ -142,6 +142,7 @@ namespace Kalyeah.Game
         readonly List<SliderRowRefs> _sliderRows = new List<SliderRowRefs>(4);
         readonly List<SegmentedRowRefs> _segmentedRows = new List<SegmentedRowRefs>(8);
         readonly List<ScrollPaneRefs> _scrollPanes = new List<ScrollPaneRefs>(4);
+        readonly List<Material> _ownedMaterials = new List<Material>(4);
         DonateRowRefs _donateRow;
 
         RectTransform _headerRect;
@@ -317,6 +318,25 @@ namespace Kalyeah.Game
             SettingsStore.Current.Changed -= OnStoreChanged;
             ScreenFitMetrics.SimulatedViewportChanged -= RefreshLayout;
             if (_safeArea != null) _safeArea.Changed -= OnSafeAreaChanged;
+            ReleaseOwnedMaterials();
+        }
+
+        static bool IsOwnedMaterial(Material mat) =>
+            mat != null && mat != Graphic.defaultGraphicMaterial && mat != Canvas.GetDefaultCanvasMaterial();
+
+        void TrackOwnedMaterial(Material mat)
+        {
+            if (IsOwnedMaterial(mat)) _ownedMaterials.Add(mat);
+        }
+
+        void ReleaseOwnedMaterials()
+        {
+            for (int i = 0; i < _ownedMaterials.Count; i++)
+            {
+                if (IsOwnedMaterial(_ownedMaterials[i]))
+                    KalyeahResources.Kill(_ownedMaterials[i]);
+            }
+            _ownedMaterials.Clear();
         }
 
         void DisposeFromLifecycle() => Dispose();
@@ -1368,12 +1388,13 @@ namespace Kalyeah.Game
             return img;
         }
 
-        static Image MakeCtaPanel(string name, Transform parent, Color top, Color bottom, float cornerCut = 8f)
+        Image MakeCtaPanel(string name, Transform parent, Color top, Color bottom, float cornerCut = 8f)
         {
             Image img = Ui.MakeImage(name, parent, top, round: false, raycast: false);
             Stretch(img.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             Material mat = UiShaders.CreateMetallicCta(top, bottom, cornerCut);
-            if (mat != null && mat != Graphic.defaultGraphicMaterial)
+            TrackOwnedMaterial(mat);
+            if (IsOwnedMaterial(mat))
             {
                 img.material = mat;
                 img.color = Color.white;

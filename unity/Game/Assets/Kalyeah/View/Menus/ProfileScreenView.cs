@@ -160,6 +160,7 @@ namespace Kalyeah.Game
         readonly Dictionary<string, string> _kidRoleMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         readonly Dictionary<string, string> _kidPurokMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         readonly Dictionary<string, string> _kidNameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        readonly List<Material> _ownedMaterials = new List<Material>(4);
 
         RectTransform _headerBar;
         RectTransform _backBtnRect;
@@ -657,6 +658,24 @@ namespace Kalyeah.Game
             }
         }
 
+        static bool IsOwnedMaterial(Material mat) =>
+            mat != null && mat != Graphic.defaultGraphicMaterial && mat != Canvas.GetDefaultCanvasMaterial();
+
+        void TrackOwnedMaterial(Material mat)
+        {
+            if (IsOwnedMaterial(mat)) _ownedMaterials.Add(mat);
+        }
+
+        void ReleaseOwnedMaterials()
+        {
+            for (int i = 0; i < _ownedMaterials.Count; i++)
+            {
+                if (IsOwnedMaterial(_ownedMaterials[i]))
+                    KalyeahResources.Kill(_ownedMaterials[i]);
+            }
+            _ownedMaterials.Clear();
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
@@ -665,6 +684,7 @@ namespace Kalyeah.Game
                 _sheets.ProfileChanged -= HandleExternalProfileChanged;
             ClearHistoryRows();
             _stage?.Dispose();
+            ReleaseOwnedMaterials();
             if (_localCustomTex != null)
             {
                 KalyeahResources.Kill(_localCustomTex);
@@ -681,6 +701,7 @@ namespace Kalyeah.Game
             if (_sheets != null)
                 _sheets.ProfileChanged -= HandleExternalProfileChanged;
             _stage?.Dispose();
+            ReleaseOwnedMaterials();
             if (_localCustomTex != null)
             {
                 KalyeahResources.Kill(_localCustomTex);
@@ -2415,7 +2436,8 @@ namespace Kalyeah.Game
                 plate = Ui.MakeImage("Plate", visual, Gold, round: false, raycast: false);
                 Stretch(plate.rectTransform, 0f, 0f, 0f, 0f);
                 Material ctaMat = UiShaders.CreateMetallicCta(Gold, VermilionDeep, cornerCut: 8f);
-                if (ctaMat != null && ctaMat != Graphic.defaultGraphicMaterial)
+                TrackOwnedMaterial(ctaMat);
+                if (IsOwnedMaterial(ctaMat))
                 {
                     plate.material = ctaMat;
                     plate.color = Color.white;

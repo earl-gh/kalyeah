@@ -145,6 +145,7 @@ namespace Kalyeah.Game
 
         readonly List<RectTransform> _touchTargets = new List<RectTransform>(32);
         readonly Dictionary<string, Texture2D> _portraitCache = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
+        readonly List<Material> _ownedMaterials = new List<Material>(4);
         Material _startCtaMat;
 
         GameClient _boundClient;
@@ -680,9 +681,23 @@ namespace Kalyeah.Game
             SubscribeViewport(false);
             BindClient(null);
             ReleaseOwnedQrSprite();
-            if (_startCtaMat != null && _startCtaMat != Graphic.defaultGraphicMaterial)
+            ReleaseOwnedMaterials();
+            if (IsOwnedMaterial(_startCtaMat))
                 DestroyOwnedObject(_startCtaMat);
             _startCtaMat = null;
+        }
+
+        static bool IsOwnedMaterial(Material mat) =>
+            mat != null && mat != Graphic.defaultGraphicMaterial && mat != Canvas.GetDefaultCanvasMaterial();
+
+        void ReleaseOwnedMaterials()
+        {
+            for (int i = 0; i < _ownedMaterials.Count; i++)
+            {
+                if (IsOwnedMaterial(_ownedMaterials[i]))
+                    DestroyOwnedObject(_ownedMaterials[i]);
+            }
+            _ownedMaterials.Clear();
         }
 
         void SubscribeViewport(bool subscribe)
@@ -2207,7 +2222,7 @@ namespace Kalyeah.Game
             img.type = Image.Type.Simple;
             if (_startCtaMat == null)
                 _startCtaMat = UiShaders.CreateMetallicCta(SignalVermilion, SignalVermilionDeep, 8f);
-            if (_startCtaMat != null && _startCtaMat != Graphic.defaultGraphicMaterial)
+            if (IsOwnedMaterial(_startCtaMat))
             {
                 img.material = _startCtaMat;
                 img.color = Color.white;
@@ -2219,14 +2234,15 @@ namespace Kalyeah.Game
             }
         }
 
-        static void ApplyMetallicCtaSurface(Image img, Color top, Color bottom, float cornerCut = 8f)
+        void ApplyMetallicCtaSurface(Image img, Color top, Color bottom, float cornerCut = 8f)
         {
             if (img == null) return;
             img.sprite = null;
             img.type = Image.Type.Simple;
             Material mat = UiShaders.CreateMetallicCta(top, bottom, cornerCut);
-            if (mat != null && mat != Graphic.defaultGraphicMaterial)
+            if (IsOwnedMaterial(mat))
             {
+                _ownedMaterials.Add(mat);
                 img.material = mat;
                 img.color = Color.white;
             }

@@ -193,6 +193,8 @@ namespace Kalyeah.Game
         readonly ScrollRect _scrollRect;
         readonly RectTransform _scrollContent;
         readonly RectTransform _blueColumn;
+        readonly List<Material> _ownedMaterials = new List<Material>(4);
+        Material _honorBurstMat;
         readonly RectTransform _redColumn;
         readonly PlayerRowUi[] _blueRows = new PlayerRowUi[MaxPlayersPerTeam];
         readonly PlayerRowUi[] _redRows = new PlayerRowUi[MaxPlayersPerTeam];
@@ -797,16 +799,20 @@ namespace Kalyeah.Game
             }
         }
 
-        static void ApplyHonorButtonVisual(PlayerRowUi row, bool honoredThis, bool honorLockedElsewhere)
+        void ApplyHonorButtonVisual(PlayerRowUi row, bool honoredThis, bool honorLockedElsewhere)
         {
             if (honoredThis)
             {
                 row.HonorPlate.sprite = null;
                 row.HonorPlate.type = Image.Type.Simple;
-                Material goldBurst = UiShaders.CreateMetallicCta(MenuArt.GoldLight, MenuArt.Gold, cornerCut: 6f);
-                if (goldBurst != null && goldBurst != Graphic.defaultGraphicMaterial)
+                if (_honorBurstMat == null)
                 {
-                    row.HonorPlate.material = goldBurst;
+                    _honorBurstMat = UiShaders.CreateMetallicCta(MenuArt.GoldLight, MenuArt.Gold, cornerCut: 6f);
+                    TrackOwnedMaterial(_honorBurstMat);
+                }
+                if (IsOwnedMaterial(_honorBurstMat))
+                {
+                    row.HonorPlate.material = _honorBurstMat;
                     row.HonorPlate.color = Color.white;
                 }
                 else
@@ -1101,7 +1107,7 @@ namespace Kalyeah.Game
             }
         }
 
-        static Button BuildActionButton(
+        Button BuildActionButton(
             string name,
             Transform parent,
             string label,
@@ -1122,7 +1128,8 @@ namespace Kalyeah.Game
                 plate = Ui.MakeImage("Plate", vis, ColVermilion, round: false, raycast: false);
                 Stretch(plate.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
                 Material ctaMat = UiShaders.CreateMetallicCta(ColVermilion, ColVermilionDeep, cornerCut: 10f);
-                if (ctaMat != null && ctaMat != Graphic.defaultGraphicMaterial)
+                TrackOwnedMaterial(ctaMat);
+                if (IsOwnedMaterial(ctaMat))
                 {
                     plate.material = ctaMat;
                     plate.color = Color.white;
@@ -1197,11 +1204,32 @@ namespace Kalyeah.Game
             rt.offsetMax = offsetMax;
         }
 
+        static bool IsOwnedMaterial(Material mat) =>
+            mat != null && mat != Graphic.defaultGraphicMaterial && mat != Canvas.GetDefaultCanvasMaterial();
+
+        void TrackOwnedMaterial(Material mat)
+        {
+            if (IsOwnedMaterial(mat)) _ownedMaterials.Add(mat);
+        }
+
+        void ReleaseOwnedMaterials()
+        {
+            for (int i = 0; i < _ownedMaterials.Count; i++)
+            {
+                if (IsOwnedMaterial(_ownedMaterials[i]))
+                    KalyeahResources.Kill(_ownedMaterials[i]);
+            }
+            _ownedMaterials.Clear();
+            _honorBurstMat = null;
+        }
+
         void DisposeFromLifecycle()
         {
+            if (_disposed) return;
+            _disposed = true;
             if (SafeAreaComponent != null)
                 SafeAreaComponent.Changed -= HandleSafeAreaChanged;
-            _disposed = true;
+            ReleaseOwnedMaterials();
         }
 
         public void Dispose()
@@ -1210,6 +1238,7 @@ namespace Kalyeah.Game
             _disposed = true;
             if (SafeAreaComponent != null)
                 SafeAreaComponent.Changed -= HandleSafeAreaChanged;
+            ReleaseOwnedMaterials();
             if (Root != null)
                 KalyeahResources.Kill(Root.gameObject);
         }

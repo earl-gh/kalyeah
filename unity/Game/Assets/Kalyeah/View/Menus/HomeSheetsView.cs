@@ -118,6 +118,7 @@ namespace Kalyeah.Game
             {
                 UnsubscribeViewport();
                 Owner?.StopCamera();
+                Owner?.ReleaseOwnedMaterials();
             }
 
             void SubscribeViewport()
@@ -233,6 +234,7 @@ namespace Kalyeah.Game
         int _displayedMonth;
         RectTransform _monthNavRect;
         RectTransform _prevMonthRect;
+        readonly List<Material> _ownedMaterials = new List<Material>(8);
         RectTransform _nextMonthRect;
         RectTransform _monthCenterStackRect;
         Text _monthKickerText;
@@ -825,6 +827,24 @@ namespace Kalyeah.Game
             }
         }
 
+        static bool IsOwnedMaterial(Material mat) =>
+            mat != null && mat != Graphic.defaultGraphicMaterial && mat != Canvas.GetDefaultCanvasMaterial();
+
+        void TrackOwnedMaterial(Material mat)
+        {
+            if (IsOwnedMaterial(mat)) _ownedMaterials.Add(mat);
+        }
+
+        void ReleaseOwnedMaterials()
+        {
+            for (int i = 0; i < _ownedMaterials.Count; i++)
+            {
+                if (IsOwnedMaterial(_ownedMaterials[i]))
+                    KalyeahResources.Kill(_ownedMaterials[i]);
+            }
+            _ownedMaterials.Clear();
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
@@ -837,6 +857,7 @@ namespace Kalyeah.Game
             StopCamera();
             ReleaseSnappedPreview();
             ReleaseCustomPhotoTexture();
+            ReleaseOwnedMaterials();
             if (Root != null)
                 KalyeahResources.Kill(Root.gameObject);
         }
@@ -2161,7 +2182,7 @@ namespace Kalyeah.Game
             return btn;
         }
 
-        static Button MakeActionButton(
+        Button MakeActionButton(
             string name,
             Transform parent,
             string label,
@@ -2189,7 +2210,8 @@ namespace Kalyeah.Game
             if (isPrimary)
             {
                 Material ctaMat = UiShaders.CreateMetallicCta(Vermilion, VermilionDeep, cornerCut: 8f);
-                if (ctaMat != null && ctaMat != Graphic.defaultGraphicMaterial)
+                TrackOwnedMaterial(ctaMat);
+                if (IsOwnedMaterial(ctaMat))
                 {
                     fillImg.material = ctaMat;
                     fillImg.color = Color.white;

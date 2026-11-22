@@ -104,6 +104,7 @@ namespace Kalyeah.Game
         readonly Text _emptyListLabel;
 
         readonly List<RectTransform> _touchTargets = new List<RectTransform>(16);
+        readonly List<Material> _ownedMaterials = new List<Material>(8);
 
         GameClient _boundClient;
         Sprite _ownedQrSprite;
@@ -477,8 +478,22 @@ namespace Kalyeah.Game
             AndroidLocalLink.SetNfcReading(false);
             BindClient(null);
             ReleaseOwnedQrSprite();
+            ReleaseOwnedMaterials();
             _lastQrPayload = "";
             _lastNfcPayload = "";
+        }
+
+        static bool IsOwnedMaterial(Material mat) =>
+            mat != null && mat != Graphic.defaultGraphicMaterial && mat != Canvas.GetDefaultCanvasMaterial();
+
+        void ReleaseOwnedMaterials()
+        {
+            for (int i = 0; i < _ownedMaterials.Count; i++)
+            {
+                if (IsOwnedMaterial(_ownedMaterials[i]))
+                    KalyeahResources.Kill(_ownedMaterials[i]);
+            }
+            _ownedMaterials.Clear();
         }
 
         void SubscribeViewport(bool subscribe)
@@ -1674,14 +1689,15 @@ namespace Kalyeah.Game
             }
         }
 
-        static void ApplyMetallicCtaSurface(Image img, Color top, Color bottom, float cornerCut = 8f)
+        void ApplyMetallicCtaSurface(Image img, Color top, Color bottom, float cornerCut = 8f)
         {
             if (img == null) return;
             img.sprite = null;
             img.type = Image.Type.Simple;
             Material mat = UiShaders.CreateMetallicCta(top, bottom, cornerCut);
-            if (mat != null && mat != Graphic.defaultGraphicMaterial)
+            if (IsOwnedMaterial(mat))
             {
+                _ownedMaterials.Add(mat);
                 img.material = mat;
                 img.color = Color.white;
             }

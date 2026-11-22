@@ -197,6 +197,9 @@ namespace Kalyeah.Game
             SettingsStore.Current.Changed -= Refresh;
             ScreenFitMetrics.SimulatedViewportChanged -= RefreshLayout;
             if (_safeArea != null) _safeArea.Changed -= OnSafeAreaChanged;
+            if (_lpGaugeMat != null && _lpGaugeMat != Graphic.defaultGraphicMaterial && _lpGaugeMat != Canvas.GetDefaultCanvasMaterial())
+                KalyeahResources.Kill(_lpGaugeMat);
+            _lpGaugeMat = null;
         }
 
         void DisposeFromLifecycle() => Dispose();

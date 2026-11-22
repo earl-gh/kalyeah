@@ -73,6 +73,7 @@ namespace Kalyeah.Game
         {
             public PickScreenView Owner;
             void Update() => Owner?.Tick(Time.unscaledDeltaTime);
+            void OnDestroy() => Owner?.ReleaseOwnedMaterials();
         }
 
         sealed class Card
@@ -895,10 +896,27 @@ namespace Kalyeah.Game
             _stage.Tick(dt);
         }
 
+        static bool IsOwnedMaterial(Material mat) =>
+            mat != null && mat != Graphic.defaultGraphicMaterial && mat != Canvas.GetDefaultCanvasMaterial();
+
+        void ReleaseOwnedMaterials()
+        {
+            for (int i = 0; i < _skillTabs.Count; i++)
+            {
+                if (IsOwnedMaterial(_skillTabs[i].DiscMat))
+                    KalyeahResources.Kill(_skillTabs[i].DiscMat);
+                _skillTabs[i].DiscMat = null;
+            }
+            if (IsOwnedMaterial(_lockCtaMat))
+                KalyeahResources.Kill(_lockCtaMat);
+            _lockCtaMat = null;
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
+            ReleaseOwnedMaterials();
             _stage?.Dispose();
             if (Root != null) KalyeahResources.Kill(Root.gameObject);
         }
