@@ -1248,12 +1248,26 @@ namespace Kalyeah.Game
             }
         }
 
-        static HitboxZone ParseHitboxZone(string raw)
+        static HitboxZone ParseHitboxZone(string raw, string fallbackName = null)
         {
-            if (string.IsNullOrEmpty(raw)) return HitboxZone.Limb;
-            if (raw.IndexOf("head", StringComparison.OrdinalIgnoreCase) >= 0) return HitboxZone.Head;
-            if (raw.IndexOf("chest", StringComparison.OrdinalIgnoreCase) >= 0 || raw.IndexOf("upper", StringComparison.OrdinalIgnoreCase) >= 0) return HitboxZone.Chest;
-            if (raw.IndexOf("stomach", StringComparison.OrdinalIgnoreCase) >= 0 || raw.IndexOf("abdomen", StringComparison.OrdinalIgnoreCase) >= 0 || raw.IndexOf("pelvis", StringComparison.OrdinalIgnoreCase) >= 0) return HitboxZone.Stomach;
+            if (!string.IsNullOrEmpty(raw))
+            {
+                if (raw.IndexOf("head", StringComparison.OrdinalIgnoreCase) >= 0) return HitboxZone.Head;
+                if (raw.IndexOf("chest", StringComparison.OrdinalIgnoreCase) >= 0 || raw.IndexOf("upper", StringComparison.OrdinalIgnoreCase) >= 0) return HitboxZone.Chest;
+                if (raw.IndexOf("stomach", StringComparison.OrdinalIgnoreCase) >= 0 || raw.IndexOf("abdomen", StringComparison.OrdinalIgnoreCase) >= 0 || raw.IndexOf("pelvis", StringComparison.OrdinalIgnoreCase) >= 0) return HitboxZone.Stomach;
+                if (raw.IndexOf("torso", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    if (!string.IsNullOrEmpty(fallbackName) && fallbackName.IndexOf("stomach", StringComparison.OrdinalIgnoreCase) >= 0)
+                        return HitboxZone.Stomach;
+                    return HitboxZone.Chest;
+                }
+            }
+            if (!string.IsNullOrEmpty(fallbackName))
+            {
+                if (fallbackName.IndexOf("head", StringComparison.OrdinalIgnoreCase) >= 0) return HitboxZone.Head;
+                if (fallbackName.IndexOf("chest", StringComparison.OrdinalIgnoreCase) >= 0) return HitboxZone.Chest;
+                if (fallbackName.IndexOf("stomach", StringComparison.OrdinalIgnoreCase) >= 0) return HitboxZone.Stomach;
+            }
             return HitboxZone.Limb;
         }
 
@@ -1285,13 +1299,14 @@ namespace Kalyeah.Game
             float chestMult = HitboxMultChest;
             float stomachMult = HitboxMultStomach;
             float limbMult = HitboxMultLimb;
-            Dictionary<string, object> mults = JsonRead.Obj(data, "multipliers");
+            Dictionary<string, object> mults = JsonRead.Obj(data, "multipliers") ?? JsonRead.Obj(data, "damageMultipliers");
             if (mults != null)
             {
+                float torsoMult = JsonRead.Float(mults, "torso", chestMult);
                 headMult = JsonRead.Float(mults, "Head", JsonRead.Float(mults, "head", headMult));
-                chestMult = JsonRead.Float(mults, "Chest", JsonRead.Float(mults, "chest", chestMult));
-                stomachMult = JsonRead.Float(mults, "Stomach", JsonRead.Float(mults, "stomach", stomachMult));
-                limbMult = JsonRead.Float(mults, "Limb", JsonRead.Float(mults, "limb", limbMult));
+                chestMult = JsonRead.Float(mults, "Chest", JsonRead.Float(mults, "chest", torsoMult));
+                stomachMult = JsonRead.Float(mults, "Stomach", JsonRead.Float(mults, "stomach", torsoMult));
+                limbMult = JsonRead.Float(mults, "Limb", JsonRead.Float(mults, "limb", JsonRead.Float(mults, "limbs", limbMult)));
             }
 
             var specs = new List<HitboxCapsuleSpec>(14);
@@ -1334,7 +1349,7 @@ namespace Kalyeah.Game
             string bone = RigJointLimitsData.StripMixamoPrefix(JsonRead.Str(item, "bone", ""));
             if (string.IsNullOrEmpty(bone)) return;
 
-            HitboxZone zone = ParseHitboxZone(JsonRead.Str(item, "zone", name));
+            HitboxZone zone = ParseHitboxZone(JsonRead.Str(item, "zone", name), name);
             float defaultMult = zone == HitboxZone.Head ? headMult
                 : (zone == HitboxZone.Chest ? chestMult
                 : (zone == HitboxZone.Stomach ? stomachMult : limbMult));
@@ -1349,6 +1364,17 @@ namespace Kalyeah.Game
             {
                 vecA = RigSpaceConvert.PositionOrDirection(vecA, isGltfYup);
                 vecB = RigSpaceConvert.PositionOrDirection(vecB, isGltfYup);
+            }
+            else if (JsonRead.TryVec3(item, "localOffset", out Vector3 localOffset))
+            {
+                string axisStr = JsonRead.Str(item, "axis", "Y");
+                Vector3 axisDir = string.Equals(axisStr, "X", StringComparison.OrdinalIgnoreCase) ? Vector3.right
+                    : (string.Equals(axisStr, "Z", StringComparison.OrdinalIgnoreCase) ? Vector3.forward : Vector3.up);
+                float height = JsonRead.Float(item, "height", radius * 2f);
+                float halfSeg = Mathf.Max(0f, height * 0.5f - radius);
+                vecA = RigSpaceConvert.PositionOrDirection(localOffset - axisDir * halfSeg, isGltfYup);
+                vecB = RigSpaceConvert.PositionOrDirection(localOffset + axisDir * halfSeg, isGltfYup);
+                explicitPts = true;
             }
 
             string space = JsonRead.Str(item, "space", isGltfYup ? "model" : "bone");
