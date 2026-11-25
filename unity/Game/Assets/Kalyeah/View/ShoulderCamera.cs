@@ -37,7 +37,6 @@ namespace Kalyeah.Game
         const float AirPivotShare = 0.65f;
         const float PosturePivotLerp = 14f;
         const float HardSurfacePad = 0.05f;
-        const float DefaultKidHeight = 1.52f;
 
         /// <summary>Maximum competitive aspect ratio (21.5:9) before horizontal FOV is capped.</summary>
         public const float MaxFairAspect = 21.5f / 9f;
@@ -1062,7 +1061,7 @@ namespace Kalyeah.Game
                 return;
             }
 
-            float kidHeight = Mathf.Max(0.8f, DefaultKidHeight * Mathf.Max(Rules.KidViewScale, 0.5f));
+            float kidHeight = Mathf.Max(0.8f, KidView.KidHeight * Mathf.Max(Rules.KidViewScale, 0.5f));
             Vector3 tLow = feetU + Vector3.up * (kidHeight * 0.15f);
             Vector3 tMid = feetU + Vector3.up * (kidHeight * 0.50f);
             Vector3 tTop = feetU + Vector3.up * kidHeight;

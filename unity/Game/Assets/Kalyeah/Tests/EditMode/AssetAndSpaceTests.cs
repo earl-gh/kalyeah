@@ -202,7 +202,8 @@ namespace Kalyeah.Game
             Assert.AreEqual(1.9f, rules.ShoulderHeight, 0.001f, "1.9 m pivot, a little above the kid");
             Assert.AreEqual(0.88f, rules.ShoulderOffset, 0.001f, "0.88 m to the right: hero sits cleanly in the lower-left third");
             Assert.AreEqual(12f, rules.LookPitchDegrees, 0.001f, "12 deg looking down over the street");
-            Assert.AreEqual(58f, rules.ShoulderFov, 0.001f, "58 deg vertical FOV: crisp competitive AAA 3P framing");
+            Assert.AreEqual(50f, rules.ShoulderFov, 0.001f, "50 deg vertical FOV: a kid at 20 m stays readable on a phone");
+            Assert.AreEqual(1f, rules.KidViewScale, 0.001f, "kids drawn at full 1.85 m so enemies read at weapon range");
 
             SVector2 feet = new SVector2(4f, 20f); // Unity ground (4, 0, -20)
             var (eye, forward) = ShoulderRig.Pose(rules, feet, yawDegrees: 0f, pitchDegrees: rules.LookPitchDegrees);

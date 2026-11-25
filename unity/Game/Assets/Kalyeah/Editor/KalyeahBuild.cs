@@ -1049,6 +1049,23 @@ public static class KalyeahBuild
                         world.Hud.Refresh(world.Sim, world.Camera, world.Shoulder, world.View.Layout, 0f);
                     });
                 }
+
+                // Three enemies 10, 20 and 30 m ahead of your kid, facing it: how big a foe reads at weapon range
+                var rangeFeet = new System.Numerics.Vector2(0f, 24f);
+                world.Sim.SetPlayerPositionForPreview(SimBridge.LocalId, rangeFeet, -System.Numerics.Vector2.UnitY);
+                for (int i = 0; i < 3; i++)
+                {
+                    var foeFeet = new System.Numerics.Vector2(-2.5f + 3.5f * i, rangeFeet.Y - 10f * (i + 1));
+                    world.Sim.SetPlayerPositionForPreview(SimBridge.EnemyIds[i], foeFeet, System.Numerics.Vector2.UnitY);
+                }
+                world.Draw(1f, 0f);
+                CaptureDualAspect(world.Camera, dir, "match_08_enemy_range", () =>
+                {
+                    world.Shoulder.Yaw = 0f;
+                    world.Shoulder.Pitch = world.Shoulder.Rules.LookPitchDegrees;
+                    world.Shoulder.Apply(world.Camera, rangeFeet, 0f);
+                    world.Hud.Refresh(world.Sim, world.Camera, world.Shoulder, world.View.Layout, 0f);
+                });
             }
 
             long tumbangSeed = FindTumbangThrowerSeed(data);
