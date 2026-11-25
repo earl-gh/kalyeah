@@ -42,7 +42,7 @@ Shader "Kalyeah/Kid"
 
         // 5. Crisp Sun Fresnel Rim, Team Highlight Fresnel & Painterly Vertical Focal Gradient
         _SunRimColor ("Sun Fresnel Rim Color", Color) = (1.00, 0.94, 0.80, 1.0)
-        _SunRimStrength ("Sun Fresnel Rim Strength", Range(0.0, 1.5)) = 0.36
+        _SunRimStrength ("Sun Fresnel Rim Strength", Range(0.0, 1.5)) = 0.7
         _SunRimPower ("Sun Fresnel Rim Power", Range(1.2, 6.0)) = 2.80
         _TeamRimColor ("Team Highlight Rim Color", Color) = (0.42, 0.78, 1.00, 1.0)
         _TeamRimStrength ("Team Highlight Rim Strength", Range(0.0, 1.5)) = 0.0

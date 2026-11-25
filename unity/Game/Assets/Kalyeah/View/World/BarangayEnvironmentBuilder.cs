@@ -358,14 +358,15 @@ namespace Kalyeah.Game
         static readonly int PropHorizonGlow = Shader.PropertyToID("_HorizonGlow");
 
         // Crisp 10:30 AM sunlit Manila atmosphere & cool-sky / warm-earth Trilight bounce.
-        static readonly Color WarmHorizonFog = new Color(0.84f, 0.89f, 0.93f, 1f);
+        static readonly Color WarmHorizonFog = new Color(0.98f, 0.72f, 0.52f, 1f);
         static readonly Color WarmSkyAmbient = new Color(0.384f, 0.596f, 0.847f, 1f);     // #6298D8 cool Manila azure sky
         static readonly Color WarmEquatorAmbient = new Color(0.796f, 0.749f, 0.663f, 1f); // #CBBFA9 sunlit limestone equator
         static readonly Color WarmGroundBounce = new Color(0.490f, 0.431f, 0.361f, 1f);   // #7D6E5C warm earth bounce
-        static readonly Color ManilaSkyZenith = new Color(0.31f, 0.62f, 0.90f, 1f);
-        static readonly Color ManilaSkyMid = new Color(0.58f, 0.80f, 0.95f, 1f);
-        static readonly Color ManilaSkyHorizon = new Color(0.86f, 0.92f, 0.96f, 1f);
-        static readonly Color ManilaHorizonGlow = new Color(0.97f, 0.95f, 0.89f, 1f);
+        // Warm sunset sky (owner, 2026-11-25): dusk-blue zenith through rose to a glowing orange horizon.
+        static readonly Color ManilaSkyZenith = new Color(0.27f, 0.33f, 0.60f, 1f);
+        static readonly Color ManilaSkyMid = new Color(0.82f, 0.56f, 0.56f, 1f);
+        static readonly Color ManilaSkyHorizon = new Color(1.00f, 0.70f, 0.44f, 1f);
+        static readonly Color ManilaHorizonGlow = new Color(1.00f, 0.82f, 0.54f, 1f);
         static Material s_fallbackSky;
 
         /// <summary>
