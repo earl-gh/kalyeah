@@ -238,6 +238,7 @@ namespace Kalyeah.Net
             // the tapped street point and the point under a dragged card ride along (the buttons already carry their bits)
             wire.MoveTarget = input.MoveTarget;
             wire.AimPoint = input.AimPoint;
+            wire.Look = input.Look;
             Send(NetProtocol.InputToDict(wire));
             NextInputSequence = wireTick + 1;
             if (Stage != "play") return;

@@ -466,6 +466,28 @@ namespace Kalyeah.Sim.Tests
         }
 
         [Test]
+        public void ALookingPlayerFacesTheLookAndStrafes()
+        {
+            MatchSim sim = Sim();
+            PlayerState p = sim.AddPlayer(1, 0);
+            Vec2 start = p.Position;
+            var look = new Vec2(0.0, -1.0);
+            for (int i = 0; i < 10; i++)
+            {
+                PlayerInput input = PlayerInput.Create(new Vec2(1.0, 0.0), Vec2.Zero, 0, sim.Tick);
+                input.Look = look * 3.0;
+                sim.SetInput(1, input);
+                sim.Step(DT);
+            }
+            Assert.AreEqual(look, p.Facing, "faces where the camera looks, not where the stick goes");
+            Assert.Greater(p.Position.X - start.X, 0.5, "the stick still moves it sideways");
+            Assert.AreEqual(start.Y, p.Position.Y, 1e-6, "no drift toward the look");
+
+            Run(sim, 1, Vec2.Zero, 1);
+            Assert.AreEqual(look, p.Facing, "an input without a look keeps the last facing while standing");
+        }
+
+        [Test]
         public void SameSeedAndInputsGiveIdenticalResults()
         {
             MatchSim a = Sim(99), b = Sim(99);

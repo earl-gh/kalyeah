@@ -2252,6 +2252,9 @@ namespace Kalyeah.Sim
             state.OutOfCombatTime += dt;
             Vec2 move = input != null ? input.Move.LimitLength(1.0) : Vec2.Zero;
             double stickLen = move.Length();
+            // FPS controls: a player who sends a look faces it and strafes; bots and old clients face the way they move
+            bool looking = input != null && input.Look.IsFinite() && input.Look.LengthSquared() > 0.0001;
+            if (looking) state.Facing = input.Look.Normalized();
             state.Crouching = Mode == null && state.StiltsLeft <= 0.0 && state.AirY <= 0.01 && input != null && input.IsPressed(PlayerInput.BtnCrouch);
             state.Walking = !state.Crouching && stickLen > 0.0 && stickLen < Rules.WalkRunThreshold;
             double speed = Mode != null ? Mode.Rules.MoveSpeed : Rules.MoveSpeed;
@@ -2285,10 +2288,11 @@ namespace Kalyeah.Sim
             Vec2 prevPos = state.Position;
             if (stickLen > 0.0)
             {
-                state.Facing = move / stickLen;
+                Vec2 way = move / stickLen;
+                if (!looking) state.Facing = way;
                 // spec: a partly pushed stick walks at walk_speed, a fully pushed one jogs at move_speed (not in proportion)
                 if (Rules.SpecRules && Rules.WalkSpeed > 0.0 && Mode == null)
-                    move = state.Walking ? state.Facing * (Rules.WalkSpeed / Rules.MoveSpeed) : state.Facing;
+                    move = state.Walking ? way * (Rules.WalkSpeed / Rules.MoveSpeed) : way;
                 MoveBy(state, move * speed * dt);
             }
             else if (state.HasMoveTarget)

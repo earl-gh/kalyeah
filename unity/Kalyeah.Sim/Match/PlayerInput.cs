@@ -38,6 +38,8 @@ namespace Kalyeah.Sim
         public Vec2 Move = Vec2.Zero;
         /// <summary>Stick-style aim relative to the kid (length 0..1 of the range; zero = auto-aim).</summary>
         public Vec2 Aim = Vec2.Zero;
+        /// <summary>Where the player's camera looks on the ground (FPS controls: the kid faces it); zero = face the way you move.</summary>
+        public Vec2 Look = Vec2.Zero;
         public int Buttons;
         public int Tick;
         /// <summary>A street point (only read with BtnMoveTarget).</summary>

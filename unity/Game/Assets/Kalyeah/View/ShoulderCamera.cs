@@ -21,7 +21,7 @@ namespace Kalyeah.Game
     /// (docs/GDD.md "Shoulder view"; scripts/view/arena_camera.gd &amp; camera_rules.gd).
     /// Owns whisker spring-arm wall pull-in (&lt;=40 ms pull-in, 150 ms critically-damped ease-out across both
     /// Physics.SphereCast and analytic MapLayoutData bounds), &lt;0.75 m kid-proximity flag, building Occluder
-    /// renderer fade, lateral-orbit auto-follow, sprint/dash FOV kick, skill-aiming ADS/ZoomOut transitions,
+    /// renderer fade, sprint/dash FOV kick, skill-aiming ADS/ZoomOut transitions,
     /// and &gt;21.5:9 horizontal FOV fairness cap.
     /// </summary>
     public sealed class ShoulderCamera
@@ -97,13 +97,7 @@ namespace Kalyeah.Game
         public float EaseOutSmoothTime = 0.15f;
         public float TooCloseDistance = DefaultTooCloseDistance;
 
-        public float AutoFollowSmoothTime = 0.22f;
-        public float AutoFollowMaxSpeed = 160f;
-        public float AutoFollowLateralGain = 1f;
-        public float ManualOverrideCooldown = 1.1f;
-        public float ManualOverrideBlendTime = 0.45f;
         public float PivotSmoothTime = 0.007f;
-        public float FacingSmoothTime = 0.045f;
 
         public float SprintFovKick = 4.5f;
         /// <summary>Aiming down sight: the camera moves in along its view to `ads_distance` and narrows to `ads_fov`.</summary>
@@ -153,12 +147,6 @@ namespace Kalyeah.Game
         float _armVelocity;
         bool _armReady;
 
-        float _manualLookHold;
-        float _manualBlend = 1f;
-        float _yawVelocity;
-        float _smoothedMoveYaw;
-        float _moveYawVelocity;
-        bool _moveYawReady;
 
         bool _speedBoosting;
         float _fovBoost;
@@ -245,7 +233,7 @@ namespace Kalyeah.Game
             Configure(data, layout);
         }
 
-        /// <summary>Loads extended camera_rules.tres fields (third_person, follow, auto-follow springs) without altering CameraRulesData.</summary>
+        /// <summary>Loads extended camera_rules.tres fields (third_person, follow) without altering CameraRulesData.</summary>
         public void Configure(DataSource data, MapLayoutData layout = null)
         {
             if (layout != null) Layout = layout;
@@ -264,13 +252,7 @@ namespace Kalyeah.Game
             ShoulderClearReach = FloatOr(p, "shoulder_clear_reach", ShoulderClearReach);
             AimReach = FloatOr(p, "aim_reach", AimReach);
             ShoulderBoundsEdge = FloatOr(p, "shoulder_bounds_edge", ShoulderBoundsEdge);
-            AutoFollowSmoothTime = FloatOr(p, "auto_follow_smooth_time", AutoFollowSmoothTime);
-            AutoFollowMaxSpeed = FloatOr(p, "auto_follow_max_speed", AutoFollowMaxSpeed);
-            AutoFollowLateralGain = FloatOr(p, "auto_follow_lateral_gain", AutoFollowLateralGain);
-            ManualOverrideCooldown = FloatOr(p, "manual_override_cooldown", ManualOverrideCooldown);
-            ManualOverrideBlendTime = FloatOr(p, "manual_override_blend_time", ManualOverrideBlendTime);
             PivotSmoothTime = FloatOr(p, "pivot_smooth_time", PivotSmoothTime);
-            FacingSmoothTime = FloatOr(p, "facing_smooth_time", FacingSmoothTime);
         }
 
         public void SetTeam(int team, bool resetLook = true)
@@ -283,11 +265,6 @@ namespace Kalyeah.Game
         {
             Yaw = _team == SimBridge.LocalTeam ? 0f : 180f;
             Pitch = Rules.LookPitchDegrees;
-            _manualLookHold = 0f;
-            _manualBlend = 1f;
-            _yawVelocity = 0f;
-            _moveYawVelocity = 0f;
-            _moveYawReady = false;
             SkillAimMode = SkillAimCameraMode.Normal;
             _zoomOutBlend = 0f;
             _zoomOutVelocity = 0f;
@@ -364,13 +341,6 @@ namespace Kalyeah.Game
         public void Look(Vector2 screenPixels, float screenHeight)
         {
             if (!ThirdPerson) return;
-            if (screenPixels.sqrMagnitude > 0.0001f)
-            {
-                _manualLookHold = ManualOverrideCooldown;
-                _manualBlend = 0f;
-                _yawVelocity = 0f;
-                _moveYawReady = false;
-            }
             float toBase = BaseHeight / Mathf.Max(screenHeight, 1f);
             Yaw = Mathf.Repeat(Yaw - screenPixels.x * toBase * Rules.LookSensitivity, 360f);
             Pitch = Rules.ClampPitch(Pitch - screenPixels.y * toBase * Rules.LookSensitivity);
@@ -515,72 +485,7 @@ namespace Kalyeah.Game
             _verticalOffset = Mathf.Lerp(_verticalOffset, target, 1f - Mathf.Exp(-dt * PosturePivotLerp));
         }
 
-        /// <summary>Gentle lateral-orbit yaw follow behind a moving kid when the player is not dragging LookPad.</summary>
-        public void SyncBehindCharacter(SVector2 facing, bool moving, float dt, float speedRatio = 1f)
-        {
-            if (!ThirdPerson) return;
-            float stepDt = Mathf.Max(dt, 0f);
-            if (_manualLookHold > 0f)
-            {
-                _manualLookHold = Mathf.Max(0f, _manualLookHold - stepDt);
-                _manualBlend = 0f;
-                _yawVelocity = 0f;
-                return;
-            }
-            if (stepDt <= 0f) return;
-
-            if (!moving || facing.LengthSquared() <= 0.0001f)
-            {
-                _moveYawReady = false;
-                _moveYawVelocity = 0f;
-                if (Mathf.Abs(_yawVelocity) > 0.01f && !ReduceMotion)
-                    Yaw = SmoothDampAngle(Yaw, Yaw, ref _yawVelocity, AutoFollowSmoothTime, AutoFollowMaxSpeed, stepDt);
-                else
-                    _yawVelocity = 0f;
-                return;
-            }
-
-            float blendWindow = Mathf.Max(ManualOverrideBlendTime, 0.001f);
-            _manualBlend = ReduceMotion ? 1f : Mathf.MoveTowards(_manualBlend, 1f, stepDt / blendWindow);
-            float easeBlend = Mathf.SmoothStep(0f, 1f, _manualBlend);
-
-            float rawMoveYaw = ShoulderRig.YawToward(SVector2.Zero, facing);
-            if (!_moveYawReady || ReduceMotion || FacingSmoothTime <= 0f)
-            {
-                _smoothedMoveYaw = rawMoveYaw;
-                _moveYawVelocity = 0f;
-                _moveYawReady = true;
-            }
-            else
-            {
-                _smoothedMoveYaw = SmoothDampAngle(_smoothedMoveYaw, rawMoveYaw, ref _moveYawVelocity, FacingSmoothTime, 720f, stepDt);
-            }
-
-            float lateralWeight = LateralOrbitWeight(Yaw, _smoothedMoveYaw, speedRatio) * AutoFollowLateralGain * easeBlend;
-            if (lateralWeight <= 0.0005f)
-            {
-                if (Mathf.Abs(_yawVelocity) > 0.01f && !ReduceMotion)
-                    Yaw = SmoothDampAngle(Yaw, Yaw, ref _yawVelocity, AutoFollowSmoothTime, AutoFollowMaxSpeed, stepDt);
-                else
-                    _yawVelocity = 0f;
-                return;
-            }
-
-            if (ReduceMotion)
-            {
-                _yawVelocity = 0f;
-                float snapRate = 4.6f * Mathf.Clamp(lateralWeight, 0.15f, 1f);
-                Yaw = Mathf.Repeat(Mathf.LerpAngle(Yaw, _smoothedMoveYaw, 1f - Mathf.Exp(-stepDt * snapRate)), 360f);
-            }
-            else
-            {
-                float effMaxSpeed = Mathf.Max(4f, AutoFollowMaxSpeed * lateralWeight);
-                float effSmooth = Mathf.Lerp(AutoFollowSmoothTime * 1.55f, AutoFollowSmoothTime, Mathf.Clamp01(lateralWeight));
-                Yaw = SmoothDampAngle(Yaw, _smoothedMoveYaw, ref _yawVelocity, effSmooth, effMaxSpeed, stepDt);
-            }
-        }
-
-        /// <summary>One-call per-frame helper syncing sprint/dash FOV kick, crouch/jump vertical pivot, slide Dutch roll, and auto-follow yaw.</summary>
+        /// <summary>One-call per-frame helper syncing sprint/dash FOV kick, crouch/jump vertical pivot, and slide Dutch roll. The view only turns when the player swipes (FPS controls: no auto-follow).</summary>
         public void SyncLocalKid(SVector2 facing, float speed01, bool sprintingOrDashing, bool crouchingOrSliding, float airY, float dt)
         {
             SetSpeedBoost(sprintingOrDashing);
@@ -595,7 +500,6 @@ namespace Kalyeah.Game
                     rollSign = rightDot > 0f ? -1f : 1f;
             }
             SetSliding(inferredSlide, rollSign);
-            SyncBehindCharacter(facing, speed01 > 0.05f, dt, speed01);
         }
 
         public void RegisterOccluder(GameObject root)
@@ -1229,14 +1133,6 @@ namespace Kalyeah.Game
             }
             return output;
         }
-
-        static float SmoothDampAngle(float currentDeg, float targetDeg, ref float velocityDeg, float smoothTime, float maxSpeedDeg, float dt)
-        {
-            float deltaDeg = Mathf.DeltaAngle(currentDeg, targetDeg);
-            float stepped = SmoothDampScalar(currentDeg, currentDeg + deltaDeg, ref velocityDeg, smoothTime, maxSpeedDeg, dt);
-            return Mathf.Repeat(stepped, 360f);
-        }
-
         static SVector2 SmoothDampVec2(SVector2 current, SVector2 target, ref SVector2 velocity, float smoothTime, float maxSpeed, float dt)
         {
             if (dt <= 1e-6f) return current;
@@ -1263,18 +1159,6 @@ namespace Kalyeah.Game
             }
             return output;
         }
-
-        static float LateralOrbitWeight(float lookYawDeg, float moveYawDeg, float speedRatio)
-        {
-            float diffRad = Mathf.DeltaAngle(lookYawDeg, moveYawDeg) * Mathf.Deg2Rad;
-            float absDiff = Mathf.Abs(diffRad);
-            float hi = 176f * Mathf.Deg2Rad;
-            float lo = 142f * Mathf.Deg2Rad;
-            float t = Mathf.Clamp01((hi - absDiff) / (hi - lo));
-            float backpedalGate = t * t * (3f - 2f * t);
-            return Mathf.Abs(Mathf.Sin(diffRad)) * backpedalGate * Mathf.Clamp(speedRatio, 0f, 1.25f);
-        }
-
         static float FloatOr(Dictionary<string, object> p, string key, float fallback)
             => p != null && p.ContainsKey(key) ? DataSource.F(p, key) : fallback;
 

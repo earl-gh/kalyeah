@@ -195,7 +195,7 @@ namespace Kalyeah.Game
             }
 
             if (Hud.Look != null)
-                Shoulder.Look(Hud.Look.TakeDrag(), Mathf.Max(1f, screenHeight));
+                Shoulder.Look(Hud.Look.TakeDrag() + (Hud.AbilityArc != null ? Hud.AbilityArc.TakeLookDrag() : Vector2.zero), Mathf.Max(1f, screenHeight));
 
             Vector2 stick = Hud.Joystick != null ? Hud.Joystick.Value : Vector2.zero;
             if (stick.sqrMagnitude < 0.0025f && tilt != null && tilt.Enabled && SettingsStore.Current.TiltToRun)
@@ -209,6 +209,7 @@ namespace Kalyeah.Game
             UpdateAimTelegraph(in ability);
 
             LocalInputFrame frame = ability.ToInputFrame(move);
+            frame.Look = Shoulder.GroundWay(Vector2.up); // FPS controls: the kid always faces the crosshair
             Sim.SetLocalInput(frame);
         }
 

@@ -441,6 +441,7 @@ namespace Kalyeah.Game
 
         // Multi-touch pointerId locks (strictly one pointer per role; never steals active drags)
         int _primaryPointer = NoPointer;
+        Vector2 _primaryLookDrag;
         int _crouchPointer = NoPointer;
         int _slotPointer = NoPointer;
         int _heldSlot = -1;
@@ -519,6 +520,14 @@ namespace Kalyeah.Game
         public bool IsAiming => _heldSlot >= 0;
         public bool IsDraggingAim => _heldSlot >= 0;
         public bool IsPrimaryHeld => _primaryPointer != NoPointer || _primaryTapPending;
+
+        /// <summary>The fire button's thumb drag since the last call, in screen pixels (y up): it turns the camera like LookPad.</summary>
+        public Vector2 TakeLookDrag()
+        {
+            Vector2 drag = _primaryLookDrag;
+            _primaryLookDrag = Vector2.zero;
+            return drag;
+        }
         public bool IsCrouchHeld => _crouchPointer != NoPointer;
         public bool IsCancelHovered => _isCancelHovered;
         public AbilityInputState CurrentInput { get; private set; }
@@ -1125,6 +1134,7 @@ namespace Kalyeah.Game
         {
             bool wasHoldingAbility = _heldSlot >= 0 || _pendingReleaseSlot >= 0;
             _primaryPointer = NoPointer;
+            _primaryLookDrag = Vector2.zero;
             _primaryTapPending = false;
             _primaryTapTick = int.MinValue;
             _crouchPointer = NoPointer;
@@ -1676,6 +1686,9 @@ namespace Kalyeah.Game
 
         void HandleDrag(ButtonRole role, PointerEventData eventData)
         {
+            // FPS controls: sliding the thumb on the held fire button turns the camera while shooting (docs/SPEC.md §8)
+            if (role == ButtonRole.Primary && eventData.pointerId == _primaryPointer)
+                _primaryLookDrag += eventData.delta;
             if (!IsAimableSlotRole(role)) return;
             if (eventData.pointerId != _slotPointer || _heldSlot < 0) return;
 

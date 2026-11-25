@@ -121,6 +121,19 @@ namespace Kalyeah.Game
         }
 
         [Test]
+        public void ShoulderCamera_FpsControls_OnlyASwipeTurnsTheView()
+        {
+            var shoulder = new ShoulderCamera(CameraRulesData.Load(KalyeahResources.Data()), 0);
+            float yaw = shoulder.Yaw;
+            for (int i = 0; i < 90; i++)
+                shoulder.SyncLocalKid(facing: new SVector2(1f, 0f), speed01: 1f, sprintingOrDashing: false, crouchingOrSliding: false, airY: 0f, dt: 1f / 30f);
+            Assert.AreEqual(yaw, shoulder.Yaw, 1e-4f, "3 s of running sideways leaves the view where the player put it");
+
+            shoulder.Look(new Vector2(100f, 0f), 720f);
+            Assert.AreNotEqual(yaw, shoulder.Yaw, "a swipe turns it");
+        }
+
+        [Test]
         public void ShoulderCamera_AimDownSight_MovesInAlongTheViewAndNarrowsTheFov()
         {
             CameraRulesData rules = CameraRulesData.Load(KalyeahResources.Data());

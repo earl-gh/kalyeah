@@ -64,6 +64,7 @@ namespace Kalyeah.Net
                 // 0.001 precision on the unit-disc analog stick keeps the 0.62 walk/run boundary clean
                 message["m"] = SnapVec(input.Move.LimitLength(1.0), 0.001);
             if (input.Aim != Vec2.Zero) message["a"] = SnapVec(input.Aim.LimitLength(1.0), 0.001);
+            if (input.Look != Vec2.Zero) message["l"] = SnapVec(input.Look.LimitLength(1.0), 0.001);
             if (input.Buttons != 0) message["b"] = (long)input.Buttons;
             if (input.IsPressed(PlayerInput.BtnMoveTarget)) message["mt"] = SnapVec(input.MoveTarget);
             if (input.IsPressed(PlayerInput.BtnAimPoint)) message["ap"] = SnapVec(input.AimPoint);
@@ -79,6 +80,7 @@ namespace Kalyeah.Net
             int buttons = (int)(StrictInt(message, "b") & PlayerInput.KnownBits);
             long tick = StrictInt(message, "k");
             PlayerInput input = PlayerInput.Create(Vector(message, "m").LimitLength(1.0), Vector(message, "a").LimitLength(1.0), buttons, (int)tick);
+            input.Look = Vector(message, "l").LimitLength(1.0);
             if (HasVector(message, "mt")) input.MoveTarget = Vector(message, "mt");
             else input.Buttons &= ~PlayerInput.BtnMoveTarget;
             if (HasVector(message, "ap")) input.AimPoint = Vector(message, "ap");
