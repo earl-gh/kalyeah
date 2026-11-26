@@ -597,7 +597,9 @@ namespace Kalyeah.Game
             {
                 _model = Object.Instantiate(prefab, _bodyPivot, false);
                 _model.name = "Model";
-                _model.transform.localRotation = Quaternion.identity;
+                // The kid .glb files face +Z (their toes point +Z); everything below Root (aim offset, 8-way blend, held
+                // tirador) expects a kid facing -Z, so the model turns round once here.
+                _model.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
                 KalyeahResources.UpgradeKidMaterials(_model, resolvedModelId, _rigData);
 
                 float natural = Mathf.Max(KalyeahResources.RenderBounds(_model).size.y, 0.1f);

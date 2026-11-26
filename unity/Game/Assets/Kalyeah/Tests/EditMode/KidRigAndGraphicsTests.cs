@@ -437,6 +437,29 @@ namespace Kalyeah.Game
         }
 
         [Test]
+        public void KidView_ModelFacesTheWayTheKidFaces()
+        {
+            var facing = new SVector2(0f, -1f);
+            var snap = new KidSnapshot { Id = 1, Team = 0, CharacterId = "narda", Position = SVector2.Zero, Facing = facing, Hp = 100 };
+            var kid = new KidView(_testRoot.transform, snap, 1f, Color.blue, null);
+            kid.Place(SVector2.Zero, facing);
+
+            Transform foot = null, toe = null;
+            foreach (Transform t in kid.Root.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name.EndsWith("LeftFoot", StringComparison.Ordinal)) foot = t;
+                else if (t.name.EndsWith("LeftToeBase", StringComparison.Ordinal)) toe = t;
+            }
+            Assert.IsNotNull(foot, "narda has a LeftFoot bone");
+            Assert.IsNotNull(toe, "narda has a LeftToeBase bone");
+
+            Vector3 toes = toe.position - foot.position;
+            toes.y = 0f;
+            Vector3 want = KalyeahResources.World(facing) - KalyeahResources.World(SVector2.Zero);
+            Assert.Greater(Vector3.Dot(toes.normalized, want.normalized), 0.5f, "the toes point where the kid faces, not back at the camera");
+        }
+
+        [Test]
         public void KidView_LodAndLivePresetSwitching_HandlesMissingAndPresentAssetsCleanly()
         {
             var snap = new KidSnapshot
