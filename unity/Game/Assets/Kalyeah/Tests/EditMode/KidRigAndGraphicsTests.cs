@@ -600,16 +600,32 @@ namespace Kalyeah.Game
             // Mutually distinct native states pass
             Assert.IsTrue(KidView.AreDistinctEightWayStates(stWalk, stRun, stL, stR, stBack));
 
-            // Current character GLBs lack native Strafe_L/R/Backpedal, so HasEightWayClips must stay false
+            // The character GLBs carry the authored Strafe_L/R and Backpedal clips (tools/blender/kids/author_clips.py), so
+            // the shipped kid resolves them as native, distinct states and turns 8-way blending on.
             var snap = new KidSnapshot { Id = 7, Team = 0, CharacterId = "narda", Facing = new SVector2(0f, -1f) };
             var kid = new KidView(_testRoot.transform, snap, 0.82f, Color.blue, null);
-            Assert.IsFalse(kid.HasEightWayClips, "Stand-in walk aliases must never enable 8-way blending");
+            Assert.IsTrue(kid.HasEightWayClips, "narda's GLB must ship native Strafe_L, Strafe_R and Backpedal clips");
 
             KalyeahResources.Kill(walkClip);
             KalyeahResources.Kill(runClip);
             KalyeahResources.Kill(strafeLClip);
             KalyeahResources.Kill(strafeRClip);
             KalyeahResources.Kill(backClip);
+        }
+
+        [Test]
+        public void EveryKidModel_ShipsNativeStrafeAndBackpedalClips()
+        {
+            string[] eightWay = { "Strafe_L", "Strafe_R", "Backpedal" };
+            foreach (string kidId in AppSession.DefaultRoster)
+            {
+                GameObject prefab = KalyeahResources.CharacterModel(kidId, 0);
+                Assert.IsNotNull(prefab, $"Missing character model for {kidId}");
+                Animation animation = prefab.GetComponentInChildren<Animation>(true);
+                Assert.IsNotNull(animation, $"{kidId} model has no Animation component");
+                foreach (string clip in eightWay)
+                    Assert.IsNotNull(animation.GetClip(clip), $"{kidId} model is missing the {clip} clip");
+            }
         }
 
         [Test]

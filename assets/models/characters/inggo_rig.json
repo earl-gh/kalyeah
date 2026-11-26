@@ -914,7 +914,7 @@
     "RightHandRing1": {
       "parent": "RightHand",
       "head": [
-        -0.48145,
+        -0.48144,
         0.74043,
         -0.00996
       ],
@@ -1356,7 +1356,7 @@
       ],
       "boneRestDir": [
         0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1374,7 +1374,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1392,7 +1392,7 @@
       ],
       "boneRestDir": [
         0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1410,7 +1410,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1448,27 +1448,27 @@
   "lods": {
     "lod0": {
       "asset": "models/characters/inggo",
-      "tris": 20102,
+      "tris": 17894,
       "deformBones": 64,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4747
+      "fileSizeKb": 5063
     },
     "lod1": {
       "asset": "models/characters/inggo_lod1",
-      "tris": 10050,
+      "tris": 8946,
       "deformBones": 44,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 907
+      "fileSizeKb": 832
     },
     "lod2": {
       "asset": "models/characters/inggo_lod2",
-      "tris": 5026,
+      "tris": 4474,
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 283
+      "fileSizeKb": 260
     }
   },
   "textures": {
@@ -1483,8 +1483,8 @@
     "Left: elbow pre-bend 8 straightened, arm rolled +18, palm roll +2",
     "Right: elbow pre-bend 8 straightened, arm rolled -18, palm roll -2",
     "rebound to reference rest; added 12 twist/helper bones",
-    "stray influences removed: 6609",
-    "cross-side influences removed: 0"
+    "stray influences removed: 8016",
+    "cross-side influences removed: 781"
   ],
   "facialShapes": [
     "Blink",

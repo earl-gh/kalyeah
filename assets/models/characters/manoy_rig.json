@@ -538,7 +538,7 @@
       "head": [
         0.43496,
         0.82012,
-        0.05645
+        0.05644
       ],
       "tail": [
         0.4416,
@@ -1356,7 +1356,7 @@
       ],
       "boneRestDir": [
         0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1374,7 +1374,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64255,
+        -0.64256,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1392,7 +1392,7 @@
       ],
       "boneRestDir": [
         0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1410,7 +1410,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64255,
+        -0.64256,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1448,27 +1448,27 @@
   "lods": {
     "lod0": {
       "asset": "models/characters/manoy",
-      "tris": 20308,
+      "tris": 17780,
       "deformBones": 64,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4097
+      "fileSizeKb": 4396
     },
     "lod1": {
       "asset": "models/characters/manoy_lod1",
-      "tris": 10154,
+      "tris": 8890,
       "deformBones": 44,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 856
+      "fileSizeKb": 751
     },
     "lod2": {
       "asset": "models/characters/manoy_lod2",
-      "tris": 5076,
+      "tris": 4444,
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 259
+      "fileSizeKb": 229
     }
   },
   "textures": {
@@ -1483,8 +1483,8 @@
     "Left: elbow pre-bend 17 straightened, arm rolled -8, palm roll +18",
     "Right: elbow pre-bend 16 straightened, arm rolled +7, palm roll -20",
     "rebound to reference rest; added 12 twist/helper bones",
-    "stray influences removed: 35908",
-    "cross-side influences removed: 0"
+    "stray influences removed: 47421",
+    "cross-side influences removed: 7487"
   ],
   "facialShapes": [
     "Blink",

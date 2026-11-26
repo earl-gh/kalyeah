@@ -8,7 +8,7 @@
   "legLengthRatio": 1.0255,
   "girth": {
     "torsoRadiusM": 0.144,
-    "armRadiusM": 0.0477,
+    "armRadiusM": 0.0424,
     "thighRadiusM": 0.0858,
     "armAbductOffsetDeg": 0.0,
     "hipSpreadOffsetDeg": 0.0
@@ -165,7 +165,7 @@
       "tail": [
         -0.25566,
         0.00582,
-        0.2746
+        0.27461
       ],
       "length": 0.05977
     },
@@ -174,7 +174,7 @@
       "head": [
         -0.28223,
         0.00996,
-        0.26894
+        0.26895
       ],
       "tail": [
         -0.28223,
@@ -682,7 +682,7 @@
       ],
       "tail": [
         0.00996,
-        1.59357,
+        1.59356,
         0.14941
       ],
       "length": 0.0297
@@ -905,7 +905,7 @@
         0.18262
       ],
       "tail": [
-        -0.48145,
+        -0.48144,
         0.70723,
         0.18926
       ],
@@ -972,7 +972,7 @@
       "head": [
         -0.42832,
         0.79356,
-        0.26894
+        0.26895
       ],
       "tail": [
         -0.42832,
@@ -1121,7 +1121,7 @@
         1.06266,
         0.13606
       ],
-      "radius": 0.0453
+      "radius": 0.0442
     },
     "LeftForeArm": {
       "bone": "mixamorig:LeftForeArm",
@@ -1177,7 +1177,7 @@
         1.06267,
         0.13606
       ],
-      "radius": 0.0501
+      "radius": 0.0406
     },
     "RightForeArm": {
       "bone": "mixamorig:RightForeArm",
@@ -1452,58 +1452,58 @@
       "fullAngleDeg": 85.0
     },
     {
-      "shape": "corr_LeftForeArm_Squash",
+      "shape": "corr_LeftLeg_Squash",
       "kind": "squash",
-      "bone": "mixamorig:LeftForeArm",
-      "parent": "mixamorig:LeftArm",
+      "bone": "mixamorig:LeftLeg",
+      "parent": "mixamorig:LeftUpLeg",
       "axis": [
-        -0.64285,
-        -0.76599,
+        1.0,
+        0.0,
         0.0
       ],
-      "restAngleDeg": 4.72,
-      "startAngleDeg": 104.72,
-      "fullAngleDeg": 139.72
+      "restAngleDeg": 3.07,
+      "startAngleDeg": 73.07,
+      "fullAngleDeg": 108.07
     },
     {
-      "shape": "corr_RightForeArm_Squash",
+      "shape": "corr_RightLeg_Squash",
       "kind": "squash",
-      "bone": "mixamorig:RightForeArm",
-      "parent": "mixamorig:RightArm",
+      "bone": "mixamorig:RightLeg",
+      "parent": "mixamorig:RightUpLeg",
       "axis": [
-        -0.64285,
-        0.76599,
-        -0.0
+        1.0,
+        0.0,
+        0.0
       ],
-      "restAngleDeg": 4.72,
-      "startAngleDeg": 104.72,
-      "fullAngleDeg": 139.72
+      "restAngleDeg": 3.07,
+      "startAngleDeg": 73.07,
+      "fullAngleDeg": 108.07
     }
   ],
   "lods": {
     "lod0": {
       "asset": "models/characters/karding",
-      "tris": 21216,
+      "tris": 22014,
       "deformBones": 70,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4290
+      "fileSizeKb": 4823
     },
     "lod1": {
       "asset": "models/characters/karding_lod1",
-      "tris": 10608,
+      "tris": 11006,
       "deformBones": 50,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 866
+      "fileSizeKb": 898
     },
     "lod2": {
       "asset": "models/characters/karding_lod2",
-      "tris": 5304,
+      "tris": 5504,
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 264
+      "fileSizeKb": 274
     }
   },
   "textures": {
@@ -1518,9 +1518,9 @@
     "Left: elbow pre-bend 15 straightened, arm rolled -7, palm roll -11",
     "Right: elbow pre-bend 15 straightened, arm rolled +11, palm roll +11",
     "rebound to reference rest; added 12 twist/helper bones",
-    "cape/hair limb-pull cleaned verts: 14287 (cape_zone=17380)",
-    "stray influences removed: 4245",
-    "cross-side influences removed: 303"
+    "cape/hair limb-pull cleaned verts: 14732 (cape_zone=17580)",
+    "stray influences removed: 5803",
+    "cross-side influences removed: 1784"
   ],
   "facialShapes": [
     "Blink",

@@ -54,21 +54,11 @@ CLIP_SPECS = {
     "victory":              dict(loop=True,  archetype="frontend",   crossfade=0.15, mask=False, sync="none", mode="victory"),
 }
 
+# Clips authored by author_clips.py (Strafe_L/R, Backpedal, Aim_Hold, Fire, Reload, Vault, Cast_*) need no stand-in.
 STAND_INS = {
     "Run_Start": "Run",
     "Run_Stop": "walk",
     "Turn_180": "Run",
-    "Strafe_L": "walk",
-    "Strafe_R": "walk",
-    "Backpedal": "walk",
-    "Vault": "jump",
-    "Aim_Hold": "Idle",
-    "Fire": "throw",
-    "Reload": "throw",
-    "Cast_Place": "Cast_OneHand",
-    "Cast_Slam": "Cast_OneHand",
-    "Cast_Buff": "Cast_OneHand",
-    "Cast_Channel": "Cast_OneHand",
     "Hit_Heavy": "hit",
     "Knockdown": "Tripped",
     "GetUp": "Tripped",

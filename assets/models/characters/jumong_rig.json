@@ -88,12 +88,12 @@
     "LeftToe_End": {
       "parent": "LeftToeBase",
       "head": [
-        0.26231,
+        0.2623,
         0.02324,
         0.13613
       ],
       "tail": [
-        0.26231,
+        0.2623,
         0.02324,
         0.19248
       ],
@@ -388,7 +388,7 @@
       ],
       "tail": [
         0.41504,
-        0.78691,
+        0.78692,
         0.10957
       ],
       "length": 0.01485
@@ -397,7 +397,7 @@
       "parent": "LeftHandThumb3",
       "head": [
         0.41504,
-        0.78691,
+        0.78692,
         0.10957
       ],
       "tail": [
@@ -709,7 +709,7 @@
         -0.02324
       ],
       "tail": [
-        -0.31907,
+        -0.31908,
         1.07403,
         -0.02942
       ],
@@ -760,7 +760,7 @@
     "RightHandIndex2": {
       "parent": "RightHandIndex1",
       "head": [
-        -0.48145,
+        -0.48144,
         0.79356,
         0.08965
       ],
@@ -877,7 +877,7 @@
         0.05645
       ],
       "tail": [
-        -0.48145,
+        -0.48144,
         0.78027,
         0.05645
       ],
@@ -886,7 +886,7 @@
     "RightHandMiddle3": {
       "parent": "RightHandMiddle2",
       "head": [
-        -0.48145,
+        -0.48144,
         0.78027,
         0.05645
       ],
@@ -1003,7 +1003,7 @@
         0.02988
       ],
       "tail": [
-        -0.48145,
+        -0.48144,
         0.75371,
         0.02988
       ],
@@ -1012,12 +1012,12 @@
     "RightHandRingTip": {
       "parent": "RightHandRing3",
       "head": [
-        -0.48145,
+        -0.48144,
         0.75371,
         0.02988
       ],
       "tail": [
-        -0.48145,
+        -0.48144,
         0.72774,
         0.03854
       ],
@@ -1173,7 +1173,7 @@
         -0.02324
       ],
       "b": [
-        -0.31907,
+        -0.31908,
         1.07403,
         -0.02942
       ],
@@ -1374,7 +1374,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64255,
+        -0.64256,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1410,7 +1410,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64255,
+        -0.64256,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1448,27 +1448,27 @@
   "lods": {
     "lod0": {
       "asset": "models/characters/jumong",
-      "tris": 17270,
+      "tris": 19422,
       "deformBones": 64,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4656
+      "fileSizeKb": 5263
     },
     "lod1": {
       "asset": "models/characters/jumong_lod1",
-      "tris": 8634,
+      "tris": 9710,
       "deformBones": 44,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 860
+      "fileSizeKb": 907
     },
     "lod2": {
       "asset": "models/characters/jumong_lod2",
-      "tris": 4318,
+      "tris": 4856,
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 270
+      "fileSizeKb": 281
     }
   },
   "textures": {
@@ -1483,8 +1483,8 @@
     "Left: elbow pre-bend 22 straightened, arm rolled -9, palm roll +1",
     "Right: elbow pre-bend 23 straightened, arm rolled +9, palm roll -1",
     "rebound to reference rest; added 12 twist/helper bones",
-    "stray influences removed: 20550",
-    "cross-side influences removed: 0"
+    "stray influences removed: 28553",
+    "cross-side influences removed: 5827"
   ],
   "facialShapes": [
     "Blink",

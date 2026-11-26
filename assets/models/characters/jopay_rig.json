@@ -151,7 +151,7 @@
       "tail": [
         -0.1959,
         -0.01936,
-        0.16054
+        0.16053
       ],
       "length": 0.21783
     },
@@ -179,7 +179,7 @@
       "tail": [
         -0.27559,
         0.0166,
-        0.17334
+        0.17333
       ],
       "length": 0.05712
     },
@@ -271,7 +271,7 @@
       "parent": "LeftArm",
       "head": [
         0.28887,
-        1.01269,
+        1.0127,
         -0.0166
       ],
       "tail": [
@@ -300,10 +300,10 @@
       "head": [
         0.49144,
         0.78866,
-        0.10824
+        0.10825
       ],
       "tail": [
-        0.5048,
+        0.50479,
         0.75139,
         0.117
       ],
@@ -312,7 +312,7 @@
     "LeftHandIndex2": {
       "parent": "LeftHandIndex1",
       "head": [
-        0.5048,
+        0.50479,
         0.75139,
         0.117
       ],
@@ -500,7 +500,7 @@
       ],
       "tail": [
         0.5189,
-        0.67956,
+        0.67957,
         0.06989
       ],
       "length": 0.03279
@@ -509,7 +509,7 @@
       "parent": "LeftHandRing3",
       "head": [
         0.5189,
-        0.67956,
+        0.67957,
         0.06989
       ],
       "tail": [
@@ -635,7 +635,7 @@
       "parent": "LeftArm",
       "head": [
         0.28887,
-        1.01269,
+        1.0127,
         -0.0166
       ],
       "tail": [
@@ -923,7 +923,7 @@
         0.73783,
         0.05035
       ],
-      "length": 0.04294
+      "length": 0.04293
     },
     "RightHandRing2": {
       "parent": "RightHandRing1",
@@ -1127,7 +1127,7 @@
       "bone": "mixamorig:LeftForeArm",
       "a": [
         0.28887,
-        1.01269,
+        1.0127,
         -0.0166
       ],
       "b": [
@@ -1374,7 +1374,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64255,
+        -0.64256,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1410,7 +1410,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64255,
+        -0.64256,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1448,27 +1448,27 @@
   "lods": {
     "lod0": {
       "asset": "models/characters/jopay",
-      "tris": 17370,
+      "tris": 17732,
       "deformBones": 64,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4277
+      "fileSizeKb": 4744
     },
     "lod1": {
       "asset": "models/characters/jopay_lod1",
-      "tris": 8684,
+      "tris": 8866,
       "deformBones": 44,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 799
+      "fileSizeKb": 791
     },
     "lod2": {
       "asset": "models/characters/jopay_lod2",
-      "tris": 4342,
+      "tris": 4432,
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 245
+      "fileSizeKb": 249
     }
   },
   "textures": {
@@ -1483,8 +1483,8 @@
     "Left: elbow pre-bend 28 straightened, arm rolled +7, palm roll +14",
     "Right: elbow pre-bend 29 straightened, arm rolled -6, palm roll -19",
     "rebound to reference rest; added 12 twist/helper bones",
-    "stray influences removed: 6531",
-    "cross-side influences removed: 0"
+    "stray influences removed: 8622",
+    "cross-side influences removed: 177"
   ],
   "facialShapes": [
     "Blink",

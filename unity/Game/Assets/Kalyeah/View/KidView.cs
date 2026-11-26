@@ -359,7 +359,7 @@ namespace Kalyeah.Game
         public bool HasHeldTirador => _heldTirador != null;
         public bool IsHeldTiradorVisible => _heldTirador != null && _heldTirador.activeSelf;
 
-        /// <summary>Enables or hides the right-hand wooden Tirador (disabled in non-combat Street modes like Tumbang Preso).</summary>
+        /// <summary>Enables or hides the left-hand wooden Tirador (disabled in non-combat Street modes like Tumbang Preso).</summary>
         public void SetTiradorEnabled(bool enabled)
         {
             _tiradorEnabled = enabled;
@@ -677,7 +677,8 @@ namespace Kalyeah.Game
             CollectAndAttachOutlines(_model, outlineMat, _kidBaseRenderers, _kidOutlineRenderers);
             CollectAndAttachOutlines(_canPivot.gameObject, outlineMat, _canBaseRenderers, _canOutlineRenderers);
 
-            // Stylized procedural wooden Y-fork Filipino Tirador slingshot attached to right hand (or _bodyPivot fallback).
+            // Stylized procedural wooden Y-fork Filipino Tirador slingshot held in the left hand, the fork hand of the
+            // Aim_Hold / Fire / Reload clips (the right hand draws the band), or on _bodyPivot as a fallback.
             _heldTirador = BuildHeldTirador();
             _wasTagged = kid.Tagged;
             _tiradorVisible = !kid.Tagged;
@@ -783,24 +784,25 @@ namespace Kalyeah.Game
             var root = new GameObject("HeldTirador");
             Transform tr = root.transform;
 
-            if (_bRHand.Valid)
+            if (_bLHand.Valid)
             {
-                tr.SetParent(_bRHand.Transform, false);
-                Vector3 lossy = _bRHand.Transform.lossyScale;
+                // The left hand bone mirrors the right one, so the grip is the right-hand grip mirrored across X.
+                tr.SetParent(_bLHand.Transform, false);
+                Vector3 lossy = _bLHand.Transform.lossyScale;
                 float avgParentScale = (Mathf.Abs(lossy.x) + Mathf.Abs(lossy.y) + Mathf.Abs(lossy.z)) / 3f;
                 float invParent = avgParentScale > 0.0001f ? (1f / avgParentScale) : 1f;
                 float scale = _viewScale * 1.15f * invParent;
                 tr.localScale = new Vector3(scale, scale, scale);
                 tr.localPosition = new Vector3(0f, 0.055f * _viewScale * invParent, 0.018f * _viewScale * invParent);
-                tr.localRotation = Quaternion.Euler(78f, 0f, -12f);
+                tr.localRotation = Quaternion.Euler(78f, 0f, 12f);
             }
             else
             {
-                // Fallback on _bodyPivot: model faces -Z, kid's right is -X.
+                // Fallback on _bodyPivot: model faces -Z, kid's left is +X.
                 tr.SetParent(_bodyPivot, false);
                 float scale = _viewScale * 1.15f;
                 tr.localScale = new Vector3(scale, scale, scale);
-                tr.localPosition = new Vector3(-0.26f * _viewScale, 0.98f * _viewScale, -0.32f * _viewScale);
+                tr.localPosition = new Vector3(0.26f * _viewScale, 0.98f * _viewScale, -0.32f * _viewScale);
                 tr.localRotation = Quaternion.Euler(8f, 180f, 0f);
             }
 
