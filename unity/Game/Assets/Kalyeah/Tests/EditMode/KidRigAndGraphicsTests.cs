@@ -460,6 +460,31 @@ namespace Kalyeah.Game
         }
 
         [Test]
+        public void KidView_FarKidStillDrawsWithItsOwnLodRenderer()
+        {
+            var snap = new KidSnapshot { Id = 1, Team = 1, CharacterId = "narda", Position = SVector2.Zero, Facing = new SVector2(0f, -1f), Hp = 100 };
+            var kid = new KidView(_testRoot.transform, snap, 1f, Color.red, null);
+            var meshes = new System.Collections.Generic.Dictionary<SkinnedMeshRenderer, Mesh>();
+            foreach (SkinnedMeshRenderer r in kid.Root.GetComponentsInChildren<SkinnedMeshRenderer>(true)) meshes[r] = r.sharedMesh;
+
+            GraphicsTierProfile medium = MatchBoot.ApplyGraphicsPreset(SettingsStore.GraphicsMedium, deviceRefreshOverrideHz: 60);
+            int shownLod0Vertices = 0, shownFarVertices = 0;
+            kid.ApplyGraphicsProfile(medium, cameraDistanceMeters: 5f, visible: true);
+            foreach (SkinnedMeshRenderer r in meshes.Keys)
+                if (r.enabled && r.name != "TeamOutlineHull") shownLod0Vertices += r.sharedMesh.vertexCount;
+            kid.ApplyGraphicsProfile(medium, cameraDistanceMeters: 46f, visible: true);
+            Assert.AreEqual(2, kid.ActiveLodIndex);
+            foreach (SkinnedMeshRenderer r in kid.Root.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+            {
+                if (meshes.TryGetValue(r, out Mesh before))
+                    Assert.AreSame(before, r.sharedMesh, $"{r.name} keeps its own mesh: swapping LOD meshes stops Unity drawing the kid");
+                if (r.enabled && r.name != "TeamOutlineHull") shownFarVertices += r.sharedMesh.vertexCount;
+            }
+            Assert.Greater(shownFarVertices, 0, "a kid 46 m away is still drawn");
+            Assert.Less(shownFarVertices, shownLod0Vertices, "and with the lighter LOD mesh");
+        }
+
+        [Test]
         public void KidView_LodAndLivePresetSwitching_HandlesMissingAndPresentAssetsCleanly()
         {
             var snap = new KidSnapshot

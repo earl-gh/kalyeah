@@ -273,16 +273,8 @@ namespace Kalyeah.Game
         struct LodBinding
         {
             public SkinnedMeshRenderer Target;
-            public SkinnedMeshRenderer HullTarget;
             public Mesh Lod0Mesh;
-            public Transform[] Lod0Bones;
-            public Transform Lod0RootBone;
             public Mesh Lod1Mesh;
-            public Transform[] Lod1Bones;
-            public Transform Lod1RootBone;
-            public Mesh Lod2Mesh;
-            public Transform[] Lod2Bones;
-            public Transform Lod2RootBone;
         }
 
         struct BoneCache
@@ -392,6 +384,9 @@ namespace Kalyeah.Game
         readonly List<Renderer> _canBaseRenderers = new List<Renderer>(2);
         readonly List<Renderer> _canOutlineRenderers = new List<Renderer>(2);
         readonly List<LodBinding> _lodBindings = new List<LodBinding>(2);
+        // Which LOD levels (bit 0 = LOD0 ...) each kid renderer and its outline hull draws; renderers not listed draw at every LOD.
+        readonly Dictionary<Renderer, int> _lodMask = new Dictionary<Renderer, int>(8);
+        bool _kidOutlinesOn;
         readonly MaterialPropertyBlock _outlineBlock = new MaterialPropertyBlock();
         readonly MaterialPropertyBlock _surfaceBlock = new MaterialPropertyBlock();
         readonly MaterialPropertyBlock _shadowBlock = new MaterialPropertyBlock();
@@ -1102,57 +1097,65 @@ namespace Kalyeah.Game
             SkinnedMeshRenderer[] lod1Smrs = lod1Prefab != null ? lod1Prefab.GetComponentsInChildren<SkinnedMeshRenderer>(true) : Array.Empty<SkinnedMeshRenderer>();
             SkinnedMeshRenderer[] lod2Smrs = lod2Prefab != null ? lod2Prefab.GetComponentsInChildren<SkinnedMeshRenderer>(true) : Array.Empty<SkinnedMeshRenderer>();
 
+            // Each LOD gets its own renderer on the live skeleton: swapping a LOD mesh into the LOD0 renderer stops Unity drawing the
+            // kid ("does not match the expected mesh data size and vertex stride": the LOD meshes carry fewer blend shapes/tangents).
+            Material outlineMat = ResolveOutlineMaterial();
             int smrIdx = 0;
-            for (int i = 0; i < _kidBaseRenderers.Count; i++)
+            int baseCount = _kidBaseRenderers.Count;
+            for (int i = 0; i < baseCount; i++)
             {
                 if (!(_kidBaseRenderers[i] is SkinnedMeshRenderer smr) || smr.sharedMesh == null) continue;
 
-                SkinnedMeshRenderer matchingHull = null;
-                for (int h = 0; h < _kidOutlineRenderers.Count; h++)
-                {
-                    if (_kidOutlineRenderers[h] is SkinnedMeshRenderer hullSmr && hullSmr.transform.parent == smr.transform)
-                    {
-                        matchingHull = hullSmr;
-                        break;
-                    }
-                }
-
-                var binding = new LodBinding
-                {
-                    Target = smr,
-                    HullTarget = matchingHull,
-                    Lod0Mesh = smr.sharedMesh,
-                    Lod0Bones = smr.bones,
-                    Lod0RootBone = smr.rootBone,
-                    Lod1Mesh = smr.sharedMesh,
-                    Lod1Bones = smr.bones,
-                    Lod1RootBone = smr.rootBone,
-                    Lod2Mesh = smr.sharedMesh,
-                    Lod2Bones = smr.bones,
-                    Lod2RootBone = smr.rootBone,
-                };
-
-                if (smrIdx < lod1Smrs.Length && TryRemapLodSmr(lod1Smrs[smrIdx], boneMap, smr.rootBone, out Mesh m1, out Transform[] b1, out Transform r1))
+                var binding = new LodBinding { Target = smr, Lod0Mesh = smr.sharedMesh, Lod1Mesh = smr.sharedMesh };
+                SkinnedMeshRenderer r1 = null, r2 = null;
+                if (smrIdx < lod1Smrs.Length && TryRemapLodSmr(lod1Smrs[smrIdx], boneMap, smr.rootBone, out Mesh m1, out Transform[] b1, out Transform root1))
                 {
                     binding.Lod1Mesh = m1;
-                    binding.Lod1Bones = b1;
-                    binding.Lod1RootBone = r1;
-                    // Fallback LOD2 to LOD1 if LOD2 prefab is absent.
-                    binding.Lod2Mesh = m1;
-                    binding.Lod2Bones = b1;
-                    binding.Lod2RootBone = r1;
+                    r1 = AddLodRenderer(smr, m1, b1, root1, 1, outlineMat);
                 }
+                if (smrIdx < lod2Smrs.Length && TryRemapLodSmr(lod2Smrs[smrIdx], boneMap, smr.rootBone, out Mesh m2, out Transform[] b2, out Transform root2))
+                    r2 = AddLodRenderer(smr, m2, b2, root2, 2, outlineMat);
 
-                if (smrIdx < lod2Smrs.Length && TryRemapLodSmr(lod2Smrs[smrIdx], boneMap, smr.rootBone, out Mesh m2, out Transform[] b2, out Transform r2))
-                {
-                    binding.Lod2Mesh = m2;
-                    binding.Lod2Bones = b2;
-                    binding.Lod2RootBone = r2;
-                }
+                // A missing LOD falls back to the next finer one.
+                SetLodMask(smr, 1 | (r1 == null ? 2 : 0) | (r1 == null && r2 == null ? 4 : 0));
+                if (r1 != null) SetLodMask(r1, 2 | (r2 == null ? 4 : 0));
+                if (r2 != null) SetLodMask(r2, 4);
 
                 _lodBindings.Add(binding);
                 smrIdx++;
             }
+        }
+
+        SkinnedMeshRenderer AddLodRenderer(SkinnedMeshRenderer lod0, Mesh mesh, Transform[] bones, Transform rootBone, int lod, Material outlineMat)
+        {
+            var go = new GameObject(lod0.name + "_LOD" + lod) { layer = lod0.gameObject.layer };
+            go.transform.SetParent(lod0.transform.parent, false);
+            go.transform.SetLocalPositionAndRotation(lod0.transform.localPosition, lod0.transform.localRotation);
+            go.transform.localScale = lod0.transform.localScale;
+            var r = go.AddComponent<SkinnedMeshRenderer>();
+            r.sharedMesh = mesh;
+            r.bones = bones;
+            r.rootBone = rootBone;
+            r.sharedMaterials = lod0.sharedMaterials;
+            r.localBounds = lod0.localBounds;
+            r.updateWhenOffscreen = lod0.updateWhenOffscreen;
+            r.shadowCastingMode = lod0.shadowCastingMode;
+            r.receiveShadows = lod0.receiveShadows;
+            r.quality = lod0.quality;
+            r.enabled = false;
+            _kidBaseRenderers.Add(r);
+            int hullsBefore = _kidOutlineRenderers.Count;
+            TryAttachOutlineHull(r, outlineMat, _kidOutlineRenderers);
+            for (int h = hullsBefore; h < _kidOutlineRenderers.Count; h++) _kidOutlineRenderers[h].enabled = false;
+            return r;
+        }
+
+        void SetLodMask(SkinnedMeshRenderer r, int mask)
+        {
+            _lodMask[r] = mask;
+            for (int h = 0; h < _kidOutlineRenderers.Count; h++)
+                if (_kidOutlineRenderers[h] != null && _kidOutlineRenderers[h].transform.parent == r.transform)
+                    _lodMask[_kidOutlineRenderers[h]] = mask;
         }
 
         static bool TryRemapLodSmr(
@@ -2716,29 +2719,8 @@ namespace Kalyeah.Game
             int clamped = Mathf.Clamp(targetLod, 0, 2);
             if (!force && clamped == ActiveLodIndex) return;
             ActiveLodIndex = clamped;
-
-            for (int i = 0; i < _lodBindings.Count; i++)
-            {
-                LodBinding b = _lodBindings[i];
-                if (b.Target == null) continue;
-
-                Mesh nextMesh = clamped == 2 ? b.Lod2Mesh : (clamped == 1 ? b.Lod1Mesh : b.Lod0Mesh);
-                Transform[] nextBones = clamped == 2 ? b.Lod2Bones : (clamped == 1 ? b.Lod1Bones : b.Lod0Bones);
-                Transform nextRoot = clamped == 2 ? b.Lod2RootBone : (clamped == 1 ? b.Lod1RootBone : b.Lod0RootBone);
-
-                if (nextMesh != null && !ReferenceEquals(b.Target.sharedMesh, nextMesh))
-                {
-                    b.Target.sharedMesh = nextMesh;
-                    if (nextBones != null && nextBones.Length > 0) b.Target.bones = nextBones;
-                    if (nextRoot != null) b.Target.rootBone = nextRoot;
-                }
-                if (b.HullTarget != null && nextMesh != null && !ReferenceEquals(b.HullTarget.sharedMesh, nextMesh))
-                {
-                    b.HullTarget.sharedMesh = nextMesh;
-                    if (nextBones != null && nextBones.Length > 0) b.HullTarget.bones = nextBones;
-                    if (nextRoot != null) b.HullTarget.rootBone = nextRoot;
-                }
-            }
+            SetRendererGroupEnabled(_kidBaseRenderers, _kidRenderersVisible);
+            SetRendererGroupEnabled(_kidOutlineRenderers, _kidRenderersVisible && _kidOutlinesOn);
         }
 
         void SyncAnimationComponentMode()
@@ -3729,6 +3711,7 @@ namespace Kalyeah.Game
                 _kidRenderersVisible = showKid;
                 SetRendererGroupEnabled(_kidBaseRenderers, showKid);
                 // docs/GRAPHICS.md: allies stay plain (subtle back-rim only); enemies & revealed targets wear silhouette outlines.
+                _kidOutlinesOn = showOutline;
                 SetRendererGroupEnabled(_kidOutlineRenderers, showKid && showOutline);
             }
             if (showCan != _canRenderersVisible)
@@ -3838,10 +3821,14 @@ namespace Kalyeah.Game
                 FxPool.ActiveInstance?.SpawnDustPuff(feetWorld, scale);
         }
 
-        static void SetRendererGroupEnabled(List<Renderer> list, bool enabled)
+        void SetRendererGroupEnabled(List<Renderer> list, bool enabled)
         {
             for (int i = 0; i < list.Count; i++)
-                if (list[i] != null) list[i].enabled = enabled;
+            {
+                Renderer r = list[i];
+                if (r == null) continue;
+                r.enabled = enabled && (!_lodMask.TryGetValue(r, out int mask) || (mask & (1 << ActiveLodIndex)) != 0);
+            }
         }
 
         void ApplyMaterialBlocks(float hitFlash01, string buffId, bool tagged)
@@ -3894,6 +3881,7 @@ namespace Kalyeah.Game
             Color highlightCol = ResolveActiveHighlightColor(isEnemy);
 
             // Keep outline hulls active strictly for enemies or actively revealed targets (allies stay clean with subtle Fresnel).
+            _kidOutlinesOn = showOutline;
             SetRendererGroupEnabled(_kidOutlineRenderers, _kidRenderersVisible && showOutline);
             SetRendererGroupEnabled(_canOutlineRenderers, _canRenderersVisible && showOutline);
 
