@@ -33,14 +33,15 @@ namespace Kalyeah.Game
         const float FlingDuration = 0.52f;
         const float FlingPeakHeight = 1.45f;
 
-        static readonly Vector2 SunAngles = new Vector2(48f, 38f);
-        static readonly Color DaylightSunColor = new Color(1.00f, 0.91f, 0.78f, 1f);
-        const float DaylightSunIntensity = 1.25f;
+        // Warm sunset like the main match (owner, 2026-11-25): low golden sun under the shared sunset sky.
+        static readonly Vector2 SunAngles = new Vector2(20f, 38f);
+        static readonly Color DaylightSunColor = new Color(1.00f, 0.68f, 0.42f, 1f);
+        const float DaylightSunIntensity = 1.35f;
         static readonly Vector2 FillAngles = new Vector2(34f, -142f);
-        static readonly Color DaylightFillColor = new Color(0.62f, 0.72f, 0.95f, 1f);
+        static readonly Color DaylightFillColor = new Color(0.56f, 0.52f, 0.86f, 1f);
         const float DaylightFillIntensity = 0.25f;
-        static readonly Color DaylightAmbient = new Color(0.86f, 0.86f, 0.89f, 1f) * 0.55f;
-        static readonly Color DaylightFog = new Color(0.89f, 0.84f, 0.75f, 1f);
+        static readonly Color DaylightAmbient = new Color(0.90f, 0.72f, 0.66f, 1f) * 0.55f;
+        static readonly Color DaylightFog = new Color(0.98f, 0.72f, 0.52f, 1f);
 
         static readonly Color BrownoutSunColor = new Color(0.66f, 0.74f, 0.96f, 1f);
         static readonly Color BrownoutAmbient = new Color(0.30f, 0.34f, 0.48f, 1f);

@@ -164,6 +164,8 @@ namespace Kalyeah.Game
     {
         public Vector2 Move;
         public Vector2 Aim;
+        /// <summary>The camera's look on the ground (the kid faces it); zero = face the way you move.</summary>
+        public Vector2 Look;
         public int Buttons;
         public Vector2 MoveTarget;
         public Vector2 AimPoint;
@@ -1164,6 +1166,7 @@ namespace Kalyeah.Game
                 new Vec2(_localInput.Aim.X, _localInput.Aim.Y),
                 buttons,
                 tick);
+            input.Look = new Vec2(_localInput.Look.X, _localInput.Look.Y);
 
             if ((buttons & PlayerInput.BtnMoveTarget) != 0)
                 input.MoveTarget = new Vec2(_localInput.MoveTarget.X, _localInput.MoveTarget.Y);

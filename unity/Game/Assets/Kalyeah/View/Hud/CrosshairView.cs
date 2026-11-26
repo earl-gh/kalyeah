@@ -41,6 +41,11 @@ namespace Kalyeah.Game
         static readonly Color ReloadBarColor = MenuArt.CoralGold;
 
         static readonly string[] MeterStrings = BuildMeterStrings();
+        static readonly string[] HoldMeterStrings = BuildMeterStrings("HOLD ");
+        static readonly Color ReachNeedsChargeColor = MenuArt.CoralGold;
+        static readonly Color ReachTooFarColor = MenuArt.SignalVermilion;
+        /// <summary>The crosshair's distance readout stops here: past it the ray is open sky or the far end of the street.</summary>
+        const float ReachProbeMeters = 64f;
 
         static Sprite _damageArcSprite;
 
@@ -72,6 +77,9 @@ namespace Kalyeah.Game
         RectTransform _chargeBarRoot;
         Image _chargeBarFill;
         Text _chargeRangeText;
+        Text _reachText;
+        /// <summary>The last crosshair distance check: 0 = a tap reaches, 1 = only a charged shot reaches, 2 = out of reach.</summary>
+        public int ReachState { get; private set; } = -1;
         RectTransform _tagStampRoot;
         CanvasGroup _tagStampGroup;
 
@@ -201,6 +209,15 @@ namespace Kalyeah.Game
             _chargeRangeText.rectTransform.anchoredPosition = new Vector2(0f, -2f);
             _chargeRangeText.rectTransform.sizeDelta = new Vector2(58f, 15f);
             _chargeBarRoot.gameObject.SetActive(false);
+
+            // Distance to whatever the crosshair is on, coloured by whether a slingshot stone reaches it.
+            _reachText = Ui.MakeText("ReachMeters", _reticleCenter, "", 12, MenuArt.PaperWhite, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _reachText.rectTransform.anchorMin = _reachText.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            _reachText.rectTransform.pivot = new Vector2(0f, 0.5f);
+            _reachText.rectTransform.anchoredPosition = new Vector2(24f, 0f);
+            _reachText.rectTransform.sizeDelta = new Vector2(72f, 16f);
+            _reachText.raycastTarget = false;
+            _reachText.gameObject.SetActive(false);
 
             // Bold "TAYA!" tag confirmation stamp tucked just below the reticle (only flashes for 340 ms on confirmed tag)
             _tagStampRoot = Ui.Panel("TayaStamp", _reticleCenter, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, -34f), new Vector2(88f, 24f));
@@ -476,6 +493,8 @@ namespace Kalyeah.Game
 
             _isOverEnemy = !isCancelHovered && showReticle && CheckEnemyUnderReticle(sim, worldCamera, layout);
 
+            UpdateReach(sim, localOpt, showReticle, worldCamera, layout);
+
             Color coreCol;
             Color ringCol;
             if (isCancelHovered)
@@ -502,7 +521,7 @@ namespace Kalyeah.Game
             else
             {
                 coreCol = IdleColor;
-                ringCol = IdleRingColor;
+                ringCol = ReachState == 2 ? new Color(ReachTooFarColor.r, ReachTooFarColor.g, ReachTooFarColor.b, 0.55f) : IdleRingColor;
             }
 
             ApplyBloomPositions(_bloom, coreCol, ringCol, clampedAds);
@@ -1017,12 +1036,46 @@ namespace Kalyeah.Game
                 ShowIncomingDamage(sourcePos, myPos, _lastCameraYawDeg, heavy);
         }
 
-        static string[] BuildMeterStrings()
+        static string[] BuildMeterStrings(string prefix = "")
         {
             var arr = new string[65];
             for (int i = 0; i < arr.Length; i++)
-                arr[i] = i.ToString(System.Globalization.CultureInfo.InvariantCulture) + "m";
+                arr[i] = prefix + i.ToString(System.Globalization.CultureInfo.InvariantCulture) + "m";
             return arr;
+        }
+
+        /// <summary>0 = the shot reaches now, 1 = only a charged shot reaches, 2 = out of reach.</summary>
+        public static int ClassifyReach(float distance, float reachNow, float reachFull)
+            => distance <= reachNow ? 0 : (distance <= reachFull ? 1 : 2);
+
+        /// <summary>
+        /// Measures the ground distance to what the crosshair is on and compares it with the slingshot's reach: a tap
+        /// (Tirador min range, or the primary weapon's range without spec kits), up to a full charge (Tirador max range).
+        /// </summary>
+        void UpdateReach(SimBridge sim, KidSnapshot? localOpt, bool showReticle, Camera worldCamera, MapLayoutData layout)
+        {
+            ReachState = -1;
+            if (_reachText == null) return;
+            if (showReticle && sim != null && worldCamera != null && localOpt.HasValue)
+            {
+                KidSnapshot me = localOpt.Value;
+                AimSolution probe = AimSolver.Solve(worldCamera, me.Position, me.Facing, ReachProbeMeters, layout);
+                Vector3 hit = probe.CameraRayPoint;
+                float dist = (GodotSpace.Ground(new System.Numerics.Vector3(hit.x, hit.y, hit.z)) - me.Position).Length();
+                if (dist < ReachProbeMeters - 1f)
+                {
+                    bool spec = sim.SpecKitsActive;
+                    float tap = spec ? sim.TiradorMinRange : (sim.PrimaryWeaponInfo.HasValue ? sim.PrimaryWeaponInfo.Value.MaxRange : sim.TiradorMinRange);
+                    float full = spec ? sim.TiradorMaxRange : tap;
+                    float now = spec && me.TiradorCharge01 >= 0f && me.TiradorCurrentRange > 0.5f ? me.TiradorCurrentRange : tap;
+                    ReachState = ClassifyReach(dist, now, full);
+                    int m = Mathf.Clamp(Mathf.RoundToInt(dist), 0, MeterStrings.Length - 1);
+                    HudIconCache.SetTextIfChanged(_reachText, ReachState == 1 ? HoldMeterStrings[m] : MeterStrings[m]);
+                    _reachText.color = ReachState == 0 ? MenuArt.PaperWhite : (ReachState == 1 ? ReachNeedsChargeColor : ReachTooFarColor);
+                }
+            }
+            bool show = ReachState >= 0;
+            if (_reachText.gameObject.activeSelf != show) _reachText.gameObject.SetActive(show);
         }
 
         static Sprite DamageArcSprite()

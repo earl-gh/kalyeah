@@ -16,15 +16,16 @@ namespace Kalyeah.Game
     /// </summary>
     public sealed class MatchView : IDisposable
     {
-        // Option A1 crisp 10:30 AM sunlit Manila directional sun (elev 44 deg, azim 60 deg cross-lighting N-S lanes).
-        static readonly Vector2 SunAngles = new Vector2(44f, 60f);
-        static readonly Color SunColor = new Color(1.00f, 0.957f, 0.871f);
-        const float SunIntensity = 1.38f;
-        const float SunShadowStrength = 0.56f;
-        static readonly Color ManilaAmbientSky = new Color(0.384f, 0.596f, 0.847f);
-        static readonly Color ManilaAmbientEquator = new Color(0.796f, 0.749f, 0.663f);
-        static readonly Color ManilaAmbientGround = new Color(0.490f, 0.431f, 0.361f);
-        static readonly Color ManilaHorizonFog = new Color(0.84f, 0.89f, 0.93f);
+        // Warm sunset (owner, 2026-11-25): a low golden sun (elev 20 deg) still across the N-S lanes (azim 60 deg), so neither
+        // team looks into it; dusk-violet sky fill and peach bounce keep the shadow side readable.
+        static readonly Vector2 SunAngles = new Vector2(20f, 60f);
+        static readonly Color SunColor = new Color(1.00f, 0.68f, 0.42f);
+        const float SunIntensity = 1.5f;
+        const float SunShadowStrength = 0.5f;
+        static readonly Color ManilaAmbientSky = new Color(0.40f, 0.38f, 0.60f);
+        static readonly Color ManilaAmbientEquator = new Color(0.80f, 0.58f, 0.46f);
+        static readonly Color ManilaAmbientGround = new Color(0.40f, 0.30f, 0.25f);
+        static readonly Color ManilaHorizonFog = new Color(0.98f, 0.72f, 0.52f);
         static readonly int PropKalyeahSunDir = Shader.PropertyToID("_KalyeahSunDir");
         const float HitFlashDuration = 0.18f;
 
@@ -642,7 +643,7 @@ namespace Kalyeah.Game
         {
             BarangayEnvironmentBuilder.ApplySky();
 
-            // Single crisp 10:30 AM sunlit Manila Directional Light (elev 44 deg, azim 60 deg cross-lighting N-S lanes).
+            // One low sunset Directional Light (see SunAngles).
             var sun = new GameObject("Sun").AddComponent<Light>();
             sun.transform.SetParent(Root, false);
             sun.type = LightType.Directional;

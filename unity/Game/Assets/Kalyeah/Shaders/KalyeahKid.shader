@@ -37,18 +37,18 @@ Shader "Kalyeah/Kid"
         // 4. Clamped Ambient Min/Max + Sky-Hemisphere & Warm Earth Bounce Floor
         _AmbientMin ("Ambient Clamp Min", Range(0.05, 0.65)) = 0.32
         _AmbientMax ("Ambient Clamp Max", Range(0.40, 1.50)) = 0.85
-        _SkyBounceColor ("Sky Hemisphere Bounce Color", Color) = (0.72, 0.84, 1.00, 1.0)
+        _SkyBounceColor ("Sky Hemisphere Bounce Color", Color) = (0.80, 0.72, 0.86, 1.0)
         _GroundBounceColor ("Warm Earth Bounce Color", Color) = (0.74, 0.58, 0.44, 1.0)
 
         // 5. Crisp Sun Fresnel Rim, Team Highlight Fresnel & Painterly Vertical Focal Gradient
         _SunRimColor ("Sun Fresnel Rim Color", Color) = (1.00, 0.94, 0.80, 1.0)
-        _SunRimStrength ("Sun Fresnel Rim Strength", Range(0.0, 1.5)) = 0.36
+        _SunRimStrength ("Sun Fresnel Rim Strength", Range(0.0, 1.5)) = 0.7
         _SunRimPower ("Sun Fresnel Rim Power", Range(1.2, 6.0)) = 2.80
         _TeamRimColor ("Team Highlight Rim Color", Color) = (0.42, 0.78, 1.00, 1.0)
         _TeamRimStrength ("Team Highlight Rim Strength", Range(0.0, 1.5)) = 0.0
         _VertGradMin ("Vertical Gradient Min Y", Float) = -0.55
         _VertGradMax ("Vertical Gradient Max Y", Float) = 0.85
-        _VertGradStrength ("Vertical Gradient Strength", Range(0.0, 1.0)) = 0.24
+        _VertGradStrength ("Vertical Gradient Strength", Range(0.0, 1.0)) = 0.36
         _FresnelUpWeight ("Fresnel Up-Facing Weight", Range(0.0, 1.0)) = 0.65
         _FresnelHeightMin ("Fresnel Height Ramp Min", Float) = -0.35
         _FresnelHeightMax ("Fresnel Height Ramp Max", Float) = 0.55

@@ -121,6 +121,85 @@ namespace Kalyeah.Game
         }
 
         [Test]
+        public void Crosshair_ReachReadout_SaysWhetherTheStoneGetsThere()
+        {
+            // Spec tirador: a tap reaches 18 m, a full charge 30 m.
+            Assert.AreEqual(0, CrosshairView.ClassifyReach(12f, 18f, 30f), "inside a tap's reach");
+            Assert.AreEqual(1, CrosshairView.ClassifyReach(24f, 18f, 30f), "only a charged shot gets there: HOLD");
+            Assert.AreEqual(0, CrosshairView.ClassifyReach(24f, 25f, 30f), "charging far enough makes it reach");
+            Assert.AreEqual(2, CrosshairView.ClassifyReach(35f, 18f, 30f), "past a full charge: out of reach");
+        }
+
+        [Test]
+        public void SlingshotStone_FliesLevelThenDropsSmoothlyToTheStreetAtItsRange()
+        {
+            const float range = 30f, h = 0.72f;
+            float dropStart = range * (1f - ProjectileViews.TiradorDropShare);
+            Assert.AreEqual(h, ProjectileViews.TiradorFlightHeight(5f, range, h), 1e-5f, "level flight first");
+            Assert.AreEqual(h, ProjectileViews.TiradorFlightHeight(dropStart, range, h), 1e-5f);
+            Assert.AreEqual(0f, ProjectileViews.TiradorFlightSlope(dropStart, range, h), 1e-5f, "no kink where the drop starts");
+            Assert.AreEqual(0f, ProjectileViews.TiradorFlightHeight(range, range, h), 1e-5f, "on the street at the range end");
+            float prev = h;
+            for (float d = dropStart; d <= range; d += 0.5f)
+            {
+                float y = ProjectileViews.TiradorFlightHeight(d, range, h);
+                Assert.LessOrEqual(y, prev + 1e-5f, "it only goes down");
+                prev = y;
+            }
+        }
+
+        [Test]
+        public void AimIndicator_TiradorArc_FollowsTheStonesCurveAndLandsAtTheRange()
+        {
+            var root = new GameObject("ArcTest");
+            try
+            {
+                var view = new AimIndicatorView(root.transform);
+                var feet = new SVector2(0f, 20f);
+                view.ShowTiradorArc(feet, new SVector2(0f, -1f), 24f, 0.72f, Color.white);
+                LineRenderer arc = null;
+                foreach (LineRenderer l in root.GetComponentsInChildren<LineRenderer>(true))
+                    if (l.name == "TiradorArc") arc = l;
+                Assert.IsNotNull(arc);
+                Assert.IsTrue(arc.gameObject.activeSelf);
+                Vector3 first = arc.GetPosition(0), last = arc.GetPosition(arc.positionCount - 1);
+                Assert.AreEqual(0.72f, first.y, 1e-4f, "starts at the stone's flight height");
+                Assert.AreEqual(0f, last.y, 1e-4f, "ends on the street");
+                Vector3 landing = KalyeahResources.World(feet + new SVector2(0f, -1f) * 24f, 0f);
+                Assert.AreEqual(0f, Vector3.Distance(new Vector3(last.x, 0f, last.z), landing), 1e-3f, "lands at the charged range");
+                view.HideTiradorArc();
+                Assert.IsFalse(arc.gameObject.activeSelf);
+                view.Dispose();
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
+        public void SlingshotStone_ThatRanOutOfRange_IsToldApartFromAHit()
+        {
+            var flying = new WorldEffectSnapshot { WeaponId = "tirador_bato", MaxRange = 18f, Travelled = 17.2f };
+            Assert.IsTrue(ProjectileViews.RanOutOfRange(flying), "removed one tick before 18 m: it ran out and lands in dust");
+            var hit = new WorldEffectSnapshot { WeaponId = "tirador_bato", MaxRange = 18f, Travelled = 9f };
+            Assert.IsFalse(ProjectileViews.RanOutOfRange(hit), "removed at 9 m: it hit something, no landing puff");
+        }
+
+        [Test]
+        public void ShoulderCamera_FpsControls_OnlyASwipeTurnsTheView()
+        {
+            var shoulder = new ShoulderCamera(CameraRulesData.Load(KalyeahResources.Data()), 0);
+            float yaw = shoulder.Yaw;
+            for (int i = 0; i < 90; i++)
+                shoulder.SyncLocalKid(facing: new SVector2(1f, 0f), speed01: 1f, sprintingOrDashing: false, crouchingOrSliding: false, airY: 0f, dt: 1f / 30f);
+            Assert.AreEqual(yaw, shoulder.Yaw, 1e-4f, "3 s of running sideways leaves the view where the player put it");
+
+            shoulder.Look(new Vector2(100f, 0f), 720f);
+            Assert.AreNotEqual(yaw, shoulder.Yaw, "a swipe turns it");
+        }
+
+        [Test]
         public void ShoulderCamera_AimDownSight_MovesInAlongTheViewAndNarrowsTheFov()
         {
             CameraRulesData rules = CameraRulesData.Load(KalyeahResources.Data());
@@ -202,7 +281,8 @@ namespace Kalyeah.Game
             Assert.AreEqual(1.9f, rules.ShoulderHeight, 0.001f, "1.9 m pivot, a little above the kid");
             Assert.AreEqual(0.88f, rules.ShoulderOffset, 0.001f, "0.88 m to the right: hero sits cleanly in the lower-left third");
             Assert.AreEqual(12f, rules.LookPitchDegrees, 0.001f, "12 deg looking down over the street");
-            Assert.AreEqual(58f, rules.ShoulderFov, 0.001f, "58 deg vertical FOV: crisp competitive AAA 3P framing");
+            Assert.AreEqual(50f, rules.ShoulderFov, 0.001f, "50 deg vertical FOV: a kid at 20 m stays readable on a phone");
+            Assert.AreEqual(1f, rules.KidViewScale, 0.001f, "kids drawn at full 1.85 m so enemies read at weapon range");
 
             SVector2 feet = new SVector2(4f, 20f); // Unity ground (4, 0, -20)
             var (eye, forward) = ShoulderRig.Pose(rules, feet, yawDegrees: 0f, pitchDegrees: rules.LookPitchDegrees);

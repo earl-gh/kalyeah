@@ -190,12 +190,13 @@ namespace Kalyeah.Game
 #endif
                 Hud.CancelActiveTouches();
                 View.AimIndicator.HideAim();
+                View.AimIndicator.HideTiradorArc();
                 Sim.SetLocalInput(default);
                 return;
             }
 
             if (Hud.Look != null)
-                Shoulder.Look(Hud.Look.TakeDrag(), Mathf.Max(1f, screenHeight));
+                Shoulder.Look(Hud.Look.TakeDrag() + (Hud.AbilityArc != null ? Hud.AbilityArc.TakeLookDrag() : Vector2.zero), Mathf.Max(1f, screenHeight));
 
             Vector2 stick = Hud.Joystick != null ? Hud.Joystick.Value : Vector2.zero;
             if (stick.sqrMagnitude < 0.0025f && tilt != null && tilt.Enabled && SettingsStore.Current.TiltToRun)
@@ -209,6 +210,7 @@ namespace Kalyeah.Game
             UpdateAimTelegraph(in ability);
 
             LocalInputFrame frame = ability.ToInputFrame(move);
+            frame.Look = Shoulder.GroundWay(Vector2.up); // FPS controls: the kid always faces the crosshair
             Sim.SetLocalInput(frame);
         }
 
@@ -266,8 +268,26 @@ namespace Kalyeah.Game
             Hud?.Refresh(Sim, Camera, Shoulder, View.Layout, stepDt);
         }
 
+        /// <summary>While the slingshot charges, the arc shows where a stone fired now would fly and land (white to cyan with the charge).</summary>
+        void UpdateTiradorArc(bool holdingSkill)
+        {
+            KidSnapshot? localOpt = Sim.LocalKid;
+            if (holdingSkill || !localOpt.HasValue || localOpt.Value.Tagged || localOpt.Value.TiradorCharge01 < 0f || localOpt.Value.TiradorCurrentRange <= 0.5f)
+            {
+                View.AimIndicator.HideTiradorArc();
+                return;
+            }
+            KidSnapshot me = localOpt.Value;
+            float originH = (me.Crouching || me.Sliding) ? AimSolver.CrouchedOriginHeight : AimSolver.DefaultOriginHeight;
+            AimSolution sol = AimSolver.Solve(Camera, me.Position, me.Facing, me.TiradorCurrentRange, View.Layout, originH);
+            Color col = Color.Lerp(MenuArt.PaperWhite, MenuArt.WaterCyan, Mathf.Clamp01(me.TiradorCharge01));
+            col.a = 0.85f;
+            View.AimIndicator.ShowTiradorArc(me.Position, sol.SimAimDirection, me.TiradorCurrentRange, View.Projectiles.StoneFlightHeight, col);
+        }
+
         void UpdateAimTelegraph(in AbilityInputState ability)
         {
+            UpdateTiradorArc(ability.HeldSlot >= 0);
             if (ability.HeldSlot < 0 || string.IsNullOrEmpty(ability.PreviewWeaponId))
             {
                 View.AimIndicator.HideAim();

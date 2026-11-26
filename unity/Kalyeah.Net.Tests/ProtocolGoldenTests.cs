@@ -117,6 +117,17 @@ namespace Kalyeah.Net.Tests
         }
 
         [Test]
+        public void LookSurvivesTheWireAndStaysOptional()
+        {
+            PlayerInput sent = PlayerInput.Create(Vec2.Zero, Vec2.Zero, 0, 7);
+            Assert.IsFalse(NetProtocol.InputToDict(sent).Has("l"), "no look, no key: old messages stay byte-identical");
+            sent.Look = new Vec2(0.6, -0.8);
+            PlayerInput got = NetProtocol.InputFromDict(NetProtocol.InputToDict(sent));
+            Assert.AreEqual(0.6, got.Look.X, 0.001);
+            Assert.AreEqual(-0.8, got.Look.Y, 0.001);
+        }
+
+        [Test]
         public void InputFromDictCleansUntrustedInputLikeGodot()
         {
             foreach (JsonElement c in Root.GetProperty("input_from_dict").EnumerateArray())
