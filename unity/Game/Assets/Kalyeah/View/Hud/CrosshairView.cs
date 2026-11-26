@@ -211,12 +211,16 @@ namespace Kalyeah.Game
             _chargeBarRoot.gameObject.SetActive(false);
 
             // Distance to whatever the crosshair is on, coloured by whether a slingshot stone reaches it.
-            _reachText = Ui.MakeText("ReachMeters", _reticleCenter, "", 12, MenuArt.PaperWhite, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
+            _reachText = Ui.MakeText("ReachMeters", _reticleCenter, "", 18, MenuArt.PaperWhite, TextAnchor.MiddleLeft, KalyeahResources.DisplayFont());
             _reachText.rectTransform.anchorMin = _reachText.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             _reachText.rectTransform.pivot = new Vector2(0f, 0.5f);
-            _reachText.rectTransform.anchoredPosition = new Vector2(24f, 0f);
-            _reachText.rectTransform.sizeDelta = new Vector2(72f, 16f);
+            _reachText.rectTransform.anchoredPosition = new Vector2(26f, 0f);
+            _reachText.rectTransform.sizeDelta = new Vector2(110f, 24f);
             _reachText.raycastTarget = false;
+            // Read over sky and street alike: a dark outline round the numbers.
+            var reachInk = _reachText.gameObject.AddComponent<Outline>();
+            reachInk.effectColor = new Color(0f, 0f, 0f, 0.85f);
+            reachInk.effectDistance = new Vector2(1.5f, -1.5f);
             _reachText.gameObject.SetActive(false);
 
             // Bold "TAYA!" tag confirmation stamp tucked just below the reticle (only flashes for 340 ms on confirmed tag)
