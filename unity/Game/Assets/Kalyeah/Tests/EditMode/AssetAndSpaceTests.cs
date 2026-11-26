@@ -121,6 +121,25 @@ namespace Kalyeah.Game
         }
 
         [Test]
+        public void Crosshair_ReachReadout_SaysWhetherTheStoneGetsThere()
+        {
+            // Spec tirador: a tap reaches 18 m, a full charge 30 m.
+            Assert.AreEqual(0, CrosshairView.ClassifyReach(12f, 18f, 30f), "inside a tap's reach");
+            Assert.AreEqual(1, CrosshairView.ClassifyReach(24f, 18f, 30f), "only a charged shot gets there: HOLD");
+            Assert.AreEqual(0, CrosshairView.ClassifyReach(24f, 25f, 30f), "charging far enough makes it reach");
+            Assert.AreEqual(2, CrosshairView.ClassifyReach(35f, 18f, 30f), "past a full charge: out of reach");
+        }
+
+        [Test]
+        public void SlingshotStone_ThatRanOutOfRange_IsToldApartFromAHit()
+        {
+            var flying = new WorldEffectSnapshot { WeaponId = "tirador_bato", MaxRange = 18f, Travelled = 17.2f };
+            Assert.IsTrue(ProjectileViews.RanOutOfRange(flying), "removed one tick before 18 m: it ran out and lands in dust");
+            var hit = new WorldEffectSnapshot { WeaponId = "tirador_bato", MaxRange = 18f, Travelled = 9f };
+            Assert.IsFalse(ProjectileViews.RanOutOfRange(hit), "removed at 9 m: it hit something, no landing puff");
+        }
+
+        [Test]
         public void ShoulderCamera_FpsControls_OnlyASwipeTurnsTheView()
         {
             var shoulder = new ShoulderCamera(CameraRulesData.Load(KalyeahResources.Data()), 0);

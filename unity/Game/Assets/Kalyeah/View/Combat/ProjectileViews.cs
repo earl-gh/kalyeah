@@ -1126,8 +1126,18 @@ namespace Kalyeah.Game
                 CheckShieldBlockReaction(last);
                 if (!ReduceMotion && (slot.BoundWeaponId == "trumpo" || slot.BoundWeaponId == "bato_light"))
                     Fx?.SpawnDustPuff(last.Position, 0.72f);
+                // A slingshot stone that ran out of range lands in a puff of dust, so the shooter sees where its reach ended.
+                if (slot.BoundWeaponId == "tirador_bato" && RanOutOfRange(last))
+                    Fx?.SpawnDustPuff(last.Position + last.Direction * TiradorTickMeters, 0.5f);
             }
         }
+
+        /// <summary>About one 30 Hz tick of a slingshot stone's flight (32 m/s): how far it moves after its last snapshot.</summary>
+        const float TiradorTickMeters = 1.1f;
+
+        /// <summary>True when a removed projectile's last snapshot was within one tick of its range (not stopped by a hit).</summary>
+        public static bool RanOutOfRange(WorldEffectSnapshot last)
+            => last.MaxRange > 0f && last.Travelled >= last.MaxRange - 2f * TiradorTickMeters;
 
         void CheckShieldBlockReaction(WorldEffectSnapshot proj)
         {
