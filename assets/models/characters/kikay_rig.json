@@ -7,9 +7,9 @@
   "refLegLengthM": 0.6957,
   "legLengthRatio": 0.9826,
   "girth": {
-    "torsoRadiusM": 0.1389,
-    "armRadiusM": 0.0807,
-    "thighRadiusM": 0.0437,
+    "torsoRadiusM": 0.1391,
+    "armRadiusM": 0.0805,
+    "thighRadiusM": 0.0359,
     "armAbductOffsetDeg": 0.0,
     "hipSpreadOffsetDeg": 0.0
   },
@@ -1107,7 +1107,7 @@
         1.25359,
         0.0349
       ],
-      "radius": 0.1389
+      "radius": 0.1391
     },
     "LeftArm": {
       "bone": "mixamorig:LeftArm",
@@ -1149,7 +1149,7 @@
         0.47256,
         0.03952
       ],
-      "radius": 0.0513
+      "radius": 0.0392
     },
     "LeftLeg": {
       "bone": "mixamorig:LeftLeg",
@@ -1177,7 +1177,7 @@
         1.08383,
         0.00393
       ],
-      "radius": 0.0782
+      "radius": 0.0779
     },
     "RightForeArm": {
       "bone": "mixamorig:RightForeArm",
@@ -1205,7 +1205,7 @@
         0.47256,
         0.03952
       ],
-      "radius": 0.036
+      "radius": 0.0325
     },
     "RightLeg": {
       "bone": "mixamorig:RightLeg",
@@ -1421,7 +1421,7 @@
       ],
       "boneRestDir": [
         0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1457,7 +1457,7 @@
       ],
       "boneRestDir": [
         0.76564,
-        -0.64256,
+        -0.64255,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1513,27 +1513,27 @@
   "lods": {
     "lod0": {
       "asset": "models/characters/kikay",
-      "tris": 16448,
+      "tris": 18674,
       "deformBones": 72,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4332
+      "fileSizeKb": 4897
     },
     "lod1": {
       "asset": "models/characters/kikay_lod1",
-      "tris": 8500,
+      "tris": 9336,
       "deformBones": 52,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 807
+      "fileSizeKb": 851
     },
     "lod2": {
       "asset": "models/characters/kikay_lod2",
-      "tris": 4300,
+      "tris": 4668,
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 251
+      "fileSizeKb": 259
     }
   },
   "textures": {
@@ -1548,9 +1548,9 @@
     "Left: elbow pre-bend 11 straightened, arm rolled +7, palm roll +12",
     "Right: elbow pre-bend 12 straightened, arm rolled -12, palm roll -9",
     "rebound to reference rest; added 12 twist/helper bones",
-    "skirt hem thigh-bound verts: 6808 (smoothed 6976)",
-    "stray influences removed: 3879",
-    "cross-side influences removed: 58"
+    "skirt hem thigh-bound verts: 6998 (smoothed 7153)",
+    "stray influences removed: 3865",
+    "cross-side influences removed: 896"
   ],
   "facialShapes": [
     "Blink",

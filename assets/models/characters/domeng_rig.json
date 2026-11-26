@@ -165,7 +165,7 @@
       "tail": [
         -0.26231,
         -0.00147,
-        0.09586
+        0.09585
       ],
       "length": 0.02656
     },
@@ -1389,34 +1389,6 @@
       "fullAngleDeg": 85.0
     },
     {
-      "shape": "corr_LeftLeg_Squash",
-      "kind": "squash",
-      "bone": "mixamorig:LeftLeg",
-      "parent": "mixamorig:LeftUpLeg",
-      "axis": [
-        1.0,
-        0.0,
-        0.0
-      ],
-      "restAngleDeg": 3.07,
-      "startAngleDeg": 73.07,
-      "fullAngleDeg": 108.07
-    },
-    {
-      "shape": "corr_RightLeg_Squash",
-      "kind": "squash",
-      "bone": "mixamorig:RightLeg",
-      "parent": "mixamorig:RightUpLeg",
-      "axis": [
-        1.0,
-        0.0,
-        0.0
-      ],
-      "restAngleDeg": 3.07,
-      "startAngleDeg": 73.07,
-      "fullAngleDeg": 108.07
-    },
-    {
       "shape": "corr_LeftForeArm_Squash",
       "kind": "squash",
       "bone": "mixamorig:LeftForeArm",
@@ -1443,32 +1415,60 @@
       "restAngleDeg": 4.72,
       "startAngleDeg": 104.72,
       "fullAngleDeg": 139.72
+    },
+    {
+      "shape": "corr_LeftLeg_Squash",
+      "kind": "squash",
+      "bone": "mixamorig:LeftLeg",
+      "parent": "mixamorig:LeftUpLeg",
+      "axis": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "restAngleDeg": 3.07,
+      "startAngleDeg": 73.07,
+      "fullAngleDeg": 108.07
+    },
+    {
+      "shape": "corr_RightLeg_Squash",
+      "kind": "squash",
+      "bone": "mixamorig:RightLeg",
+      "parent": "mixamorig:RightUpLeg",
+      "axis": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "restAngleDeg": 3.07,
+      "startAngleDeg": 73.07,
+      "fullAngleDeg": 108.07
     }
   ],
   "lods": {
     "lod0": {
       "asset": "models/characters/domeng",
-      "tris": 16554,
+      "tris": 18390,
       "deformBones": 64,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 3790
+      "fileSizeKb": 4314
     },
     "lod1": {
       "asset": "models/characters/domeng_lod1",
-      "tris": 8500,
+      "tris": 9194,
       "deformBones": 44,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 697
+      "fileSizeKb": 739
     },
     "lod2": {
       "asset": "models/characters/domeng_lod2",
-      "tris": 4300,
+      "tris": 4598,
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 216
+      "fileSizeKb": 227
     }
   },
   "textures": {
@@ -1483,8 +1483,8 @@
     "Left: elbow pre-bend 11 straightened, arm rolled +44, palm roll -5",
     "Right: elbow pre-bend 10 straightened, arm rolled -39, palm roll -0",
     "rebound to reference rest; added 12 twist/helper bones",
-    "stray influences removed: 8232",
-    "cross-side influences removed: 0"
+    "stray influences removed: 12696",
+    "cross-side influences removed: 3311"
   ],
   "facialShapes": [
     "Blink",

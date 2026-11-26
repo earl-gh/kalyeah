@@ -9,7 +9,7 @@
   "girth": {
     "torsoRadiusM": 0.1864,
     "armRadiusM": 0.1034,
-    "thighRadiusM": 0.1192,
+    "thighRadiusM": 0.1435,
     "armAbductOffsetDeg": 3.6,
     "hipSpreadOffsetDeg": 0.6
   },
@@ -1149,7 +1149,7 @@
         0.53398,
         0.06786
       ],
-      "radius": 0.1153
+      "radius": 0.1379
     },
     "LeftLeg": {
       "bone": "mixamorig:LeftLeg",
@@ -1163,7 +1163,7 @@
         0.15493,
         0.06768
       ],
-      "radius": 0.166
+      "radius": 0.2047
     },
     "RightArm": {
       "bone": "mixamorig:RightArm",
@@ -1205,7 +1205,7 @@
         0.53398,
         0.06786
       ],
-      "radius": 0.123
+      "radius": 0.1491
     },
     "RightLeg": {
       "bone": "mixamorig:RightLeg",
@@ -1219,7 +1219,7 @@
         0.15569,
         0.0677
       ],
-      "radius": 0.1673
+      "radius": 0.2056
     }
   },
   "twistBones": [
@@ -1352,20 +1352,6 @@
       "fullAngleDeg": 139.72
     },
     {
-      "shape": "corr_LeftLeg",
-      "kind": "hinge",
-      "bone": "mixamorig:LeftLeg",
-      "parent": "mixamorig:LeftUpLeg",
-      "axis": [
-        1.0,
-        0.0,
-        0.0
-      ],
-      "restAngleDeg": 3.07,
-      "startAngleDeg": 25.0,
-      "fullAngleDeg": 108.07
-    },
-    {
       "shape": "corr_LeftArm_Up",
       "kind": "cone",
       "bone": "mixamorig:LeftArm",
@@ -1395,7 +1381,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64255,
+        -0.64256,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1431,7 +1417,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64255,
+        -0.64256,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1464,32 +1450,60 @@
       "restAngleDeg": 4.72,
       "startAngleDeg": 104.72,
       "fullAngleDeg": 139.72
+    },
+    {
+      "shape": "corr_LeftLeg_Squash",
+      "kind": "squash",
+      "bone": "mixamorig:LeftLeg",
+      "parent": "mixamorig:LeftUpLeg",
+      "axis": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "restAngleDeg": 3.07,
+      "startAngleDeg": 73.07,
+      "fullAngleDeg": 108.07
+    },
+    {
+      "shape": "corr_RightLeg_Squash",
+      "kind": "squash",
+      "bone": "mixamorig:RightLeg",
+      "parent": "mixamorig:RightUpLeg",
+      "axis": [
+        1.0,
+        0.0,
+        0.0
+      ],
+      "restAngleDeg": 3.07,
+      "startAngleDeg": 73.07,
+      "fullAngleDeg": 108.07
     }
   ],
   "lods": {
     "lod0": {
       "asset": "models/characters/narda",
-      "tris": 19530,
+      "tris": 17096,
       "deformBones": 70,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4443
+      "fileSizeKb": 4954
     },
     "lod1": {
       "asset": "models/characters/narda_lod1",
-      "tris": 9764,
+      "tris": 8548,
       "deformBones": 50,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 847
+      "fileSizeKb": 836
     },
     "lod2": {
       "asset": "models/characters/narda_lod2",
-      "tris": 4882,
+      "tris": 4300,
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 270
+      "fileSizeKb": 255
     }
   },
   "textures": {
@@ -1504,9 +1518,9 @@
     "Left: elbow pre-bend 15 straightened, arm rolled +15, palm roll +10",
     "Right: elbow pre-bend 14 straightened, arm rolled -12, palm roll -10",
     "rebound to reference rest; added 12 twist/helper bones",
-    "skirt hem thigh-bound verts: 28654 (smoothed 30305)",
-    "stray influences removed: 20415",
-    "cross-side influences removed: 230"
+    "skirt hem thigh-bound verts: 33041 (smoothed 35056)",
+    "stray influences removed: 20653",
+    "cross-side influences removed: 3962"
   ],
   "facialShapes": [
     "Blink",

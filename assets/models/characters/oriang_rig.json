@@ -95,7 +95,7 @@
       "tail": [
         0.27559,
         0.02324,
-        0.19656
+        0.19655
       ],
       "length": 0.03386
     },
@@ -172,12 +172,12 @@
     "RightToe_End": {
       "parent": "RightToeBase",
       "head": [
-        -0.26894,
+        -0.26895,
         0.02324,
         0.1627
       ],
       "tail": [
-        -0.26894,
+        -0.26895,
         0.02324,
         0.19656
       ],
@@ -262,7 +262,7 @@
       ],
       "tail": [
         0.32854,
-        1.01961,
+        1.0196,
         0.02333
       ],
       "length": 0.21661
@@ -318,7 +318,7 @@
       ],
       "tail": [
         0.50087,
-        0.69248,
+        0.69247,
         0.1035
       ],
       "length": 0.02847
@@ -327,7 +327,7 @@
       "parent": "LeftHandIndex2",
       "head": [
         0.50087,
-        0.69248,
+        0.69247,
         0.1035
       ],
       "tail": [
@@ -374,7 +374,7 @@
       ],
       "tail": [
         0.49818,
-        0.67386,
+        0.67385,
         0.06896
       ],
       "length": 0.03323
@@ -383,7 +383,7 @@
       "parent": "LeftHandMiddle2",
       "head": [
         0.49818,
-        0.67386,
+        0.67385,
         0.06896
       ],
       "tail": [
@@ -458,7 +458,7 @@
       ],
       "tail": [
         0.50277,
-        0.62782,
+        0.62781,
         -0.00204
       ],
       "length": 0.03086
@@ -523,7 +523,7 @@
       "parent": "LeftHand",
       "head": [
         0.42168,
-        0.79356,
+        0.79355,
         0.07637
       ],
       "tail": [
@@ -678,12 +678,12 @@
       "head": [
         0.07637,
         1.46426,
-        -0.0498
+        -0.04981
       ],
       "tail": [
         0.07637,
         1.66414,
-        -0.0498
+        -0.04981
       ],
       "length": 0.19988
     },
@@ -780,7 +780,7 @@
       ],
       "tail": [
         -0.52469,
-        0.65058,
+        0.65059,
         0.09843
       ],
       "length": 0.04846
@@ -789,7 +789,7 @@
       "parent": "RightHandIndex3",
       "head": [
         -0.52469,
-        0.65058,
+        0.65059,
         0.09843
       ],
       "tail": [
@@ -891,7 +891,7 @@
         0.00729
       ],
       "tail": [
-        -0.4921,
+        -0.49209,
         0.64586,
         0.03234
       ],
@@ -971,7 +971,7 @@
       "parent": "RightHand",
       "head": [
         -0.41504,
-        0.79356,
+        0.79355,
         0.07637
       ],
       "tail": [
@@ -979,7 +979,7 @@
         0.76699,
         0.10293
       ],
-      "length": 0.03757
+      "length": 0.03756
     },
     "RightHandThumb2": {
       "parent": "RightHandThumb1",
@@ -1118,7 +1118,7 @@
       ],
       "b": [
         0.32854,
-        1.01961,
+        1.0196,
         0.02333
       ],
       "radius": 0.079
@@ -1374,7 +1374,7 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64255,
+        -0.64256,
         -0.03025
       ],
       "startAngleDeg": 20.0,
@@ -1410,65 +1410,65 @@
       ],
       "boneRestDir": [
         -0.76564,
-        -0.64255,
+        -0.64256,
         -0.03025
       ],
       "startAngleDeg": 20.0,
       "fullAngleDeg": 85.0
     },
     {
-      "shape": "corr_LeftLeg_Squash",
+      "shape": "corr_LeftForeArm_Squash",
       "kind": "squash",
-      "bone": "mixamorig:LeftLeg",
-      "parent": "mixamorig:LeftUpLeg",
+      "bone": "mixamorig:LeftForeArm",
+      "parent": "mixamorig:LeftArm",
       "axis": [
-        1.0,
-        0.0,
+        -0.64285,
+        -0.76599,
         0.0
       ],
-      "restAngleDeg": 3.07,
-      "startAngleDeg": 78.07,
-      "fullAngleDeg": 113.07
+      "restAngleDeg": 4.72,
+      "startAngleDeg": 104.72,
+      "fullAngleDeg": 139.72
     },
     {
-      "shape": "corr_RightLeg_Squash",
+      "shape": "corr_RightForeArm_Squash",
       "kind": "squash",
-      "bone": "mixamorig:RightLeg",
-      "parent": "mixamorig:RightUpLeg",
+      "bone": "mixamorig:RightForeArm",
+      "parent": "mixamorig:RightArm",
       "axis": [
-        1.0,
-        0.0,
-        0.0
+        -0.64285,
+        0.76599,
+        -0.0
       ],
-      "restAngleDeg": 3.07,
-      "startAngleDeg": 78.07,
-      "fullAngleDeg": 113.07
+      "restAngleDeg": 4.72,
+      "startAngleDeg": 104.72,
+      "fullAngleDeg": 139.72
     }
   ],
   "lods": {
     "lod0": {
       "asset": "models/characters/oriang",
-      "tris": 15930,
+      "tris": 17752,
       "deformBones": 64,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 4465
+      "fileSizeKb": 5022
     },
     "lod1": {
       "asset": "models/characters/oriang_lod1",
-      "tris": 8500,
+      "tris": 8876,
       "deformBones": 44,
       "maxInfluences": 4,
       "correctives": true,
-      "fileSizeKb": 774
+      "fileSizeKb": 804
     },
     "lod2": {
       "asset": "models/characters/oriang_lod2",
-      "tris": 4300,
+      "tris": 4438,
       "deformBones": 26,
       "maxInfluences": 2,
       "correctives": false,
-      "fileSizeKb": 245
+      "fileSizeKb": 248
     }
   },
   "textures": {
@@ -1483,8 +1483,8 @@
     "Left: elbow pre-bend 29 straightened, arm rolled +7, palm roll +5",
     "Right: elbow pre-bend 28 straightened, arm rolled -6, palm roll -5",
     "rebound to reference rest; added 12 twist/helper bones",
-    "stray influences removed: 41010",
-    "cross-side influences removed: 0"
+    "stray influences removed: 53348",
+    "cross-side influences removed: 6521"
   ],
   "facialShapes": [
     "Blink",

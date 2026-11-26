@@ -32,7 +32,14 @@ The current art is a first pass built **in code**: procedural meshes and vector 
 - The 12 kids (`docs/SPEC.md` §7) are the **owner's Meshy models** from `assets/models/raw/`, made game-ready by
   `tools/blender/kids/` (`README.md`, "Game-ready kids"): about 16k to 20k triangles each in clean quads, one material
   with a 2048 base colour and a 1024 normal map baked from the source, the head at 1.8x texel density, the shared
-  `mixamorig` skeleton and its 20 clips. Output: `assets/models/characters/<kid>.glb` and `<kid>_2.png` (normal map).
+  `mixamorig` skeleton and its 32 clips. Output: `assets/models/characters/<kid>.glb` and `<kid>_2.png` (normal map).
+- **Shared clips (`tools/blender/kids/clips/roster_clips.glb`):** the 20 original clips plus 12 keyed by
+  `tools/blender/kids/author_clips.py` (2026-11-26): `Strafe_L`, `Strafe_R`, `Backpedal` (cross-step and backpedal
+  covering `Run`'s 2.0 m a cycle, so `KidView`'s 8-way blend turns on and the feet step sideways or back instead of
+  sliding), `Aim_Hold`, `Fire`, `Reload` (the **left hand holds the Tirador's fork** and the right draws the band, so
+  `KidView` now puts the held Tirador in the left hand), `Vault` (0.60 s; not played yet), `Cast_Place`, `Cast_Slam`,
+  `Cast_Buff`, `Cast_Channel` (in every model, not played yet) and `Sit` (tagged kids, 4 s loop with a head scratch).
+  Timings, deviations from the brief and the `anim_scan.py` result: `docs/art-briefs/anim-clip-gaps.md`.
 - The view scales every kid to one height (`KidView.KidHeight`); the hitbox is always `GameRules.player_radius`.
 - Portraits, HUD faces, cards, character cards and avatars are renders of the finished models
   (`render_kid_art.py`, `tools/art/compose_kid_cards.py`).
