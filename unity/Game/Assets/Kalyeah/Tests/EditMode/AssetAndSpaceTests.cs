@@ -131,6 +131,53 @@ namespace Kalyeah.Game
         }
 
         [Test]
+        public void SlingshotStone_FliesLevelThenDropsSmoothlyToTheStreetAtItsRange()
+        {
+            const float range = 30f, h = 0.72f;
+            float dropStart = range * (1f - ProjectileViews.TiradorDropShare);
+            Assert.AreEqual(h, ProjectileViews.TiradorFlightHeight(5f, range, h), 1e-5f, "level flight first");
+            Assert.AreEqual(h, ProjectileViews.TiradorFlightHeight(dropStart, range, h), 1e-5f);
+            Assert.AreEqual(0f, ProjectileViews.TiradorFlightSlope(dropStart, range, h), 1e-5f, "no kink where the drop starts");
+            Assert.AreEqual(0f, ProjectileViews.TiradorFlightHeight(range, range, h), 1e-5f, "on the street at the range end");
+            float prev = h;
+            for (float d = dropStart; d <= range; d += 0.5f)
+            {
+                float y = ProjectileViews.TiradorFlightHeight(d, range, h);
+                Assert.LessOrEqual(y, prev + 1e-5f, "it only goes down");
+                prev = y;
+            }
+        }
+
+        [Test]
+        public void AimIndicator_TiradorArc_FollowsTheStonesCurveAndLandsAtTheRange()
+        {
+            var root = new GameObject("ArcTest");
+            try
+            {
+                var view = new AimIndicatorView(root.transform);
+                var feet = new SVector2(0f, 20f);
+                view.ShowTiradorArc(feet, new SVector2(0f, -1f), 24f, 0.72f, Color.white);
+                LineRenderer arc = null;
+                foreach (LineRenderer l in root.GetComponentsInChildren<LineRenderer>(true))
+                    if (l.name == "TiradorArc") arc = l;
+                Assert.IsNotNull(arc);
+                Assert.IsTrue(arc.gameObject.activeSelf);
+                Vector3 first = arc.GetPosition(0), last = arc.GetPosition(arc.positionCount - 1);
+                Assert.AreEqual(0.72f, first.y, 1e-4f, "starts at the stone's flight height");
+                Assert.AreEqual(0f, last.y, 1e-4f, "ends on the street");
+                Vector3 landing = KalyeahResources.World(feet + new SVector2(0f, -1f) * 24f, 0f);
+                Assert.AreEqual(0f, Vector3.Distance(new Vector3(last.x, 0f, last.z), landing), 1e-3f, "lands at the charged range");
+                view.HideTiradorArc();
+                Assert.IsFalse(arc.gameObject.activeSelf);
+                view.Dispose();
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void SlingshotStone_ThatRanOutOfRange_IsToldApartFromAHit()
         {
             var flying = new WorldEffectSnapshot { WeaponId = "tirador_bato", MaxRange = 18f, Travelled = 17.2f };

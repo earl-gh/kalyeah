@@ -42,6 +42,34 @@ namespace Kalyeah.Game
 
         // Visual geometry & animation constants matching scripts/view/fx/*.gd.
         const float ProjectileFlightHeight = 0.72f;
+        /// <summary>The share of a slingshot stone's range spent dropping to the street (level flight before it).</summary>
+        public const float TiradorDropShare = 0.2f;
+        const float TiradorTracerMeters = 5.5f;
+
+        /// <summary>
+        /// Height of a slingshot stone `travelled` metres into its `range`: level at `flightHeight`, then a gravity-like drop
+        /// (h * (1 - s^2), no kink where it starts) over the last <see cref="TiradorDropShare"/> to the street at the range end.
+        /// The sim hits on the ground plane, so this curve is the look only; the aim arc preview draws the same curve.
+        /// </summary>
+        public static float TiradorFlightHeight(float travelled, float range, float flightHeight)
+        {
+            if (range <= 0.01f) return flightHeight;
+            float drop = range * TiradorDropShare;
+            float s = Mathf.Clamp01((travelled - (range - drop)) / drop);
+            return flightHeight * (1f - s * s);
+        }
+
+        /// <summary>Height change per metre along <see cref="TiradorFlightHeight"/> (0 in level flight, steepest at the end).</summary>
+        public static float TiradorFlightSlope(float travelled, float range, float flightHeight)
+        {
+            if (range <= 0.01f) return 0f;
+            float drop = range * TiradorDropShare;
+            float s = Mathf.Clamp01((travelled - (range - drop)) / drop);
+            return -2f * flightHeight * s / drop;
+        }
+
+        /// <summary>The height a stone flies at for this view's kid scale.</summary>
+        public float StoneFlightHeight => ProjectileFlightHeight * ViewScale;
         const float SlipperSpinLightRev = 3.0f;
         const float SlipperSpinHeavyRev = 2.0f;
         const float SlipperTiltDeg = 25f;
@@ -781,6 +809,7 @@ namespace Kalyeah.Game
             m.Tr.localScale = Vector3.one * scaleMeters;
 
             float age = _clock - slot.SpawnTime;
+            float tiradorSlope = 0f, tiradorFlown = 0f;
 
             if (slot.BoundWeaponId == "trumpo")
             {
@@ -880,7 +909,16 @@ namespace Kalyeah.Game
             else
             {
                 // Default projectile (tirador_bato, bato_light, etc.): crisp flight height + rock tumble.
-                m.Tr.localPosition = new Vector3(0f, ProjectileFlightHeight * ViewScale, 0f);
+                float flightY = StoneFlightHeight;
+                if (slot.BoundWeaponId == "tirador_bato")
+                {
+                    // Interpolated distance flown: the snapshot's, less how far the drawn position still lags behind it.
+                    float flown = Mathf.Max(0f, snap.Travelled - SVector2.Distance(snap.Position, simPos));
+                    flightY = TiradorFlightHeight(flown, snap.MaxRange, StoneFlightHeight);
+                    tiradorSlope = TiradorFlightSlope(flown, snap.MaxRange, StoneFlightHeight);
+                    tiradorFlown = flown;
+                }
+                m.Tr.localPosition = new Vector3(0f, flightY, 0f);
                 if (!ReduceMotion)
                 {
                     slot.SpinAngleRad += dt * Mathf.PI * 2f * RockTumbleRev;
@@ -893,7 +931,16 @@ namespace Kalyeah.Game
             Color teamCol = TelegraphColorFor(snap.Team, slot.BoundWeaponId);
             float highlightSignal = ReduceMotion ? 0.65f : (0.5f + 0.5f * Mathf.Sin(slot.SpinAngleRad * 2f));
             SetWeaponOutlineAccent(m, teamCol, isEnemy, highlightSignal);
-            UpdateProjectileTrail(slot, snap, m.Tr.localPosition, scaleMeters, teamCol, isEnemy);
+            if (slot.BoundWeaponId == "tirador_bato")
+            {
+                // A long thin tracer along the stone's path (it bends down with the drop).
+                float tracer = ReduceMotion ? 1f : Mathf.Min(TiradorTracerMeters, Mathf.Max(0.3f, tiradorFlown));
+                UpdateArcingTrail(slot, m.Tr.localPosition, new Vector3(0f, tiradorSlope, 1f), 0.18f, tracer, teamCol, isEnemy);
+            }
+            else
+            {
+                UpdateProjectileTrail(slot, snap, m.Tr.localPosition, scaleMeters, teamCol, isEnemy);
+            }
         }
 
         void UpdateExplosionZoneSlot(EffectSlot slot, WorldEffectSnapshot snap, SVector2 simPos)

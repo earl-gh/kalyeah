@@ -396,6 +396,88 @@ namespace Kalyeah.Game
             CommitMesh(_aimMesh, _aimObject, _aimVerts, _aimUvs, _aimColors, _aimTris, _aimVertCount, _aimTriCount);
         }
 
+        // ---- Slingshot arc preview (while charging the Tirador) -------------------------------------------------------------
+
+        const int ArcPoints = 24;
+        const int LandingPoints = 20;
+        /// <summary>The arc starts a little in front of the kid, where the stone leaves the slingshot.</summary>
+        const float ArcStartMeters = 0.6f;
+        const float LandingRingMeters = 0.38f;
+        LineRenderer _arcLine;
+        LineRenderer _arcLanding;
+        Material _arcMaterial;
+
+        /// <summary>
+        /// Shows the curve a slingshot stone fired now would fly (<see cref="ProjectileViews.TiradorFlightHeight"/>): level from the
+        /// slingshot, dropping to the street at `range`, with a ring where it lands. Grows with the charge.
+        /// </summary>
+        public void ShowTiradorArc(SVector2 feet, SVector2 dir, float range, float flightHeight, Color color)
+        {
+            if (_disposed) return;
+            if (!AimGuideEnabled || range <= ArcStartMeters)
+            {
+                HideTiradorArc();
+                return;
+            }
+            EnsureArc();
+            SVector2 way = dir.LengthSquared() > 1e-6f ? SVector2.Normalize(dir) : new SVector2(0f, -1f);
+            for (int i = 0; i < ArcPoints; i++)
+            {
+                float t = ArcStartMeters + (range - ArcStartMeters) * i / (ArcPoints - 1);
+                _arcLine.SetPosition(i, KalyeahResources.World(feet + way * t, ProjectileViews.TiradorFlightHeight(t, range, flightHeight)));
+            }
+            Vector3 land = KalyeahResources.World(feet + way * range, 0.03f);
+            for (int i = 0; i < LandingPoints; i++)
+            {
+                float a = i * Mathf.PI * 2f / LandingPoints;
+                _arcLanding.SetPosition(i, land + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * LandingRingMeters);
+            }
+            if (_arcMaterial != null && _arcMaterial.HasProperty(PropBaseColor)) _arcMaterial.SetColor(PropBaseColor, color);
+            if (!_arcLine.gameObject.activeSelf) _arcLine.gameObject.SetActive(true);
+            if (!_arcLanding.gameObject.activeSelf) _arcLanding.gameObject.SetActive(true);
+        }
+
+        public void HideTiradorArc()
+        {
+            if (_arcLine != null && _arcLine.gameObject.activeSelf) _arcLine.gameObject.SetActive(false);
+            if (_arcLanding != null && _arcLanding.gameObject.activeSelf) _arcLanding.gameObject.SetActive(false);
+        }
+
+        void EnsureArc()
+        {
+            if (_arcLine != null) return;
+            Material baseMat = KalyeahResources.Material("TransparentUnlit", "Universal Render Pipeline/Unlit");
+            if (baseMat != null)
+            {
+                _arcMaterial = new Material(baseMat) { name = "TiradorArc", hideFlags = HideFlags.DontSave };
+                if (_arcMaterial.HasProperty("_Surface")) _arcMaterial.SetFloat("_Surface", 1f);
+                if (_arcMaterial.HasProperty("_ZWrite")) _arcMaterial.SetInt("_ZWrite", 0);
+                _arcMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                _arcMaterial.renderQueue = (int)RenderQueue.Transparent + 6;
+            }
+            _arcLine = MakeArcLine("TiradorArc", ArcPoints, loop: false, startWidth: 0.12f, endWidth: 0.06f);
+            _arcLanding = MakeArcLine("TiradorLanding", LandingPoints, loop: true, startWidth: 0.05f, endWidth: 0.05f);
+        }
+
+        LineRenderer MakeArcLine(string name, int points, bool loop, float startWidth, float endWidth)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(_root, false);
+            var line = go.AddComponent<LineRenderer>();
+            line.useWorldSpace = true;
+            line.positionCount = points;
+            line.loop = loop;
+            line.alignment = LineAlignment.View;
+            line.numCapVertices = 4;
+            line.startWidth = startWidth;
+            line.endWidth = endWidth;
+            line.shadowCastingMode = ShadowCastingMode.Off;
+            line.receiveShadows = false;
+            line.sharedMaterial = _arcMaterial;
+            go.SetActive(false);
+            return line;
+        }
+
         public void HideAim()
         {
             _aimVertCount = 0;
@@ -467,6 +549,7 @@ namespace Kalyeah.Game
             KalyeahResources.Kill(_aimMesh);
             KalyeahResources.Kill(_moveMesh);
             if (_ownsMaterial && _sharedMaterial != null) KalyeahResources.Kill(_sharedMaterial);
+            if (_arcMaterial != null) KalyeahResources.Kill(_arcMaterial);
         }
 
         void BuildWeaponPreviewGeometry(
