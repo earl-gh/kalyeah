@@ -602,6 +602,7 @@ namespace Kalyeah.Game
 
             // The character GLBs carry the authored Strafe_L/R and Backpedal clips (tools/blender/kids/author_clips.py), so
             // the shipped kid resolves them as native, distinct states and turns 8-way blending on.
+            ImportKidClipsAsLegacy();
             var snap = new KidSnapshot { Id = 7, Team = 0, CharacterId = "narda", Facing = new SVector2(0f, -1f) };
             var kid = new KidView(_testRoot.transform, snap, 0.82f, Color.blue, null);
             Assert.IsTrue(kid.HasEightWayClips, "narda's GLB must ship native Strafe_L, Strafe_R and Backpedal clips");
@@ -613,9 +614,45 @@ namespace Kalyeah.Game
             KalyeahResources.Kill(backClip);
         }
 
+        /// <summary>
+        /// KalyeahBuild.Setup (run by the APK and screenshot builds, not by a batch-mode test run) imports the kid .glb clips as
+        /// legacy Animation clips, which KidView plays. A cold CI checkout imports them with glTFast's default (no Animation
+        /// component), so tests that look at the kids' clips set the same importer option on the roster models first.
+        /// </summary>
+        static void ImportKidClipsAsLegacy()
+        {
+            const string charactersRoot = "Assets/Imported/Resources/models/characters";
+            if (!UnityEditor.AssetDatabase.IsValidFolder(charactersRoot)) return;
+            foreach (string kidId in AppSession.DefaultRoster)
+            {
+                string path = $"{charactersRoot}/{kidId}.glb";
+                UnityEditor.AssetImporter importer = UnityEditor.AssetImporter.GetAtPath(path);
+                if (importer == null) continue;
+                var serialized = new UnityEditor.SerializedObject(importer);
+                UnityEditor.SerializedProperty property = serialized.GetIterator();
+                bool changed = false;
+                while (property.Next(true))
+                {
+                    if (property.propertyType != UnityEditor.SerializedPropertyType.Enum) continue;
+                    if (property.name.IndexOf("animationMethod", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    int legacy = Array.IndexOf(property.enumNames, "Legacy");
+                    if (legacy >= 0 && property.enumValueIndex != legacy)
+                    {
+                        property.enumValueIndex = legacy;
+                        changed = true;
+                    }
+                }
+                if (!changed) continue;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                UnityEditor.AssetDatabase.ImportAsset(path,
+                    UnityEditor.ImportAssetOptions.ForceUpdate | UnityEditor.ImportAssetOptions.ForceSynchronousImport);
+            }
+        }
+
         [Test]
         public void EveryKidModel_ShipsNativeStrafeAndBackpedalClips()
         {
+            ImportKidClipsAsLegacy();
             string[] eightWay = { "Strafe_L", "Strafe_R", "Backpedal" };
             foreach (string kidId in AppSession.DefaultRoster)
             {
