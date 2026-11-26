@@ -139,8 +139,9 @@ namespace Kalyeah.Game
     {
         /// <summary>kid_model.gd KID_HEIGHT: standing height before camera kid_view_scale (0.82 -> ~1.52 m).</summary>
         public const float KidHeight = 1.85f;
-        public const float ContactShadowAlphaRt = 0.26f;
-        public const float ContactShadowAlphaBlob = 0.42f;
+        // Dark enough to read on the dark sunset street, so kids stand on the ground instead of floating over it.
+        public const float ContactShadowAlphaRt = 0.55f;
+        public const float ContactShadowAlphaBlob = 0.65f;
         public const float HitboxMultHead = 1.5f;
         public const float HitboxMultChest = 1.0f;
         public const float HitboxMultStomach = 1.0f;
@@ -2763,7 +2764,7 @@ namespace Kalyeah.Game
             }
 
             float heightFade = Mathf.Clamp(1f - Mathf.Max(0f, airY) * 0.22f, 0.45f, 1f);
-            float baseDiameter = strongBlob ? 0.92f : 0.78f;
+            float baseDiameter = strongBlob ? 1.1f : 1.0f;
             float diameter = baseDiameter * _viewScale * heightFade;
             _blobShadowTransform.localScale = new Vector3(diameter, diameter, 1f);
         }

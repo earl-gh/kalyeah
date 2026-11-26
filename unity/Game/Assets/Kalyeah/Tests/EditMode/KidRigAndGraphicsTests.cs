@@ -460,6 +460,15 @@ namespace Kalyeah.Game
         }
 
         [Test]
+        public void ContactShadow_DrawsOverTheBaseAndZoneOverlays()
+        {
+            Material blob = KalyeahResources.SharedBlobShadowMaterial();
+            Assert.IsNotNull(blob);
+            Assert.Greater(blob.renderQueue, (int)UnityEngine.Rendering.RenderQueue.Transparent,
+                "zones and base mats draw at Transparent; a shadow before them is hidden at spawn");
+        }
+
+        [Test]
         public void KidView_FarKidStillDrawsWithItsOwnLodRenderer()
         {
             var snap = new KidSnapshot { Id = 1, Team = 1, CharacterId = "narda", Position = SVector2.Zero, Facing = new SVector2(0f, -1f), Hp = 100 };

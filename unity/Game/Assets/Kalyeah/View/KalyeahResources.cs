@@ -1285,8 +1285,8 @@ namespace Kalyeah.Game
                         float dx = (x - half) / half;
                         float r = Mathf.Sqrt(dx * dx + dy * dy);
                         float a = Mathf.Clamp01(1f - r);
-                        a = a * a * 0.42f;
-                        pixels[y * size + x] = new Color32(14, 18, 28, (byte)Mathf.RoundToInt(a * 255f));
+                        a = a * Mathf.Sqrt(a) * KidView.ContactShadowAlphaBlob;
+                        pixels[y * size + x] = new Color32(12, 9, 8, (byte)Mathf.RoundToInt(a * 255f));
                     }
                 }
                 tex.SetPixels32(pixels);
@@ -1305,7 +1305,8 @@ namespace Kalyeah.Game
             if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 1f);
             if (mat.HasProperty("_ZWrite")) mat.SetInt("_ZWrite", 0);
             mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent - 10;
+            // After the base and zone overlays (Transparent), so the base mat never hides the kids' contact shadows.
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent + 2;
             s_blobShadowMaterial = mat;
             return s_blobShadowMaterial;
         }
